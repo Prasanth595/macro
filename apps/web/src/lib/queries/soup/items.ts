@@ -1,6 +1,9 @@
 import { filterSoupItemByRequestBody } from '@app/features/next-soup/filters/query-filters';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { enableGraphqlSoup } from '@core/constant/featureFlags';
+import {
+  enableCachedTaskGrouping,
+  enableGraphqlSoup,
+} from '@core/constant/featureFlags';
 import { throwOnErr } from '@core/util/result';
 import type { EntityData } from '@entity';
 import {
@@ -74,6 +77,8 @@ interface SoupItemsQueryOptions {
   graphqlProjection?: 'channel-list';
   /** Seed mixed lists from indexed non-email members; keep the full server query. */
   graphqlLocalReconciliation?: 'without-email';
+  /** Opt a Tasks reader into complete, coverage-backed document grouping. */
+  graphqlCollectionUserId?: string;
   meta?: {
     groupBy?: GroupByField;
     groupKey?: string;
@@ -384,6 +389,7 @@ export function useSoupAstItemsQuery(
   options?: Accessor<SoupItemsQueryOptions>
 ): SoupAstItemsQuery {
   const graphqlSoupFlag = useFeatureFlag(enableGraphqlSoup);
+  const cachedGroupingFlag = useFeatureFlag(enableCachedTaskGrouping);
 
   const queryEnabled = () => options?.().enabled !== false;
   const graphqlRequested = () => {
@@ -402,6 +408,9 @@ export function useSoupAstItemsQuery(
       keepPreviousData: options?.().keepPreviousData,
       projection: options?.().graphqlProjection,
       localReconciliation: options?.().graphqlLocalReconciliation,
+      collectionUserId: cachedGroupingFlag().enabled
+        ? options?.().graphqlCollectionUserId
+        : undefined,
       showSupportedForeignEntities: options?.().showSupportedForeignEntities,
     })
   );
@@ -417,6 +426,9 @@ export function useSoupAstItemsQuery(
       networkPaused: options?.().networkPaused,
       keepPreviousData: options?.().keepPreviousData,
       showSupportedForeignEntities: options?.().showSupportedForeignEntities,
+      collectionUserId: cachedGroupingFlag().enabled
+        ? options?.().graphqlCollectionUserId
+        : undefined,
     })
   );
 

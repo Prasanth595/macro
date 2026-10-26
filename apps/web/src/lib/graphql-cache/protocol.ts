@@ -7,6 +7,32 @@ export type IdentityBindingWire = {
   revalidationVariables?: string[];
 };
 
+import { type CacheRevision, isCacheRevision } from './cache-revision';
+import type { CollectionCoverageRequest } from './collection-coverage-protocol';
+import {
+  isValidNormalizedRecordKey,
+  MAX_RECORD_SELECTION_PAGE_SIZE,
+} from './record-selection-protocol';
+
+export {
+  type CacheRevision,
+  INITIAL_CACHE_REVISION,
+  isCacheRevision,
+  parseCacheRevision,
+  parseStorageGeneration,
+} from './cache-revision';
+export {
+  type CollectionCoverageCacheResult,
+  type CollectionCoverageRequest,
+  type CollectionCoverageScope,
+  isCollectionCoverageRequest,
+} from './collection-coverage-protocol';
+export {
+  isValidNormalizedRecordKey,
+  MAX_NORMALIZED_RECORD_KEY_LENGTH,
+  MAX_RECORD_SELECTION_PAGE_SIZE,
+} from './record-selection-protocol';
+
 import type { EntityResolverWire } from './exchange/entity-resolvers';
 
 /**
@@ -30,45 +56,6 @@ export type QueryUpdate =
   | { kind: 'patch'; patches: QueryFieldPatch[]; revision: CacheRevision }
   | { kind: 'miss'; revision: CacheRevision }
   | { kind: 'unsupported' };
-
-/** Opaque in-memory revision of one live cache engine generation. */
-export type CacheRevision = string & {
-  readonly __cacheRevision: unique symbol;
-};
-
-const MAX_CACHE_REVISION = 18_446_744_073_709_551_615n;
-
-/** Validates the canonical unsigned-decimal Rust `u64` wire representation. */
-export function isCacheRevision(value: unknown): value is CacheRevision {
-  return (
-    typeof value === 'string' &&
-    /^(0|[1-9][0-9]*)$/.test(value) &&
-    BigInt(value) <= MAX_CACHE_REVISION
-  );
-}
-
-/** Parses an untrusted cache revision at protocol ingress. */
-export function parseCacheRevision(value: unknown): CacheRevision {
-  if (!isCacheRevision(value)) {
-    throw new TypeError('invalid cache revision');
-  }
-  return value;
-}
-
-export const INITIAL_CACHE_REVISION = '0' as CacheRevision;
-
-/** Validates the durable database-generation UUID shared by cache hosts. */
-export function parseStorageGeneration(value: unknown): string {
-  if (
-    typeof value !== 'string' ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
-      value
-    )
-  ) {
-    throw new TypeError('invalid cache storage generation');
-  }
-  return value;
-}
 
 /** Scheduling hint for latency-sensitive cache reads. */
 export type CacheReadPriority = 'user-visible';
@@ -126,6 +113,8 @@ export type EntityFilterCacheArgs = {
   limit: number;
   /** Omit for exact evaluation; even an empty array requests reconciliation. */
   baseline?: Array<{ key: string; sortTimestamp: string }>;
+  /** Exhaustive document membership, backed by a completed scope scan. */
+  collection?: { userId: string };
   /** Explicit cached-Mail pagination, independent of server cursors. */
   mail?: { view: 'ALL' | 'INBOX' | 'DRAFTS' | 'SENT'; cursor?: string };
 };
@@ -290,21 +279,10 @@ export type CacheRevisionResult = {
   revision: CacheRevision;
 };
 
-export const MAX_RECORD_SELECTION_PAGE_SIZE = 500;
 export const MAX_CACHE_SEARCH_QUERY_BYTES = 512;
-export const MAX_NORMALIZED_RECORD_KEY_LENGTH = 1024;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-
-/** Non-throwing canonical normalized-record key validation for wire ingress. */
-export function isValidNormalizedRecordKey(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    value.length <= MAX_NORMALIZED_RECORD_KEY_LENGTH &&
-    /^[A-Za-z_][A-Za-z0-9_]*:/.test(value)
-  );
-}
 
 /** Non-throwing cache-search profile validation for wire ingress. */
 export function isValidCacheSearchProfile(
@@ -859,6 +837,10 @@ export type CacheRequest = { id: number } & (
   | {
       kind: 'entity-filter';
       request: EntityFilterCacheArgs;
+    }
+  | {
+      kind: 'collection-coverage';
+      request: CollectionCoverageRequest;
     }
   | {
       kind: 'calendar-range';

@@ -110,6 +110,50 @@ export function localSoupGroupKeys(
   );
 }
 
+/** Build complete bins only from an exhaustive, fully selected cache snapshot. */
+export function groupCompleteSoupSnapshot(
+  snapshot: LiveQuerySnapshot<SoupItemFieldsFragment>,
+  input: GroupedSoupInitialInput,
+  now: Date
+): GroupedSoupBin[] | undefined {
+  if (
+    snapshot.retainedKeys.length > 0 ||
+    snapshot.keys.length !== snapshot.records.length ||
+    (input.groupBy.field !== 'PROPERTY' &&
+      input.groupBy.field !== 'PROJECT' &&
+      input.groupBy.field !== 'DATE') ||
+    (input.groupBy.field === 'PROPERTY' &&
+      !input.groupBy.propertyDefinitionId) ||
+    (input.groupBy.field === 'DATE' &&
+      input.sortMethod !== 'CREATED_AT' &&
+      input.sortMethod !== 'UPDATED_AT')
+  )
+    return undefined;
+
+  const selected = new Map(
+    snapshot.records.map((row) => [row.recordKey, row.record])
+  );
+  const seen = new Set<string>();
+  const bins = new Map<string, GroupedSoupBin>();
+  for (const key of snapshot.keys) {
+    const item = selected.get(key);
+    if (!item || seen.has(key)) return undefined;
+    seen.add(key);
+    const groupKeys = localSoupGroupKeys(item, input, now);
+    if (!groupKeys) return undefined;
+    for (const groupKey of groupKeys) {
+      let bin = bins.get(groupKey);
+      if (!bin) {
+        bin = { key: groupKey, items: [], totalCount: 0, nextCursor: null };
+        bins.set(groupKey, bin);
+      }
+      bin.items.push(item);
+      bin.totalCount += 1;
+    }
+  }
+  return [...bins.values()];
+}
+
 /** Merge page evidence once per normalized identity; initial metadata wins. */
 export function mergeGroupedSoupBins(
   pages: readonly GroupSoupQuery[]

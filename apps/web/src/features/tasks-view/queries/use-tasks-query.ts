@@ -148,6 +148,10 @@ export function useTasksDataSource(
     enabled: facetOptionsReady(),
     networkPaused: options.networkPaused?.(),
     keepPreviousData: scoped,
+    graphqlCollectionUserId:
+      options.loadAll && !options.crm && !state.search.trim()
+        ? options.userId()
+        : undefined,
     // Scoped lists admit optimistic rows only where this view shows them.
     meta: scoped
       ? {

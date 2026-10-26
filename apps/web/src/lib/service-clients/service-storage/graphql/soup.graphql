@@ -30,6 +30,7 @@ query SoupBackfill($input: SoupInput!) {
 					}
 				}
 			}
+            scopeIds: items { __typename id }
 			nextCursor
 		}
 	}

@@ -49,6 +49,7 @@ export type GraphqlGroupedSoupAstItemsQueryOptions = {
   networkPaused?: boolean;
   keepPreviousData?: boolean;
   showSupportedForeignEntities?: boolean;
+  collectionUserId?: string;
 };
 
 /** Creates the live urql parent query for a grouped Soup AST request. */
@@ -118,6 +119,7 @@ export function createGraphqlGroupedSoupAstItemsQuery(
   const grouped = createGroupedSoupLiveQuery(
     input,
     () => {
+      // Cache-first grouping is opt-in; other Soup readers retain server paging.
       const queryInput = input();
       return {
         ...options(),
@@ -153,7 +155,7 @@ export function createGraphqlGroupedSoupAstItemsQuery(
   // Missing data during a refetch does not itself switch identities. A new
   // viewer's first response still invalidates every old restoration snapshot.
   const viewerId = createMemo<string | undefined>(
-    (previous) => query.data?.data.user.id ?? previous,
+    (previous) => grouped.data()?.user.id ?? previous,
     undefined
   );
 
@@ -195,7 +197,8 @@ export function createGraphqlGroupedSoupAstItemsQuery(
       !error.response &&
       options().enabled &&
       isSupported() &&
-      (cachedMail() !== undefined ||
+      (grouped.isLocal() ||
+        cachedMail() !== undefined ||
         (query.data?.inputKey === inputKey() && query.data?.data !== undefined))
     ) {
       return undefined;
@@ -223,9 +226,9 @@ export function createGraphqlGroupedSoupAstItemsQuery(
     ),
     error,
     isSupported,
-    isEnabled: () => query.isEnabled,
-    isLoading: () => !cachedMail() && query.isLoading,
-    isFetching: () => query.isFetching,
+    isEnabled: () => options().enabled,
+    isLoading: () => !cachedMail() && grouped.isLoading(),
+    isFetching: () => grouped.isFetching(),
     isFetchingNextPage: () => !!cachedMail() && local.isFetchingNextPage(),
     isFetchNextPageError: () => !!cachedMail() && local.isFetchNextPageError(),
     isPlaceholderData: () => false,

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8" /><link rel="icon" href="data:," /><title>Complete cached task grouping</title></head>
+  <body>
+    <h1>Complete cached task grouping</h1>
+    <button id="complete" disabled>Complete backfill</button>
+    <button id="project" disabled>Group by project</button>
+    <button id="invalidate" disabled>Invalidate coverage</button>
+    <button id="delete" disabled>Delete last task</button>
+    <ul id="groups"></ul>
+    <pre id="result" data-status="seeding"></pre>
+    <script type="module" src="./collection-coverage.ts"></script>
+  </body>
+</html>

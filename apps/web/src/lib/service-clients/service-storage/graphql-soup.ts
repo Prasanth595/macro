@@ -21,6 +21,7 @@ import { networkRevalidationExchange } from '@graphql-cache/exchange/network-rev
 import {
   HYDRATE_ONLY_CONTEXT_KEY,
   normalizedCacheExchange,
+  normalizedCacheResultMetadata,
 } from '@graphql-cache/exchange/normalized-cache-exchange';
 import { optimisticResolversExchange } from '@graphql-cache/exchange/optimistic-resolvers';
 import { CacheNavigationError } from '@graphql-cache/host/navigation-error';
@@ -2214,6 +2215,8 @@ export type GraphqlSoupHydrationPage = {
   nextCursor: string | null;
   /** Explicit membership evidence returned by a complete-scope backfill query. */
   entityIds?: string[];
+  /** Canonical identities acknowledged by the durable hydration write. */
+  entityKeys?: string[];
 };
 
 /**
@@ -2249,13 +2252,24 @@ export async function hydrateGraphqlSoup<
   if (!result.data) {
     throw new Error('GraphQL Soup hydration returned no cursor projection');
   }
+  const metadata = normalizedCacheResultMetadata(result);
+  if (metadata?.source !== 'live-network' || metadata.revision === undefined) {
+    throw new Error('GraphQL Soup hydration did not acknowledge persistence');
+  }
   const soup = result.data.user.soup as typeof result.data.user.soup & {
-    scopeIds?: Array<{ id: string }>;
+    scopeIds?: Array<{ id: string; __typename?: string }>;
   };
   return {
     nextCursor: soup.nextCursor,
     ...(soup.scopeIds
       ? { entityIds: soup.scopeIds.map((item) => item.id) }
+      : {}),
+    ...(soup.scopeIds?.every((item) => typeof item.__typename === 'string')
+      ? {
+          entityKeys: soup.scopeIds.map(
+            (item) => `${item.__typename}:${item.id}`
+          ),
+        }
       : {}),
   };
 }

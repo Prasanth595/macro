@@ -5,6 +5,7 @@ import {
   isCachePush,
   isCacheResponse,
   isCacheRevision,
+  isCollectionCoverageRequest,
   isValidCacheSearchBucket,
   isValidCacheSearchCursor,
   isValidCacheSearchLimit,
@@ -23,7 +24,7 @@ import {
 export { isCachePush, isCacheResponse, isWorkerMessage };
 
 /** Version of the topology envelope and routed cache RPC surface. */
-export const CACHE_COORDINATOR_PROTOCOL_VERSION = 10 as const;
+export const CACHE_COORDINATOR_PROTOCOL_VERSION = 11 as const;
 /**
  * Startup phases in order. The engine may touch storage only in
  * `opening-database`, which begins once it holds the database owner lock. It
@@ -741,6 +742,7 @@ export function isCacheRequest(value: unknown): value is CacheRequest {
           'baseline',
           'mail',
           'liveQuery',
+          'collection',
         ]) &&
         isRecord(request.filters) &&
         ['CREATED_AT', 'UPDATED_AT', 'VIEWED_AT', 'VIEWED_UPDATED'].includes(
@@ -769,7 +771,16 @@ export function isCacheRequest(value: unknown): value is CacheRequest {
             (request.liveQuery.release === undefined ||
               typeof request.liveQuery.release === 'boolean') &&
             request.mail === undefined &&
-            request.baseline !== undefined)) &&
+            (request.baseline !== undefined ||
+              request.collection !== undefined))) &&
+        (request.collection === undefined ||
+          (isRecord(request.collection) &&
+            hasOnlyKeys(request.collection, ['userId']) &&
+            isNonEmptyString(request.collection.userId) &&
+            request.collection.userId.length <= 256 &&
+            request.liveQuery !== undefined &&
+            request.mail === undefined &&
+            request.baseline === undefined)) &&
         (request.mail === undefined ||
           (isRecord(request.mail) &&
             hasOnlyKeys(request.mail, ['view', 'cursor']) &&
@@ -794,6 +805,11 @@ export function isCacheRequest(value: unknown): value is CacheRequest {
             )))
       );
     }
+    case 'collection-coverage':
+      return (
+        hasOnlyKeys(value, ['id', 'kind', 'request']) &&
+        isCollectionCoverageRequest(value.request)
+      );
     case 'calendar-range':
       return (
         hasOnlyKeys(value, ['id', 'kind', 'request']) &&

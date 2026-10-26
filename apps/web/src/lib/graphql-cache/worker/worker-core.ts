@@ -108,6 +108,7 @@ function isOrderingBarrier(request: CacheRequest): boolean {
     request.kind === 'init' ||
     request.kind === 'current-storage-generation' ||
     request.kind === 'teardown' ||
+    request.kind === 'collection-coverage' ||
     request.kind === 'clear'
   );
 }
@@ -120,7 +121,8 @@ function isAuthoritativeWrite(request: CacheRequest): boolean {
     request.kind === 'hydrate' ||
     request.kind === 'commit-optimistic-write' ||
     request.kind === 'delete-records' ||
-    request.kind === 'calendar-commit'
+    request.kind === 'calendar-commit' ||
+    request.kind === 'collection-coverage'
   );
 }
 
@@ -140,6 +142,7 @@ function revisionAdvancementCategory(
       'write',
       'hydrate',
       'calendar-commit',
+      'collection-coverage',
       () => 'authoritative-write' as const
     )
     .with('enqueue-optimistic-mutation', () => 'optimistic-enqueue' as const)
@@ -161,6 +164,7 @@ function requestPriority(request: CacheRequest): number {
   if (
     request.kind === 'write' ||
     request.kind === 'calendar-commit' ||
+    request.kind === 'collection-coverage' ||
     request.kind === 'enqueue-optimistic-mutation' ||
     request.kind === 'claim-next-mutation' ||
     request.kind === 'commit-optimistic-write' ||
@@ -538,6 +542,21 @@ export class CacheWorkerCore {
         return result.kind === 'unsupported'
           ? result
           : { ...result, revision: parseCacheRevision(result.revision) };
+      })
+      .with({ kind: 'collection-coverage' }, async (request) => {
+        const result = await this.requireEngine().collectionCoverage(
+          request.request
+        );
+        if (result.kind === 'unsupported') return result;
+        result.revision = parseCacheRevision(result.revision);
+        this.fanOut(result, true);
+        if (result.kind === 'started')
+          return {
+            kind: result.kind,
+            scanId: result.scanId,
+            revision: result.revision,
+          };
+        return { kind: result.kind, revision: result.revision };
       })
       .with({ kind: 'calendar-range' }, async (request) => {
         const result: CalendarRangeCacheResult =

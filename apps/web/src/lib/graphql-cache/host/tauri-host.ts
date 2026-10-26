@@ -22,6 +22,8 @@ import type {
   CalendarRangeCacheArgs,
   CalendarRangeCacheResult,
   ClaimedMutation,
+  CollectionCoverageCacheResult,
+  CollectionCoverageRequest,
   CommitOptimisticWriteResult,
   DeferOptimisticWriteResult,
   EnqueueOptimisticMutationResult,
@@ -103,6 +105,7 @@ const ENTITY_FILTER_COMMAND = 'graphql_cache_entity_filter';
 const WATCH_COMMAND = 'graphql_cache_watch';
 const CALENDAR_RANGE_COMMAND = 'graphql_cache_calendar_range';
 const CALENDAR_COMMIT_COMMAND = 'graphql_cache_calendar_commit';
+const COLLECTION_COVERAGE_COMMAND = 'graphql_cache_collection_coverage';
 const INSPECT_MUTATIONS_COMMAND = 'graphql_cache_inspect_mutations';
 
 /** An OTA bundle cannot safely replay drafts using an older native queue API. */
@@ -139,6 +142,7 @@ export function createTauriCacheHost(options: TauriHostOptions): CacheHost {
   // Native binaries before the calendar range index answer `unsupported`, so
   // the calendar keeps reading from the network until the app updates.
   let calendarUnavailable = false;
+  let collectionUnavailable = false;
   const isMissingCommand = (error: unknown, command: string): boolean =>
     error instanceof Error && error.message === `Command ${command} not found`;
 
@@ -368,11 +372,21 @@ export function createTauriCacheHost(options: TauriHostOptions): CacheHost {
     ): Promise<EntityFilterCacheResult> {
       await ready;
       if (entityFilterUnavailable) return { kind: 'unsupported' };
+      if (args.collection && collectionUnavailable)
+        return { kind: 'unsupported' };
       try {
         return await request<EntityFilterCacheResult>(ENTITY_FILTER_COMMAND, {
           request: args,
         });
       } catch (error) {
+        if (
+          args.collection &&
+          error instanceof Error &&
+          /unknown field [`'"]collection[`'"]/.test(error.message)
+        ) {
+          collectionUnavailable = true;
+          return { kind: 'unsupported' };
+        }
         // Match Tauri's exact unknown-command response, not storage, validation,
         // ACL or timeout failures. Preserve the pre-OTA behavior on old binaries.
         if (
@@ -382,6 +396,24 @@ export function createTauriCacheHost(options: TauriHostOptions): CacheHost {
           throw error;
         }
         entityFilterUnavailable = true;
+        return { kind: 'unsupported' };
+      }
+    },
+
+    async collectionCoverage(
+      args: CollectionCoverageRequest
+    ): Promise<CollectionCoverageCacheResult> {
+      await ready;
+      if (collectionUnavailable) return { kind: 'unsupported' };
+      try {
+        return await request<CollectionCoverageCacheResult>(
+          COLLECTION_COVERAGE_COMMAND,
+          { request: args },
+          false
+        );
+      } catch (error) {
+        if (!isMissingCommand(error, COLLECTION_COVERAGE_COMMAND)) throw error;
+        collectionUnavailable = true;
         return { kind: 'unsupported' };
       }
     },

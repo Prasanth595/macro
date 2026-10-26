@@ -271,6 +271,16 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   search cursors automatically. Keep the initial rows visible during loading and
   show pagination failures with retry; retry must resume a failed cursor even
   when the query temporarily reports no next page.
+- `enable-cached-task-grouping` opts Tasks into coverage-backed grouped reads.
+  Flat foreground loads, grouped foreground loads, and full document backfill
+  scans publish explicit persisted membership, never a record count or a lane
+  checkpoint flag. Keep incomplete reads subscribed and retain automatic network
+  revalidation behind complete local rows; a local result must not suppress
+  background continuation pages. Account/cache resets and realtime gaps fence
+  coverage, including scans still in progress.
+  Verify the production WASM/OPFS path with
+  `bunx playwright test --config src/lib/graphql-cache/worker/browser-test/playwright.config.ts collection-coverage.browser.e2e.ts`.
+  The fixture uses 5,002 synthetic tasks without hosted data or authentication.
 - Reactive GraphQL reads use `createLiveQuery` for a document and
   `useSoupAstItemsQuery` (backed by `createSoupLiveQuery`) for Soup lists; see
   [choosing a reactive read](docs/graphql-normalized-cache-plan.md#choosing-a-reactive-read).

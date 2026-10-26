@@ -16,6 +16,7 @@ interface ImportMetaEnv {
   readonly VITE_ENABLE_REMINDERS?: string;
   readonly VITE_ENABLE_CALENDAR_MEETING_NOTES?: string;
   readonly VITE_DISABLE_BROWSER_TURSO_CACHE?: string;
+  readonly VITE_ENABLE_CACHED_TASK_GROUPING?: string;
 }
 
 interface ImportMeta {

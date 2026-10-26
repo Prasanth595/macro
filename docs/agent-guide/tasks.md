@@ -372,6 +372,28 @@ also usable. An initial cache miss still shows failure; HTTP and GraphQL errors
 remain visible even with cached rows. Change filters while retaining prior rows:
 those older results must not hide a failure for the new, uncached query.
 
+With `enable-cached-task-grouping` enabled (development default; local override
+`VITE_ENABLE_CACHED_TASK_GROUPING=true`), supported grouped Tasks queries can
+render the entire matching cached set before a grouped network response. This
+requires completed coverage for the current viewer and filter, or completed
+coverage of all visible documents. Merely having cached tasks is not sufficient.
+A finished flat Tasks load can establish coverage for subsequent grouping.
+
+Verify Status, Priority, Assignee, Project, and Date grouping after a complete
+load. Multi-assignee tasks appear once in each applicable group, and counts
+reflect all matching members rather than the first network page. A proven empty
+result renders empty without waiting for the network. Change grouping over the
+same filter and confirm cached rows regroup immediately. Search, CRM-scoped
+lists, unsupported local filters/sorts, and incomplete caches retain automatic
+network loading and pagination retry.
+
+Background network pages still revalidate behind cached groups; complete local
+rows must not stop that pagination or disappear during it. Reloading, changing
+accounts, resetting storage, or reconnecting realtime requires fresh coverage.
+Interrupt a load or fail persistence and confirm the partial scan never unlocks
+complete local grouping. HTTP and GraphQL failures still surface; only transient
+transport failures retain the usable current-query offline result.
+
 ## Reviews view
 
 With `enable-tasks-reviews` enabled (on by default in development),

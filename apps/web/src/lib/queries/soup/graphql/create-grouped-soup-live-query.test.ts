@@ -52,7 +52,12 @@ afterEach(() => {
   cleanups.splice(0).forEach((dispose) => dispose());
 });
 
-function setup() {
+function setup(
+  options: {
+    collectionUserId?: string;
+    coverage?: NonNullable<CacheHost['collectionCoverage']>;
+  } = {}
+) {
   type Execution = {
     variables: GroupSoupQueryVariables;
     publish(
@@ -116,6 +121,9 @@ function setup() {
   const host: CacheHost = {
     ...createNoopCacheHost(),
     liveQueries: true,
+    disabled: false,
+    currentStorageGeneration: async () => 'generation',
+    ...(options.coverage ? { collectionCoverage: options.coverage } : {}),
     onCacheChanged: (listener) => {
       listeners.add(listener);
       return () => {
@@ -156,7 +164,11 @@ function setup() {
     });
     const query = createGroupedSoupLiveQuery(
       input,
-      () => ({ enabled: true, onInitialResult: () => {} }),
+      () => ({
+        enabled: true,
+        collectionUserId: options.collectionUserId,
+        onInitialResult: () => {},
+      }),
       () => new Date('2026-10-10T12:00:00Z')
     );
     return { query, setInput, dispose };
@@ -613,6 +625,226 @@ describe('grouped Soup live ownership', () => {
     await old.promise;
     expect(ids(state.query.data())?.flatMap((bin) => bin.ids)).toEqual(['a']);
     expect(state.query.paging.hasNextPage('todo')).toBe(true);
+  });
+});
+
+describe('coverage-backed complete grouped reads', () => {
+  it('renders all cached groups before the network result and regroups without another cache read', async () => {
+    const state = setup({ collectionUserId: 'viewer' });
+    const a = {
+      ...groupedDocument('a', ['todo', 'done']),
+      projectId: 'project-1',
+    };
+    const b = { ...groupedDocument('b', ['done']), projectId: 'project-1' };
+    expect(state.requests[0].args.collection).toEqual({ userId: 'viewer' });
+    state.requests[0].resolve(update([a, b]));
+    await state.requests[0].promise;
+    expect(ids(state.query.data())).toEqual([
+      { key: 'todo', ids: ['a'], count: 1, cursor: null },
+      { key: 'done', ids: ['a', 'b'], count: 2, cursor: null },
+    ]);
+    expect(state.query.isLocal()).toBe(true);
+    expect(state.query.isLoading()).toBe(false);
+    await state.query.paging.fetchNextPage('done');
+    expect(state.query.paging.hasNextPage('done')).toBe(false);
+    // Keep the initial request as non-blocking network revalidation.
+    (await state.execution(0)).fail();
+    expect(state.query.isLocal()).toBe(true);
+    state.setInput({
+      initial: {
+        sortMethod: 'UPDATED_AT',
+        groupBy: { field: 'PROJECT' },
+        filters: {},
+      },
+    });
+    expect(ids(state.query.data())).toEqual([
+      { key: 'project-1', ids: ['a', 'b'], count: 2, cursor: null },
+    ]);
+    expect(state.requests).toHaveLength(1);
+  });
+
+  it('falls back while coverage is incomplete, then adopts newly covered members outside the server baseline', async () => {
+    const state = setup({ collectionUserId: 'viewer' });
+    state.requests[0].resolve({
+      kind: 'incomplete',
+      revision: parseCacheRevision('1'),
+    });
+    await state.requests[0].promise;
+    (await state.execution(0)).publish(page([groupedDocument('a')]));
+    const baseline = state.requests.at(-1)!;
+    baseline.resolve({ kind: 'unsupported' });
+    await baseline.promise;
+    expect(state.query.isLocal()).toBe(false);
+    expect(state.query.paging.hasNextPage('todo')).toBe(true);
+    const next = state.query.paging.fetchNextPage('todo');
+    (await state.execution(1)).publish(page([groupedDocument('b')], null));
+    await next;
+    expect(ids(state.query.data())?.[0].ids).toEqual(['a', 'b']);
+    state.listeners.forEach((listener) => listener(parseCacheRevision('2')));
+    const covered = state.requests.at(-1)!;
+    expect(covered.args.collection).toEqual({ userId: 'viewer' });
+    covered.resolve(
+      update(
+        [
+          groupedDocument('a'),
+          groupedDocument('b'),
+          groupedDocument('c', ['done']),
+        ],
+        '2'
+      )
+    );
+    await covered.promise;
+    expect(ids(state.query.data())).toEqual([
+      { key: 'todo', ids: ['a', 'b'], count: 2, cursor: null },
+      { key: 'done', ids: ['c'], count: 1, cursor: null },
+    ]);
+    expect(state.query.isLocal()).toBe(true);
+  });
+
+  it('accepts a complete empty cache result but rejects missing selected rows', async () => {
+    const empty = setup({ collectionUserId: 'viewer' });
+    empty.requests[0].resolve(update([]));
+    await empty.requests[0].promise;
+    expect(ids(empty.query.data())).toEqual([]);
+    expect(empty.query.isLoading()).toBe(false);
+    const missing = setup({ collectionUserId: 'viewer' });
+    const incomplete = update([groupedDocument('a')]);
+    incomplete.keys?.push('GraphqlSoupDocument:missing');
+    missing.requests[0].resolve(incomplete);
+    await missing.requests[0].promise;
+    expect(missing.query.isLocal()).toBe(false);
+    expect(missing.query.data()).toBeUndefined();
+  });
+
+  it('publishes foreground coverage only after every group page acknowledges persistence', async () => {
+    let completed!: () => void;
+    const completion = new Promise<void>((resolve) => {
+      completed = resolve;
+    });
+    const coverage = vi.fn<NonNullable<CacheHost['collectionCoverage']>>(
+      async (request) => {
+        if (request.kind === 'complete') completed();
+        return request.kind === 'begin'
+          ? {
+              kind: 'started',
+              scanId: 'scan',
+              revision: parseCacheRevision('1'),
+            }
+          : { kind: 'committed', revision: parseCacheRevision('2') };
+      }
+    );
+    const state = setup({ collectionUserId: 'viewer', coverage });
+    const initial = page([groupedDocument('a')]);
+    initial.user.groupSoup.bins[0].totalCount = 2;
+    (await state.execution(0)).publish(initial, Promise.resolve('1'));
+    const next = state.query.paging.fetchNextPage('todo');
+    let acknowledge!: (revision: string) => void;
+    const persistence = new Promise<string>((resolve) => {
+      acknowledge = resolve;
+    });
+    const last = page([groupedDocument('b')], null);
+    last.user.groupSoup.bins[0].totalCount = 2;
+    (await state.execution(1)).publish(last, persistence);
+    await next;
+    expect(
+      coverage.mock.calls.some(([request]) => request.kind === 'complete')
+    ).toBe(false);
+    acknowledge('2');
+    await completion;
+    expect(
+      coverage.mock.calls.flatMap(([request]) =>
+        request.kind === 'append' ? request.keys : []
+      )
+    ).toEqual(['GraphqlSoupDocument:a', 'GraphqlSoupDocument:b']);
+  });
+});
+
+describe('complete-cache network revalidation', () => {
+  it('drains background continuations without replacing already complete local rows', async () => {
+    const state = setup({ collectionUserId: 'viewer' });
+    state.requests[0].resolve(
+      update([groupedDocument('a'), groupedDocument('b')])
+    );
+    await state.requests[0].promise;
+    createRoot((dispose) => {
+      cleanups.push(dispose);
+      createAutomaticTaskPagination({
+        enabled: () => true,
+        scope: () => 'tasks',
+        sources: () => [
+          {
+            id: 'todo',
+            hasMore: state.query.paging.hasNextPage('todo'),
+            pending: state.query.paging.isFetchingNextPage('todo'),
+            load: () => state.query.paging.fetchNextPage('todo'),
+            error: () => state.query.paging.error('todo'),
+          },
+        ],
+      });
+    });
+    const initial = page([groupedDocument('a')]);
+    initial.user.groupSoup.bins[0].totalCount = 3;
+    (await state.execution(0)).publish(initial, Promise.resolve('1'));
+    const continuation = await state.execution(1);
+    expect(ids(state.query.data())?.[0].ids).toEqual(['a', 'b']);
+    const last = page([groupedDocument('b'), groupedDocument('c')], null);
+    last.user.groupSoup.bins[0].totalCount = 3;
+    continuation.publish(last, Promise.resolve('2'));
+    await state.query.paging.fetchNextPage('todo');
+    expect(state.query.paging.hasNextPage('todo')).toBe(false);
+    state.listeners.forEach((listener) => listener(parseCacheRevision('3')));
+    const current = state.requests.at(-1)!;
+    current.resolve(
+      update(
+        [groupedDocument('a'), groupedDocument('b'), groupedDocument('c')],
+        '3'
+      )
+    );
+    await current.promise;
+    expect(ids(state.query.data())?.[0].ids).toEqual(['a', 'b', 'c']);
+  });
+
+  it('restarts a fenced foreground scan with fresh network evidence before publishing', async () => {
+    let scan = 0;
+    let completed!: () => void;
+    const completion = new Promise<void>((resolve) => {
+      completed = resolve;
+    });
+    const coverage = vi.fn<NonNullable<CacheHost['collectionCoverage']>>(
+      async (request) => {
+        if (request.kind === 'begin')
+          return {
+            kind: 'started',
+            scanId: `scan-${++scan}`,
+            revision: parseCacheRevision('1'),
+          };
+        if (request.kind === 'append' && request.scanId === 'scan-1')
+          return { kind: 'incomplete', revision: parseCacheRevision('2') };
+        if (request.kind === 'complete') completed();
+        return { kind: 'committed', revision: parseCacheRevision('3') };
+      }
+    );
+    const state = setup({ collectionUserId: 'viewer', coverage });
+    const old = page([groupedDocument('old')], null);
+    old.user.groupSoup.bins[0].totalCount = 1;
+    (await state.execution(0)).publish(old, Promise.resolve('1'));
+    const fresh = await state.execution(1);
+    expect(
+      coverage.mock.calls.some(([request]) => request.kind === 'complete')
+    ).toBe(false);
+    const current = page([groupedDocument('current')], null);
+    current.user.groupSoup.bins[0].totalCount = 1;
+    fresh.publish(current, Promise.resolve('3'));
+    await completion;
+    expect(coverage.mock.lastCall?.[0]).toMatchObject({
+      kind: 'complete',
+      scanId: 'scan-2',
+    });
+    expect(
+      coverage.mock.calls
+        .filter(([request]) => request.kind === 'append')
+        .map(([request]) => (request.kind === 'append' ? request.keys : []))
+    ).toEqual([['GraphqlSoupDocument:old'], ['GraphqlSoupDocument:current']]);
   });
 });
 

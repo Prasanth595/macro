@@ -18,6 +18,7 @@ export default defineConfig({
     'query-write-scope.browser.e2e.ts',
     'email-participants.browser.e2e.ts',
     'search-buckets.browser.e2e.ts',
+    'collection-coverage.browser.e2e.ts',
   ],
   timeout: 90_000,
   fullyParallel: false,
@@ -28,7 +29,7 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: `just build-cache-wasm && bunx --bun vite --config ${JSON.stringify(`${directory}/vite.config.ts`)}`,
+    command: `just build-cache-wasm && cargo run -p soup-filter-cache-adapter --example collection_coverage_fixtures > ${JSON.stringify(`${directory}/collection-capsules.generated.json`)} && bunx --bun vite --config ${JSON.stringify(`${directory}/vite.config.ts`)}`,
     cwd: webDirectory,
     url: 'http://127.0.0.1:4188',
     reuseExistingServer: false,

@@ -19,6 +19,8 @@ import type {
   CalendarRangeCacheArgs,
   CalendarRangeCacheResult,
   ClaimedMutation,
+  CollectionCoverageCacheResult,
+  CollectionCoverageRequest,
   CommitOptimisticWriteResult,
   DeferOptimisticWriteResult,
   EnqueueOptimisticMutationResult,
@@ -151,6 +153,10 @@ export interface CacheHost {
   search(args: SearchCacheArgs): Promise<SearchCachePage>;
   /** Evaluates an exact initial Soup filter page over complete local projections. */
   entityFilter(args: EntityFilterCacheArgs): Promise<EntityFilterCacheResult>;
+  /** Publishes persisted document scan membership; absent on older runtimes. */
+  collectionCoverage?(
+    request: CollectionCoverageRequest
+  ): Promise<CollectionCoverageCacheResult>;
   /** Answers a calendar viewport from the local range index. */
   calendarRange(
     args: CalendarRangeCacheArgs

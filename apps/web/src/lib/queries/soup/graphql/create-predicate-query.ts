@@ -20,9 +20,20 @@ import {
 
 /** A declared source and generated fragment; no mutation-specific query updates. */
 export type PredicateQueryRequest<T> = {
-  source: Omit<EntityFilterCacheArgs, 'liveQuery' | 'mail'> & {
-    baseline: NonNullable<EntityFilterCacheArgs['baseline']>;
-  };
+  source: Omit<
+    EntityFilterCacheArgs,
+    'liveQuery' | 'mail' | 'baseline' | 'collection'
+  > &
+    (
+      | {
+          baseline: NonNullable<EntityFilterCacheArgs['baseline']>;
+          collection?: never;
+        }
+      | {
+          collection: NonNullable<EntityFilterCacheArgs['collection']>;
+          baseline?: never;
+        }
+    );
   select: RecordSelection<T>;
 };
 
@@ -58,7 +69,7 @@ export function createPredicateQuery<T extends object>(options: {
 }) {
   const [data, setData] = createSignal<LiveQuerySnapshot<T>>();
   const [status, setStatus] = createSignal<
-    'idle' | 'loading' | 'ready' | 'unsupported' | 'error'
+    'idle' | 'loading' | 'ready' | 'incomplete' | 'unsupported' | 'error'
   >('idle');
   const [error, setError] = createSignal<unknown>();
   let requestRefresh = () => {};
@@ -111,6 +122,11 @@ export function createPredicateQuery<T extends object>(options: {
             try {
               const result = await host.entityFilter(args());
               if (!active || epoch !== observedEpoch) continue;
+              if (result.kind === 'incomplete') {
+                setData(undefined);
+                setStatus('incomplete');
+                continue;
+              }
               if (result.kind !== 'live-query') {
                 unsupported = true;
                 pending = false;

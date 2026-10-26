@@ -27,6 +27,9 @@ export function createRetirableCacheHost(inner: CacheHost): CacheHost {
     readRecordsByKeys: (args) => current.readRecordsByKeys(args),
     search: (args) => current.search(args),
     entityFilter: (args) => current.entityFilter(args),
+    collectionCoverage: (args) =>
+      current.collectionCoverage?.(args) ??
+      Promise.resolve({ kind: 'unsupported' }),
     calendarRange: (args) => current.calendarRange(args),
     calendarCommit: (args) => current.calendarCommit(args),
     writeQuery: (args) => current.writeQuery(args),

@@ -1,10 +1,12 @@
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   ENABLE_GRAPHQL_BACKFILL,
+  enableCachedTaskGrouping,
   enableGraphqlSoup,
 } from '@core/constant/featureFlags';
 import { createTabLeaderSignal } from '@core/cross-tab/tab-leader';
 import type { CacheHost } from '@graphql-cache/host/types';
+import type { CollectionCoverageScope } from '@graphql-cache/protocol';
 import { Telemetry } from '@macro-inc/observability';
 import {
   type GraphqlEmailExpr,
@@ -18,12 +20,17 @@ import {
   type GraphqlSoupInput,
   getGraphqlSoupCacheHost,
   hydrateGraphqlSoup,
+  subscribeGraphqlSoupReconnected,
 } from '@service-storage/graphql-soup';
 import { createSharedMailBackfillFetcher } from '@service-storage/shared-mail-backfill';
 import * as Effect from 'effect/Effect';
 import * as Fiber from 'effect/Fiber';
 import * as Schedule from 'effect/Schedule';
 import { type Accessor, createEffect, createSignal, onCleanup } from 'solid-js';
+import {
+  beginCollectionCoverageScan,
+  type CollectionCoverageScan,
+} from './collection-coverage';
 
 // Bump when a default backfill input or completion guarantee changes so
 // persisted cursors cannot retain an older hydration contract.
@@ -71,6 +78,8 @@ export type SoupBackfillParams = {
   restartOnRun?: boolean;
   /** Soup input shared by every page. The backfill manages the cursor. */
   input: GraphqlSoupInitialInput;
+  /** Full scans with explicit membership can publish document collection coverage. */
+  collectionScope?: CollectionCoverageScope;
   /** Delay between successful pages. Defaults to two seconds. */
   pageDelayMs?: number;
   /** Immediately follows the initial full scan with its watermark pass. */
@@ -447,7 +456,10 @@ function withEmailRecency(
   };
 }
 
-type SoupBackfillCacheHost = Pick<CacheHost, 'currentStorageGeneration'>;
+type SoupBackfillCacheHost = Pick<
+  CacheHost,
+  'currentStorageGeneration' | 'collectionCoverage' | 'disabled'
+>;
 
 export const runSoupBackfill = Effect.fn('runSoupBackfill')(function* (
   userId: string,
@@ -465,6 +477,10 @@ export const runSoupBackfill = Effect.fn('runSoupBackfill')(function* (
     loadSoupBackfillCheckpoint(userId, params.checkpointId)
   );
   if (checkpoint.storageGeneration !== storageGeneration) {
+    checkpoint = initialCheckpoint(userId, storageGeneration);
+  }
+  // A cursor without its staged membership cannot resume a coverage scan.
+  if (params.collectionScope) {
     checkpoint = initialCheckpoint(userId, storageGeneration);
   }
   if (params.restartOnRun) {
@@ -500,6 +516,16 @@ export const runSoupBackfill = Effect.fn('runSoupBackfill')(function* (
     yield* Effect.sync(startPass);
   }
   let fetchPage = yield* createPageFetcher();
+  const startCoverage = () => {
+    const scope = params.collectionScope;
+    const generation = checkpoint.storageGeneration;
+    if (!scope || !generation)
+      return Effect.succeed<CollectionCoverageScan | undefined>(undefined);
+    return Effect.tryPromise(() =>
+      beginCollectionCoverageScan(host, userId, generation, scope)
+    );
+  };
+  let coverage = yield* startCoverage();
 
   while (true) {
     const beforeFetchGeneration = yield* Effect.tryPromise(() =>
@@ -508,6 +534,7 @@ export const runSoupBackfill = Effect.fn('runSoupBackfill')(function* (
     if (checkpoint.storageGeneration !== beforeFetchGeneration) {
       yield* Effect.sync(() => restartForGeneration(beforeFetchGeneration));
       fetchPage = yield* createPageFetcher();
+      coverage = yield* startCoverage();
       continue;
     }
     const passInput = withUpdatedSince(
@@ -536,9 +563,19 @@ export const runSoupBackfill = Effect.fn('runSoupBackfill')(function* (
       // its request could not be cancelled. Never save it into the new scan.
       yield* Effect.sync(() => restartForGeneration(afterFetchGeneration));
       fetchPage = yield* createPageFetcher();
+      coverage = yield* startCoverage();
       continue;
     }
 
+    const currentCoverage = coverage;
+    const entityKeys = page.entityKeys;
+    if (currentCoverage) {
+      if (entityKeys === undefined) coverage = undefined;
+      else if (
+        !(yield* Effect.tryPromise(() => currentCoverage.append(entityKeys)))
+      )
+        coverage = undefined;
+    }
     const passCompleted = page.nextCursor == null;
     // Only a never-completed full scan needs the additional watermark pass. An
     // interrupted catch-up already has updatedSince and resumes normally.
@@ -572,6 +609,11 @@ export const runSoupBackfill = Effect.fn('runSoupBackfill')(function* (
             }
         : {}),
     };
+    const completedCoverage = coverage;
+    if (checkpoint.completed && completedCoverage) {
+      yield* Effect.tryPromise(() => completedCoverage.complete());
+      coverage = undefined;
+    }
     yield* Effect.sync(() => {
       saveSoupBackfillCheckpoint(checkpoint, params.checkpointId);
       onCheckpoint?.(checkpoint);
@@ -689,6 +731,7 @@ const waitForGraphqlSoupCacheHost = Effect.suspend(() => {
 /** Runs the signed-in user's soup backfills; waits while `userId` is unknown. */
 export function useSoupBackfills(userId: Accessor<string | undefined>): void {
   const graphqlSoupFlag = useFeatureFlag(enableGraphqlSoup);
+  const groupingFlag = useFeatureFlag(enableCachedTaskGrouping);
   const isLeader = createTabLeaderSignal(
     `graphql-soup-backfill:v${BACKFILL_VERSION}:coordinator`
   );
@@ -722,14 +765,31 @@ export function useSoupBackfills(userId: Accessor<string | undefined>): void {
     onCleanup(unsubscribe);
   });
 
+  onCleanup(
+    subscribeGraphqlSoupReconnected(() =>
+      setCacheGeneration((generation) => generation + 1)
+    )
+  );
+
   createEffect(() => {
     const host = cacheHost();
     const id = userId();
     if (!host || !id) return;
     cacheGeneration();
+    const lanes = groupingFlag().enabled
+      ? DEFAULT_SOUP_BACKFILL_LANES.map<SoupBackfillParams>((lane) =>
+          lane === CORE_SOUP_BACKFILL_LANE
+            ? {
+                ...lane,
+                collectionScope: { kind: 'documents' },
+                catchUpAfterInitialPass: true,
+              }
+            : lane
+        )
+      : DEFAULT_SOUP_BACKFILL_LANES;
 
     const fiber = Effect.runFork(
-      runSoupBackfills(id, host).pipe(Effect.ignore)
+      runSoupBackfills(id, host, lanes).pipe(Effect.ignore)
     );
     onCleanup(() => {
       Effect.runFork(Fiber.interrupt(fiber));

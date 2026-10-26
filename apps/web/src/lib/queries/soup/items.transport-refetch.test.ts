@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const testState = vi.hoisted(() => ({
   graphqlEnabled: false,
+  cachedGroupingEnabled: false,
   restPending: false,
   restNextPageError: false,
 }));
@@ -34,10 +35,16 @@ vi.mock('@app/features/next-soup/filters/query-filters', () => ({
   filterSoupItemByRequestBody: vi.fn(() => true),
 }));
 vi.mock('@app/lib/analytics/posthog', () => ({
-  useFeatureFlag: vi.fn(() => () => ({ enabled: testState.graphqlEnabled })),
+  useFeatureFlag: vi.fn((flag: { key: string }) => () => ({
+    enabled:
+      flag.key === 'enable-cached-task-grouping'
+        ? testState.cachedGroupingEnabled
+        : testState.graphqlEnabled,
+  })),
 }));
 vi.mock('@core/constant/featureFlags', () => ({
   enableGraphqlSoup: { key: 'enable-graphql-soup' },
+  enableCachedTaskGrouping: { key: 'enable-cached-task-grouping' },
 }));
 vi.mock('@core/util/result', () => ({
   throwOnErr: vi.fn(async (run: () => Promise<unknown>) => await run()),

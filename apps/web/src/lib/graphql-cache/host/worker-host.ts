@@ -22,6 +22,8 @@ import {
   type CalendarRangeCacheArgs,
   type CalendarRangeCacheResult,
   type ClaimedMutation,
+  type CollectionCoverageCacheResult,
+  type CollectionCoverageRequest,
   type CommitOptimisticWriteResult,
   type DeferOptimisticWriteResult,
   type EnqueueOptimisticMutationResult,
@@ -1385,6 +1387,15 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
         kind: 'entity-filter',
         request: args,
       })) as EntityFilterCacheResult;
+    },
+
+    async collectionCoverage(
+      args: CollectionCoverageRequest
+    ): Promise<CollectionCoverageCacheResult> {
+      return (await initializedRequest({
+        kind: 'collection-coverage',
+        request: args,
+      })) as CollectionCoverageCacheResult;
     },
 
     async calendarRange(

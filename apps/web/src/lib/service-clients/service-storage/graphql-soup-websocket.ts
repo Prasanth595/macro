@@ -221,6 +221,14 @@ export function createGraphqlSoupSubscriptionsLifecycle(
   let generation = 0;
   let signaledFailure = false;
   let stopWatchingForReattach: (() => void) | undefined;
+  let connected = false;
+  const invalidateCoverage = () => {
+    if (!currentHost?.collectionCoverage || currentHost.disabled) return;
+    fireAndForget(
+      currentHost.collectionCoverage({ kind: 'invalidate' }),
+      'graphql-soup-collection-coverage'
+    );
+  };
 
   // graphql-ws retries transient failures itself and gives up only on ones a
   // timer cannot fix (a rejected session, a protocol error). Reattach the set
@@ -265,10 +273,13 @@ export function createGraphqlSoupSubscriptionsLifecycle(
     replace(client?: Pick<Client, 'subscription' | 'query'>, host?: CacheHost) {
       if (currentClient && currentClient !== client)
         disposeChannelNotificationRefresh(currentClient);
+      if (currentHost !== host) connected = false;
       currentClient = client;
       currentHost = host;
       unsubscribeAll();
       if (!client || suspended) return;
+      // Persisted scan membership does not prove that this session missed no changes.
+      invalidateCoverage();
       activity = createActivityUpdatesHandler(client);
       channels = createChannelListUpdatesHandler(client, host);
       const activityHandler = activity;
@@ -333,6 +344,8 @@ export function createGraphqlSoupSubscriptionsLifecycle(
       });
     },
     connected: () => {
+      if (connected) invalidateCoverage();
+      connected = true;
       signaledFailure = false;
       activity?.reconnect();
       channels?.reconnect();

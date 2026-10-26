@@ -20,6 +20,8 @@ import type {
   CalendarRangeCacheArgs,
   CalendarRangeCacheResult,
   ClaimedMutation,
+  CollectionCoverageCacheResult,
+  CollectionCoverageRequest,
   CommitOptimisticWriteResult,
   DeferOptimisticWriteResult,
   EnqueueOptimisticMutationResult,
@@ -106,6 +108,13 @@ export interface CacheEngine {
   entityFilter(
     request: EntityFilterCacheArgs
   ): Promise<EntityFilterCacheResult>;
+  collectionCoverage(
+    request: CollectionCoverageRequest
+  ): Promise<
+    | (Exclude<CollectionCoverageCacheResult, { kind: 'unsupported' }> &
+        WriteResult)
+    | { kind: 'unsupported' }
+  >;
   calendarRange(
     request: CalendarRangeCacheArgs
   ): Promise<CalendarRangeCacheResult>;

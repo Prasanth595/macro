@@ -52,12 +52,16 @@ const mockCacheHost = {
 };
 
 vi.mock('@app/lib/analytics/posthog', () => ({
-  useFeatureFlag: featureFlagMocks.useFeatureFlag,
+  useFeatureFlag: (flag: { key: string }) =>
+    flag.key === 'enable-cached-task-grouping'
+      ? () => ({ enabled: false })
+      : featureFlagMocks.useFeatureFlag(flag),
 }));
 
 vi.mock('@core/constant/featureFlags', () => ({
   ENABLE_GRAPHQL_BACKFILL: true,
   enableGraphqlSoup: { key: 'enable-graphql-soup' },
+  enableCachedTaskGrouping: { key: 'enable-cached-task-grouping' },
 }));
 
 vi.mock('@core/cross-tab/tab-leader', () => ({
@@ -75,6 +79,7 @@ vi.mock('@service-storage/graphql/generated/graphql', () => ({
 vi.mock('@service-storage/graphql-soup', () => ({
   getGraphqlSoupCacheHost: graphqlMocks.getGraphqlSoupCacheHost,
   hydrateGraphqlSoup: graphqlMocks.hydrateGraphqlSoup,
+  subscribeGraphqlSoupReconnected: () => () => {},
 }));
 
 const lane = (

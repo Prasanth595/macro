@@ -857,6 +857,61 @@ Date rollover uses the original server bin as old membership. The
 `graphql_cache.soup_grouped_local_evaluation` span records grouping field,
 loaded baseline size and resulting bin count.
 
+#### Coverage-backed Tasks grouping
+
+**Decision (accepted 2026-10-26):** use completed scan membership for complete
+local task groups, not resident record enumeration or a second Tasks dataset.
+`enable-cached-task-grouping` (local override
+`VITE_ENABLE_CACHED_TASK_GROUPING`) enables this path in development and leaves
+production rollout to PostHog. It also requires GraphQL Soup and a supporting
+cache host. Search, CRM associations, unsupported predicates/sorts, and older
+native runtimes keep the existing network path.
+
+`CacheHost.collectionCoverage` separates begin, append, complete, and invalidate.
+A scan owns explicit document identities for one viewer, storage generation,
+invalidation epoch, contract version, and either all visible documents or one
+canonical filter. Sorting, grouping, and page limits do not change that filter's
+membership scope. A completed broad document scope can serve supported task
+filters; an exact-filter scope cannot establish arbitrary broader coverage.
+
+Membership is staged separately from the previously completed scan. Hydration
+and foreground responses must acknowledge persistence before membership is
+appended or published. A successful empty scan establishes empty membership;
+failed persistence, missing membership evidence, cancellation, and failed cursors
+do not. Full scans replace membership without deleting unrelated normalized
+records. Incremental passes cannot establish initial coverage.
+A corpus scan cannot replace filtered evidence from a newer scan.
+
+With the flag enabled, the core backfill lane starts a fresh full scan and then
+an updated-since catch-up pass. It returns explicit `scopeIds` alongside its
+cursor projection. Flat and grouped foreground Tasks loads also record coverage
+when their entire acknowledged network cursor chain finishes. Coverage retries
+start a fresh scan with fresh network evidence rather than publishing pages
+from an invalidated scan.
+
+Coverage metadata requires the existing exclusive engine writer contract.
+Browser owner Web Locks and the native shared-engine mutex serialize catalog updates.
+Independent engines require atomic catalog compare-and-swap before sharing coverage storage.
+
+Collection reads traverse member keys in bounded storage/selection batches,
+without applying the bounded candidate-page or 5,000-row reconciliation limit.
+Unknown predicate facts or missing selected rows keep the result incomplete.
+Cache core owns membership and record selection.
+The Rust Soup adapter owns filter compilation and coverage scopes.
+The shared TypeScript Soup layer owns grouping.
+`groupCompleteSoupSnapshot` derives complete project, property, and
+created/updated date bins, including exact multi-value counts.
+No pre-existing server bins are required.
+Incomplete reads remain subscribed so foreground loading or backfill can activate local grouping.
+
+This is a rendering fast path, not a zero-network or transactional-snapshot
+promise. Cursor exhaustion does not provide snapshot isolation during concurrent
+edits. Background network revalidation, including continuation pages, remains
+active behind complete local rows. Session replacement and realtime gaps
+invalidate coverage, and ordinary network error/retry behavior remains intact.
+The `graphql_cache.soup_grouped_complete_evaluation` span records the grouping
+field, complete item count, and whether local grouping is supported.
+
 #### Grouped projection performance
 
 Run `bun scripts/benchmark-grouped-soup.ts /tmp/grouped-soup.json` from

@@ -42,6 +42,7 @@ import { createUrqlInfiniteQuery } from '../../../urql-solid/create-urql-infinit
 import type { UrqlInfiniteData } from '../../../urql-solid/types';
 import { registerChannelNotificationRefresh } from '../../channel/register-notification-refresh';
 import { registerGraphqlSoupRevalidations } from './active-queries';
+import { createFlatCollectionCoverage } from './create-flat-collection-coverage';
 import { createPredicateQuery } from './create-predicate-query';
 import { isCachedMailView } from './mail-view';
 import {
@@ -69,6 +70,8 @@ export type SoupLiveQueryOptions = {
   projection?: 'channel-list';
   /** Include indexed non-email rows while server pages supply email. */
   localReconciliation?: 'without-email';
+  /** Records complete foreground task scans for later local grouping. */
+  collectionUserId?: string;
 };
 
 // A page result can carry the viewer without its `soup` field. Selection runs
@@ -166,6 +169,7 @@ export function createSoupLiveQuery(
   let localEvaluationRunning = false;
   let localEvaluationPending = false;
   let cacheGeneration = 0;
+  const [coverageGeneration, setCoverageGeneration] = createSignal(0);
   let cacheObservation = 0;
   let disposed = false;
   onCleanup(() => {
@@ -243,6 +247,7 @@ export function createSoupLiveQuery(
     if (!host) return;
     cacheGeneration += 1;
     const invalidateGeneration = () => {
+      setCoverageGeneration((value) => value + 1);
       localRequest += 1;
       setCurrentCacheRevision(undefined);
       setNetworkAuthorityRevision(undefined);
@@ -320,6 +325,15 @@ export function createSoupLiveQuery(
     };
   };
 
+  const coverage = createFlatCollectionCoverage({
+    input: request,
+    userId: () => options().collectionUserId,
+    enabled: () =>
+      options().enabled !== false &&
+      !options().networkPaused &&
+      !options().localOnly,
+    scope: () => JSON.stringify([inputKey(), coverageGeneration()]),
+  });
   const query = createUrqlInfiniteQuery<
     SoupQuery | ChannelListSoupQuery,
     SoupQueryVariables,
@@ -329,6 +343,7 @@ export function createSoupLiveQuery(
     const firstInput = firstPageInput();
     const firstInputKey = inputKey();
     const queryOptions = options();
+    const coverageScope = coverage.scope();
 
     return {
       query: queryDocument(),
@@ -348,12 +363,14 @@ export function createSoupLiveQuery(
       enabled:
         queryOptions.enabled !== false &&
         !queryOptions.localOnly &&
+        coverage.ready() &&
         firstInput !== undefined,
       requestPolicy: queryOptions.networkPaused
         ? 'cache-only'
         : 'cache-and-network',
       keepPreviousData: queryOptions.keepPreviousData ?? false,
       onResult: (result, page) => {
+        coverage.accept(result, page, coverageScope);
         const metadata = normalizedCacheResultMetadata(result);
         if (result.data) {
           batch(() => {
@@ -850,7 +867,9 @@ export function createSoupLiveQuery(
     error,
     isSupported,
     isEnabled: () => query.isEnabled,
-    isLoading: () => query.isLoading && displayLocalProjection() === undefined,
+    isLoading: () =>
+      !coverage.ready() ||
+      (query.isLoading && displayLocalProjection() === undefined),
     isFetching: () => query.isFetching,
     isFetchingNextPage: () => fetchingMailPage() || query.isFetchingNextPage,
     isFetchNextPageError: () => query.isFetchNextPageError,
@@ -936,6 +955,7 @@ export function createSoupLiveQuery(
     },
     refresh: async () => {
       if (firstPageInput() === undefined) return;
+      if (options().collectionUserId) await coverage.restart();
       // An explicit list refresh rebuilds the cursor chain in order. The
       // notification queue observes isFetching and waits for this to finish.
       await query.refetch({

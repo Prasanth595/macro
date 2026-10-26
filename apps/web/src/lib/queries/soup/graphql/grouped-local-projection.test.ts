@@ -6,6 +6,7 @@ import type {
   SoupItemFieldsFragment,
 } from '../../../service-clients/service-storage/graphql/generated/graphql';
 import {
+  groupCompleteSoupSnapshot,
   localSoupGroupKeys,
   mergeGroupedSoupBins,
   projectLocalGroupedSoup,
@@ -34,6 +35,113 @@ function snapshot(
     })),
   };
 }
+
+describe('complete cache grouping', () => {
+  it('groups the entire selected set without the server reconciliation baseline limit', () => {
+    const records = Array.from({ length: 5_101 }, (_, id) =>
+      groupedDocument(String(id), id % 2 === 0 ? ['todo', 'todo'] : ['done'])
+    );
+    const bins = groupCompleteSoupSnapshot(snapshot(records), input, now);
+    expect(
+      bins?.map(({ key, totalCount, nextCursor }) => ({
+        key,
+        totalCount,
+        nextCursor,
+      }))
+    ).toEqual([
+      { key: 'todo', totalCount: 2_551, nextCursor: null },
+      { key: 'done', totalCount: 2_550, nextCursor: null },
+    ]);
+    expect(bins?.[0].items.at(-1)).toBe(records.at(-1));
+  });
+
+  it('counts complete multi-value membership once per group and preserves cache ordering', () => {
+    const a = groupedDocument('a', ['todo', 'done', 'todo']);
+    const b = groupedDocument('b', ['done']);
+    const c = groupedDocument('c', []);
+    expect(groupCompleteSoupSnapshot(snapshot([a, b, c]), input, now)).toEqual([
+      { key: 'todo', items: [a], totalCount: 1, nextCursor: null },
+      { key: 'done', items: [a, b], totalCount: 2, nextCursor: null },
+      { key: '', items: [c], totalCount: 1, nextCursor: null },
+    ]);
+    expect(
+      groupCompleteSoupSnapshot(
+        snapshot([groupedDocument('a', ['done']), c]),
+        input,
+        now
+      )
+    ).toEqual([
+      {
+        key: 'done',
+        items: [groupedDocument('a', ['done'])],
+        totalCount: 1,
+        nextCursor: null,
+      },
+      { key: '', items: [c], totalCount: 1, nextCursor: null },
+    ]);
+  });
+
+  it('distinguishes a complete empty result from unsupported grouping', () => {
+    expect(groupCompleteSoupSnapshot(snapshot([]), input, now)).toEqual([]);
+    expect(
+      groupCompleteSoupSnapshot(
+        snapshot([]),
+        { ...input, groupBy: { field: 'ENTITY_TYPE' } },
+        now
+      )
+    ).toBeUndefined();
+    expect(
+      groupCompleteSoupSnapshot(
+        snapshot([]),
+        { ...input, groupBy: { field: 'PROPERTY' } },
+        now
+      )
+    ).toBeUndefined();
+  });
+
+  it('rejects unknown or incompletely selected membership instead of undercounting', () => {
+    const row = groupedDocument('a');
+    expect(
+      groupCompleteSoupSnapshot(snapshot([row], ['unknown']), input, now)
+    ).toBeUndefined();
+    expect(
+      groupCompleteSoupSnapshot({ ...snapshot([row]), records: [] }, input, now)
+    ).toBeUndefined();
+    expect(
+      groupCompleteSoupSnapshot(
+        { ...snapshot([row]), keys: ['different-key'] },
+        input,
+        now
+      )
+    ).toBeUndefined();
+  });
+
+  it('builds project and date bins without server-provided bins', () => {
+    const row = {
+      ...groupedDocument('a'),
+      projectId: 'project-1',
+      updatedAt: '2026-10-09T23:30:00Z',
+    };
+    expect(
+      groupCompleteSoupSnapshot(
+        snapshot([row]),
+        { ...input, groupBy: { field: 'PROJECT' } },
+        now
+      )
+    ).toEqual([
+      { key: 'project-1', items: [row], totalCount: 1, nextCursor: null },
+    ]);
+    expect(
+      groupCompleteSoupSnapshot(
+        snapshot([row]),
+        { ...input, groupBy: { field: 'DATE' } },
+        now
+      )
+    ).toEqual([
+      { key: 'yesterday', items: [row], totalCount: 1, nextCursor: null },
+    ]);
+  });
+});
 
 describe('loaded grouped pages', () => {
   it('merges overlapping pages without rescanning earlier item identities', () => {

@@ -563,6 +563,13 @@ export const enableGraphqlSoup = defineFlag({
   env: 'ENABLE_GRAPHQL_SOUP',
 });
 
+/** Uses coverage-backed document membership for complete local Tasks grouping. */
+export const enableCachedTaskGrouping = defineFlag({
+  key: 'enable-cached-task-grouping',
+  env: 'ENABLE_CACHED_TASK_GROUPING',
+  default: onInDev,
+});
+
 /** Serves calendar reads from the normalized cache; requires GraphQL Soup. */
 export const enableGraphqlCalendar = defineFlag({
   key: 'enable-graphql-calendar',

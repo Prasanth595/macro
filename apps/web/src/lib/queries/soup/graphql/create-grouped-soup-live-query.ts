@@ -29,8 +29,10 @@ import {
 } from '../../../service-clients/service-storage/graphql-soup';
 import { registerGroupedSoupContinuation } from '../grouped/graphql-operation-registry';
 import { registerGraphqlSoupRevalidations } from './active-queries';
+import { createCollectionCoverage } from './create-collection-coverage';
 import { createPredicateQuery } from './create-predicate-query';
 import {
+  groupCompleteSoupSnapshot,
   mergeGroupedSoupBins,
   projectLocalGroupedSoup,
 } from './grouped-local-projection';
@@ -50,6 +52,7 @@ type Options = {
   enabled: boolean;
   networkPaused?: boolean;
   keepPreviousData?: boolean;
+  collectionUserId?: string;
   onInitialResult(
     result: OperationResult<GroupSoupQuery, GroupSoupQueryVariables>
   ): void;
@@ -75,10 +78,72 @@ export function createGroupedSoupLiveQuery(
         );
     })
   );
-  const scope = () => JSON.stringify([input(), generation()]);
+  const scope = () =>
+    JSON.stringify([input(), generation(), options().collectionUserId]);
   const initialEvidence = createGroupedPageEvidence(scope);
+  const [coveragePass, setCoveragePass] = createSignal(0);
+  const coverageScope = () => JSON.stringify([scope(), coveragePass()]);
+  const initialCoverageEvidence = createGroupedPageEvidence(coverageScope);
   let initialResultScope: string | undefined;
   let refreshContinuations = (_data: GroupSoupQuery) => {};
+  const selection = selectRecords(SoupItemFieldsFragmentDoc);
+  const complete = createPredicateQuery<SoupItemFieldsFragment>({
+    host: getGraphqlSoupCacheHost,
+    query: () => {
+      const initial = input()?.initial;
+      const userId = options().collectionUserId;
+      if (
+        !options().enabled ||
+        !userId ||
+        !initial ||
+        !getGraphqlSoupCacheHost()?.liveQueries ||
+        (initial.sortMethod !== 'CREATED_AT' &&
+          initial.sortMethod !== 'UPDATED_AT')
+      )
+        return undefined;
+      return {
+        source: {
+          filters: initial.filters ?? {},
+          sortMethod: initial.sortMethod,
+          sortDirection: 'DESC',
+          // Collection reads exhaust membership; this is only the bounded IR page size.
+          limit: 500,
+          collection: { userId },
+        },
+        select: selection,
+      };
+    },
+  });
+  const localData = createMemo((): GroupSoupQuery | undefined => {
+    const initial = input()?.initial;
+    const userId = options().collectionUserId;
+    const snapshot = complete.data();
+    if (!initial || !userId || !snapshot || complete.status() !== 'ready')
+      return;
+    const span = Telemetry.span(
+      'graphql_cache.soup_grouped_complete_evaluation'
+    );
+    try {
+      const bins = groupCompleteSoupSnapshot(snapshot, initial, now());
+      span.setAttr('grouping.field', initial.groupBy.field);
+      span.setAttr('grouping.item_count', snapshot.keys.length);
+      span.setAttr('grouping.complete', bins !== undefined);
+      if (bins === undefined) return;
+      return { user: { id: userId, groupSoup: { bins } } };
+    } finally {
+      span.end();
+    }
+  });
+  const coverage = createCollectionCoverage({
+    host: getGraphqlSoupCacheHost,
+    request: () => {
+      const initial = input()?.initial;
+      const userId = options().collectionUserId;
+      if (!options().enabled || options().networkPaused || !initial || !userId)
+        return;
+      return { userId, scope: coverageScope(), filters: initial.filters ?? {} };
+    },
+  });
   const query = createUrqlQuery<
     GroupSoupQuery,
     GroupSoupQueryVariables,
@@ -86,6 +151,7 @@ export function createGroupedSoupLiveQuery(
   >(() => {
     const queryInput = input();
     const requestScope = scope();
+    const requestCoverageScope = coverageScope();
     const queryOptions = options();
     const common = {
       query: GroupSoupDocument,
@@ -113,6 +179,8 @@ export function createGroupedSoupLiveQuery(
           initialResultScope = resultScope;
         }
         initialEvidence.accept(result, 0, requestScope);
+        if (queryOptions.collectionUserId)
+          initialCoverageEvidence.accept(result, 0, requestCoverageScope);
         queryOptions.onInitialResult(result);
       },
       select: (data: GroupSoupQuery) => ({
@@ -120,13 +188,21 @@ export function createGroupedSoupLiveQuery(
         data,
       }),
     };
-    return queryOptions.enabled && queryInput
+    return queryOptions.enabled && queryInput && coverage.ready()
       ? { ...common, variables: { input: queryInput }, enabled: true }
       : { ...common, enabled: false as const };
   });
+  createComputed(
+    on(coverage.failed, (failed) => {
+      // Restart with fresh network evidence, never republish pages from a fenced scan.
+      if (failed) setCoveragePass((pass) => pass + 1);
+    })
+  );
   const currentInitial = () => {
     const initial = query.data;
-    return initial?.inputKey === JSON.stringify(input())
+    return initial?.inputKey === JSON.stringify(input()) &&
+      (!options().collectionUserId ||
+        initial.data.user.id === options().collectionUserId)
       ? initial?.data
       : undefined;
   };
@@ -142,6 +218,8 @@ export function createGroupedSoupLiveQuery(
     createRoot((dispose) => {
       const requestScope = continuationScope();
       const evidence = createGroupedPageEvidence(continuationScope);
+      const requestCoverageScope = coverageScope();
+      const coverageEvidence = createGroupedPageEvidence(coverageScope);
       const [activated, setActivated] = createSignal(false);
       const continuationInput = (cursor: string): GroupedSoupInput => ({
         continuation: {
@@ -174,15 +252,22 @@ export function createGroupedSoupLiveQuery(
           continuationScope() === requestScope,
         requestPolicy: options().networkPaused
           ? 'cache-only'
-          : refresh
+          : refresh || options().collectionUserId
             ? 'network-only'
             : 'cache-first',
         keepPreviousData: false,
         getNextPageParam: (page) =>
           page.user.groupSoup.bins.find((bin) => bin.key === key)?.nextCursor ??
           undefined,
-        onResult: (result, page) =>
-          evidence.accept(result, page.pageIndex, requestScope),
+        onResult: (result, page) => {
+          evidence.accept(result, page.pageIndex, requestScope);
+          if (options().collectionUserId)
+            coverageEvidence.accept(
+              result,
+              page.pageIndex,
+              requestCoverageScope
+            );
+        },
         select: ({ pages, pageParams }) => ({ pages: () => pages, pageParams }),
       }));
       onCleanup(
@@ -209,6 +294,7 @@ export function createGroupedSoupLiveQuery(
       return {
         query: continued,
         evidence,
+        coverageEvidence,
         dispose,
         activate: async () => {
           setActivated(true);
@@ -385,7 +471,64 @@ export function createGroupedSoupLiveQuery(
       untrustedKeys,
     };
   });
-  const selection = selectRecords(SoupItemFieldsFragmentDoc);
+  const coveragePages = createMemo(() => {
+    if (refreshes().size || !options().collectionUserId) return;
+    const initial = initialCoverageEvidence.networkData();
+    if (
+      !initial ||
+      !currentInitial() ||
+      initial[0].user.id !== options().collectionUserId
+    )
+      return;
+    const pages = [...initial];
+    for (const bin of initial[0].user.groupSoup.bins) {
+      const continuation = continuations().get(bin.key);
+      if (!continuation) {
+        if (bin.nextCursor) return;
+        continue;
+      }
+      const loaded = continuation.query.data?.pages();
+      const evidence = continuation.coverageEvidence.networkData();
+      if (
+        !loaded ||
+        !evidence ||
+        evidence.length !== loaded.length ||
+        continuation.query.hasNextPage ||
+        continuation.query.isFetching ||
+        continuation.query.error
+      )
+        return;
+      pages.push(...evidence);
+    }
+    if (pages.some((page) => page.user.id !== options().collectionUserId))
+      return;
+    for (const bin of initial[0].user.groupSoup.bins) {
+      const members = new Set(
+        pages.flatMap((page) =>
+          page.user.groupSoup.bins
+            .filter((candidate) => candidate.key === bin.key)
+            .flatMap((candidate) => candidate.items.map(soupItemKey))
+        )
+      );
+      if (members.size !== bin.totalCount) return;
+    }
+    return pages;
+  });
+  createComputed(
+    on([coveragePages, coverage.ready], ([pages, ready]) => {
+      if (!pages || !ready) return;
+      fireAndForget(
+        coverage.finish(
+          pages.flatMap((page) =>
+            page.user.groupSoup.bins.flatMap((bin) =>
+              bin.items.map(soupItemKey)
+            )
+          )
+        ),
+        'soup-grouped-coverage'
+      );
+    })
+  );
   const live = createPredicateQuery<SoupItemFieldsFragment>({
     host: getGraphqlSoupCacheHost,
     query: () => {
@@ -393,6 +536,7 @@ export function createGroupedSoupLiveQuery(
       const bins = baseline();
       if (
         !options().enabled ||
+        localData() !== undefined ||
         !getGraphqlSoupCacheHost()?.liveQueries ||
         !initial ||
         !bins ||
@@ -487,7 +631,21 @@ export function createGroupedSoupLiveQuery(
   return {
     query,
     paging,
+    isLocal: () => localData() !== undefined,
+    isLoading: () =>
+      options().enabled &&
+      !localData() &&
+      (!coverage.ready() || query.isLoading),
+    isFetching: () => !localData() && query.isFetching,
     refresh: async () => {
+      if (options().collectionUserId) {
+        await getGraphqlSoupCacheHost()?.collectionCoverage?.({
+          kind: 'invalidate',
+        });
+        complete.refresh();
+        setCoveragePass((pass) => pass + 1);
+        await coverage.waitUntilReady();
+      }
       const requestScope = continuationScope();
       await query.refetch({
         requestPolicy: 'network-only',
@@ -503,8 +661,16 @@ export function createGroupedSoupLiveQuery(
       if (error) throw error;
     },
     data: createMemo((): GroupSoupQuery | undefined => {
+      const local = localData();
+      if (local) return local;
       const initial = currentInitial();
-      if (!initial) return query.data?.data;
+      if (!initial) {
+        const previous = query.data?.data;
+        return !options().collectionUserId ||
+          previous?.user.id === options().collectionUserId
+          ? previous
+          : undefined;
+      }
       return {
         ...initial,
         user: {

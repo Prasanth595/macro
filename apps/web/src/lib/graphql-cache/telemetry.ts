@@ -516,7 +516,13 @@ export function operationCategoryForRequest(
       'calendar-range',
       () => 'read' as const
     )
-    .with('write', 'hydrate', 'calendar-commit', () => 'write' as const)
+    .with(
+      'write',
+      'hydrate',
+      'calendar-commit',
+      'collection-coverage',
+      () => 'write' as const
+    )
     .with(
       'enqueue-optimistic-mutation',
       'claim-next-mutation',
@@ -548,6 +554,7 @@ export function isStorageTransactionRequest(
     'write',
     'hydrate',
     'calendar-commit',
+    'collection-coverage',
     'enqueue-optimistic-mutation',
     'claim-next-mutation',
     'defer-optimistic-write',

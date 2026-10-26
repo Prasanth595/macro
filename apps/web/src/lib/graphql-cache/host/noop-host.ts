@@ -43,6 +43,9 @@ export function createNoopCacheHost(): CacheHost {
     async entityFilter() {
       return { kind: 'unsupported' };
     },
+    async collectionCoverage() {
+      return { kind: 'unsupported' };
+    },
     async calendarRange() {
       return { kind: 'unsupported' };
     },

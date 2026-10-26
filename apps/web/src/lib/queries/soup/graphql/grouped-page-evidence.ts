@@ -14,6 +14,7 @@ type Evidence = {
   data: GroupSoupQuery;
   persisted: boolean;
   network: boolean;
+  acknowledged: boolean;
 };
 
 /** Preserve server membership separately from later normalized field/link writes. */
@@ -41,7 +42,11 @@ export function createGroupedPageEvidence(scope: Accessor<string>) {
       )
         return;
       setPages((previous) =>
-        new Map(previous).set(index, { ...page, persisted: true })
+        new Map(previous).set(index, {
+          ...page,
+          persisted: true,
+          acknowledged: true,
+        })
       );
     } catch {
       // A failed cache write cannot supersede the usable server response.
@@ -77,6 +82,9 @@ export function createGroupedPageEvidence(scope: Accessor<string>) {
         data: result.data,
         persisted: !persistence,
         network: metadata?.source === 'live-network',
+        acknowledged:
+          metadata?.source === 'live-network' &&
+          metadata.revision !== undefined,
       };
       setPages((previous) => new Map(previous).set(index, page));
       if (persistence)
@@ -90,6 +98,22 @@ export function createGroupedPageEvidence(scope: Accessor<string>) {
         ([, page]) => page.scope === scope()
       );
       if (!current.length || current.some(([, page]) => !page.persisted))
+        return undefined;
+      return current
+        .sort(([left], [right]) => left - right)
+        .map(([, page]) => page.data);
+    },
+    // Cursor exhaustion establishes coverage only for acknowledged raw network pages.
+    networkData: () => {
+      const current = [...pages().entries()].filter(
+        ([, page]) => page.scope === scope()
+      );
+      if (
+        !current.length ||
+        current.some(
+          ([, page]) => !page.persisted || !page.network || !page.acknowledged
+        )
+      )
         return undefined;
       return current
         .sort(([left], [right]) => left - right)
