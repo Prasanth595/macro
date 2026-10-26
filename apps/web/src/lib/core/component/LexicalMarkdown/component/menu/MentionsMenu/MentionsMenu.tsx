@@ -28,6 +28,7 @@ import { Surface } from '@ui';
 import type { LexicalEditor } from 'lexical';
 import {
   type Accessor,
+  createComputed,
   createEffect,
   createMemo,
   createSignal,
@@ -520,6 +521,40 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     return filtered.filter((bucket) => bucket.getFullCount() > 0);
   });
 
+  // Every source above is a lazy memo, and the first read on open builds
+  // them all inside the `@` keystroke. Build them while the composer is idle
+  // instead, so the first open reads cached lists. Safari has no idle
+  // callbacks and keeps building on open.
+  const prewarmSources = () => {
+    if (sourceEnabled('users')) mentionUsers();
+    if (isMobile()) {
+      mobileAllItems();
+      return;
+    }
+    if (sourceEnabled('bookingLinks')) bookingLinks();
+    if (sourceEnabled('documents')) docs();
+    if (sourceEnabled('channels')) channels();
+    if (sourceEnabled('agentSessions')) agentSessions();
+    if (sourceEnabled('companies')) companies();
+    if (sourceEnabled('emails')) emails();
+    if (sourceEnabled('dates')) dates();
+    if (props.showOpenTabs) openTabs();
+  };
+  onMount(() => {
+    if (typeof requestIdleCallback === 'undefined') return;
+    const idleId = requestIdleCallback(() => {
+      if (untrack(menuOpen)) return;
+      const span = Telemetry.span('mentions.prewarm');
+      if (blockId) span.setAttr('document.id', blockId);
+      try {
+        untrack(prewarmSources);
+      } finally {
+        span.end();
+      }
+    });
+    onCleanup(() => cancelIdleCallback(idleId));
+  });
+
   const controller = useMentionsMenuController(bucketConfigs, {
     ignoredIds: () => (blockId ? [blockId] : []),
     targetItems: TARGET_ITEMS,
@@ -553,6 +588,28 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     if (props.onPick) props.onPick(item);
     else await itemActionHandler?.(item);
   };
+
+  // Times opening the menu: building its lists and the first render, which
+  // run inside the keystroke that typed `@`.
+  let openStartedAt: number | undefined;
+  createComputed(() => {
+    if (menuOpen()) openStartedAt = performance.now();
+  });
+  createEffect(() => {
+    if (!menuOpen() || openStartedAt === undefined) return;
+    const span = Telemetry.span('mentions.open');
+    span.setAttr(
+      'mentions.open_ms',
+      Math.round(performance.now() - openStartedAt)
+    );
+    span.setAttr(
+      'search.result_count',
+      untrack(controller.combinedItems).length
+    );
+    if (blockId) span.setAttr('document.id', blockId);
+    span.end();
+    openStartedAt = undefined;
+  });
 
   createEffect(() => {
     if (props.anchor) return;

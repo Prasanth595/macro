@@ -133,6 +133,7 @@ afterEach(() => {
   mocks.loadMoreContacts.mockClear();
   mocks.calendarEvents = [];
   cleanup();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
   vi.restoreAllMocks();
   Element.prototype.scrollIntoView = originalScrollIntoView;
@@ -245,6 +246,47 @@ it.each([false, true])(
     expect(menu.isOpen()).toBe(false);
   }
 );
+
+it('builds closed mention sources once in idle time so the first open reads them cached', () => {
+  Element.prototype.scrollIntoView = vi.fn();
+  const idle: IdleRequestCallback[] = [];
+  vi.stubGlobal('requestIdleCallback', (callback: IdleRequestCallback) => {
+    idle.push(callback);
+    return idle.length;
+  });
+  vi.stubGlobal('cancelIdleCallback', () => {});
+  const seamus: IUser = {
+    id: 'macro|seamus@macro.com',
+    name: 'Seamus Edson',
+    email: 'seamus@macro.com',
+  };
+  const readUsers = vi.fn(() => [seamus]);
+  const readEntities = vi.fn(() => []);
+  const menu = createMenuOperations();
+  render(() => (
+    <MentionsMenu
+      menu={menu}
+      users={readUsers}
+      entities={readEntities}
+      sources={['users', 'documents', 'channels']}
+      anchor={document.createElement('div')}
+      onPick={vi.fn()}
+    />
+  ));
+  expect(readUsers).not.toHaveBeenCalled();
+
+  for (const callback of idle.splice(0))
+    callback({ didTimeout: false, timeRemaining: () => 50 });
+  expect(readUsers).toHaveBeenCalled();
+  expect(readEntities).toHaveBeenCalled();
+
+  readUsers.mockClear();
+  readEntities.mockClear();
+  menu.openMenu();
+  expect(screen.getByTitle('Seamus Edson seamus@macro.com')).toBeTruthy();
+  expect(readUsers).not.toHaveBeenCalled();
+  expect(readEntities).not.toHaveBeenCalled();
+});
 
 it('closes the mobile menu on the first Escape', () => {
   mocks.mobile = true;
