@@ -94,7 +94,7 @@ export function AiUsageLimitDialog() {
         return;
       }
       close();
-      toast.success('Auto-reload is on. Send your message again to continue.');
+      toast.success('Auto-reload is on. Resend your message.');
     } catch {
       setAutoReloadError("Couldn't turn on auto-reload. Please try again.");
     }
