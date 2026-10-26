@@ -61,6 +61,7 @@ export function FolderComposer(props: {
           <div class="flex-1 flex items-center">
             <Show when={props.onExpand}>
               <Button
+                variant="ghost"
                 tabIndex={-1}
                 size="icon-composer"
                 aria-label="Continue editing in split"
@@ -88,6 +89,7 @@ export function FolderComposer(props: {
             </Button>
           </Show>
           <Button
+            variant="ghost"
             tabIndex={-1}
             size="icon-composer"
             aria-label="Close"
