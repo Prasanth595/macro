@@ -68,6 +68,8 @@ export function RoutineApps(props: {
         <Popover.Content
           class="menu-surface z-modal flex max-h-[min(32rem,var(--kb-popper-content-available-height))] w-96 max-w-[calc(100vw-1rem)] flex-col overflow-y-auto overscroll-contain p-3"
           onKeyDown={(e) => e.stopPropagation()}
+          // A pick removes the tapped result, so focus falls out of the popover.
+          onFocusOutside={(event) => event.preventDefault()}
         >
           <Popover.Title class="text-sm font-medium">
             Required apps
