@@ -328,7 +328,9 @@ it('shows the project as it is now when the visitor comes back', async () => {
   expect(await screen.findByRole('heading', { name: 'Launch' })).toBeTruthy();
   first.unmount();
 
-  serve(ok({ ...editable, summary: { ...editable.summary, name: 'Relaunch' } }));
+  serve(
+    ok({ ...editable, summary: { ...editable.summary, name: 'Relaunch' } })
+  );
   show({ projectId: editable.summary.id, section: 'overview' });
 
   expect(await screen.findByRole('heading', { name: 'Relaunch' })).toBeTruthy();
