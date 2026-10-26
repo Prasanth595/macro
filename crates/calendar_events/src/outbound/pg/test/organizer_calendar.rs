@@ -445,7 +445,6 @@ async fn a_sync_of_the_organizers_copy_leaves_content_to_the_invitation(pool: Pg
     );
 }
 
-
 /// The migration that logs events organized by a calendar their inbox
 /// writes, so caches holding their pre-October-2026 capabilities refetch them.
 const LOG_ORGANIZED_EVENTS: &str = include_str!(
