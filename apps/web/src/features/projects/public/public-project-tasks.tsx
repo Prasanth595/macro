@@ -27,15 +27,15 @@ export function PublicProjectTasks(props: {
       >
         <For each={props.tasks}>
           {(task) => (
-            <li class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 py-2 touch:py-0">
+            <li class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 py-2 touch:pt-0">
               <button
                 type="button"
-                class="min-w-0 flex-1 truncate text-left text-sm not-touch:hover:underline touch:min-h-[44px]"
+                class="min-w-0 grow basis-40 truncate text-left text-sm not-touch:hover:underline touch:min-h-[44px]"
                 onClick={() => props.onOpenTask(task.id)}
               >
                 {task.name || blockNameToDefaultFile('task')}
               </button>
-              <div class="flex shrink-0 flex-wrap items-center gap-1.5">
+              <div class="flex min-w-0 flex-wrap items-center gap-1.5">
                 <For each={task.properties.filter(hasValue)}>
                   {(property) => (
                     <PropertyValuePill property={property} canEdit={false} />
