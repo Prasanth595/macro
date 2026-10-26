@@ -397,7 +397,7 @@ fn task_body(fields: &InputSuggestions) -> Option<String> {
                 extracted.sort();
                 values == extracted
             });
-            !property_line && !(fields.due_date.is_some() && due_line.is_match(&text))
+            !(property_line || fields.due_date.is_some() && due_line.is_match(&text))
         })
         .collect::<Vec<_>>()
         .join("\n");
