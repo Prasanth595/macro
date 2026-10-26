@@ -252,6 +252,11 @@ final class CallVideoOverlayController: NSObject, UIGestureRecognizerDelegate, U
         return primaryVideoView
     }
 
+    /// The scene the overlay lives in, for native UI that must sit above it.
+    func presentationWindowScene() -> UIWindowScene? {
+        webview?.window?.windowScene
+    }
+
     func presentForActiveCallIfNeeded() {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }

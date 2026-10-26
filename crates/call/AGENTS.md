@@ -14,7 +14,8 @@ in-call chat.
 - `src/domain/meetings.rs`: scheduled-meeting ↔ call association (used by
   `calendar_events`/`calendar_scheduling` meeting links).
 - `src/inbound/axum_router.rs`, `src/inbound/stale_call_sweeper.rs`: HTTP routes
-  and the sweeper that ends abandoned calls and deletes orphaned RTC rooms
+  and the sweeper that ends abandoned calls, enforces the alone timeout
+  (`src/domain/service/alone.rs`), and deletes orphaned RTC rooms
   (`src/domain/service/orphan_rooms.rs`).
 - `src/outbound/livekit_rtc_client.rs`: LiveKit adapter.
 - `src/outbound/pg_call_repo.rs`, `src/outbound/pg_voice_repo.rs`: Postgres.
@@ -58,6 +59,9 @@ in-call chat.
   when one connects. Only a room named after an archived `call_records` row is
   orphaned (call ids are never reused); meeting preparations and get-or-create
   candidate rooms have no `calls` row yet and must be left alone.
+- The sweeper runs on every service instance: alone-timeout writes are
+  conditional updates, and only the writer that wins a transition sends its
+  websocket event.
 
 ## Related
 
