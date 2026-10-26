@@ -22,6 +22,7 @@ import {
 } from '@core/component/LexicalMarkdown/plugins';
 import {
   $getSelectedCheckboxes,
+  $parseCheckboxNodes,
   CONVERT_CHECKBOXES_TO_TASKS,
   isCheckboxToTaskPluginEnabled,
 } from '@core/component/LexicalMarkdown/plugins/checkbox-to-task';
@@ -51,7 +52,7 @@ import {
   readNativePasteboardText,
   setNativeEditMenuSuppressed,
 } from '@core/mobile/nativeEditMenu';
-import { trackMention } from '@core/signal/mention';
+import { trackMention, untrackMention } from '@core/signal/mention';
 import { debouncedDependent } from '@core/util/debounce';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { getScrollParentElement } from '@core/util/scrollParent';
@@ -223,9 +224,12 @@ export function MarkdownPopup(props: {
           $getConvertibleListFromSelection()?.getKey() ?? null
         );
         const lexicalSelection = $getSelection();
+        // Empty items create no task, so they don't count toward "N tasks".
         setSelectedCheckboxCount(
           $isRangeSelection(lexicalSelection)
-            ? $getSelectedCheckboxes(lexicalSelection).length
+            ? $parseCheckboxNodes(
+                $getSelectedCheckboxes(lexicalSelection)
+              ).filter((checkbox) => checkbox.title.trim()).length
             : 0
         );
       });
@@ -430,19 +434,22 @@ export function MarkdownPopup(props: {
   const shouldShowEditWithAiButton = () =>
     inlineAiEditing().enabled && canEdit();
 
+  /** Resolves to the point after the inserted mention, or null if it failed. */
   const insertTaskMention = async (
-    end: SavedPoint,
+    point: SavedPoint,
     task: { documentId: string; title: string }
-  ) => {
-    const mentionUuid = await trackMention(
-      blockId,
-      'document',
-      task.documentId
-    );
-    let inserted = false;
+  ): Promise<SavedPoint | null> => {
+    // Tracking only records the backlink; the mention still links without it.
+    let mentionUuid: string | undefined;
+    try {
+      mentionUuid = await trackMention(blockId, 'document', task.documentId);
+    } catch (error) {
+      Telemetry.error(error, { surface: 'markdown-create-task' });
+    }
+    let next: SavedPoint | null = null;
     editor.update(
       () => {
-        inserted = $insertAtSavedPoint(end, [
+        next = $insertAtSavedPoint(point, [
           $createTextNode(' '),
           $createDocumentMentionNode({
             documentId: task.documentId,
@@ -455,7 +462,15 @@ export function MarkdownPopup(props: {
       },
       { discrete: true }
     );
-    if (!inserted) toast.failure('Could not link the task in this document');
+    if (next) return next;
+    toast.failure('Could not link the task in this document');
+    if (mentionUuid) {
+      fireAndForget(
+        untrackMention(blockId, mentionUuid, 'document'),
+        'markdown-create-task'
+      );
+    }
+    return null;
   };
 
   // Opens the task composer on the highlighted snippet, as a channel
@@ -482,6 +497,16 @@ export function MarkdownPopup(props: {
     if (!snippet || !splitManager) return;
 
     const text = snippet.text.replace(/\s+/g, ' ').trim();
+    // Create More links each task after the previous one, in creation order.
+    let linking = Promise.resolve<SavedPoint>(snippet.end);
+    const linkTask = (task: ComposeTaskSuccess) => {
+      const previous = linking;
+      linking = (async () => {
+        const point = await previous;
+        return (await insertTaskMention(point, task)) ?? point;
+      })();
+      fireAndForget(linking, 'markdown-create-task');
+    };
     splitManager.createPopoverSplit({
       content: {
         type: 'component',
@@ -502,11 +527,7 @@ export function MarkdownPopup(props: {
           linkInSource: canEdit()
             ? {
                 label: 'Link in document',
-                insert: (task: ComposeTaskSuccess) =>
-                  fireAndForget(
-                    insertTaskMention(snippet.end, task),
-                    'markdown-create-task'
-                  ),
+                insert: linkTask,
               }
             : undefined,
         },
