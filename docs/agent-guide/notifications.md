@@ -61,7 +61,10 @@ On iOS, Macro requests provisional authorization at launch, so
 signed-in device registers for pushes that arrive quietly in Notification
 Center. A quiet push counts as delivered, so those users get no email digest
 for it. The in-app **Mobile notifications** switch and enable prompt stay off
-until full alerts are allowed; turning either on shows the system prompt.
+while delivery is provisional; turning either on shows the system prompt.
+A quiet notification's **Keep → Deliver Immediately** authorizes Macro but
+leaves banners and the Lock Screen off: the switch shows on, iOS never prompts
+again, and only iOS Settings turns banners on.
 Verify on a fresh install: the Settings row appears without a prompt, the in-app
 prompt still appears, and upgrading from Settings or from a quiet notification's
 **Keep → Deliver Immediately** turns the switch on when Macro returns from the
