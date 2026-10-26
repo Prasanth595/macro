@@ -740,8 +740,10 @@ while notifications are unavailable. Recovery marks top-level message notificati
 seen without moving the conversation. No notification read marking runs
 from an abbreviated list result, even if that result is empty. Access failures
 show **Conversation unavailable** and stay hidden during retry until access is
-confirmed. A route without cached channel metadata shows **Loading conversation**
-until its channel arrives. On mobile, opening from the Recent conversation list
+confirmed. A route without cached channel metadata keeps the conversation
+pane blank until its channel arrives. Message loading and jump-target
+resolution use that same blank pane, announced to assistive technology as
+Loading conversation. On mobile, opening from the Recent conversation list
 also navigates immediately: a slow or failed notification lookup must not prevent
 messages and the composer from loading. Full-edge notification hydration runs
 only after navigation is accepted; failure leaves unread state unchanged and
