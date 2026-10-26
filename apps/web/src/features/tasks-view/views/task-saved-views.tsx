@@ -28,7 +28,7 @@ import {
   DeleteSavedViewDialog,
   SavedViewDialog,
 } from '../../saved-views/views/saved-view-dialogs';
-import { TASK_SORT_OPTIONS } from '../constants';
+import { TASK_GROUP_OPTIONS, TASK_SORT_OPTIONS } from '../constants';
 import {
   decodeTaskSavedView,
   materializeTaskSavedView,
@@ -77,6 +77,14 @@ function TaskSavedViewSummary(props: {
         )}
       </For>
       <p>Layout: {LAYOUT_LABELS[props.config.layout]}</p>
+      <p>
+        Group by:{' '}
+        {
+          TASK_GROUP_OPTIONS.find(
+            (option) => option.id === props.config.groupBy
+          )?.label
+        }
+      </p>
       <p>
         Sort:{' '}
         {props.config.sort
@@ -187,7 +195,11 @@ function useCreateTaskSavedViewDialog(owner = getOwner()) {
             );
             if (record) {
               const restored = materializeTaskSavedView(decoded.value);
-              setState({ layout: restored.layout, sort: restored.sort });
+              setState({
+                layout: restored.layout,
+                groupBy: restored.groupBy,
+                sort: restored.sort,
+              });
             }
             selectCreatedSavedView(created.id);
           });
@@ -462,7 +474,7 @@ export function TaskSavedViewCreateBanner(props: TaskSavedViewDialogProps) {
   const creating = () => savedViews?.view().kind === 'new';
   const visible = () => {
     const view = savedViews?.view();
-    return view?.kind === 'new' || (view?.kind === 'default' && view.changed);
+    return (view?.kind === 'default' || view?.kind === 'new') && view.changed;
   };
   return (
     <Show when={visible()}>
@@ -756,6 +768,7 @@ export function TaskSavedViewWarning() {
     version: 'View version',
     filters: 'Filters',
     layout: 'Layout',
+    groupBy: 'Group by',
     sort: 'Sort',
   };
   const skipped = () =>

@@ -8,6 +8,7 @@ import {
 } from 'solid-js';
 import type { SavedViewSource } from '../../saved-views/context/saved-views-source';
 import type { SavedView } from '../../saved-views/core/saved-view';
+import { TASK_DEFAULT_GROUP_BY } from '../constants';
 import {
   DEFAULT_TASK_FACET_SELECTION,
   type TaskFacetContext,
@@ -26,7 +27,7 @@ import type { TasksViewState } from '../types';
 
 export type TaskSavedViewSelection =
   | { kind: 'default'; changed: boolean }
-  | { kind: 'new' }
+  | { kind: 'new'; changed: boolean }
   | { kind: 'loading' }
   | { kind: 'unavailable'; message: string }
   | {
@@ -52,9 +53,11 @@ export function createTaskSavedViewDraft(options: {
   selectedId: Accessor<string | undefined>;
   viewerId: Accessor<string | undefined>;
   creating: Accessor<boolean>;
-  state: Pick<TasksViewState, 'tab' | 'facets' | 'layout' | 'sort'>;
+  state: Pick<TasksViewState, 'tab' | 'facets' | 'layout' | 'groupBy' | 'sort'>;
   facetContext: Accessor<TaskFacetContext>;
-  apply: (settings: Pick<TasksViewState, 'facets' | 'layout' | 'sort'>) => void;
+  apply: (
+    settings: Pick<TasksViewState, 'facets' | 'layout' | 'groupBy' | 'sort'>
+  ) => void;
 }) {
   const [confirmed, setConfirmed] = createSignal<ConfirmedTaskSavedView>();
   const [retainedDrafts, setRetainedDrafts] = createSignal<
@@ -81,6 +84,7 @@ export function createTaskSavedViewDraft(options: {
       tab: options.state.tab,
       facets: options.state.facets,
       layout: options.state.layout,
+      groupBy: options.state.groupBy,
       sort: options.state.sort,
       context: options.facetContext(),
     });
@@ -164,17 +168,17 @@ export function createTaskSavedViewDraft(options: {
     );
   };
   const view = createMemo<TaskSavedViewSelection>(() => {
-    if (options.creating()) return { kind: 'new' };
     const id = options.selectedId();
-    if (!id) {
+    if (options.creating() || !id) {
       const base = captureTaskSavedView({
         tab: options.state.tab,
         facets: DEFAULT_TASK_FACET_SELECTION,
+        groupBy: TASK_DEFAULT_GROUP_BY[options.state.tab],
         context: options.facetContext(),
       });
       const definition = current();
       return {
-        kind: 'default',
+        kind: options.creating() ? 'new' : 'default',
         changed: Boolean(
           definition &&
             base.isOk() &&
@@ -213,6 +217,7 @@ export function createTaskSavedViewDraft(options: {
       options.apply({
         facets: DEFAULT_TASK_FACET_SELECTION,
         layout: 'list',
+        groupBy: TASK_DEFAULT_GROUP_BY['team-tasks'],
         sort: [{ id: 'updated_at' }],
       });
       return;

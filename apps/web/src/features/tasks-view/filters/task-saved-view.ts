@@ -1,6 +1,7 @@
 import type { FacetSelection } from '@app/features/soup/filters/facets/types';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
+import { TASK_DEFAULT_GROUP_BY } from '../constants';
 import type { TasksViewState, TaskTab } from '../types';
 import {
   TASK_PRIORITY_OPTIONS,
@@ -47,6 +48,14 @@ const filtersSchema = z
   })
   .strict();
 const layoutSchema = z.enum(['list', 'board', 'gantt']);
+const groupBySchema = z.enum([
+  'none',
+  'status',
+  'priority',
+  'assignee',
+  'project',
+  'date',
+]);
 const sortItemSchema = z
   .object({
     id: z.enum(['updated_at', 'created_at', 'viewed_at']),
@@ -60,6 +69,7 @@ const taskSavedViewSchema = z
     version: z.literal(1),
     filters: filtersSchema,
     layout: layoutSchema.default('list'),
+    groupBy: groupBySchema.default(TASK_DEFAULT_GROUP_BY['team-tasks']),
     sort: sortSchema.default([{ id: 'updated_at', reversed: false }]),
   })
   .strict();
@@ -92,6 +102,7 @@ function canonical(config: TaskSavedViewConfig): TaskSavedViewConfig {
     kind: 'tasks',
     version: 1,
     layout: config.layout,
+    groupBy: config.groupBy,
     sort: config.sort.map((item) => ({ ...item, reversed: !!item.reversed })),
     filters: {
       statusOptionIds: uniqueSorted(filters.statusOptionIds, String),
@@ -151,6 +162,7 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
         kind: 'tasks',
         version: 1,
         layout: 'list',
+        groupBy: TASK_DEFAULT_GROUP_BY['team-tasks'],
         sort: [{ id: 'updated_at', reversed: false }],
         filters: {
           statusOptionIds: [],
@@ -162,6 +174,9 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
       },
     };
   const layout = layoutSchema.safeParse(readable.data.layout ?? 'list');
+  const groupBy = groupBySchema.safeParse(
+    readable.data.groupBy ?? TASK_DEFAULT_GROUP_BY['team-tasks']
+  );
   const sort =
     readable.data.sort === undefined
       ? [{ id: 'updated_at' as const, reversed: false }]
@@ -225,6 +240,9 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
       kind: 'tasks',
       version: 1,
       layout: layout.success ? layout.data : 'list',
+      groupBy: groupBy.success
+        ? groupBy.data
+        : TASK_DEFAULT_GROUP_BY['team-tasks'],
       sort,
       filters: {
         statusOptionIds: readEntries(
@@ -270,11 +288,12 @@ export function withTaskTabFilters(
   return facets;
 }
 
-/** Captures filters, layout, and sort; text search and grouping stay local. */
+/** Captures filters, layout, grouping, and sort; text search stays local. */
 export function captureTaskSavedView(input: {
   tab: TaskTab;
   facets: FacetSelection;
   layout?: TasksViewState['layout'];
+  groupBy?: TasksViewState['groupBy'];
   sort?: TasksViewState['sort'];
   context: TaskFacetContext;
 }): Result<TaskSavedViewConfig, string> {
@@ -302,6 +321,7 @@ export function captureTaskSavedView(input: {
     kind: 'tasks',
     version: 1,
     layout: input.layout,
+    groupBy: input.groupBy,
     sort: input.sort,
     filters: {
       statusOptionIds: (input.facets.status ?? []).map((id) =>
@@ -322,6 +342,7 @@ export function materializeTaskSavedView(config: TaskSavedViewConfig): {
   facets: FacetSelection;
   tagBindings: ReadonlyMap<string, string>;
   layout: TasksViewState['layout'];
+  groupBy: TasksViewState['groupBy'];
   sort: TasksViewState['sort'];
 } {
   const filters = config.filters;
@@ -332,6 +353,7 @@ export function materializeTaskSavedView(config: TaskSavedViewConfig): {
   return {
     tab: 'team-tasks',
     layout: config.layout,
+    groupBy: config.groupBy,
     sort: config.sort.map((item) => ({ ...item })),
     facets: {
       status: filters.statusOptionIds.map((id) =>

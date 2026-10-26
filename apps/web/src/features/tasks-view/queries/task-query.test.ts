@@ -114,11 +114,12 @@ it('uses the initiative Project property for board columns without changing lega
 });
 
 describe('saved task presentation', () => {
-  it('round-trips layout and ordered sorts through capture, read, and materialization', () => {
+  it('round-trips layout, grouping, and ordered sorts through capture, read, and materialization', () => {
     const captured = captureTaskSavedView({
       tab: 'team-tasks',
       facets: {},
       layout: 'gantt',
+      groupBy: 'project',
       sort: [
         { id: 'created_at', reversed: true },
         { id: 'viewed_at', reversed: false },
@@ -131,12 +132,17 @@ describe('saved task presentation', () => {
     const { config, issues } = readTaskSavedView(captured.value);
     expect(issues).toEqual([]);
     expect(config.layout).toBe('gantt');
+    expect(config.groupBy).toBe('project');
     expect(config.sort).toEqual([
       { id: 'created_at', reversed: true },
       { id: 'viewed_at', reversed: false },
     ]);
     const restored = materializeTaskSavedView(config);
     expect(restored.layout).toBe('gantt');
+    expect(restored.groupBy).toBe('project');
+    expect(buildTaskQuery({ ...options, ...restored }).groupBy).toEqual({
+      type: 'project',
+    });
     expect(restored.sort).toEqual(config.sort);
     expect(
       buildTaskQuery({ ...options, ...restored, groupBy: 'none' }).params
@@ -180,6 +186,7 @@ describe('saved task presentation', () => {
         tags: [],
       },
       layout: 'timeline',
+      groupBy: 'future_group',
       sort: [
         { id: 'future_sort', reversed: true },
         { id: 'created_at', reversed: true },
@@ -187,10 +194,16 @@ describe('saved task presentation', () => {
       ],
     });
     expect(issues.map(({ path }) => path.join('.'))).toEqual(
-      expect.arrayContaining(['layout', 'sort.0.id', 'sort.2.reversed'])
+      expect.arrayContaining([
+        'layout',
+        'groupBy',
+        'sort.0.id',
+        'sort.2.reversed',
+      ])
     );
     const restored = materializeTaskSavedView(config);
     expect(restored.layout).toBe('list');
+    expect(restored.groupBy).toBe('priority');
     expect(restored.sort).toEqual([{ id: 'created_at', reversed: true }]);
     expect(restored.facets.status).toEqual([status]);
     const query = buildTaskQuery({ ...options, ...restored, groupBy: 'none' });
@@ -201,7 +214,7 @@ describe('saved task presentation', () => {
     });
   });
 
-  it('defaults missing optional layout and sort settings', () => {
+  it('defaults missing optional layout, grouping, and sort settings', () => {
     const saved = {
       kind: 'tasks',
       version: 1,
@@ -218,9 +231,11 @@ describe('saved task presentation', () => {
     const { config, issues } = readTaskSavedView(saved);
     expect(issues).toEqual([]);
     expect(config.layout).toBe('list');
+    expect(config.groupBy).toBe('priority');
     expect(config.sort).toEqual([{ id: 'updated_at', reversed: false }]);
     expect(materializeTaskSavedView(config)).toMatchObject({
       layout: 'list',
+      groupBy: 'priority',
       sort: [{ id: 'updated_at', reversed: false }],
     });
   });

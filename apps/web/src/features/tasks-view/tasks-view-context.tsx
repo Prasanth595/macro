@@ -318,7 +318,14 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   const navigateSavedView = (id: string | undefined) => {
     setSavedViewNavigation({});
     setTabSearch(
-      { savedView: id, tab: persistedState.tab },
+      {
+        savedView: id,
+        tab: persistedState.tab,
+        layout: persistedState.layout,
+        groupBy: persistedState.groupBy,
+        sort: persistedState.sort[0]?.id,
+        sortReversed: persistedState.sort[0]?.reversed ? 'true' : 'false',
+      },
       { history: 'replace' }
     );
     closeTask();
@@ -356,10 +363,11 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
       creating: () => Boolean(newSavedView()),
       state: persistedState,
       facetContext,
-      apply: ({ facets, layout, sort }) =>
+      apply: ({ facets, layout, groupBy, sort }) =>
         batch(() => {
           applyTaskFacets('team-tasks', facets);
           setState('layout', layout);
+          setState('groupBy', groupBy);
           setState(
             'sort',
             sort.map((item) => ({ ...item }))
@@ -367,6 +375,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
           setTabSearch(
             {
               layout,
+              groupBy,
               sort: sort[0]?.id,
               sortReversed: sort[0]?.reversed ? 'true' : 'false',
             },

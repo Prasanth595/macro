@@ -2,6 +2,8 @@ import { type Accessor, createRoot, createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { SavedView } from '../../saved-views/core/saved-view';
+import { TASK_DEFAULT_GROUP_BY } from '../constants';
+import { DEFAULT_TASK_FACET_SELECTION } from '../filters/task-facets';
 import type { TasksTabSearchParams } from '../tasks-tab-search';
 import type { TasksTab, TasksViewState } from '../types';
 import { createTaskSavedViewDraft } from './create-task-saved-view-draft';
@@ -294,7 +296,7 @@ it('restores the requested built-in scope after leaving a saved view', () => {
   expect(view.state.facets.priority).toBeUndefined();
 });
 
-it('keeps edits reverted during a save until the confirmed layout is explicitly reset', () => {
+it('keeps edits reverted during a save until confirmed presentation is explicitly reset', () => {
   const fixture = createRoot((dispose) => {
     disposers.push(dispose);
     const record: SavedView = {
@@ -346,18 +348,68 @@ it('keeps edits reverted during a save until the confirmed layout is explicitly 
     return { state, setState, draft, record, setSource };
   });
   fixture.setState('layout', 'board');
+  fixture.setState('groupBy', 'assignee');
   const submitted = fixture.draft.capture();
   if (submitted.isErr()) throw new Error(submitted.error);
   const release = fixture.draft.retain();
   fixture.setState('layout', 'list');
+  fixture.setState('groupBy', 'priority');
   const confirmed = { ...fixture.record, revision: 2, config: submitted.value };
   fixture.setSource(confirmed);
   expect(fixture.state.layout).toBe('list');
   expect(fixture.draft.acceptConfirmed(confirmed)).toBe(true);
   release();
   expect(fixture.state.layout).toBe('list');
+  expect(fixture.state.groupBy).toBe('priority');
   expect(fixture.draft.view()).toMatchObject({ kind: 'saved', dirty: true });
   fixture.draft.reset();
   expect(fixture.state.layout).toBe('board');
+  expect(fixture.state.groupBy).toBe('assignee');
   expect(fixture.draft.view()).toMatchObject({ kind: 'saved', dirty: false });
 });
+
+it.each(['my-tasks', 'created-by-me', 'team-tasks'] as const)(
+  'compares presentation against the %s base defaults',
+  (tab) => {
+    const fixture = createRoot((dispose) => {
+      disposers.push(dispose);
+      const [state, setState] = createStore<TasksViewState>({
+        layout: 'list',
+        tab,
+        search: '',
+        groupBy: TASK_DEFAULT_GROUP_BY[tab],
+        sort: [{ id: 'updated_at', reversed: false }],
+        facets: DEFAULT_TASK_FACET_SELECTION,
+        collapsedGroupIds: [],
+        collapsedSidebarSectionIds: [],
+      });
+      const draft = createTaskSavedViewDraft({
+        source: {
+          data: () => undefined,
+          viewerId: () => 'viewer',
+          error: () => undefined,
+          loading: () => false,
+          refresh: async () => undefined,
+        },
+        selectedId: () => undefined,
+        viewerId: () => 'viewer',
+        creating: () => false,
+        state,
+        facetContext: () => ({ tagPropertyDefinitionByOptionId: new Map() }),
+        apply: (settings) => setState(settings),
+      });
+      return { state, setState, draft };
+    });
+    expect(fixture.draft.view()).toEqual({ kind: 'default', changed: false });
+    fixture.setState('groupBy', 'date');
+    expect(fixture.draft.view()).toEqual({ kind: 'default', changed: true });
+    fixture.setState('groupBy', TASK_DEFAULT_GROUP_BY[tab]);
+    expect(fixture.draft.view()).toEqual({ kind: 'default', changed: false });
+    fixture.setState('sort', [{ id: 'created_at' }]);
+    expect(fixture.draft.view()).toEqual({ kind: 'default', changed: true });
+    fixture.setState('sort', [{ id: 'updated_at' }]);
+    expect(fixture.draft.view()).toEqual({ kind: 'default', changed: false });
+    fixture.setState('layout', 'board');
+    expect(fixture.draft.view()).toEqual({ kind: 'default', changed: true });
+  }
+);
