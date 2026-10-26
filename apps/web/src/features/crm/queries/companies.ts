@@ -1,6 +1,7 @@
 import { NIL_UUID } from '@app/features/next-soup/filters/filter-store';
 import { ThrownResultError, throwOnErr } from '@core/util/result';
 import type { CrmCompanyEntity } from '@entity';
+import { Telemetry } from '@macro-inc/observability';
 import { soupKeys } from '@queries/soup/keys';
 import { invalidateCachedCrmContacts } from '@service-storage/crm-contacts';
 import type { CrmCompanyResponse } from '@service-storage/generated/schemas/crmCompanyResponse';
@@ -290,7 +291,23 @@ export function useSetCompanyHiddenMutation(deps: CrmRecordDependencies) {
         companyId: string;
         hidden: boolean;
       }) =>
-        throwOnErr(() => deps.storage.setCompanyHidden({ companyId, hidden })),
+        Telemetry.span('crm.visibility_change', (span) => {
+          span.setAttr('crm.record_type', 'company');
+          span.setAttr('crm.record_id', companyId);
+          span.setAttr('crm.hidden', hidden);
+          return throwOnErr(async () => {
+            const result = await deps.storage.setCompanyHidden({
+              companyId,
+              hidden,
+            });
+            span.setAttr(
+              'crm.visibility.outcome',
+              result.isOk() ? 'success' : 'error'
+            );
+            if (result.isErr()) span.error('Company visibility update failed');
+            return result;
+          });
+        }),
       onSuccess: async (_data, { companyId }) => {
         await invalidateCachedCrmContacts();
         wipeCompanyEmailCache(deps, companyId);

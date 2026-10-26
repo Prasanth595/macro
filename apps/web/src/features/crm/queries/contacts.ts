@@ -1,4 +1,5 @@
 import { throwOnErr } from '@core/util/result';
+import { Telemetry } from '@macro-inc/observability';
 import { soupKeys } from '@queries/soup/keys';
 import { invalidateCachedCrmContacts } from '@service-storage/crm-contacts';
 import type { CrmContactResponse } from '@service-storage/generated/schemas/crmContactResponse';
@@ -159,7 +160,23 @@ export function useSetContactHiddenMutation(deps: CrmRecordDependencies) {
         contactId: string;
         hidden: boolean;
       }) =>
-        throwOnErr(() => deps.storage.setContactHidden({ contactId, hidden })),
+        Telemetry.span('crm.visibility_change', (span) => {
+          span.setAttr('crm.record_type', 'contact');
+          span.setAttr('crm.record_id', contactId);
+          span.setAttr('crm.hidden', hidden);
+          return throwOnErr(async () => {
+            const result = await deps.storage.setContactHidden({
+              contactId,
+              hidden,
+            });
+            span.setAttr(
+              'crm.visibility.outcome',
+              result.isOk() ? 'success' : 'error'
+            );
+            if (result.isErr()) span.error('Contact visibility update failed');
+            return result;
+          });
+        }),
       onSuccess: async (_data, { contactId }) => {
         await invalidateCachedCrmContacts(contactId);
         return Promise.all([
