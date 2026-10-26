@@ -151,6 +151,7 @@ export function MarkdownDetail(props: MarkdownDetailProps) {
   return (
     <FileDetailLoadGate
       documentId={props.documentId}
+      entityType="md"
       label={props.kind === 'task' ? 'task' : 'document'}
       load={loadMarkdownDocument}
     >
