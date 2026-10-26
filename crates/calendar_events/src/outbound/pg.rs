@@ -798,7 +798,7 @@ impl CalendarRepository for PgCalendarRepository {
         }))
     }
 
-    #[tracing::instrument(skip(self, write), err)]
+    #[tracing::instrument(skip(self, write), fields(meeting_content = tracing::field::Empty), err)]
     async fn upsert_event(
         &self,
         write: CalendarEventWrite,
@@ -1087,9 +1087,24 @@ impl CalendarRepository for PgCalendarRepository {
         } else {
             false
         };
+        let meeting_content = match (takes_meeting_content, is_canonical) {
+            (true, false) => Some("organizer_copy"),
+            (true, true) if content_ahead.is_some() => Some("canonical_retook"),
+            (false, _) if content_ahead.is_some() => Some("kept_pending_edit"),
+            _ => None,
+        };
+        if let Some(meeting_content) = meeting_content {
+            tracing::Span::current().record("meeting_content", meeting_content);
+        }
+        // A canonical copy older than a pending edit through the organizer's
+        // copy leaves the schedule to it too, even when new to Macro or
+        // advanced: that edit's guests and time are the newer ones.
         let owns_schedule = schedule.source_id == Some(source_id);
         let writes_schedule = if is_canonical {
-            owns_schedule || copy_advanced || upsert.event.updated_at >= schedule.updated_at
+            takes_meeting_content
+                && (owns_schedule
+                    || copy_advanced
+                    || upsert.event.updated_at >= schedule.updated_at)
         } else if user_mutation {
             upsert.event.updated_at >= schedule.updated_at
         } else {

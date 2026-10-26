@@ -359,8 +359,10 @@ async fn an_edit_through_the_organizers_copy_shows_until_the_invitation_catches_
     );
 
     // Before Google carries the edit over, the invitation changes for another
-    // reason, as when its reminders are saved, and still holds the old title.
+    // reason, as when its reminders are saved, and still holds the old title
+    // and guests, even with an advanced sequence.
     let mut stale = meeting.copy(meeting.primary_id);
+    stale.event.sequence += 1;
     stale.event.reminders = EventReminders {
         use_default: false,
         overrides: Vec::new(),
@@ -389,9 +391,9 @@ async fn an_edit_through_the_organizers_copy_shows_until_the_invitation_catches_
     );
 
     // Google carries the edit to the invitation.
-    repo.upsert_event_fixture(meeting.edited(meeting.primary_id, 12))
-        .await
-        .unwrap();
+    let mut caught_up = meeting.edited(meeting.primary_id, 12);
+    caught_up.event.sequence += 1;
+    repo.upsert_event_fixture(caught_up).await.unwrap();
 
     let content = meeting_content(&pool, meeting.event_id).await;
     assert_eq!(content.title, "Renamed");
