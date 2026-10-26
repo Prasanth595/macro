@@ -289,7 +289,8 @@ above the action row, including for empty and single-line drafts, so the
 attachment, delete-reply, and send controls have their own space.
 Both the expanded and collapsed composers start with a `+` button (`Add`). It
 opens a menu on desktop and a bottom drawer on mobile: `Mention` (opens the `@` typeahead), `Attach files` (the file
-picker; the iOS media picker on iOS), `GIF` (the same picker as `/gif`), then under `Create` the same actions as
+picker; the iOS media picker on iOS), `GIF` (the same picker as `/gif`), `Formatting`
+(toggles the formatting ribbon above the editor; `Hide formatting` while it is open), then under `Create` the same actions as
 `/task`, `/poll`, `/form` and `/document` (poll and form only with forms on),
 then `Ask Macro` (inserts an `@Macro` mention) and, in a channel, `Start a call`
 (`Join call` while one is live). On phones, starting a new call opens a
