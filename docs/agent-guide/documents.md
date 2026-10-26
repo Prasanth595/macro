@@ -19,7 +19,8 @@ This status follows the current document and account when navigating with Share 
 
 When meeting notes are enabled, the document side panel’s **References** section
 also lists linked calendar events, including when there are no document or message
-references. Each row shows the meeting and occurrence time. Open a row to jump to
+references. Each row uses the same single-line style, with the meeting title and
+date inline. Open a row to jump to
 your calendar copy; meetings shared through a channel or team without a personal
 copy use a read-only event preview. The preview also works when the Calendar
 view is disabled. Readers see only

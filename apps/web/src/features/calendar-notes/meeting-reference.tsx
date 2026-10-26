@@ -1,8 +1,7 @@
+import { parseLocalDate } from '@app/features/calendar/utils/calendar-date';
 import { openCalendarEventSplit } from '@app/features/calendar-view/open-calendar-event';
-import {
-  CalendarEventPreviewDetails,
-  calendarPreviewSchedule,
-} from '@core/component/DocumentPreview';
+import { CalendarEventPreviewDetails } from '@core/component/DocumentPreview';
+import { ReferenceRow } from '@core/component/References';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
@@ -25,9 +24,22 @@ export function MeetingReference(props: {
   const event = () => resolved()?.event;
   const [detailsOpen, setDetailsOpen] = createSignal(false);
   const title = () => event()?.title || props.link.eventTitle;
-  const schedule = () => {
-    const current = event();
-    return current ? calendarPreviewSchedule(current) : undefined;
+  const date = () => {
+    const time = event()?.time;
+    if (!time) return undefined;
+    const start =
+      time.kind === 'allDay'
+        ? parseLocalDate(time.startDate)
+        : new Date(time.startsAt);
+    if (!start || !Number.isFinite(start.getTime())) return undefined;
+    return start.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year:
+        start.getFullYear() === new Date().getFullYear()
+          ? undefined
+          : 'numeric',
+    });
   };
   let active = true;
   onCleanup(() => {
@@ -68,22 +80,19 @@ export function MeetingReference(props: {
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="md"
-        fullWidth
-        class="justify-start rounded-lg px-0 text-left"
-        onClick={open}
-        aria-label={`Open meeting ${title()}`}
-      >
-        <CalendarIcon class="size-4 shrink-0 text-ink-muted" />
-        <span class="min-w-0 flex-1">
-          <span class="block truncate text-xs text-ink">{title()}</span>
-          <span class="mt-0.5 block text-xs font-normal text-ink-muted">
-            {schedule() ?? 'Linked meeting'}
+      <ReferenceRow
+        source={
+          <span class="inline-flex min-w-0 max-w-full items-baseline gap-1 align-baseline">
+            <CalendarIcon class="relative top-[0.125em] size-[1em] shrink-0" />
+            <span class="min-w-0 truncate underline decoration-current/20 decoration-[max(1px,0.1em)] underline-offset-2">
+              {title()}
+            </span>
           </span>
-        </span>
-      </Button>
+        }
+        timestampLabel={date()}
+        onClick={open}
+        ariaLabel={`Open meeting ${title()}`}
+      />
       <Show when={detailsOpen()}>
         <Dialog
           open
