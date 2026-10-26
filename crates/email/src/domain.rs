@@ -2,6 +2,8 @@
 pub mod activity;
 #[cfg(feature = "calendar_invitations")]
 pub mod calendar_invitation_parser;
+#[cfg(feature = "ports")]
+pub mod correspondence;
 pub mod events;
 #[cfg(feature = "ports")]
 pub mod followup;

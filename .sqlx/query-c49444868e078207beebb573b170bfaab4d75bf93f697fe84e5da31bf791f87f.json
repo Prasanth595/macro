@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH mail AS (\n                SELECT LOWER(c.email_address) AS email, c.name, true AS sent,\n                    m.thread_id, m.internal_date_ts AS at\n                FROM email_messages m\n                JOIN email_message_recipients r ON r.message_id = m.id\n                JOIN email_contacts c ON c.id = r.contact_id\n                WHERE m.link_id = ANY($1) AND m.is_sent AND NOT m.is_draft\n                  AND m.internal_date_ts >= $2\n                UNION ALL\n                SELECT LOWER(c.email_address), COALESCE(m.from_name, c.name), false,\n                    m.thread_id, m.internal_date_ts\n                FROM email_messages m\n                JOIN email_contacts c ON c.id = m.from_contact_id\n                WHERE m.link_id = ANY($1) AND NOT m.is_sent AND NOT m.is_draft\n                  AND m.internal_date_ts >= $2\n            )\n            SELECT\n                email AS \"email!\",\n                (ARRAY_AGG(name ORDER BY at DESC) FILTER (WHERE name IS NOT NULL))[1] AS name,\n                COUNT(*) FILTER (WHERE sent) AS \"sent!\",\n                COUNT(*) FILTER (WHERE NOT sent) AS \"received!\",\n                COUNT(DISTINCT thread_id) AS \"threads!\",\n                MAX(at) AS \"last_at!\"\n            FROM mail\n            GROUP BY email\n            HAVING COUNT(*) FILTER (WHERE sent) > 0\n            ORDER BY COUNT(*) DESC, MAX(at) DESC, email\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "email!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "sent!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "received!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "threads!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_at!",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c49444868e078207beebb573b170bfaab4d75bf93f697fe84e5da31bf791f87f"
+}

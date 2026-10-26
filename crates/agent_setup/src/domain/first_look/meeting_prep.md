@@ -1,0 +1,1 @@
+Each weekday morning, look at today's calendar. For every meeting with people outside my company, write me a short prep note: who is coming and where they work, the last emails and meetings with them and anything still open, and what I should ask, bring or decide. Skip meetings with only my teammates. Write only to me; send nothing and invite no one.

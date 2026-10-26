@@ -20,7 +20,9 @@ tools — hexagonal, heavily feature-gated.
 ## Scope
 
 - Owns: email/thread domain logic, scheduled delivery, reminders/followups,
-  calendar invitation extraction and resolution.
+  calendar invitation extraction and resolution, and correspondence counts
+  (`domain/correspondence.rs`: who a person writes to, threads waiting on a
+  reply; used by agent-led setup).
 - Not here: raw provider API calls → `email_api_client`; HTML
   parsing/sanitization → `email_utils`; SQLx queries over email tables →
   `email_db_client`.
