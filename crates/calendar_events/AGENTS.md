@@ -92,6 +92,18 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   `InvalidInput`.
   `ViewerCapabilities::set_guest_policy` is therefore Google-only, and
   `organize` is the organizer signal clients read instead.
+- The organizer's copy decides the guest policy of every Macro-held guest
+  copy of a Google meeting (`src/outbound/pg/guest_policy.rs`). Google takes
+  4 to 12 seconds to carry an organizer's change to its guests' copies, and a
+  guest invite in that window gets a 200 while Google drops the guest and
+  mails nobody. So every upsert aligns policies: an organizer copy (its inbox
+  is the organizer address) hands its policy to the guest copies, across
+  users, and a guest copy takes its organizer copy's policy, so a guest-side
+  write echoing Google's stale switches cannot reopen inviting. Copies pair by
+  `calendar_meeting_uid` and that organizer address; Outlook copies and
+  snapshots take no part. The aligned copies' inboxes get change-log entries
+  and refresh nudges (`CalendarEventWriteOutcome::aligned_copies`). An
+  organizer outside Macro still reaches guests only through Google's sync.
 - Sharing an event into a channel writes an `entity_access` row on the
   sharer's copy. The `calendar_event_entity_access_cleanup` trigger deletes it
   with the event row, which covers every way a copy goes away: a delete
