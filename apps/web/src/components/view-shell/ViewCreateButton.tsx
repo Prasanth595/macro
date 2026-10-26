@@ -22,7 +22,7 @@ export function ViewCreateButton(
   return (
     <Button
       {...rest}
-      variant="accent"
+      variant="outline"
       size="md"
       class={cn(
         sidebar() &&

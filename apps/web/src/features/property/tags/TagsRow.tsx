@@ -8,7 +8,7 @@ import PencilIcon from '@phosphor/pencil-simple.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import XIcon from '@phosphor/x.svg';
 import type { EntityType } from '@service-properties/generated/schemas/entityType';
-import { Badge, badgeTriggerClasses, Layer } from '@ui';
+import { Badge, badgeTriggerClasses, buttonClasses, Layer } from '@ui';
 import { createSignal, For, Match, Show, Switch } from 'solid-js';
 import { TagDot } from './TagDot';
 import {
@@ -169,10 +169,10 @@ export function TagsRow(props: {
           <Match when={true}>
             <TagPicker
               docTags={docTags}
-              triggerClass={badgeTriggerClasses({
+              triggerClass={buttonClasses({
                 variant: 'outline',
-                size: 'sm',
-                class: 'm-px size-6 p-0',
+                size: 'icon-sm',
+                class: 'm-px',
               })}
               triggerLabel="Add tags"
             >
