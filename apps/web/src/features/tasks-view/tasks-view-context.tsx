@@ -279,8 +279,11 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
     tasksTabSearchCodec.serialize({
       tab: state.tab,
       savedView: tabSearch.savedView,
-      // Preserve a rollout-hidden Gantt selection across task navigation.
-      layout: isTouchDevice() ? 'list' : persistedState.layout,
+      // Saved views retain their desktop layout through mobile task navigation.
+      layout:
+        isTouchDevice() && !state.savedViewActive
+          ? 'list'
+          : persistedState.layout,
       sort: state.sort[0]?.id,
       sortReversed: state.sort[0]
         ? state.sort[0].reversed
@@ -340,6 +343,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
     });
   const leaveSavedView = () =>
     batch(() => {
+      savedViews?.reset();
       setNewSavedView(false);
       applyTaskFacets('my-tasks', DEFAULT_TASK_FACET_SELECTION);
       navigateSavedView(undefined);
@@ -350,9 +354,25 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
       selectedId: () => tabSearch.savedView,
       viewerId: userId,
       creating: () => Boolean(newSavedView()),
-      state,
+      state: persistedState,
       facetContext,
-      apply: (facets) => applyTaskFacets('team-tasks', facets),
+      apply: ({ facets, layout, sort }) =>
+        batch(() => {
+          applyTaskFacets('team-tasks', facets);
+          setState('layout', layout);
+          setState(
+            'sort',
+            sort.map((item) => ({ ...item }))
+          );
+          setTabSearch(
+            {
+              layout,
+              sort: sort[0]?.id,
+              sortReversed: sort[0]?.reversed ? 'true' : 'false',
+            },
+            { history: 'replace' }
+          );
+        }),
     });
   }
   let disposed = false;

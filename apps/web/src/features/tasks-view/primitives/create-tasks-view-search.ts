@@ -41,7 +41,11 @@ export function createTasksViewSearch(options: {
         ] as const,
       ([tab, layout, sort, sortReversed, groupBy, nonListLayoutsEnabled]) => {
         if (!options.enabled) return;
-        const requestedLayout = layout ?? entryLayout;
+        const savedViewActive = Boolean(
+          search.savedView || state.savedViewActive
+        );
+        const requestedLayout =
+          layout ?? (savedViewActive ? state.layout : entryLayout);
 
         options.setState(
           produce((draft) => {
@@ -57,7 +61,10 @@ export function createTasksViewSearch(options: {
               draft.collapsedGroupIds = [];
             }
 
-            draft.layout = nonListLayoutsEnabled ? requestedLayout : 'list';
+            draft.layout =
+              savedViewActive || nonListLayoutsEnabled
+                ? requestedLayout
+                : 'list';
             draft.groupBy =
               groupBy ??
               (draft.savedViewActive || search.savedView
@@ -65,13 +72,25 @@ export function createTasksViewSearch(options: {
                 : tab === entryTab
                   ? entryGroupBy
                   : TASK_DEFAULT_GROUP_BY[tab]);
-            draft.sort = sort
-              ? [{ id: sort, reversed: sortReversed === 'true' }]
-              : entrySort.map((item) => ({ ...item }));
+            if (!savedViewActive) {
+              draft.sort = sort
+                ? [{ id: sort, reversed: sortReversed === 'true' }]
+                : entrySort.map((item) => ({ ...item }));
+            } else if (
+              sort &&
+              (draft.sort[0]?.id !== sort ||
+                !!draft.sort[0]?.reversed !== (sortReversed === 'true'))
+            ) {
+              draft.sort = [{ id: sort, reversed: sortReversed === 'true' }];
+            }
           })
         );
 
-        if (!nonListLayoutsEnabled && requestedLayout !== 'list') {
+        if (
+          !savedViewActive &&
+          !nonListLayoutsEnabled &&
+          requestedLayout !== 'list'
+        ) {
           options.setSearch({ layout: 'list' }, { history: 'replace' });
         }
       }

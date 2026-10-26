@@ -1,8 +1,10 @@
 import { type Accessor, createRoot, createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { afterEach, expect, it, vi } from 'vitest';
+import type { SavedView } from '../../saved-views/core/saved-view';
 import type { TasksTabSearchParams } from '../tasks-tab-search';
 import type { TasksTab, TasksViewState } from '../types';
+import { createTaskSavedViewDraft } from './create-task-saved-view-draft';
 import { createTasksViewSearch } from './create-tasks-view-search';
 
 const disposers: (() => void)[] = [];
@@ -207,6 +209,56 @@ it('falls back from restored board entries and from desktop boards when mobile a
   expect(desktop.state.layout).toBe('board');
 });
 
+it.each(['board', 'gantt'] as const)(
+  'keeps saved %s layout in raw state and URL during mobile fallback',
+  (layout) => {
+    const [nonListLayoutsEnabled, setNonListLayoutsEnabled] =
+      createSignal(true);
+    const view = setup({
+      state: { layout, savedViewActive: true },
+      search: {
+        savedView: '10000000-0000-4000-8000-000000000001',
+        layout,
+      },
+      nonListLayoutsEnabled,
+    });
+    expect(view.state.layout).toBe(layout);
+    expect(view.writeSearch).not.toHaveBeenCalled();
+
+    setNonListLayoutsEnabled(false);
+    expect(view.state.layout).toBe(layout);
+    expect(view.search.layout).toBe(layout);
+    expect(view.writeSearch).not.toHaveBeenCalled();
+
+    setNonListLayoutsEnabled(true);
+    expect(view.state.layout).toBe(layout);
+    expect(view.search.layout).toBe(layout);
+  }
+);
+
+it('retains saved secondary sorts while synchronizing matching URL controls', () => {
+  const savedSort = [
+    { id: 'created_at' as const, reversed: true },
+    { id: 'viewed_at' as const, reversed: false },
+  ];
+  const view = setup({
+    state: { savedViewActive: true, layout: 'board', sort: savedSort },
+    search: {
+      savedView: '10000000-0000-4000-8000-000000000001',
+      sort: 'created_at',
+      sortReversed: 'true',
+    },
+  });
+  expect(view.state.sort).toEqual(savedSort);
+  view.setSearch('groupBy', 'date');
+  expect(view.state.sort).toEqual(savedSort);
+  view.setSearch('layout', 'gantt');
+  expect(view.state.sort).toEqual(savedSort);
+  view.setSearch('sortReversed', 'true');
+  expect(view.state.sort).toEqual(savedSort);
+  expect(view.state.layout).toBe('gantt');
+});
+
 it('keeps saved scope and draft filters when changing presentation', () => {
   const view = setup({
     state: {
@@ -240,4 +292,72 @@ it('restores the requested built-in scope after leaving a saved view', () => {
   view.setState('savedViewActive', false);
   expect(view.state.tab).toBe('created-by-me');
   expect(view.state.facets.priority).toBeUndefined();
+});
+
+it('keeps edits reverted during a save until the confirmed layout is explicitly reset', () => {
+  const fixture = createRoot((dispose) => {
+    disposers.push(dispose);
+    const record: SavedView = {
+      id: 'saved-view',
+      ownerId: 'viewer',
+      name: 'Saved view',
+      sharedTeamId: null,
+      revision: 1,
+      config: {
+        kind: 'tasks',
+        version: 1,
+        layout: 'list',
+        sort: [{ id: 'updated_at', reversed: false }],
+        filters: {
+          statusOptionIds: [],
+          priorityOptionIds: [],
+          assignees: [],
+          creators: [],
+          tags: [],
+        },
+      },
+    };
+    const [source, setSource] = createSignal(record);
+    const [state, setState] = createStore<TasksViewState>({
+      layout: 'list',
+      tab: 'team-tasks',
+      search: '',
+      groupBy: 'none',
+      sort: [{ id: 'updated_at' }],
+      facets: {},
+      collapsedGroupIds: [],
+      collapsedSidebarSectionIds: [],
+    });
+    const draft = createTaskSavedViewDraft({
+      source: {
+        data: source,
+        viewerId: () => 'viewer',
+        error: () => undefined,
+        loading: () => false,
+        refresh: async () => undefined,
+      },
+      selectedId: () => record.id,
+      viewerId: () => 'viewer',
+      creating: () => false,
+      state,
+      facetContext: () => ({ tagPropertyDefinitionByOptionId: new Map() }),
+      apply: (settings) => setState(settings),
+    });
+    return { state, setState, draft, record, setSource };
+  });
+  fixture.setState('layout', 'board');
+  const submitted = fixture.draft.capture();
+  if (submitted.isErr()) throw new Error(submitted.error);
+  const release = fixture.draft.retain();
+  fixture.setState('layout', 'list');
+  const confirmed = { ...fixture.record, revision: 2, config: submitted.value };
+  fixture.setSource(confirmed);
+  expect(fixture.state.layout).toBe('list');
+  expect(fixture.draft.acceptConfirmed(confirmed)).toBe(true);
+  release();
+  expect(fixture.state.layout).toBe('list');
+  expect(fixture.draft.view()).toMatchObject({ kind: 'saved', dirty: true });
+  fixture.draft.reset();
+  expect(fixture.state.layout).toBe('board');
+  expect(fixture.draft.view()).toMatchObject({ kind: 'saved', dirty: false });
 });

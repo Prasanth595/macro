@@ -1,7 +1,7 @@
 import type { FacetSelection } from '@app/features/soup/filters/facets/types';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
-import type { TaskTab } from '../types';
+import type { TasksViewState, TaskTab } from '../types';
 import {
   TASK_PRIORITY_OPTIONS,
   TASK_STATUS_OPTIONS,
@@ -46,11 +46,21 @@ const filtersSchema = z
       .max(100),
   })
   .strict();
+const layoutSchema = z.enum(['list', 'board', 'gantt']);
+const sortItemSchema = z
+  .object({
+    id: z.enum(['updated_at', 'created_at', 'viewed_at']),
+    reversed: z.boolean().default(false),
+  })
+  .strict();
+const sortSchema = z.array(sortItemSchema).max(3);
 const taskSavedViewSchema = z
   .object({
     kind: z.literal('tasks'),
     version: z.literal(1),
     filters: filtersSchema,
+    layout: layoutSchema.default('list'),
+    sort: sortSchema.default([{ id: 'updated_at', reversed: false }]),
   })
   .strict();
 const readableTaskSavedViewSchema = taskSavedViewSchema
@@ -81,6 +91,8 @@ function canonical(config: TaskSavedViewConfig): TaskSavedViewConfig {
   return {
     kind: 'tasks',
     version: 1,
+    layout: config.layout,
+    sort: config.sort.map((item) => ({ ...item, reversed: !!item.reversed })),
     filters: {
       statusOptionIds: uniqueSorted(filters.statusOptionIds, String),
       priorityOptionIds: uniqueSorted(filters.priorityOptionIds, String),
@@ -138,6 +150,8 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
       config: {
         kind: 'tasks',
         version: 1,
+        layout: 'list',
+        sort: [{ id: 'updated_at', reversed: false }],
         filters: {
           statusOptionIds: [],
           priorityOptionIds: [],
@@ -147,8 +161,26 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
         },
       },
     };
+  const layout = layoutSchema.safeParse(readable.data.layout ?? 'list');
+  const sort =
+    readable.data.sort === undefined
+      ? [{ id: 'updated_at' as const, reversed: false }]
+      : readSort(readable.data.sort);
   const filters = readable.data.filters;
 
+  function readSort(value: unknown) {
+    if (!Array.isArray(value))
+      return [{ id: 'updated_at' as const, reversed: false }];
+    const supported = value
+      .flatMap((item) => {
+        const parsed = sortItemSchema.safeParse(item);
+        return parsed.success ? [parsed.data] : [];
+      })
+      .slice(0, 3);
+    return value.length && !supported.length
+      ? [{ id: 'updated_at' as const, reversed: false }]
+      : supported;
+  }
   const readEntries = <T>(
     values: unknown,
     item: z.ZodType<T>,
@@ -192,6 +224,8 @@ export function readTaskSavedView(value: unknown): TaskSavedViewRead {
     config: canonical({
       kind: 'tasks',
       version: 1,
+      layout: layout.success ? layout.data : 'list',
+      sort,
       filters: {
         statusOptionIds: readEntries(
           filters.statusOptionIds,
@@ -236,10 +270,12 @@ export function withTaskTabFilters(
   return facets;
 }
 
-/** Captures filters only. Text search and presentation never enter the resource. */
+/** Captures filters, layout, and sort; text search and grouping stay local. */
 export function captureTaskSavedView(input: {
   tab: TaskTab;
   facets: FacetSelection;
+  layout?: TasksViewState['layout'];
+  sort?: TasksViewState['sort'];
   context: TaskFacetContext;
 }): Result<TaskSavedViewConfig, string> {
   if (input.tab === 'projects')
@@ -265,6 +301,8 @@ export function captureTaskSavedView(input: {
   return decodeTaskSavedView({
     kind: 'tasks',
     version: 1,
+    layout: input.layout,
+    sort: input.sort,
     filters: {
       statusOptionIds: (input.facets.status ?? []).map((id) =>
         optionId(id, TASK_STATUS_OPTIONS)
@@ -283,6 +321,8 @@ export function materializeTaskSavedView(config: TaskSavedViewConfig): {
   tab: TaskTab;
   facets: FacetSelection;
   tagBindings: ReadonlyMap<string, string>;
+  layout: TasksViewState['layout'];
+  sort: TasksViewState['sort'];
 } {
   const filters = config.filters;
   const selectionId = (id: string, options: typeof TASK_STATUS_OPTIONS) =>
@@ -291,6 +331,8 @@ export function materializeTaskSavedView(config: TaskSavedViewConfig): {
     values.map((value) => (value.type === 'viewer' ? TASK_VIEWER : value.id));
   return {
     tab: 'team-tasks',
+    layout: config.layout,
+    sort: config.sort.map((item) => ({ ...item })),
     facets: {
       status: filters.statusOptionIds.map((id) =>
         selectionId(id, TASK_STATUS_OPTIONS)

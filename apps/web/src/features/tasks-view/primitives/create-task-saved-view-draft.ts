@@ -46,17 +46,26 @@ type ConfirmedTaskSavedView = TaskSavedViewRead & {
   viewerId: string | undefined;
 };
 
-/** Keeps confirmed filters separate from edits; navigation and writes belong to the host. */
+/** Keeps confirmed settings separate from edits; navigation and writes belong to the host. */
 export function createTaskSavedViewDraft(options: {
   source: SavedViewSource;
   selectedId: Accessor<string | undefined>;
   viewerId: Accessor<string | undefined>;
   creating: Accessor<boolean>;
-  state: Pick<TasksViewState, 'tab' | 'facets'>;
+  state: Pick<TasksViewState, 'tab' | 'facets' | 'layout' | 'sort'>;
   facetContext: Accessor<TaskFacetContext>;
-  apply: (facets: TasksViewState['facets']) => void;
+  apply: (settings: Pick<TasksViewState, 'facets' | 'layout' | 'sort'>) => void;
 }) {
   const [confirmed, setConfirmed] = createSignal<ConfirmedTaskSavedView>();
+  const [retainedDrafts, setRetainedDrafts] = createSignal<
+    { id: string | undefined; viewerId: string | undefined }[]
+  >([]);
+  const retain = () => {
+    const owner = { id: options.selectedId(), viewerId: options.viewerId() };
+    setRetainedDrafts((drafts) => [...drafts, owner]);
+    return () =>
+      setRetainedDrafts((drafts) => drafts.filter((draft) => draft !== owner));
+  };
   let latestRevision = 0;
   const tagBindings = createMemo<ReadonlyMap<string, string>>(
     () =>
@@ -71,6 +80,8 @@ export function createTaskSavedViewDraft(options: {
     captureTaskSavedView({
       tab: options.state.tab,
       facets: options.state.facets,
+      layout: options.state.layout,
+      sort: options.state.sort,
       context: options.facetContext(),
     });
   const current = createMemo(() => {
@@ -85,7 +96,7 @@ export function createTaskSavedViewDraft(options: {
     );
   };
   const apply = (config: TaskSavedViewConfig) =>
-    options.apply(materializeTaskSavedView(config).facets);
+    options.apply(materializeTaskSavedView(config));
   const install = (record: SavedView, parsed: TaskSavedViewRead) =>
     setConfirmed({ record, viewerId: options.viewerId(), ...parsed });
 
@@ -94,6 +105,7 @@ export function createTaskSavedViewDraft(options: {
       () => [options.selectedId(), options.viewerId()] as const,
       ([id, viewer]) => {
         latestRevision = 0;
+        setRetainedDrafts([]);
         const previous = confirmed();
         if (previous?.record.id !== id || previous?.viewerId !== viewer)
           setConfirmed(undefined);
@@ -110,6 +122,7 @@ export function createTaskSavedViewDraft(options: {
           options.source.data(),
           options.source.error(),
           options.source.viewerId(),
+          retainedDrafts(),
         ] as const,
       ([id, viewer, creating, record, error, detailViewer]) => {
         if (!id || !viewer || creating || error || !record || record.id !== id)
@@ -123,7 +136,14 @@ export function createTaskSavedViewDraft(options: {
             : 0
         );
         if (record.revision < latestRevision) return;
-        if (confirmed()?.record.id === id && dirty()) return;
+        if (
+          confirmed()?.record.id === id &&
+          (dirty() ||
+            retainedDrafts().some(
+              (draft) => draft.id === id && draft.viewerId === viewer
+            ))
+        )
+          return;
         batch(() => {
           const parsed = readTaskSavedView(record.config);
           install(record, parsed);
@@ -190,14 +210,18 @@ export function createTaskSavedViewDraft(options: {
       install(record, readTaskSavedView(record.config));
     }
     if (options.creating()) {
-      options.apply(DEFAULT_TASK_FACET_SELECTION);
+      options.apply({
+        facets: DEFAULT_TASK_FACET_SELECTION,
+        layout: 'list',
+        sort: [{ id: 'updated_at' }],
+      });
       return;
     }
     const baseline = confirmed()?.config;
     if (baseline) apply(baseline);
   };
 
-  // A write advances the baseline, never the filters the viewer is currently editing.
+  // A write advances the baseline, never the settings the viewer is currently editing.
   const acceptConfirmed = (record: SavedView) => {
     const previous = confirmed();
     if (record.id === options.selectedId() && record.revision < revision())
@@ -225,7 +249,15 @@ export function createTaskSavedViewDraft(options: {
     return false;
   };
 
-  return { view, tagBindings, capture, revision, reset, acceptConfirmed };
+  return {
+    view,
+    tagBindings,
+    capture,
+    revision,
+    reset,
+    acceptConfirmed,
+    retain,
+  };
 }
 
 export type TaskSavedViewDraft = ReturnType<typeof createTaskSavedViewDraft>;
