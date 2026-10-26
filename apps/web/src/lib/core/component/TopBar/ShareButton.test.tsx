@@ -476,6 +476,7 @@ afterEach(cleanup);
 describe('document meeting-link management', () => {
   it('loads the linked note’s permissions instead of its enclosing calendar block', async () => {
     mocks.blockId = 'calendar';
+    mocks.blockEditPermissionEnabled = false;
     mocks.getDocumentPermissions.mockResolvedValue(
       ok({
         linkShare: 'PUBLIC',
@@ -504,6 +505,9 @@ describe('document meeting-link management', () => {
       await screen.findByRole('group', { name: 'Link sharing scope' })
     ).toBeTruthy();
     expect(mocks.blockPermissionsRead).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole('button', { name: 'Set option edit' })
+    ).toBeTruthy();
   });
   it.each([false, true])(
     'gates the meeting source without implying grants were revoked (mobile: %s)',
