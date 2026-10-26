@@ -16,7 +16,16 @@ import {
 } from './surfaces';
 
 /** Suggestions per surface; the modal shows them all, the card teases one. */
-export const SUGGESTIONS_PER_SURFACE = 3;
+const SUGGESTIONS_PER_SURFACE = 3;
+
+/**
+ * Onboarding turns on the suggestions the AI expects the user to keep: those
+ * at or above this keep probability, at least {@link MIN_DEFAULT_ON} and at
+ * most {@link MAX_DEFAULT_ON} of them.
+ */
+const DEFAULT_ON_THRESHOLD = 0.8;
+const MIN_DEFAULT_ON = 2;
+const MAX_DEFAULT_ON = 5;
 
 /**
  * Events a suggestion may start from. Only workspace-wide events: the others
@@ -34,7 +43,7 @@ type SuggestedEvent = keyof typeof SUGGESTED_EVENTS;
 
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
-export const suggestionIcons = [
+const suggestionIcons = [
   'mail',
   'tag',
   'bell',
@@ -74,6 +83,11 @@ const suggestionSchema = z.object({
       'The complete instructions the routine agent follows on every run, written to the agent in the second person. Concrete and specific to this user: name the real senders, companies, labels, pipelines, or topics you found. 2-6 sentences.'
     ),
   icon: z.string().describe(`Exactly one of: ${suggestionIcons.join(', ')}`),
+  keepProbability: z
+    .number()
+    .describe(
+      'Your calibrated estimate, from 0 to 1, that this user would still have this routine turned on a month after it was turned on for them without asking. See the calibration rules in the instructions.'
+    ),
   notify: z
     .boolean()
     .describe(
@@ -143,6 +157,7 @@ const PROMPT = [
   ),
   'Make every suggestion specific to this user: name real senders, customers, labels, topics, pipelines, and meetings you found, never generic placeholders. Prefer routines that save real time every week. Never suggest two routines that do the same thing, and never one the user already has.',
   'Pick the trigger that fits: an event trigger for reacting to new email, tasks, documents, or calls (add a condition to narrow it, e.g. only invoices), or a schedule for digests, reviews, and upkeep. Use sensible local times, such as 08:30 for a morning briefing.',
+  `Some suggestions are turned on for the user by default, so estimate keepProbability for each one honestly: the chance this user would still have it on a month after it was turned on for them unasked, rather than turning it off. Reason like a careful Bayesian: start from how often people keep an automation they did not ask for (rarely), and move up only on concrete evidence from their workspace that it solves a problem they have every week, such as a steady stream of the mail it handles or meetings it preps. Move down for anything noisy (frequent notifications), anything that acts on their behalf where a mistake is visible to others (sending, posting, changing shared records), anything that guesses at preferences you have not seen, and anything that needs a tool they have not connected. Reserve ${DEFAULT_ON_THRESHOLD} and above for clear wins with strong evidence; across all your suggestions only about ${MIN_DEFAULT_ON} to ${MAX_DEFAULT_ON} should reach it, and prefer spreading those across different surfaces when they are equally strong. Never inflate estimates to fill a quota.`,
 ].join('\n');
 
 /** Static prompt: the agent gathers each user's context through tools. */
@@ -160,6 +175,8 @@ export type RoutineSuggestion = {
   reason: string;
   instructions: string;
   icon: SuggestionIcon;
+  /** The AI's estimate, 0-1, that the user keeps it on once enabled for them. */
+  keepProbability: number;
   notify: boolean;
   trigger: RoutineTriggerDraft;
   /** The trigger in words, e.g. "When a new email arrives". */
@@ -269,6 +286,9 @@ function decodeSuggestion(
     reason: raw.reason.trim(),
     instructions,
     icon: isIcon(raw.icon) ? raw.icon : 'sparkle',
+    keepProbability: Number.isFinite(raw.keepProbability)
+      ? Math.min(1, Math.max(0, raw.keepProbability))
+      : 0,
     notify: raw.notify,
     ...decoded,
   };
@@ -329,4 +349,32 @@ export function suggestionToDraft(
     enabled: true,
     runVisibility: suggestion.notify ? 'listed' : 'unlisted',
   };
+}
+
+/**
+ * The suggestions to turn on by default: every one the AI expects the user to
+ * keep ({@link DEFAULT_ON_THRESHOLD} or more), topped up to
+ * {@link MIN_DEFAULT_ON} with the next most likely and capped at
+ * {@link MAX_DEFAULT_ON}, most likely first. Ties keep the AI's order.
+ */
+export function pickDefaultOn(
+  suggestions: readonly RoutineSuggestion[]
+): ReadonlySet<string> {
+  const ranked = suggestions
+    .map((suggestion, index) => ({ suggestion, index }))
+    .toSorted(
+      (a, b) =>
+        b.suggestion.keepProbability - a.suggestion.keepProbability ||
+        a.index - b.index
+    )
+    .map(({ suggestion }) => suggestion);
+  const likely = ranked.filter(
+    (suggestion) => suggestion.keepProbability >= DEFAULT_ON_THRESHOLD
+  ).length;
+  const count = Math.min(
+    MAX_DEFAULT_ON,
+    Math.max(MIN_DEFAULT_ON, likely),
+    ranked.length
+  );
+  return new Set(ranked.slice(0, count).map((suggestion) => suggestion.id));
 }

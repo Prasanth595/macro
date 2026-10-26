@@ -15,8 +15,8 @@ export type SuggestionActionsDeps = {
   /** Existing routines, so suggestions the user already has read as enabled. */
   existingRoutines: Accessor<{ id: string; name: string }[]>;
   create(draft: ScheduleDraft): Promise<string>;
-  /** Opens the full routine editor, prefilled. */
-  customize(draft: ScheduleDraft): void;
+  /** Opens the full routine editor, prefilled, where the host has one. */
+  customize?: (draft: ScheduleDraft) => void;
 };
 
 /**
@@ -95,7 +95,7 @@ export function createSuggestionActions(deps: SuggestionActionsDeps) {
     },
     enable,
     customize: (suggestion: RoutineSuggestion) =>
-      deps.customize(draftFor(suggestion)),
+      deps.customize?.(draftFor(suggestion)),
   };
 }
 

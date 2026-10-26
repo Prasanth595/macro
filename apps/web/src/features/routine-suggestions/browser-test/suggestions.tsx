@@ -4,71 +4,21 @@ import { createSignal, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import { RoutineSuggestionsCard } from '../components/routine-suggestions-card';
 import { RoutineSuggestionsDialog } from '../components/routine-suggestions-dialog';
-import {
-  decodeRoutineSuggestions,
-  type RoutineSuggestionsResult,
-} from '../core/suggestions';
+import { decodeRoutineSuggestions } from '../core/suggestions';
 import { createSuggestionActions } from '../primitives/suggestion-actions';
+import { FIXTURE_ROUTINE_SUGGESTIONS } from '../tests/fixture-suggestions';
 import {
   SuggestionRows,
   suggestionListView,
 } from '../views/suggestion-list-view';
 
-// The real card, modal, and rows over a fixed projection result. Creating a
+// The real card, modal, and rows over the fixture's email suggestions. Creating a
 // routine records the draft instead of calling the server; the first create
 // fails once so the retry path can be exercised.
-const RESULT: RoutineSuggestionsResult = {
-  suggestions: [
-    {
-      surface: 'email',
-      title: 'Tag invoices and receipts',
-      summary: 'Labels every invoice and receipt as Finance when it arrives.',
-      reason: 'Stripe and AWS bill you every month',
-      instructions:
-        'When an email is an invoice or a receipt, label it Finance and archive it. Note the vendor, amount, and due date in the Finance expenses document.',
-      icon: 'tag',
-      notify: false,
-      trigger: {
-        kind: 'event',
-        event: 'email.message_received',
-        condition: 'Is this email an invoice or a receipt?',
-      },
-    },
-    {
-      surface: 'email',
-      title: 'Alert me about Acme',
-      summary: 'Tells you right away when anyone from Acme writes in.',
-      reason: 'Acme is your largest open deal',
-      instructions:
-        'When an email comes from someone at Acme or mentions the Acme renewal, summarize it in two sentences and draft a reply for me to review.',
-      icon: 'bell',
-      notify: true,
-      trigger: {
-        kind: 'event',
-        event: 'email.message_received',
-        condition: 'Is this email from Acme or about the Acme renewal?',
-      },
-    },
-    {
-      surface: 'email',
-      title: 'Morning inbox digest',
-      summary: 'A short list of what needs you, every weekday morning.',
-      reason: 'You get 80+ emails a day',
-      instructions:
-        'Every weekday morning, list the emails from the last day that need my reply, ranked by urgency, with a one-line summary each.',
-      icon: 'mail',
-      notify: true,
-      trigger: {
-        kind: 'schedule',
-        frequency: 'week',
-        time: '08:30',
-        weekdays: ['mon', 'tue', 'wed', 'thu', 'fri'],
-      },
-    },
-  ],
-};
-
-const suggestions = decodeRoutineSuggestions(RESULT, 'America/New_York');
+const suggestions = decodeRoutineSuggestions(
+  FIXTURE_ROUTINE_SUGGESTIONS,
+  'America/New_York'
+).filter((suggestion) => suggestion.surface === 'email');
 const [created, setCreated] = createSignal<string[]>([]);
 let failNext = true;
 

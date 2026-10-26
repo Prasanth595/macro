@@ -13,6 +13,7 @@ const [suggestion] = decodeRoutineSuggestions(
         reason: 'You run many customer calls',
         instructions: 'Create a task for each action item from the call.',
         icon: 'task',
+        keepProbability: 0.9,
         notify: false,
         trigger: { kind: 'event', event: 'call.ended' },
       },

@@ -1,7 +1,7 @@
 import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 import ArrowsClockwiseIcon from '@phosphor/arrows-clockwise.svg';
 import { Button } from '@ui';
-import { For, type JSX, Match, Switch } from 'solid-js';
+import { type JSX, Match, Switch } from 'solid-js';
 import type { RoutineSuggestion } from '../core/suggestions';
 import { RoutineSparkGlyph } from './routine-spark-glyph';
 
@@ -12,22 +12,19 @@ export type SuggestionListView =
   | { kind: 'empty' }
   | { kind: 'items'; items: RoutineSuggestion[] };
 
-/** Loading, error, and empty states around a list of suggestion rows. */
+/** Loading, error, and empty states around the host's suggestion rows. */
 export function RoutineSuggestionList(props: {
   view: SuggestionListView;
   /** Said when the list is empty, e.g. "No email routines to suggest yet". */
   emptyLabel: string;
   onRetry(): void;
-  children: (suggestion: RoutineSuggestion) => JSX.Element;
+  /** Renders the suggestions once there are some. */
+  children: (items: RoutineSuggestion[]) => JSX.Element;
 }) {
   return (
     <Switch>
       <Match when={props.view.kind === 'items' && props.view.items}>
-        {(items) => (
-          <ul class="flex flex-col gap-1" aria-label="Suggested routines">
-            <For each={items()}>{(item) => props.children(item)}</For>
-          </ul>
-        )}
+        {(items) => props.children(items())}
       </Match>
       <Match when={props.view.kind === 'loading'}>
         <div class="flex flex-col gap-3">

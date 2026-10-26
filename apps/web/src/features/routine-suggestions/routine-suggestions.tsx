@@ -1,8 +1,11 @@
 import { openAgentsPage } from '@app/features/agents-view/primitives/open-page';
 import { createPromotionVisibility } from '@app/features/sidebar-promotion/sidebar-promotion';
+import { analytics } from '@app/lib/analytics';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useHasPaidAccess } from '@core/auth/license';
 import { defaultModelForPlan } from '@core/component/AI/constant';
+import { PERMISSION_IDS } from '@core/constant/permissions';
+import { useHasPermission, useUserId } from '@core/context/user';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Tabs } from '@ui';
 import { createMemo, createSignal, Show } from 'solid-js';
@@ -32,10 +35,15 @@ function createProductionSuggestions(
   onLeave: () => void
 ) {
   const layout = useSplitLayout();
-  const source = createRoutineSuggestions();
+  const premium = useHasPermission(PERMISSION_IDS.READ_PROFESSIONAL_FEATURES);
+  const userId = useUserId();
+  const source = createRoutineSuggestions({
+    premium,
+    ready: () => userId() !== undefined,
+  });
   const hasPaidAccess = useHasPaidAccess();
   const routines = useSchedulesQuery(listRoutines);
-  const create = useCreateScheduleMutation();
+  const create = useCreateScheduleMutation(undefined, 'suggestion');
   const actions = createSuggestionActions({
     target: () => ({
       kind: 'model',
@@ -94,7 +102,12 @@ export function SidebarRoutineSuggestions(props: {
       <SidebarRoutineSuggestionsCard
         surface={props.surface}
         class={props.class}
-        onDismiss={visibility.dismiss}
+        onDismiss={() => {
+          analytics.track('routine_suggestions_dismissed', {
+            surface: props.surface,
+          });
+          visibility.dismiss();
+        }}
       />
     </Show>
   );
@@ -125,7 +138,13 @@ function SidebarRoutineSuggestionsCard(props: {
         class={props.class}
         teaser={forSurface()?.[0]?.title ?? copy().pitch}
         more={Math.max(0, (forSurface()?.length ?? 0) - 1)}
-        onOpen={() => setOpen(true)}
+        onOpen={() => {
+          analytics.track('routine_suggestions_opened', {
+            surface: props.surface,
+            suggestions: forSurface()?.length ?? 0,
+          });
+          setOpen(true);
+        }}
         onDismiss={props.onDismiss}
       />
       <RoutineSuggestionsDialog

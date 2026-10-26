@@ -1,8 +1,12 @@
+import { For } from 'solid-js';
 import {
   RoutineSuggestionList,
   type SuggestionListView,
 } from '../components/routine-suggestion-list';
-import { RoutineSuggestionRow } from '../components/routine-suggestion-row';
+import {
+  RoutineSuggestionRow,
+  SuggestionEnableButton,
+} from '../components/routine-suggestion-row';
 import type { RoutineSuggestion } from '../core/suggestions';
 import { routineSurfaceCopy } from '../core/surfaces';
 import type { SuggestionActions } from '../primitives/suggestion-actions';
@@ -38,25 +42,40 @@ export function SuggestionRows(props: {
       emptyLabel={props.emptyLabel}
       onRetry={props.onRetry}
     >
-      {(suggestion) => (
-        <RoutineSuggestionRow
-          suggestion={suggestion}
-          edits={props.actions.editsFor(suggestion)}
-          status={props.actions.statusFor(suggestion)}
-          expanded={props.actions.isExpanded(suggestion)}
-          surfaceLabel={
-            props.showSurface
-              ? routineSurfaceCopy[suggestion.surface].label
-              : undefined
-          }
-          onExpandedChange={(expanded) =>
-            props.actions.setExpanded(suggestion, expanded)
-          }
-          onEdit={(edits) => props.actions.edit(suggestion, edits)}
-          onEnable={() => props.actions.enable(suggestion)}
-          onCustomize={() => props.actions.customize(suggestion)}
-          onOpenRoutine={props.onOpenRoutine}
-        />
+      {(items) => (
+        <ul class="flex flex-col gap-1" aria-label="Suggested routines">
+          <For each={items}>
+            {(suggestion) => (
+              <RoutineSuggestionRow
+                suggestion={suggestion}
+                edits={props.actions.editsFor(suggestion)}
+                status={props.actions.statusFor(suggestion)}
+                expanded={props.actions.isExpanded(suggestion)}
+                surfaceLabel={
+                  props.showSurface
+                    ? routineSurfaceCopy[suggestion.surface].label
+                    : undefined
+                }
+                onExpandedChange={(expanded) =>
+                  props.actions.setExpanded(suggestion, expanded)
+                }
+                onEdit={(edits) => props.actions.edit(suggestion, edits)}
+                onCustomize={() => props.actions.customize(suggestion)}
+                action={
+                  <SuggestionEnableButton
+                    name={
+                      props.actions.editsFor(suggestion).title ||
+                      suggestion.title
+                    }
+                    status={props.actions.statusFor(suggestion)}
+                    onEnable={() => props.actions.enable(suggestion)}
+                    onOpenRoutine={props.onOpenRoutine}
+                  />
+                }
+              />
+            )}
+          </For>
+        </ul>
       )}
     </RoutineSuggestionList>
   );

@@ -1,11 +1,10 @@
-import ArrowRightIcon from '@phosphor/arrow-right.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
 import LightningIcon from '@phosphor/lightning.svg';
 import SlidersIcon from '@phosphor/sliders-horizontal.svg';
 import { Button, cn, TextField, ToggleSwitch } from '@ui';
 import { CollapseTransition } from '@ui/components/CollapseTransition';
-import { createUniqueId, Match, Show, Switch } from 'solid-js';
+import { createUniqueId, type JSX, Match, Show, Switch } from 'solid-js';
 import type {
   RoutineSuggestion,
   SuggestionEdits,
@@ -15,26 +14,28 @@ import { SuggestionIcon } from './suggestion-icon';
 
 /**
  * One suggested routine: collapsed it reads as a title, a summary, and when
- * it runs, with one-click Enable; expanded it lets the user edit the name,
- * instructions, and notifications first, or open the full routine editor.
+ * it runs, beside the host's action (Enable, or a toggle); expanded it lets
+ * the user edit the name, instructions, and notifications first, or open the
+ * full routine editor.
  */
 export function RoutineSuggestionRow(props: {
   suggestion: RoutineSuggestion;
   edits: SuggestionEdits;
   status: SuggestionStatus;
   expanded: boolean;
+  /** The control on the right, e.g. {@link SuggestionEnableButton}. */
+  action: JSX.Element;
   /** Shown on pages that mix surfaces, such as Routines. */
   surfaceLabel?: string;
   onExpandedChange(expanded: boolean): void;
   onEdit(edits: SuggestionEdits): void;
-  onEnable(): void;
-  onCustomize(): void;
-  onOpenRoutine(routineId: string): void;
+  /** Opens the full routine editor; hidden where there is none. */
+  onCustomize?: () => void;
 }) {
   const detailsId = createUniqueId();
-  const busy = () => props.status.kind === 'enabling';
-  const enabled = () =>
-    props.status.kind === 'enabled' ? props.status : undefined;
+  // Edits apply to the routine still to be created.
+  const locked = () =>
+    props.status.kind === 'enabling' || props.status.kind === 'enabled';
   const edit = (patch: Partial<SuggestionEdits>) =>
     props.onEdit({ ...props.edits, ...patch });
   return (
@@ -44,7 +45,7 @@ export function RoutineSuggestionRow(props: {
         props.expanded
           ? 'border-edge-muted bg-control'
           : 'border-transparent not-touch:hover:bg-hover',
-        enabled() && 'border-success/30 bg-success-bg/40'
+        props.status.kind === 'enabled' && 'border-success/30 bg-success-bg/40'
       )}
     >
       <div class="flex min-w-0 items-start gap-3 p-3">
@@ -88,34 +89,7 @@ export function RoutineSuggestionRow(props: {
             </Show>
           </span>
         </button>
-        <div class="shrink-0">
-          <Switch
-            fallback={
-              <Button
-                variant="cta"
-                size="sm"
-                disabled={busy()}
-                aria-label={`Enable ${props.edits.title || props.suggestion.title}`}
-                onClick={() => props.onEnable()}
-              >
-                {busy() ? 'Enabling…' : 'Enable'}
-              </Button>
-            }
-          >
-            <Match when={enabled()}>
-              {(state) => (
-                <Button
-                  variant="success"
-                  size="sm"
-                  onClick={() => props.onOpenRoutine(state().routineId)}
-                >
-                  <CheckIcon aria-hidden="true" />
-                  Enabled
-                </Button>
-              )}
-            </Match>
-          </Switch>
-        </div>
+        <div class="flex shrink-0 items-center">{props.action}</div>
       </div>
       <Show when={props.status.kind === 'failed' && props.status}>
         {(failed) => (
@@ -129,7 +103,7 @@ export function RoutineSuggestionRow(props: {
           <TextField
             value={props.edits.title}
             onChange={(title) => edit({ title })}
-            disabled={busy() || Boolean(enabled())}
+            disabled={locked()}
           >
             <TextField.Label class="text-xs font-medium text-ink-muted">
               Name
@@ -139,7 +113,7 @@ export function RoutineSuggestionRow(props: {
           <TextField
             value={props.edits.instructions}
             onChange={(instructions) => edit({ instructions })}
-            disabled={busy() || Boolean(enabled())}
+            disabled={locked()}
           >
             <TextField.Label class="text-xs font-medium text-ink-muted">
               Instructions
@@ -152,38 +126,85 @@ export function RoutineSuggestionRow(props: {
               label="Show each run in Home"
               labelClass="text-xs text-ink-muted"
               checked={props.edits.notify}
-              disabled={busy() || Boolean(enabled())}
+              disabled={locked()}
               onChange={(notify) => edit({ notify })}
             />
-            <Show
-              when={!enabled()}
-              fallback={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const state = enabled();
-                    if (state) props.onOpenRoutine(state.routineId);
-                  }}
-                >
-                  Open routine
-                  <ArrowRightIcon aria-hidden="true" />
+            <Show when={props.onCustomize && !locked() && props.onCustomize}>
+              {(customize) => (
+                <Button variant="ghost" size="sm" onClick={() => customize()()}>
+                  <SlidersIcon aria-hidden="true" />
+                  More options
                 </Button>
-              }
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={busy()}
-                onClick={() => props.onCustomize()}
-              >
-                <SlidersIcon aria-hidden="true" />
-                More options
-              </Button>
+              )}
             </Show>
           </div>
         </div>
       </CollapseTransition>
     </li>
+  );
+}
+
+/** Enable in one click; once enabled, opens the routine. */
+export function SuggestionEnableButton(props: {
+  name: string;
+  status: SuggestionStatus;
+  onEnable(): void;
+  onOpenRoutine(routineId: string): void;
+}) {
+  return (
+    <Switch
+      fallback={
+        <Button
+          variant="cta"
+          size="sm"
+          disabled={props.status.kind === 'enabling'}
+          aria-label={`Enable ${props.name}`}
+          onClick={() => props.onEnable()}
+        >
+          {props.status.kind === 'enabling' ? 'Enabling…' : 'Enable'}
+        </Button>
+      }
+    >
+      <Match when={props.status.kind === 'enabled' && props.status}>
+        {(state) => (
+          <Button
+            variant="success"
+            size="sm"
+            onClick={() => props.onOpenRoutine(state().routineId)}
+          >
+            <CheckIcon aria-hidden="true" />
+            Enabled
+          </Button>
+        )}
+      </Match>
+    </Switch>
+  );
+}
+
+/** On or off, for lists where the host creates the chosen routines later. */
+export function SuggestionToggle(props: {
+  name: string;
+  on: boolean;
+  status: SuggestionStatus;
+  onChange(on: boolean): void;
+}) {
+  return (
+    <Show
+      when={props.status.kind !== 'enabled'}
+      fallback={
+        <span class="flex items-center gap-1 text-xs font-medium text-success">
+          <CheckIcon class="size-3.5" aria-hidden="true" />
+          On
+        </span>
+      }
+    >
+      <ToggleSwitch
+        size="md"
+        label={<span class="sr-only">Turn on {props.name}</span>}
+        checked={props.on}
+        disabled={props.status.kind === 'enabling'}
+        onChange={props.onChange}
+      />
+    </Show>
   );
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { serializeTriggers } from '../../routines/queries/routine-trigger-mapping';
 import {
   decodeRoutineSuggestions,
+  pickDefaultOn,
   type RoutineSuggestionsResult,
   suggestionToDraft,
 } from './suggestions';
@@ -16,6 +17,7 @@ function raw(overrides: Partial<Raw>): Raw {
     reason: 'You get invoices from Acme weekly',
     instructions: 'Label every invoice from Acme as Finance.',
     icon: 'tag',
+    keepProbability: 0.5,
     notify: false,
     trigger: {
       kind: 'event',
@@ -167,5 +169,56 @@ describe('suggestionToDraft', () => {
       },
     });
     expect(draft.triggers?.[0]?.id).not.toBe(suggestion.trigger.id);
+  });
+});
+
+describe('pickDefaultOn', () => {
+  const titled = (probabilities: number[]) =>
+    decodeRoutineSuggestions(
+      {
+        suggestions: probabilities.map((keepProbability, index) =>
+          raw({
+            surface: ['email', 'tasks', 'crm'][index % 3],
+            title: `Routine ${index}`,
+            keepProbability,
+          })
+        ),
+      },
+      'UTC'
+    );
+  const titlesOf = (
+    suggestions: ReturnType<typeof titled>,
+    ids: ReadonlySet<string>
+  ) =>
+    suggestions
+      .filter((suggestion) => ids.has(suggestion.id))
+      .map((suggestion) => suggestion.title);
+
+  it('turns on every likely keeper, up to five, most likely first', () => {
+    const three = titled([0.5, 0.92, 0.81, 0.3, 0.8, 0.79]);
+    expect(titlesOf(three, pickDefaultOn(three))).toEqual([
+      'Routine 1',
+      'Routine 2',
+      'Routine 4',
+    ]);
+    const many = titled([0.9, 0.95, 0.85, 0.99, 0.81, 0.8, 0.97]);
+    expect(pickDefaultOn(many).size).toBe(5);
+    expect(pickDefaultOn(many).has(many[5].id)).toBe(false);
+  });
+
+  it('tops up to two with the next most likely when few clear the bar', () => {
+    const unsure = titled([0.2, 0.6, 0.85, 0.55]);
+    expect(titlesOf(unsure, pickDefaultOn(unsure))).toEqual([
+      'Routine 1',
+      'Routine 2',
+    ]);
+    expect(pickDefaultOn(titled([0.4])).size).toBe(1);
+    expect(pickDefaultOn([]).size).toBe(0);
+  });
+
+  it('reads out-of-range estimates as their nearest bound', () => {
+    const [high, low] = titled([3, Number.NaN]);
+    expect(high.keepProbability).toBe(1);
+    expect(low.keepProbability).toBe(0);
   });
 });

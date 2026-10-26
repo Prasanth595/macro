@@ -1,10 +1,8 @@
 import { FREE_DEFAULT_MODEL } from '@core/component/AI/constant';
-import { PERMISSION_IDS } from '@core/constant/permissions';
-import { useHasPermission, useUserId } from '@core/context/user';
 import { getDefaultTimezone } from '@core/util/cron';
 import type { CreateAIProjectionOptions } from '@queries/ai/projection';
 import { createAIProjection, warmAIProjection } from '@queries/ai/projection';
-import { createMemo } from 'solid-js';
+import { type Accessor, createMemo } from 'solid-js';
 import {
   buildRoutineSuggestionsPrompt,
   decodeRoutineSuggestions,
@@ -41,14 +39,21 @@ export type RoutineSuggestionsSource = {
 };
 
 /** The workspace's routine suggestions, from the cached AI projection. */
-export function createRoutineSuggestions(): RoutineSuggestionsSource {
-  const premium = useHasPermission(PERMISSION_IDS.READ_PROFESSIONAL_FEATURES);
-  const userId = useUserId();
-  // Permissions arrive with the user; asking earlier would start the wrong
-  // plan's projection for a premium user.
+export function createRoutineSuggestions(plan: {
+  /**
+   * Whether to read the premium-model projection. Onboarding passes false
+   * whatever the plan: it warms the free one before the user picks a plan.
+   */
+  premium: Accessor<boolean>;
+  /**
+   * Whether the user, and so their permissions, has loaded; asking earlier
+   * would start the wrong plan's projection for a premium user.
+   */
+  ready: Accessor<boolean>;
+}): RoutineSuggestionsSource {
   const projection = createAIProjection(() => ({
-    ...projectionOptions(premium()),
-    enabled: userId() !== undefined,
+    ...projectionOptions(plan.premium()),
+    enabled: plan.ready(),
   }));
   const suggestions = createMemo(() => {
     const data = projection.data();
@@ -63,8 +68,10 @@ export function createRoutineSuggestions(): RoutineSuggestionsSource {
   };
 }
 
-/** Starts generating suggestions, e.g. as soon as onboarding completes. */
-export function createRoutineSuggestionsWarmup(): () => Promise<void> {
-  const premium = useHasPermission(PERMISSION_IDS.READ_PROFESSIONAL_FEATURES);
-  return () => warmAIProjection(projectionOptions(premium()));
+/**
+ * Starts generating the free-model suggestions onboarding shows, once the
+ * user's inbox and tools are connected, so they are ready by its last step.
+ */
+export function warmOnboardingRoutineSuggestions(): Promise<void> {
+  return warmAIProjection(projectionOptions(false));
 }
