@@ -573,11 +573,37 @@ export function TaskSavedViewFailure() {
 }
 
 export function TaskSavedViewWarning() {
-  const { savedViews } = useTasksView();
-  const issues = () => {
-    const view = savedViews?.view();
-    return view?.kind === 'saved' ? view.issues : [];
+  const { savedViews, savedViewsList } = useTasksView();
+  if (!savedViews || !savedViewsList) return null;
+  const viewerId = useUserId();
+  const update = useUpdateSavedView({ refresh: savedViewsList.refresh });
+  const selected = () => {
+    const view = savedViews.view();
+    return view.kind === 'saved' ? view : undefined;
   };
+  const issues = () => selected()?.issues ?? [];
+  let lastRequest: ReturnType<typeof savedViews.checkpoint> | undefined;
+  const removeUnsupported = async () => {
+    const view = selected();
+    if (
+      !view?.issues.length ||
+      update.isPending ||
+      view.record.ownerId !== viewerId()
+    )
+      return;
+    const request = savedViews.checkpoint();
+    lastRequest = request;
+    const result = await update.mutateAsync({
+      id: view.record.id,
+      name: view.record.name,
+      config: readTaskSavedView(view.record.config).config,
+      expectedRevision: view.record.revision,
+    });
+    if (!result.error && result.data?.updateSavedView)
+      request.updated(toSavedView(result.data.updateSavedView));
+  };
+  const failure = () =>
+    !update.isPending && lastRequest?.isCurrent() ? update.error : null;
   const labels: Record<string, string> = {
     statusOptionIds: 'Status',
     priorityOptionIds: 'Priority',
@@ -601,17 +627,41 @@ export function TaskSavedViewWarning() {
     <Show when={issues().length}>
       <div
         role="alert"
-        class="flex shrink-0 gap-2 border-b border-failure/30 bg-failure-bg px-4 py-3 text-sm text-failure-ink"
+        class="flex shrink-0 items-start gap-2 border-b border-failure/30 bg-failure-bg px-4 py-3 text-sm text-failure-ink"
       >
         <WarningIcon class="mt-0.5 size-4 shrink-0" />
-        <div class="min-w-0">
-          <p class="font-medium">Some saved filters could not be applied.</p>
-          <p>
-            Only supported filters are active. If none apply, all tasks are
-            shown.
-          </p>
-          <p class="break-words">Skipped: {skipped()}.</p>
+        <div class="min-w-0 flex-1">
+          <p class="font-medium">Some filters were skipped.</p>
+          <p class="break-words">Skipped filters: {skipped()}</p>
+          <Show when={failure()}>
+            {(error) => <p>{savedViewErrorMessage(error())}</p>}
+          </Show>
         </div>
+        <Show when={selected()?.record.ownerId === viewerId()}>
+          <div class="flex shrink-0 flex-col items-end gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={update.isPending}
+              onClick={() => fireAndForget(removeUnsupported(), 'saved-views')}
+            >
+              {update.isPending ? 'Saving…' : 'Remove & save'}
+            </Button>
+            <Show
+              when={failure()?.graphQLErrors[0]?.extensions.code === 'CONFLICT'}
+            >
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  fireAndForget(savedViews.reload(), 'saved-views')
+                }
+              >
+                Reload saved view
+              </Button>
+            </Show>
+          </div>
+        </Show>
       </div>
     </Show>
   );
