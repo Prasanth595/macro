@@ -240,7 +240,12 @@ function MobileDrawerHandle<T extends ValidComponent = 'div'>(
  * drawer as usual.
  */
 function dismissesDrawer(event: PointerEvent) {
-  return event.target !== document.documentElement;
+  // A nested select can remove its option during pointerup before this
+  // document listener runs. That detached target is not an outside tap.
+  return (
+    event.target !== document.documentElement &&
+    (!(event.target instanceof Node) || event.target.isConnected)
+  );
 }
 
 /**

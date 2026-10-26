@@ -22,6 +22,7 @@ import {
   RecordFilesSection,
   RecordReferencesSection,
 } from './record-associations';
+import { RecordFiles } from './record-files';
 import { useCompanyQuery } from './use-crm';
 
 /**
@@ -83,6 +84,7 @@ export function Company(props: {
                     onOpenPipeline={props.onOpenPipeline}
                   />
                 </Show>
+                <RecordFiles scope={scope()} overview />
                 <CompanyDiscussionSection companyId={props.companyId} />
               </RecordOverview>
             </Match>

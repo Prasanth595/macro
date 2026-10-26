@@ -161,7 +161,7 @@ A company is laid out like a project. Its split header or embedded breadcrumb
 header shows rounded view tabs for `Overview`, `Team`, `Emails`, `Files`, `Tasks`, and `Calls`
 tabs, collapsing to icons when narrow. Overview shows the name, pills
 for each domain and `Last interacted`, the generated description, a
-**Pipelines** section and the Discussion. Pipelines stacks one full-width card
+**Pipelines** section, **Files** grouped by business type, and the Discussion. Pipelines stacks one full-width card
 per row of a pipeline you can open that references the record. A card's header
 strip names the pipeline (a lock marks a private one); below it, the row's first
 four fields sit side by side, label over value (two per row on a narrow card),
@@ -199,12 +199,33 @@ inaccessible), it replaces its rows with `Couldn't load this list.` and
 load more.`
 A contact has the same layout with `Overview`, `Emails`, `Files`, `Tasks` and
 `Calls`: Overview pills show the email, the company (opens it) and `Last
-interacted`, followed by the contact's Pipelines cards. Its Files, Tasks, Calls,
+interacted`, followed by the contact's Pipelines cards, typed Files, and Discussion. Its Files, Tasks, Calls,
 and References show items associated with the contact itself (its `Contacts`
 property or an @mention of it), not everything associated with its company;
 Files also includes attachments of emails with its address. Tasks created from a
 contact also reference its company. The side panel keeps Sharing (admins only)
 and adds References.
+
+Overview and the Files tab use the same automatic, nonempty type groups on both
+desktop and mobile. **Set up file types** creates the team's single-select
+**File type** property with Contract, Proposal, Invoice and Notes. Team members
+use **Manage types** to add, rename or remove types; removing one leaves its files
+Unclassified. Types are document properties, so a file linked to several records
+keeps the same type everywhere within the team. Missing or unreadable values
+show **Type unavailable**, distinct from Unclassified.
+
+**Add file** offers **Existing file** and **New note**. Select a file you can edit
+and a type, or leave **Keep current type** to preserve its classification. A new
+note needs a name and can start Unclassified. Attaching appends the record to the
+file's Companies/Contacts property and preserves its other links. Both attaching
+and changing type require source-file edit access; neither grants file access.
+Rows still open the source file. If creation succeeds but attaching fails, **Retry**
+reuses the same note and **Open created file** remains available.
+
+Verify with the same file on two records: changing its type or renaming that type
+must update both surfaces, and a viewer must be unable to change a read-only file.
+The production-component browser regression (with local storage fixtures) is
+`bunx playwright test --config src/features/crm/browser-test/playwright.config.ts files.browser.e2e.ts`.
 
 In a company or contact's Tasks tab, clicking a task (or pressing Enter on its
 focused row) opens the task detail view at `/app/tasks/<task-id>`, including on

@@ -32,6 +32,7 @@ import type {
   TeamSource,
   TeamViewsSource,
 } from './crm-sources';
+import type { FileTypesSource } from './file-types';
 import type {
   PipelineEditor,
   PipelineEntriesView,
@@ -41,6 +42,7 @@ import type {
 } from './pipelines';
 
 export type CrmContext = {
+  createFileTypes(): FileTypesSource;
   createPipelines(teamId: Accessor<string | undefined>): PipelinesSource;
   PipelineEditor: PipelineEditor;
   PipelineEntries: PipelineEntriesView;
@@ -60,7 +62,7 @@ export type CrmContext = {
   createNavigation(): {
     splitId: string | undefined;
     openWithSplit(
-      target: { type: 'company' | 'contact'; id: string },
+      target: { type: 'company' | 'contact' | 'md'; id: string },
       options?: { activate?: boolean; preferNewSplit?: boolean }
     ): void;
     showCompanies(): void;

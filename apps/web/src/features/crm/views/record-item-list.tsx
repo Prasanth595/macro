@@ -1,5 +1,6 @@
 import { fireAndForget } from '@core/util/fireAndForget';
 import {
+  type EntityData,
   ListEntity,
   ListEntityMetadataQueryProvider,
   ListLayoutProvider,
@@ -33,6 +34,10 @@ export function RecordItemList(props: {
   search?: string;
   /** Row layout when the list is narrow, e.g. in the information panel. */
   narrowLayout?: NarrowLayoutVariant;
+  groupItems?: (
+    items: EntityData[]
+  ) => { id: string; name: string; files: EntityData[] }[];
+  rowActions?: (entity: EntityData) => JSX.Element;
 }) {
   const { openEntity } = useCrmContext().createNavigation();
   // Reading `data` before the first page resolves would suspend the tab.
@@ -40,6 +45,12 @@ export function RecordItemList(props: {
     props.source.isPending ? [] : (props.source.data?.entities ?? []);
   const filteredItems = createMemo(() =>
     items().filter((item) => recordItemMatchesSearch(item, props.search ?? ''))
+  );
+  const groups = createMemo(
+    () =>
+      props.groupItems?.(filteredItems()) ?? [
+        { id: 'all', name: '', files: filteredItems() },
+      ]
   );
   const [listRef, setListRef] = createSignal<HTMLElement>();
   const [sentinelRef, setSentinelRef] = createSignal<HTMLDivElement>();
@@ -85,14 +96,37 @@ export function RecordItemList(props: {
                     : 'No matching items.'}
                 </div>
               </Show>
-              <For each={filteredItems()}>
-                {(entity) => (
-                  <ListEntity
-                    entity={entity}
-                    hideCheckbox
-                    timestamp={entity.updatedAt}
-                    onClick={() => openEntity(entity)}
-                  />
+              <For each={groups()}>
+                {(group) => (
+                  <section aria-label={group.name || undefined}>
+                    <Show when={group.name}>
+                      <h3 class="flex items-center gap-2 px-3 pb-2 pt-4 text-sm font-medium">
+                        {group.name}
+                        <span class="text-xs text-ink-muted">
+                          {group.files.length}
+                        </span>
+                      </h3>
+                    </Show>
+                    <For each={group.files}>
+                      {(entity) => (
+                        <div class="flex min-w-0 items-center gap-2 touch:flex-wrap">
+                          <div class="min-w-0 flex-1">
+                            <ListEntity
+                              entity={entity}
+                              hideCheckbox
+                              timestamp={entity.updatedAt}
+                              onClick={() => openEntity(entity)}
+                            />
+                          </div>
+                          <Show when={props.rowActions}>
+                            <div class="w-36 shrink-0 pr-2">
+                              {props.rowActions?.(entity)}
+                            </div>
+                          </Show>
+                        </div>
+                      )}
+                    </For>
+                  </section>
                 )}
               </For>
             </div>
