@@ -44,10 +44,12 @@ The existing theme renderer supplies Button materials at the root and in theme p
 
 ## Development and validation
 
-The dev server runs from this worktree on port 3007 with HTTPS and backend proxy disabled. It reuses the existing local dependency directory; no dependencies were downloaded. Start it with:
+The dev server runs from this worktree on port 3007 with HTTPS disabled and the existing hosted development API proxy enabled. Known hosted API and WebSocket requests use same-origin `/__macro_dev/` forwarding; backend CORS policies remain unchanged. It reuses the existing local dependency directory; no dependencies were downloaded. Start it with:
 
 ```sh
-MACRO_DEV_HTTPS=false MACRO_DEV_PROXY=false PORT=3007 bun run dev:server
+MACRO_DEV_HTTPS=false MACRO_DEV_PROXY=true PORT=3007 bun run dev:server --strictPort
 ```
+
+Proxy forwarding was enabled after CORS errors were reported. The failing response was not captured, so this is a development transport workaround rather than a confirmed endpoint-level diagnosis.
 
 Checks, builds, tests, formatting, browser verification, probes, and hooks remain paused. The implementation and caller migration are unverified. Starting the server does not establish rendering, type, accessibility, or interaction correctness.
