@@ -7259,12 +7259,14 @@ mod changes;
 mod channel_grants;
 mod details;
 mod export;
+mod guest_policy;
 mod invitations;
 mod join_requests;
 mod meeting_copies;
 mod meeting_uid;
 #[cfg(feature = "notes")]
 mod notes;
+mod organizer_calendar;
 mod source_access;
 
 mod replacement;

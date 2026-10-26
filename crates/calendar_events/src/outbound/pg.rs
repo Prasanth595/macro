@@ -3,6 +3,7 @@ mod change_log;
 mod changes;
 mod details;
 mod export;
+mod guest_policy;
 mod invitations;
 mod join_requests;
 #[cfg(feature = "outlook")]
@@ -25,7 +26,7 @@ use crate::domain::{
     changes::CalendarChangeOp,
     ics::CalendarEventExport,
     models::{
-        ActorInboxes, AppliedGoogleGrant, AttendeeResponseStatus,
+        ActorInboxes, AlignedGuestCopy, AppliedGoogleGrant, AttendeeResponseStatus,
         CALENDAR_SYNC_FAILURE_BADGE_THRESHOLD, CalendarAttendee, CalendarBackfillClaim,
         CalendarBackfillFailureDisposition, CalendarBackfillFailureOutcome, CalendarBackfillJob,
         CalendarBackfillJobKey, CalendarBackfillKind, CalendarCapabilities, CalendarCreationTarget,
@@ -932,6 +933,7 @@ impl CalendarRepository for PgCalendarRepository {
                     owner_id: upsert.event.owner_id.clone(),
                     change: CalendarEventChange::Unchanged,
                     team_ooo_changed: false,
+                    aligned_copies: Vec::new(),
                 });
             }
         }
@@ -1042,6 +1044,7 @@ impl CalendarRepository for PgCalendarRepository {
                 owner_id: upsert.event.owner_id.clone(),
                 change: CalendarEventChange::Unchanged,
                 team_ooo_changed: false,
+                aligned_copies: Vec::new(),
             });
         };
         if provider_sync {
@@ -1087,9 +1090,26 @@ impl CalendarRepository for PgCalendarRepository {
             .await?;
         }
 
+        let mut aligned = guest_policy::align_with_organizer(&mut tx, event_id).await?;
+        // A guest copy that took its organizer's policy is the write itself,
+        // already logged and refreshed below.
+        aligned.retain(|copy| copy.event_id != event_id);
         let mut log = ChangeLogBatch::default();
         log.record(source_link_id, CalendarChangeOp::UpsertEvent(event_id));
+        for copy in &aligned {
+            log.record(
+                copy.email_link_id,
+                CalendarChangeOp::UpsertEvent(copy.event_id),
+            );
+        }
         log.commit(tx).await?;
+        if !aligned.is_empty() {
+            tracing::info!(
+                %event_id,
+                aligned = aligned.len(),
+                "guest copies now follow their organizer's guest policy"
+            );
+        }
         if became_seat {
             tracing::info!(
                 %event_id,
@@ -1105,6 +1125,7 @@ impl CalendarRepository for PgCalendarRepository {
                 CalendarEventChange::Updated
             },
             team_ooo_changed,
+            aligned_copies: aligned,
         })
     }
 
@@ -1350,6 +1371,20 @@ impl CalendarRepository for PgCalendarRepository {
                                 WHERE organizer.event_id = candidate.id
                                   AND organizer.is_organizer
                                   AND lower(organizer.email) = lower(copy_inbox.email_address)
+                            )
+                            -- A calendar the inbox can write organizes it,
+                            -- as Google names a secondary calendar.
+                            OR EXISTS (
+                                SELECT 1
+                                FROM calendar_accounts organizer_account
+                                JOIN calendars organizer_calendar
+                                    ON organizer_calendar.account_id = organizer_account.id
+                                WHERE organizer_account.email_link_id = copy_inbox.id
+                                  AND organizer_account.sync_status <> 'disabled'
+                                  AND NOT organizer_calendar.is_deleted
+                                  AND organizer_calendar.access_role IN ('owner', 'writer')
+                                  AND lower(organizer_calendar.provider_calendar_id)
+                                    = lower(candidate.organizer_email)
                             ),
                             false
                         ) AS inbox_organizes,
@@ -1501,6 +1536,18 @@ impl CalendarRepository for PgCalendarRepository {
                         WHERE organizer.event_id = candidate.id
                           AND organizer.is_organizer
                           AND lower(organizer.email) = lower(copy_inbox.email_address)
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM calendar_accounts organizer_account
+                        JOIN calendars organizer_calendar
+                            ON organizer_calendar.account_id = organizer_account.id
+                        WHERE organizer_account.email_link_id = copy_inbox.id
+                          AND organizer_account.sync_status <> 'disabled'
+                          AND NOT organizer_calendar.is_deleted
+                          AND organizer_calendar.access_role IN ('owner', 'writer')
+                          AND lower(organizer_calendar.provider_calendar_id)
+                            = lower(candidate.organizer_email)
                     ),
                     false
                 ) AS "organizes!",
@@ -2238,6 +2285,23 @@ impl CalendarRepository for PgCalendarRepository {
                 source.calendar_id AS "calendar_id!",
                 calendar.provider_calendar_id,
                 calendar.access_role,
+                -- Google names the calendar an event was made on as its
+                -- organizer; the copy on it takes the organizer's changes.
+                (
+                    SELECT organizer_source.calendar_id
+                    FROM calendar_event_sources organizer_source
+                    JOIN calendars organizer_calendar
+                        ON organizer_calendar.id = organizer_source.calendar_id
+                       AND organizer_calendar.account_id = organizer_source.account_id
+                    WHERE organizer_source.event_id = event.id
+                      AND organizer_source.source_kind IN ('google','outlook')
+                      AND organizer_source.calendar_id <> source.calendar_id
+                      AND NOT organizer_calendar.is_deleted
+                      AND organizer_calendar.access_role IN ('owner', 'writer')
+                      AND lower(organizer_calendar.provider_calendar_id)
+                        = lower(event.organizer_email)
+                    LIMIT 1
+                ) AS organizer_copy_calendar_id,
                 account.email_link_id,
                 link.fusionauth_user_id,
                 link.email_address,
@@ -2315,6 +2379,7 @@ impl CalendarRepository for PgCalendarRepository {
                 can_see_other_guests: row.guests_can_see_other_guests,
             },
             is_snapshot: row.is_snapshot,
+            organizer_copy_calendar_id: row.organizer_copy_calendar_id,
         }))
     }
 
@@ -2561,11 +2626,20 @@ impl CalendarRepository for PgCalendarRepository {
         sqlx::query!(
             r#"
             SELECT
-                id AS link_id,
-                email_address::text AS "email_address!",
-                provider::text AS "provider!"
-            FROM email_links
-            WHERE macro_id = $1
+                link.id AS link_id,
+                link.email_address::text AS "email_address!",
+                link.provider::text AS "provider!",
+                ARRAY(
+                    SELECT calendar.provider_calendar_id
+                    FROM calendar_accounts account
+                    JOIN calendars calendar ON calendar.account_id = account.id
+                    WHERE account.email_link_id = link.id
+                      AND account.sync_status <> 'disabled'
+                      AND NOT calendar.is_deleted
+                      AND calendar.access_role IN ('owner', 'writer')
+                ) AS "writable_calendar_ids!"
+            FROM email_links link
+            WHERE link.macro_id = $1
             "#,
             requester_id,
         )
@@ -2579,6 +2653,7 @@ impl CalendarRepository for PgCalendarRepository {
                 email: row.email_address,
                 provider: CalendarProvider::from_link(&row.provider)
                     .ok_or_else(|| rootcause::report!("unsupported calendar provider"))?,
+                writable_calendar_ids: row.writable_calendar_ids,
             })
         })
         .collect()

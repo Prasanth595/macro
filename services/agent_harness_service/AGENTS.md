@@ -26,8 +26,15 @@ Pulumi stacks; they do not host extra agent processes.
   reuses the harness tool context and retains bearer authentication. Users with
   `ai-code-mode` get `ExecuteCode`/`DescribeCodeTools` in place of SDK-covered
   tools (`tool_service.rs`); the flag is cached per user (`tool_mode_cache.rs`).
+  `src/public_mcp/analytics.rs` sends PostHog `$mcp_initialize` /
+  `$mcp_tool_call` events (PostHog MCP analytics schema) in the background,
+  with the user's team as the `team` group. At most 64 sends run at once
+  (more are dropped) and each user's team is cached for 10 minutes.
 - `src/cognition/`: existing chat, completions, integrations, and projection
   workers; the library also exports their OpenAPI document.
+  `src/cognition/service/integration_analytics.rs` sends PostHog
+  `integration_connected` / `integration_disconnected` for native MCP servers
+  and Pipedream apps, from the router hooks wired in `src/cognition/server.rs`.
 - `src/scheduling.rs`: routine HTTP routes and background scheduling;
   domain/adapters live in `crates/scheduled_action`.
 - `src/preview.rs` + `src/preview/`: preview control routes, public HTTP and SSH listeners;
@@ -105,8 +112,9 @@ hostnames and internally rewrites cognition paths. `PREVIEW_DOMAIN` and
 `MCP_PUBLIC_URL`, `MCP_CLIENT_PUBLIC_URL`, `PREVIEW_APP_ORIGIN`, and
 `PREVIEW_CONTROL_HOSTS` values are retained only for old-image rollback; new
 code does not read them. `POSTHOG_API_KEY` and `POSTHOG_HOST` gate
-code mode on the public MCP (`ai-code-mode`); agent sessions do not read them,
-and MCP emits no analytics events.
+code mode on the public MCP (`ai-code-mode`) and drive the MCP and integration
+analytics; agent sessions use code mode without them, and when the key is
+unset, analytics are off.
 In deployed configs, `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY`
 is cognition's Secrets Manager reference; AI tools resolve the separate
 `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME` reference.
@@ -126,6 +134,12 @@ listener failure shuts down the process so ECS can replace the task.
 - Two managed bots run on different runtimes: `@coder` (`HARNESS_BOT_ID`) in a
   Daytona sandbox, `@macro-new`/`@macro` (`INMEM_BOT_ID`) on the in-process ACP
   runtime — check which one a bug report is about before debugging containers.
+
+- Analytics record the tool name, outcome, duration, and client headers only;
+  never add tool arguments or results to them.
+- The public MCP server is stateless, so tool calls carry no `clientInfo`; the
+  client is identified per call by its `User-Agent` / `x-anthropic-client`
+  headers and per session by `$mcp_initialize`.
 
 ## Related
 

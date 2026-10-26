@@ -645,6 +645,7 @@ async fn run() -> anyhow::Result<()> {
         &config,
         &secrets,
         tool_context.clone(),
+        pool.clone(),
         macro_auth::middleware::decode_jwt::JwtValidationArgs::new_with_secret_manager(
             config.environment,
             &secrets,

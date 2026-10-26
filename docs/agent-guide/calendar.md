@@ -618,12 +618,25 @@ disabled while a recurring edit
 targets `This event`, since the policy belongs to the whole series, and says so after the
 switches (`Guest permissions apply to all events. Choose All events to change them.`);
 choosing `This event` returns it to the stored values. Save sends `guestPolicy` only when it
-changed, and the guests' `viewerCan` follows once their copies sync: turning `Invite others`
+changed. Guests whose copies Macro holds follow at once, since the organizer's stored copy
+hands its policy to theirs; others follow once Google syncs their copies. Turning `Invite others`
 off replaces a guest's `Add guests` with `Only the organizer can invite guests.` The update
 refuses a policy change from anyone but the organizer with 403 `not_organizer`, and on an
 Outlook event with
 `provider_rejected`. `viewerCan.organize` marks the organizer of the displayed copy, including
 on Outlook, where `setGuestPolicy` is false.
+Google names the calendar an event was made on as its organizer, so an event on a secondary
+calendar shows `Organizer` with that calendar's name, and its organizer email is the calendar's
+id (`…@group.calendar.google.com`). Whoever can write that calendar organizes the event, as in
+Google: details, guests, guest permissions and Delete work as on their primary calendar, on
+every copy. A new event on a calendar other than the primary lists its creator as a guest only
+when it has other guests, as Google's own client does, so an event of one's own shows as one
+block in Google. With guests, Google also invites the creator's primary calendar; Macro shows
+both copies as one event, sends the organizer's changes and Delete through the copy on the
+secondary calendar, and keeps reminders and answers on the invitation. To verify, create an
+event on a secondary calendar with no guests and another with a guest, open each (no `Only the
+organizer can change this event.`), change the title, add a guest, then delete it, and check
+Google: the first shows once, and both disappear from every calendar after the delete.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description
