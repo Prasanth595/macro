@@ -9,10 +9,13 @@ CREATE TABLE crm_database_row_links (
     CHECK (
         (company_id IS NOT NULL AND pipeline_id IS NULL AND entry_row_id IS NULL)
         OR (company_id IS NULL AND pipeline_id IS NOT NULL AND entry_row_id IS NOT NULL)
-    ),
-    UNIQUE NULLS NOT DISTINCT (company_id, pipeline_id, entry_row_id, source_row_id)
+    )
 );
-CREATE INDEX crm_database_row_links_entry ON crm_database_row_links(pipeline_id, entry_row_id);
+-- Separate targets enforce the same identity on PostgreSQL 14 and newer.
+CREATE UNIQUE INDEX crm_database_row_links_company_source
+    ON crm_database_row_links(company_id, source_row_id) WHERE company_id IS NOT NULL;
+CREATE UNIQUE INDEX crm_database_row_links_entry_source
+    ON crm_database_row_links(pipeline_id, entry_row_id, source_row_id) WHERE pipeline_id IS NOT NULL;
 CREATE INDEX crm_database_row_links_entry_row ON crm_database_row_links(entry_row_id);
 CREATE INDEX crm_database_row_links_source ON crm_database_row_links(source_row_id);
 CREATE INDEX crm_database_row_links_database ON crm_database_row_links(source_database_id);

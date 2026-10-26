@@ -76,6 +76,8 @@ the explicitly destructive database cutover.
 **Database migrations deploy before service changes.** Every migration must remain
 compatible with the service code currently deployed, not just the code in its PR.
 
+- Validate migration SQL against production's PostgreSQL major version (currently
+  14, also used by CI); passing on local PostgreSQL 18 does not establish compatibility.
 - **Never drop a column in the same PR that removes its usage.** First remove all
   reads/writes in a service-only PR and keep the column in the schema. After that
   change is fully deployed to all consumers, drop the column in a separate PR.
