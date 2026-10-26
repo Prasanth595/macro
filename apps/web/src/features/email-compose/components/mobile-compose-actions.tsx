@@ -20,6 +20,7 @@ export function MobileComposeActions(props: {
         <Button
           ref={props.attachRef}
           label="Attach"
+          variant="ghost"
           size="icon-sm"
           disabled={props.editingDisabled}
         >

@@ -449,6 +449,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
 
   const AttachButton = () => (
     <Button
+      variant="ghost"
       ref={(el) =>
         fileSelector(el, () => ({
           multiple: true,
@@ -459,7 +460,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
       tooltip="Attach"
       disabled={editingDisabled()}
     >
-      <Paperclip />
+      <Paperclip class="size-4 touch:size-6 shrink-0 pointer-events-none" />
     </Button>
   );
 
@@ -727,7 +728,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
                   setComposerExpanded(true);
                 }}
               >
-                <DotsThree />
+                <DotsThree class="size-3.5 shrink-0 pointer-events-none" />
               </Button>
             </div>
           </Show>
@@ -790,12 +791,13 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
             >
               <div class="flex shrink-0 items-center gap-1">
                 <Button
+                  variant="ghost"
                   onClick={deleteDraftAndReset}
                   tooltip={savedDraftId() ? 'Delete draft' : 'Discard'}
                   size="icon-composer"
                   disabled={editingDisabled()}
                 >
-                  <Trash />
+                  <Trash class="size-4 touch:size-6 shrink-0 pointer-events-none" />
                 </Button>
                 <AttachButton />
                 <Show

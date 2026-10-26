@@ -51,6 +51,7 @@ The existing theme renderer supplies Button materials at the root and in theme p
 - Wrap ordinary dropdown action lists in `Dropdown.Group` so they receive the shared menu inset. CRM creation/pipeline menus and routine action menus now follow that structure.
 - Keep the Tasks New menu inside a padded `Dropdown.Group`, with gaps between creation actions. Pass Share's tooltip to `HeaderActionButton` directly so no extra wrapper interrupts its full-height group segment.
 - Use ghost styling for task composer expand, attach, close, and clear-draft actions, search clear/close, and split close controls. Task creation and the share menu's submit action use accent styling; split close controls use compact icon sizing.
+- Email composer and reply utility actions (discard, attach, formatting, Cc/Bcc, Back, and schedule controls) use ghost styling; Send stays accent-styled. Reply trash and attachment icons have explicit 16px desktop / 24px touch sizing while preserving their button hit areas.
 - Search clear/close buttons use ghost `icon-xs` controls with 14px desktop icons; the Button touch minimum remains unchanged.
 - View-sidebar Show/Hide controls use ghost styling with no persistent active fill while the sidebar is open.
 - Size the icon-only Add tag trigger with `buttonClasses({ variant: 'outline', size: 'icon-sm' })`; do not combine a labeled badge size with a narrower width override.

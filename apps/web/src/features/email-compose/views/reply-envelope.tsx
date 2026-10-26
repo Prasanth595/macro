@@ -146,6 +146,7 @@ export function ReplyEnvelope(props: ReplyEnvelopeProps) {
                   <div class="flex items-center ml-auto shrink-0">
                     <Show when={!showCc()}>
                       <Button
+                        variant="ghost"
                         size="sm"
                         disabled={props.disabled()}
                         onClick={() => {
@@ -158,6 +159,7 @@ export function ReplyEnvelope(props: ReplyEnvelopeProps) {
                     </Show>
                     <Show when={!showBcc()}>
                       <Button
+                        variant="ghost"
                         size="sm"
                         disabled={props.disabled()}
                         onClick={() => {

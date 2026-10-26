@@ -48,6 +48,7 @@ export function EmailComposeToolbar(props: {
         <div class="flex shrink-0 items-center gap-1">
           <Show when={ctx.hasDraft()}>
             <Button
+              variant="ghost"
               onClick={ctx.onDelete}
               tooltip="Delete draft"
               size="icon-composer"
@@ -58,6 +59,7 @@ export function EmailComposeToolbar(props: {
           </Show>
           <Show when={!ctx.hideAttachments}>
             <Button
+              variant="ghost"
               ref={(el) =>
                 fileSelector(el, () => ({
                   multiple: true,
@@ -72,6 +74,7 @@ export function EmailComposeToolbar(props: {
             </Button>
           </Show>
           <Button
+            variant="ghost"
             tooltip="Format"
             size="icon-composer"
             disabled={ctx.disabled()}
