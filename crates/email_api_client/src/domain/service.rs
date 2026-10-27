@@ -93,6 +93,8 @@ where
     /// operation's span.
     ///
     /// Callers declare `retry_count = 0` on their span; a retry sets it to 1.
+    /// Like every provider call, they also declare the empty fields that
+    /// [`Self::admit`] records.
     async fn read_with_token<O, F, Fut>(
         &self,
         link_id: Uuid,
@@ -170,16 +172,28 @@ where
 
     /// Takes an admission permit, logging a refusal in the calling
     /// operation's span.
+    ///
+    /// Calling operations declare `gate_in_flight` and `gate_cap` as empty
+    /// span fields. They record the mailbox's load at admission next to the
+    /// request's outcome, which is how Gmail's real concurrency limit can be
+    /// measured.
     async fn admit(
         &self,
         link_id: Uuid,
         operation: ApiOperationKind,
     ) -> Result<RequestPermit, EmailApiError> {
-        self.gate
+        let permit = self
+            .gate
             .acquire(link_id, operation)
             .await
             .map_err(EmailApiError::from)
-            .inspect_err(log_operation_error)
+            .inspect_err(log_operation_error)?;
+        if let Some(load) = permit.load() {
+            tracing::Span::current()
+                .record("gate_in_flight", load.in_flight)
+                .record("gate_cap", load.cap);
+        }
+        Ok(permit)
     }
 }
 
@@ -195,6 +209,9 @@ fn log_operation_error(error: &EmailApiError) {
             origin: RateLimitOrigin::Local,
             ..
         } => tracing::debug!(error = %error),
+        EmailApiError::RateLimited { origin, .. } => {
+            tracing::error!(error = %error, origin = ?origin)
+        }
         _ => tracing::error!(error = %error),
     }
 }

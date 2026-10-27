@@ -12,7 +12,7 @@ where
     L: ProviderRequestGate,
 {
     /// Fetches the linked mailbox owner's contact record.
-    #[tracing::instrument(skip(self), fields(retry_count = 0))]
+    #[tracing::instrument(skip(self), fields(retry_count = 0, gate_in_flight = tracing::field::Empty, gate_cap = tracing::field::Empty))]
     pub async fn get_self_contact(&self, link_id: Uuid) -> Result<Contact, EmailApiError> {
         self.read_with_token(
             link_id,
@@ -26,7 +26,7 @@ where
     ///
     /// Failures log at WARN: an expired sync token ([`EmailApiError::OutdatedCursor`])
     /// or a grant without the contacts scopes is routine, and callers recover or skip.
-    #[tracing::instrument(skip(self, sync_token), fields(retry_count = 0), err(level = "warn"))]
+    #[tracing::instrument(skip(self, sync_token), fields(retry_count = 0, gate_in_flight = tracing::field::Empty, gate_cap = tracing::field::Empty), err(level = "warn"))]
     pub async fn list_contacts(
         &self,
         link_id: Uuid,
@@ -47,7 +47,7 @@ where
     /// Lists automatically collected contacts, optionally continuing a synchronization.
     ///
     /// Failures log at WARN for the same reasons as [`Self::list_contacts`].
-    #[tracing::instrument(skip(self, sync_token), fields(retry_count = 0), err(level = "warn"))]
+    #[tracing::instrument(skip(self, sync_token), fields(retry_count = 0, gate_in_flight = tracing::field::Empty, gate_cap = tracing::field::Empty), err(level = "warn"))]
     pub async fn list_other_contacts(
         &self,
         link_id: Uuid,

@@ -123,7 +123,10 @@ async fn twelve_refused_backfill_requests_wait_for_room_and_the_rest_defer() {
             .wait_for_room(link_id, waiters[0], 5, Duration::from_millis(50))
             .await
             .unwrap(),
-        Admission::Admitted
+        Admission::Admitted(MailboxLoad {
+            in_flight: 3,
+            cap: 5
+        })
     );
     // The admitted waiter gave up its place.
     assert_eq!(
@@ -375,6 +378,64 @@ async fn a_concurrency_429_lowers_the_mailbox_cap_until_it_recovers() {
         .await
         .unwrap();
     assert_eq!(learned, None, "a quota 429 leaves the cap alone");
+    cleanup(&connection, link_id).await;
+}
+
+#[tokio::test]
+#[ignore = "requires local Redis on port 6379; uses only unique mailbox keys"]
+async fn an_admitted_request_reports_the_mailbox_load_it_joined() {
+    let connection = connection().await;
+    let live = RedisGmailRequestGate::new(connection.clone(), RateBudget::Live);
+    let link_id = Uuid::now_v7();
+
+    let first = live
+        .acquire(link_id, ApiOperationKind::GetMessage)
+        .await
+        .unwrap();
+    let second = live
+        .acquire(link_id, ApiOperationKind::GetMessage)
+        .await
+        .unwrap();
+    assert_eq!(
+        first.load(),
+        Some(MailboxLoad {
+            in_flight: 1,
+            cap: 5
+        })
+    );
+    assert_eq!(
+        second.load(),
+        Some(MailboxLoad {
+            in_flight: 2,
+            cap: 5
+        })
+    );
+
+    live.finish(
+        first,
+        Some(&EmailApiError::RateLimited {
+            retry_after: None,
+            origin: RateLimitOrigin::Provider { concurrency: true },
+        }),
+    )
+    .await;
+    let _: () = redis::cmd("DEL")
+        .arg(&keys(link_id)[2])
+        .query_async(&mut connection.clone())
+        .await
+        .unwrap();
+    let third = live
+        .acquire(link_id, ApiOperationKind::GetMessage)
+        .await
+        .unwrap();
+    assert_eq!(
+        third.load(),
+        Some(MailboxLoad {
+            in_flight: 2,
+            cap: 3
+        }),
+        "the load reports the learned cap"
+    );
     cleanup(&connection, link_id).await;
 }
 

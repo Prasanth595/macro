@@ -20,7 +20,7 @@ pub use error::{EmailApiError, RateLimitOrigin, RateLimitRefusal};
 pub use mailbox::{CalendarPart, MessageWithCalendarParts, ProviderSubscription, ThreadListPage};
 pub use mailbox_settings::*;
 pub use operation::ApiOperationKind;
-pub use permit::RequestPermit;
+pub use permit::{MailboxLoad, RequestPermit};
 pub use provider::*;
 #[cfg(feature = "ports")]
 pub use send::PreparedSendMessage;

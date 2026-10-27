@@ -6,7 +6,7 @@ mod test;
 use std::time::Duration;
 
 use email_api_client::domain::models::{
-    ApiOperationKind, EmailApiError, RateLimitOrigin, RateLimitRefusal, RequestPermit,
+    ApiOperationKind, EmailApiError, MailboxLoad, RateLimitOrigin, RateLimitRefusal, RequestPermit,
 };
 use email_api_client::domain::ports::ProviderRequestGate;
 use models_email::gmail::operations::GmailApiOperation;
@@ -63,8 +63,10 @@ const BACKFILL_COOLDOWN: Duration = Duration::from_secs(10);
 const MAX_COOLDOWN: Duration = Duration::from_secs(60);
 const UNAVAILABLE_RETRY_AFTER: Duration = Duration::from_secs(5);
 
-// Returns {delay, waiting}: {0, 0} admits the request, {delay, 1} keeps it
-// waiting for room and {delay, 0} refuses it.
+// Returns {delay, waiting, in_flight, cap}: {0, 0, in_flight, cap} admits the
+// request, reporting the mailbox's requests in flight counting this one and the
+// cap it was admitted under; {delay, 1, 0, 0} keeps it waiting for room and
+// {delay, 0, 0, 0} refuses it.
 const ACQUIRE: &str = r#"
 local clock = redis.call('TIME')
 local now = tonumber(clock[1]) * 1000 + math.floor(tonumber(clock[2]) / 1000)
@@ -79,11 +81,11 @@ local function refuse(delay, busy)
             local lease = wait + tonumber(ARGV[11])
             redis.call('ZADD', KEYS[4], now + lease, ARGV[1])
             if redis.call('PTTL', KEYS[4]) < lease then redis.call('PEXPIRE', KEYS[4], lease) end
-            return {wait, 1}
+            return {wait, 1, 0, 0}
         end
         redis.call('ZREM', KEYS[4], ARGV[1])
     end
-    return {delay, 0}
+    return {delay, 0, 0, 0}
 end
 local cooldown = redis.call('PTTL', KEYS[3])
 if ARGV[12] == '1' then cooldown = math.max(cooldown, redis.call('PTTL', KEYS[5])) end
@@ -94,7 +96,8 @@ if learned[1] then
     cap = math.min(cap, tonumber(learned[1]) + math.floor((now - tonumber(learned[2])) / tonumber(ARGV[13])))
 end
 redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
-if redis.call('ZCARD', KEYS[1]) >= cap - tonumber(ARGV[14]) then return refuse(tonumber(ARGV[7]), true) end
+local in_flight = redis.call('ZCARD', KEYS[1])
+if in_flight >= cap - tonumber(ARGV[14]) then return refuse(tonumber(ARGV[7]), true) end
 local second = tonumber(clock[1])
 local window = tonumber(ARGV[5])
 local limit = tonumber(ARGV[3])
@@ -127,7 +130,7 @@ redis.call('PEXPIRE', KEYS[1], ARGV[6])
 redis.call('HINCRBY', KEYS[2], clock[1], cost)
 redis.call('EXPIRE', KEYS[2], window + 1)
 if waiters > 0 then redis.call('ZREM', KEYS[4], ARGV[1]) end
-return {0, 0}
+return {0, 0, in_flight + 1, cap}
 "#;
 
 const FINISH: &str = r#"
@@ -194,7 +197,7 @@ impl RateBudget {
 
 #[derive(Debug, PartialEq, Eq)]
 enum Admission {
-    Admitted,
+    Admitted(MailboxLoad),
     Wait(Duration),
     Refused(Duration),
 }
@@ -278,20 +281,17 @@ impl ProviderRequestGate for RedisGmailRequestGate {
             admission => admission,
         };
         match admission {
-            Ok(Admission::Admitted) => {
+            Ok(Admission::Admitted(load)) => {
                 let gate = self.clone();
-                Ok(RequestPermit::new(
-                    link_id,
-                    permit,
-                    move |link_id, permit| {
-                        // Drop cannot wait. Without a runtime, the lease frees the slot.
-                        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-                            runtime.spawn(async move {
-                                gate.release(link_id, permit, Outcome::default()).await
-                            });
-                        }
-                    },
-                ))
+                Ok(RequestPermit::new(link_id, permit, move |link_id, permit| {
+                    // Drop cannot wait. Without a runtime, the lease frees the slot.
+                    if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+                        runtime.spawn(async move {
+                            gate.release(link_id, permit, Outcome::default()).await
+                        });
+                    }
+                })
+                .with_load(load))
             }
             Ok(Admission::Wait(delay) | Admission::Refused(delay)) => {
                 Err(RateLimitRefusal::new(Some(delay)))
@@ -333,7 +333,7 @@ impl RedisGmailRequestGate {
         } else {
             BACKFILL_WAITERS
         };
-        let (delay, waits): (u64, u8) = redis::Script::new(ACQUIRE)
+        let (delay, waits, in_flight, cap): (u64, u8, u32, u32) = redis::Script::new(ACQUIRE)
             .key(inflight)
             .key(window)
             .key(cooldown)
@@ -358,7 +358,7 @@ impl RedisGmailRequestGate {
             .await?;
         let delay = Duration::from_millis(delay);
         Ok(match (delay.is_zero(), waits == 1) {
-            (true, _) => Admission::Admitted,
+            (true, _) => Admission::Admitted(MailboxLoad { in_flight, cap }),
             (false, true) => Admission::Wait(delay),
             (false, false) => Admission::Refused(delay),
         })
@@ -386,7 +386,7 @@ impl RedisGmailRequestGate {
                 Admission::Wait(next) => delay = next,
                 admission => {
                     tracing::Span::current()
-                        .record("admitted", matches!(admission, Admission::Admitted));
+                        .record("admitted", matches!(admission, Admission::Admitted(_)));
                     return Ok(admission);
                 }
             }

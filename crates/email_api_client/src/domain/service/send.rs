@@ -15,7 +15,7 @@ where
     L: ProviderRequestGate,
 {
     /// Sends a message through the linked mailbox.
-    #[tracing::instrument(skip(self, request))]
+    #[tracing::instrument(skip(self, request), fields(gate_in_flight = tracing::field::Empty, gate_cap = tracing::field::Empty))]
     pub async fn send_message(
         &self,
         link_id: Uuid,
@@ -40,7 +40,7 @@ where
 {
     /// Completes admission, token and MIME preparation without dispatching a
     /// send. Persist delivery-started state only after this method succeeds.
-    #[tracing::instrument(skip(self, request))]
+    #[tracing::instrument(skip(self, request), fields(gate_in_flight = tracing::field::Empty, gate_cap = tracing::field::Empty))]
     pub async fn prepare_send(
         &self,
         link_id: Uuid,
@@ -90,7 +90,7 @@ where
     }
 
     /// Checks sent mail for a stable delivery identifier without sending again.
-    #[tracing::instrument(skip(self, message_id), fields(retry_count = 0))]
+    #[tracing::instrument(skip(self, message_id), fields(retry_count = 0, gate_in_flight = tracing::field::Empty, gate_cap = tracing::field::Empty))]
     pub async fn find_sent_message(
         &self,
         link_id: Uuid,

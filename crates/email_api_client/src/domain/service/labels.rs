@@ -12,7 +12,7 @@ where
     L: ProviderRequestGate,
 {
     /// Lists all labels for a linked mailbox.
-    #[tracing::instrument(skip(self), fields(retry_count = 0))]
+    #[tracing::instrument(skip(self), fields(retry_count = 0, gate_in_flight = tracing::field::Empty, gate_cap = tracing::field::Empty))]
     pub async fn list_labels(&self, link_id: Uuid) -> Result<Vec<Label>, EmailApiError> {
         self.read_with_token(link_id, ApiOperationKind::ListLabels, |token| async move {
             self.repository.list_labels(&token, link_id).await
@@ -21,7 +21,7 @@ where
     }
 
     /// Creates a user label.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), fields(gate_in_flight = tracing::field::Empty, gate_cap = tracing::field::Empty))]
     pub async fn create_label(
         &self,
         link_id: Uuid,
@@ -37,7 +37,7 @@ where
     }
 
     /// Deletes a provider label.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), fields(gate_in_flight = tracing::field::Empty, gate_cap = tracing::field::Empty))]
     pub async fn delete_label(
         &self,
         link_id: Uuid,
