@@ -8,13 +8,16 @@ import {
   enableWhatsappLinked,
 } from '@core/constant/featureFlags';
 import BellFillIcon from '@icon/system/fill/bell-fill.svg';
+import BuildingsFillIcon from '@icon/system/fill/buildings-fill.svg';
 import CalendarFillIcon from '@icon/system/fill/calendar-fill.svg';
 import ChatsCircleFillIcon from '@icon/system/fill/chats-circle-fill.svg';
 import EmailFillIcon from '@icon/system/fill/envelope-fill.svg';
-import FilesFillIcon from '@icon/system/fill/files-fill.svg';
+import FolderSimpleFillIcon from '@icon/system/fill/folder-simple-fill.svg';
 import BellIcon from '@icon/system/regular/bell.svg';
+import BuildingsIcon from '@icon/system/regular/buildings.svg';
 import CalendarCheckIcon from '@icon/system/regular/calendar-check.svg';
 import ChatsCircleIcon from '@icon/system/regular/chats-circle.svg';
+import FolderSimpleIcon from '@icon/system/regular/folder-simple.svg';
 import GitPullRequestIcon from '@icon/system/regular/git-pull-request.svg';
 import PlugIcon from '@icon/system/regular/plug.svg';
 import { createMemo } from 'solid-js';
@@ -62,12 +65,17 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
   {
     id: 'documents',
     label: 'Files',
-    icon: getIconConfig('files').icon,
-    iconActive: FilesFillIcon,
+    icon: FolderSimpleIcon,
+    iconActive: FolderSimpleFillIcon,
   },
   { id: 'tasks', label: 'Tasks', icon: getIconConfig('task').icon },
   { id: 'calls', label: 'Calls', icon: getIconConfig('call').icon },
-  { id: 'companies', label: 'CRM', icon: getIconConfig('company').icon },
+  {
+    id: 'companies',
+    label: 'CRM',
+    icon: BuildingsIcon,
+    iconActive: BuildingsFillIcon,
+  },
   { id: 'reviews', label: 'Reviews', icon: GitPullRequestIcon },
   { id: 'booking-links', label: 'Scheduling', icon: CalendarCheckIcon },
   { id: 'external', label: 'External', icon: PlugIcon },
