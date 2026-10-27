@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { CommandMenuEmptyState } from '@ui';
 import { createEffect, createSelector, createSignal, on, Show } from 'solid-js';
@@ -34,7 +35,7 @@ export function CommandResults(props: CommandResultsProps) {
   return (
     <div
       role="listbox"
-      aria-label={props.label ?? 'Search results'}
+      aria-label={props.label ?? t('commandMenu.searchResults')}
       aria-busy={props.loading || undefined}
       class="overflow-hidden transition-[height] duration-60 ease-out p-2"
       style={{ height: `${height()}px` }}
@@ -44,7 +45,9 @@ export function CommandResults(props: CommandResultsProps) {
         fallback={
           <CommandMenuEmptyState>
             <span role="status">
-              {props.loading ? 'Searching…' : 'No results found'}
+              {props.loading
+                ? t('commandMenu.searching')
+                : t('commandMenu.noResultsFound')}
             </span>
           </CommandMenuEmptyState>
         }

@@ -2,6 +2,7 @@ import { openChatWithMessage } from '@app/features/chat/ChatWithAgentButton';
 import { createGlobalSearchOpener } from '@app/features/next-soup/open-search';
 import { getViewPreset } from '@app/features/next-soup/sidebar/soup-filter-presets';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { t } from '@app/lib/i18n';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import type { ReferredFrom } from '@components/app/split-layout/layoutManager';
 import { toast } from '@core/component/Toast/Toast';
@@ -50,7 +51,7 @@ export function createCommandResultOpener(
         }
       );
     } catch {
-      toast.failure('Unable to open conversation. Please try again.');
+      toast.failure(t('commandMenu.unableToOpenConversation'));
     }
   };
 
@@ -68,7 +69,7 @@ export function createCommandResultOpener(
           }
         );
         if (result.status === 'reused' && result.owner !== result.sourceOwner) {
-          toast.alert('Content already open');
+          toast.alert(t('commandMenu.contentAlreadyOpen'));
         }
       } else {
         fireAndForget(openExternalUrl(item.data.metadata.url), 'command-menu');
@@ -88,7 +89,7 @@ export function createCommandResultOpener(
           }
         );
         if (result.status === 'reused' && result.owner !== result.sourceOwner) {
-          toast.alert('Content already open');
+          toast.alert(t('commandMenu.contentAlreadyOpen'));
         }
       }
     }

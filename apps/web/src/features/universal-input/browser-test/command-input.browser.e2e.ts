@@ -332,3 +332,24 @@ test('the type selector uses the shared dropdown and Escape leaves Command K ope
   await page.getByRole('option', { name: 'Auto', exact: true }).click();
   await expect(type).toHaveText('Auto · Search');
 });
+
+test('Escape closes the calendar date picker before the Command K composer', async ({
+  page,
+}) => {
+  const dialog = await openMenu(page);
+  await dialog
+    .getByPlaceholder('Search...', { exact: true })
+    .fill('Call John at 3pm tomorrow');
+  const startDate = page.getByRole('button', {
+    name: 'Edit event start date',
+    exact: true,
+  });
+  await expect(startDate).toBeVisible();
+  await startDate.click();
+  await expect(page.getByRole('grid')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('grid')).not.toBeVisible();
+  await expect(
+    page.getByRole('textbox', { name: 'Your input', exact: true })
+  ).toBeVisible();
+});

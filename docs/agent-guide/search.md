@@ -52,7 +52,8 @@ category tabs are hidden; clearing the input restores them. The card stays above
 the keyboard with its type selector and action buttons visible; scroll the form
 contents inside the card. Use the
 explicit action button to create or send, or **Save as draft** to save an email.
-Manual field edits keep precedence over later predictions. The same PostHog flag
+Manual field edits keep precedence over later predictions. Event dates and times
+are edited directly in the card; changing the start preserves the duration. The same PostHog flag
 as Command K applies; when it is off, the view keeps normal
 live search. Closing Search clears the input and its unsent suggested form.
 For Search intent, extraction selects a search type before extracting only that

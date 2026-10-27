@@ -1,3 +1,4 @@
+import { DateTimeRangeFields } from '@app/components/date-time-range/date-time-range-fields';
 import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core/MarkdownTextarea';
 import { format, isValid, parseISO } from 'date-fns';
 import {
@@ -8,7 +9,6 @@ import {
   onCleanup,
   Show,
 } from 'solid-js';
-import { EventDateTimeRangeFields } from '../../calendar/components/composer/EventDateTimeRangeFields';
 import {
   EventComposerCalendarPill,
   EventComposerGuestsPill,
@@ -121,7 +121,8 @@ export function CalendarDraft(props: {
   };
   return (
     <div class="space-y-4">
-      <EventDateTimeRangeFields
+      <DateTimeRangeFields
+        subject="event"
         start={s.fields().start}
         end={s.fields().end}
         allDay={false}

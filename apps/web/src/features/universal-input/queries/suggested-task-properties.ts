@@ -120,7 +120,7 @@ export function suggestedTaskProperties(
         'LINK',
         (): PropertyApiValues => ({ valueType: 'LINK', values: texts })
       )
-      .with('TAG', () => undefined)
+      .with('TAG', 'DATE_RANGE', () => undefined)
       .exhaustive(() => undefined);
     if (value) values[definition.id] = value;
     else unresolved.push(suggestion.name);

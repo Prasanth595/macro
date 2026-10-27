@@ -211,8 +211,8 @@ test('starts blank and preserves the editor, focus, caret and undo as calendar f
     'Call John at 3pm tomorrow'.length
   );
   await expect(
-    page.getByRole('button', { name: 'Edit event start date and time' })
-  ).toContainText('3:00');
+    page.getByRole('combobox', { name: 'event start time', exact: true })
+  ).toHaveValue('3:00 PM');
   await expect(
     page.getByRole('button', { name: 'Guests', exact: true })
   ).toBeVisible();
@@ -336,22 +336,26 @@ test('shows the AM/PM assumption and lets a manual start edit override it', asyn
   await page
     .getByRole('textbox', { name: 'Your input', exact: true })
     .fill('call with Julia tomorrow at 7');
-  const start = page.getByRole('button', {
-    name: 'Edit event start date and time',
+  const start = page.getByRole('combobox', {
+    name: 'event start time',
+    exact: true,
   });
-  await expect(start).toContainText('7:00');
+  await expect(start).toHaveValue('7:00 PM');
   await expect(
     page.getByText('Assumed 7:00 PM for', { exact: false })
   ).toBeVisible();
   await start.click();
-  const time = page.getByLabel('Start time', { exact: true });
+  const time = start;
   await time.fill('07:00');
   await time.press('Enter');
   await time.press('Escape');
   await expect(
     page.getByText('Assumed 7:00 PM for', { exact: false })
   ).not.toBeVisible();
-  await expect(start).toContainText('7:00 AM');
+  await expect(start).toHaveValue('7:00 AM');
+  await expect(
+    page.getByRole('switch', { name: 'All day', exact: true })
+  ).toHaveCount(0);
 });
 
 test('keeps note tags with the draft through inference, switching types', async ({
@@ -542,12 +546,11 @@ test('keeps a manual weekly rule visible and submitted after moving the event st
     .click();
   await page
     .getByRole('button', {
-      name: 'Edit event start date and time',
+      name: 'Edit event start date',
       exact: true,
     })
     .click();
   await page.getByRole('gridcell', { name: '11', exact: true }).click();
-  await page.getByLabel('Start time', { exact: true }).press('Escape');
   await expect(repeats).toContainText('Custom');
   await expect(
     page.getByRole('button', { name: 'SA', exact: true })
@@ -628,4 +631,25 @@ test('keeps Command K open while searching and choosing an AI model', async ({
     'gpt-5'
   );
   await expect(input).not.toBeVisible();
+});
+
+test('selects an event end after midnight through the shared time control', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page
+    .getByRole('textbox', { name: 'Your input', exact: true })
+    .fill('Call John at 3pm tomorrow');
+  const end = page.getByRole('combobox', {
+    name: 'event end time',
+    exact: true,
+  });
+  await expect(end).toHaveValue('4:00 PM');
+  await end.fill('1am');
+  await end.press('Enter');
+  await expect(end).toHaveValue('1:00 AM');
+  await page.getByRole('button', { name: 'Create event', exact: true }).click();
+  await expect(page.getByTestId('last-submission')).toContainText(
+    '"end":"2026-10-11T01:00"'
+  );
 });

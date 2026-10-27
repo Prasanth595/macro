@@ -31,6 +31,25 @@ const priority: TaskFieldDefinition = {
   ),
 };
 describe('suggested task property resolution', () => {
+  it('requires manual selection for date-range fields outside the inferred task contract', () => {
+    const result = suggestedTaskProperties(
+      JSON.stringify([{ name: 'Window', values: ['tomorrow morning'] }]),
+      [
+        {
+          definition: {
+            ...priority.definition,
+            id: 'window',
+            display_name: 'Window',
+            data_type: 'DATE_RANGE',
+          },
+          options: [],
+        },
+      ],
+      []
+    );
+    expect(result.values).toEqual({});
+    expect(result.unresolved).toEqual(['Window']);
+  });
   it('maps Urgent to the actual priority option, never a model-supplied ID', () => {
     expect(
       suggestedTaskProperties(

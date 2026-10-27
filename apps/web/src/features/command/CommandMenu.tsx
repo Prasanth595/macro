@@ -2,6 +2,7 @@ import { isListViewID } from '@app/constants/list-views';
 import { useCrmContactDiscovery } from '@app/features/crm/record-adapter';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { t } from '@app/lib/i18n';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { enableProjects } from '@core/constant/featureFlags';
@@ -68,14 +69,54 @@ import {
 import { CommandResults } from './views/command-results';
 
 const CATEGORIES: { id: CategoryFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'commands', label: 'Command' },
-  { id: 'chats', label: 'Agents' },
-  { id: 'documents', label: 'Files' },
-  { id: 'tasks', label: 'Tasks' },
-  { id: 'projects', label: 'Projects' },
-  { id: 'channels', label: 'Channels' },
-  { id: 'dms', label: 'People' },
+  {
+    id: 'all',
+    get label() {
+      return t('commandMenu.categoryAll');
+    },
+  },
+  {
+    id: 'commands',
+    get label() {
+      return t('commandMenu.categoryCommands');
+    },
+  },
+  {
+    id: 'chats',
+    get label() {
+      return t('commandMenu.categoryAgents');
+    },
+  },
+  {
+    id: 'documents',
+    get label() {
+      return t('commandMenu.categoryFiles');
+    },
+  },
+  {
+    id: 'tasks',
+    get label() {
+      return t('commandMenu.categoryTasks');
+    },
+  },
+  {
+    id: 'projects',
+    get label() {
+      return t('commandMenu.categoryProjects');
+    },
+  },
+  {
+    id: 'channels',
+    get label() {
+      return t('commandMenu.categoryChannels');
+    },
+  },
+  {
+    id: 'dms',
+    get label() {
+      return t('commandMenu.categoryPeople');
+    },
+  },
 ];
 
 const CommandUniversalInput = lazyNamed(
@@ -568,7 +609,7 @@ function CommandSearchMenu(
   const navDownHotkey = registerHotkey({
     hotkey: ['arrowdown', 'ctrl+j'],
     scopeId: hotkeyScope,
-    description: 'Move selection down',
+    description: () => t('commandMenu.moveSelectionDown'),
     keyDownHandler: () => {
       const items = filteredItems();
       if (items.length === 0) return false;
@@ -589,7 +630,7 @@ function CommandSearchMenu(
   const navUpHotkey = registerHotkey({
     hotkey: ['arrowup', 'ctrl+k'],
     scopeId: hotkeyScope,
-    description: 'Move selection up',
+    description: () => t('commandMenu.moveSelectionUp'),
     keyDownHandler: () => {
       const items = filteredItems();
       if (items.length === 0) return false;
@@ -602,7 +643,7 @@ function CommandSearchMenu(
   const confirmHotkey = registerHotkey({
     hotkey: 'enter',
     scopeId: hotkeyScope,
-    description: 'Select item',
+    description: () => t('commandMenu.selectItem'),
     keyDownHandler: (event) => {
       if (event?.isComposing || event?.shiftKey) return false;
       const item = selectedItem();
@@ -618,7 +659,7 @@ function CommandSearchMenu(
   const escapeHotkey = registerHotkey({
     hotkey: 'escape',
     scopeId: hotkeyScope,
-    description: 'Close command menu',
+    description: () => t('commandMenu.closeCommandMenu'),
     keyDownHandler: () => {
       // If in command scope, go back to main menu
       if (CommandState.commandScopeCommands().length > 0) {
@@ -639,7 +680,7 @@ function CommandSearchMenu(
   const backspaceHotkey = registerHotkey({
     hotkey: 'backspace',
     scopeId: hotkeyScope,
-    description: 'Go back',
+    description: () => t('commandMenu.goBack'),
     keyDownHandler: () => {
       // Only handle if query is empty
       if (CommandState.query() !== '') {
@@ -662,7 +703,7 @@ function CommandSearchMenu(
   const tabHotkey = registerHotkey({
     hotkey: 'tab',
     scopeId: hotkeyScope,
-    description: 'Next category',
+    description: () => t('commandMenu.nextCategory'),
     keyDownHandler: () => {
       const currentIndex = categories().findIndex(
         (c) => c.id === categoryFilter()
@@ -678,7 +719,7 @@ function CommandSearchMenu(
   registerHotkey({
     hotkey: 'shift+tab',
     scopeId: hotkeyScope,
-    description: 'Previous category',
+    description: () => t('commandMenu.previousCategory'),
     keyDownHandler: () => {
       const currentIndex = categories().findIndex(
         (c) => c.id === categoryFilter()
@@ -758,7 +799,7 @@ function CommandSearchMenu(
           <button
             class="flex size-5 shrink-0 items-center justify-center text-ink-muted hover:text-ink transition-colors"
             onClick={handleBack}
-            title="Back (Esc)"
+            title={t('commandMenu.backWithEsc')}
           >
             <ArrowLeft class="size-3" />
           </button>
@@ -770,7 +811,9 @@ function CommandSearchMenu(
           as="textarea"
           placeholder={
             CommandState.commandScopePlaceholder() ??
-            (isEntityActionMode() ? 'Search actions...' : 'Search...')
+            (isEntityActionMode()
+              ? t('commandMenu.searchActionsPlaceholder')
+              : t('commandMenu.searchPlaceholder'))
           }
           value={CommandState.query()}
           onInput={(e) => props.onQueryInput(e.currentTarget, e.isComposing)}
@@ -849,36 +892,65 @@ function CommandSearchMenu(
               <Hotkey shortcut={navDownHotkey.hotkey()} class="space-x-1" />
             </div>
           </div>
-          Navigate
+          {t('commandMenu.navigate')}
         </span>
 
         <Switch>
           <Match when={isInCommandScope()}>
-            <HotkeyHint command={confirmHotkey} label="Run action" />
-            <HotkeyHint command={backspaceHotkey} label="Back" />
+            <HotkeyHint
+              command={confirmHotkey}
+              label={t('commandMenu.hintRunAction')}
+            />
+            <HotkeyHint
+              command={backspaceHotkey}
+              label={t('commandMenu.hintBack')}
+            />
           </Match>
           <Match when={selectedIsCommand() || isEntityActionMode()}>
-            <HotkeyHint command={confirmHotkey} label="Run action" />
+            <HotkeyHint
+              command={confirmHotkey}
+              label={t('commandMenu.hintRunAction')}
+            />
           </Match>
           <Match when={selectedIsSearch()}>
-            <HotkeyHint command={confirmHotkey} label="Search" />
+            <HotkeyHint
+              command={confirmHotkey}
+              label={t('commandMenu.hintSearch')}
+            />
           </Match>
           <Match when={selectedIsAskAi()}>
-            <HotkeyHint command={confirmHotkey} label="Ask AI" />
+            <HotkeyHint
+              command={confirmHotkey}
+              label={t('commandMenu.hintAskAi')}
+            />
           </Match>
           <Match when={selectedIsEntity()}>
-            <HotkeyHint command={confirmHotkey} label="Open" />
+            <HotkeyHint
+              command={confirmHotkey}
+              label={t('commandMenu.hintOpen')}
+            />
           </Match>
         </Switch>
 
         <Show when={!isInCommandScope() && !isEntityActionMode()}>
-          <HotkeyHint command={tabHotkey} label="Category" />
+          <HotkeyHint
+            command={tabHotkey}
+            label={t('commandMenu.hintCategory')}
+          />
         </Show>
         <Show
           when={isInCommandScope()}
-          fallback={<HotkeyHint command={escapeHotkey} label="Close" />}
+          fallback={
+            <HotkeyHint
+              command={escapeHotkey}
+              label={t('commandMenu.hintClose')}
+            />
+          }
         >
-          <HotkeyHint command={escapeHotkey} label="Back" />
+          <HotkeyHint
+            command={escapeHotkey}
+            label={t('commandMenu.hintBack')}
+          />
         </Show>
       </CommandMenuShell.Footer>
     </CommandMenuShell>
@@ -896,7 +968,9 @@ function EntityActionPreview(props: { entities: EntityData[] }) {
         {(entity) => <EntitySelectionBadge entity={entity} />}
       </For>
       <Show when={remainingCount() > 0}>
-        <Badge size="sm">+{remainingCount()} more</Badge>
+        <Badge size="sm">
+          {t('commandMenu.moreCount', { count: remainingCount() })}
+        </Badge>
       </Show>
     </>
   );

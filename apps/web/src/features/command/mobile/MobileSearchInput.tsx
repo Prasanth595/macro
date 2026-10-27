@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { FloatRegion } from '@components/app/mobile/float-regions/FloatRegion';
 import {
   useForegroundMobileView,
@@ -99,12 +100,16 @@ export function MobileSearchInput() {
           as="textarea"
           ref={inputRef}
           id="mobile-search-input"
-          aria-label={universalInputEnabled() ? 'Search or create' : 'Search'}
+          aria-label={
+            universalInputEnabled()
+              ? t('commandMenu.mobileSearchOrCreate')
+              : t('commandMenu.hintSearch')
+          }
           readOnly={sending()}
           aria-busy={sending()}
           enterkeyhint="enter"
           class="min-h-9 max-h-32 py-1.5 text-base text-ink"
-          placeholder="Search…"
+          placeholder={t('commandMenu.mobileSearchPlaceholder')}
           value={SearchState.query()}
           // Blurring never ends the session — the keyboard drops but search
           // mode stays until the X is pressed or navigation covers this entry.
@@ -118,7 +123,7 @@ export function MobileSearchInput() {
         <button
           type="button"
           class="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-muted"
-          aria-label="Close search"
+          aria-label={t('commandMenu.closeSearch')}
           onPointerDown={(e) => {
             e.preventDefault();
           }}
