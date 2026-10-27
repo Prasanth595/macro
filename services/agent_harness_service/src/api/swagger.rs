@@ -61,6 +61,7 @@ impl Modify for SecurityAddon {
     paths(
         agent_code_mode::inbound::axum_router::get_code_execution,
         agent_code_mode::inbound::axum_router::create_review,
+        agent_code_mode::inbound::axum_router::present_view,
         agent_code_mode::inbound::axum_router::get_review,
         agent_code_mode::inbound::axum_router::list_reviews,
         agent_code_mode::inbound::axum_router::decide_review,
