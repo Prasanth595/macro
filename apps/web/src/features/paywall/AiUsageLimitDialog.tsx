@@ -8,16 +8,18 @@ import {
 } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { fireAndForget } from '@core/util/fireAndForget';
+import { ThrownResultError } from '@core/util/result';
 import {
   useAiBillingPlansQuery,
   useAiBillingSummaryQuery,
-  useCreateAiCreditCheckoutMutation,
   useCreateBillingPortalMutation,
+  usePurchaseAiCreditsMutation,
   useUpdateAiAutoReloadMutation,
 } from '@queries/auth';
 import { queryReadyGate } from '@queries/gate';
 import { createSignal, Suspense } from 'solid-js';
 import {
+  formatCreditBalance,
   isUsageAvailable,
   parseDollarInput,
   validateAutoReload,
@@ -29,10 +31,21 @@ import {
   type PurchaseMode,
 } from './components/ai-usage-limit-dialog';
 
+/** The server's reason for a refused purchase, as a sentence. */
+function purchaseRejection(error: unknown) {
+  const message =
+    error instanceof ThrownResultError &&
+    error.errors.find((e) => e.code === 'CREDIT_PURCHASE_REJECTED')?.message;
+  return message
+    ? `${message.charAt(0).toUpperCase()}${message.slice(1)}.`
+    : "Couldn't buy credits. Please try again.";
+}
+
 /**
  * Shown when the backend refuses an AI request with a billing code. Offers
- * paid subscriptions to Free users, and to paid payers a one-time credit
- * purchase or one-click Auto-Reload when it isn't on.
+ * paid subscriptions to Free users. Paid users can buy credits once on the
+ * card on file (a team member on the team's card, within its monthly credit
+ * limit), and the payer can turn on Auto-Reload in one click.
  */
 export function AiUsageLimitDialog() {
   const { usageLimitOpen, usageLimitCode, hideUsageLimit } =
@@ -44,7 +57,8 @@ export function AiUsageLimitDialog() {
   const usagePreview = useAiUsagePreview();
   const autoReload = useUpdateAiAutoReloadMutation();
   const portal = useCreateBillingPortalMutation();
-  const checkout = useCreateAiCreditCheckoutMutation();
+  const purchase = usePurchaseAiCreditsMutation();
+  const [creditsDeclined, setCreditsDeclined] = createSignal(false);
   const [mode, setMode] = createSignal<PurchaseMode>('credits');
   /** The chosen credit pack; unset shows the smallest. */
   const [packCents, setPackCents] = createSignal<number>();
@@ -70,10 +84,11 @@ export function AiUsageLimitDialog() {
     setMonthlyLimitInput(undefined);
     setMode('credits');
     setPackCents(undefined);
+    setCreditsDeclined(false);
   };
 
-  /** The paid payer's position and plan catalog, when they can buy more. */
-  const payer = () => {
+  /** A paid user's position and the plan catalog, when they can buy more. */
+  const buyer = () => {
     // The plan catalog supplies credit packs and Auto-Reload's starting values.
     if (
       usagePreview.active() ||
@@ -82,43 +97,66 @@ export function AiUsageLimitDialog() {
     )
       return;
     const snapshot = summary.data;
-    if (
-      snapshot.tier === 'free' ||
-      snapshot.unlimited ||
-      !snapshot.can_manage_billing
-    )
-      return;
+    if (snapshot.tier === 'free' || snapshot.unlimited) return;
     return { snapshot, catalog: plans.data };
+  };
+
+  /** The monthly credit limit on one-time purchases and what is left of it. */
+  const purchaseLimit = () => {
+    const limit = buyer()?.snapshot.credit_purchase;
+    if (!limit || limit.monthly_limit_cents == null) return;
+    return {
+      limitCents: limit.monthly_limit_cents,
+      remainingCents: Math.max(
+        0,
+        limit.monthly_limit_cents - limit.committed_cents
+      ),
+    };
   };
 
   /** The payer's starting thresholds, when one click can turn Auto-Reload on. */
   const autoReloadSettings = () => {
-    const current = payer();
-    // Keep the offer while a failed charge is shown: a declined reload
-    // leaves Auto-Reload active with its invoice still open.
-    if (!current || (current.snapshot.auto_reload?.active && !paymentFailed()))
+    const current = buyer();
+    // Only the payer turns Auto-Reload on. Keep the offer while a failed
+    // charge is shown: a declined reload leaves Auto-Reload active with its
+    // invoice still open.
+    if (
+      !current?.snapshot.can_manage_billing ||
+      (current.snapshot.auto_reload?.active && !paymentFailed())
+    )
       return;
     return toUsageSummary(current.snapshot, current.catalog).autoReload
       .settings;
   };
 
-  const selectedPack = () =>
-    packCents() ?? payer()?.catalog.credit_packs_cents[0];
+  /** The chosen pack, else the smallest; a pack over the limit is never kept. */
+  const selectedPack = () => {
+    const packs = buyer()?.catalog.credit_packs_cents ?? [];
+    const remaining = purchaseLimit()?.remainingCents;
+    const fits = (cents: number) =>
+      remaining === undefined || cents <= remaining;
+    const chosen = packCents();
+    return chosen !== undefined && fits(chosen)
+      ? chosen
+      : (packs.find(fits) ?? packs[0]);
+  };
 
   const buyCredits = async () => {
     const amountCents = selectedPack();
-    if (amountCents === undefined || checkout.isPending) return;
+    if (amountCents === undefined || purchase.isPending) return;
     setOfferError(undefined);
-    // Come back to this page so the user can resend from where they were.
-    const here = window.location.href;
     try {
-      window.location.href = await checkout.mutateAsync({
-        amountCents,
-        successUrl: here,
-        cancelUrl: here,
-      });
-    } catch {
-      setOfferError("Couldn't open checkout. Please try again.");
+      const result = await purchase.mutateAsync({ amountCents });
+      if (result.status === 'declined') {
+        setCreditsDeclined(true);
+        return;
+      }
+      close();
+      toast.success(
+        `Added ${formatCreditBalance(result.amountCents)} in credits. Resend your message.`
+      );
+    } catch (error) {
+      setOfferError(purchaseRejection(error));
     }
   };
 
@@ -180,7 +218,7 @@ export function AiUsageLimitDialog() {
   };
 
   const offer = () => {
-    const current = payer();
+    const current = buyer();
     const pack = selectedPack();
     if (!current || pack === undefined) return;
     const settings = autoReloadSettings();
@@ -188,13 +226,16 @@ export function AiUsageLimitDialog() {
       mode: settings ? mode() : ('credits' as const),
       packsCents: current.catalog.credit_packs_cents,
       packCents: pack,
+      teamCard: !current.snapshot.can_manage_billing,
+      limit: purchaseLimit(),
+      creditsDeclined: creditsDeclined(),
       autoReload: settings && {
         minimumBalanceCents: settings.minimumBalanceCents,
         targetBalanceCents: settings.targetBalanceCents,
         monthlyLimit: monthlyLimit(),
         paymentFailed: paymentFailed(),
       },
-      pending: autoReload.isPending || portal.isPending || checkout.isPending,
+      pending: autoReload.isPending || portal.isPending || purchase.isPending,
       error: offerError(),
     };
   };

@@ -11,6 +11,9 @@ export type UsageSummary = {
     suspended: boolean;
     budget?: AutoReloadBudget;
   };
+  /** The monthly credit limit on one-time purchases and what is left of it;
+   * absent when there is no limit. A team member always has one. */
+  purchaseLimit?: { limitCents: number; remainingCents: number };
 };
 
 export type UsagePreviewPlan = 'free' | 'paid';

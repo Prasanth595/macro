@@ -1,3 +1,5 @@
+import type { CreditPurchaseSnapshot } from './generated/schemas/creditPurchaseSnapshot';
+import type { CreditPurchaseStatus } from './generated/schemas/creditPurchaseStatus';
 /**
  * Hand-written mirrors of the auth service's AI billing OpenAPI types
  * (`crates/ai_billing`). Replace with the orval-generated schemas on the next
@@ -66,6 +68,16 @@ export interface AiUsageSnapshot {
   uncovered_cents: number;
   remaining_cents: number;
   blocked_reason?: AiDenyReason;
+  /** The monthly credit limit on this user's one-time purchases; present for
+   * paid, metered users. */
+  credit_purchase?: CreditPurchaseSnapshot;
+}
+
+/** Outcome of `POST /ai-billing/credits/purchase`. */
+export interface AiCreditPurchaseResult {
+  status: CreditPurchaseStatus;
+  amountCents: number;
+  snapshot: AiUsageSnapshot;
 }
 
 export interface AiPlanCatalogEntry {

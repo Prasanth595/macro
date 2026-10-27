@@ -15,6 +15,7 @@ import { makePersisted } from '@solid-primitives/storage';
 import { ok } from 'neverthrow';
 import { createSignal } from 'solid-js';
 import type {
+  AiCreditPurchaseResult,
   AiPlanCatalog,
   AiUsageSnapshot,
   PaidPlan,
@@ -852,33 +853,39 @@ export const authServiceClient = {
     );
   },
 
-  async createAiCreditCheckout(args: {
-    amountCents: number;
-    successUrl: string;
-    cancelUrl: string;
-  }) {
-    return (
-      await fetchWithAuth<{ url: string }, 'PAID_PLAN_REQUIRED'>(
-        `${authHost}/ai-billing/credits/checkout`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            amountCents: args.amountCents,
-            successUrl: args.successUrl,
-            cancelUrl: args.cancelUrl,
-          }),
-          errorResponseHandler: async (response) => {
-            if (response.status === 402) {
-              return {
-                code: 'PAID_PLAN_REQUIRED',
-                message: 'A paid plan is required',
-              };
-            }
-            return statusError(response.status);
-          },
+  /** Buy a credit pack now on the payer's card on file. */
+  async purchaseAiCredits(args: { amountCents: number }) {
+    return await fetchWithAuth<
+      AiCreditPurchaseResult,
+      'PAID_PLAN_REQUIRED' | 'CREDIT_PURCHASE_REJECTED'
+    >(`${authHost}/ai-billing/credits/purchase`, {
+      method: 'POST',
+      body: JSON.stringify({ amountCents: args.amountCents }),
+      errorResponseHandler: async (response) => {
+        if (response.status === 402) {
+          return {
+            code: 'PAID_PLAN_REQUIRED',
+            message: 'A paid plan is required',
+          };
         }
-      )
-    ).map((result) => result.url);
+        // Over the monthly credit limit, or an earlier purchase is still
+        // processing; the body says which.
+        if (response.status === 409) {
+          const body: unknown = await response.json().catch(() => undefined);
+          return {
+            code: 'CREDIT_PURCHASE_REJECTED',
+            message:
+              typeof body === 'object' &&
+              body !== null &&
+              'error' in body &&
+              typeof body.error === 'string'
+                ? body.error
+                : 'Credit purchase rejected',
+          };
+        }
+        return statusError(response.status);
+      },
+    });
   },
 
   async createPortalSession(args: { returnUrl: string }) {

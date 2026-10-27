@@ -143,17 +143,19 @@ export function useUpdateAiAutoReloadMutation() {
   }));
 }
 
-/** Start a Stripe Checkout for a credit pack; resolves to the hosted URL. */
-export function useCreateAiCreditCheckoutMutation() {
+/** Buy a credit pack on the payer's card on file; updates the summary. */
+export function usePurchaseAiCreditsMutation() {
   return useMutation(() => ({
-    mutationFn: async (args: {
-      amountCents: number;
-      successUrl: string;
-      cancelUrl: string;
-    }) =>
+    mutationFn: async (args: { amountCents: number }) =>
       await throwOnErr(
-        async () => await authServiceClient.createAiCreditCheckout(args)
+        async () => await authServiceClient.purchaseAiCredits(args)
       ),
+    onSuccess: (result) => {
+      queryClient.setQueryData(
+        authKeys.aiBillingSummary.queryKey,
+        result.snapshot
+      );
+    },
   }));
 }
 

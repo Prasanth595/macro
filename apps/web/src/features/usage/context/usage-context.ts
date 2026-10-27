@@ -13,10 +13,12 @@ export type UsageContext = {
   loading: Accessor<boolean>;
   failed: Accessor<boolean>;
   refresh: () => void;
-  checkout: {
+  /** One-time credit purchases charged to the card on file (the team owner's
+   * for a member). Resolves to how the charge ended; rejects when refused. */
+  creditPurchase: {
     pending: Accessor<boolean>;
     supportedAmounts: Accessor<readonly number[]>;
-    start: (amountCents: number) => Promise<string>;
+    buy: (amountCents: number) => Promise<'paid' | 'declined'>;
   };
   autoReload: {
     settings: Accessor<AutoReloadSettings>;

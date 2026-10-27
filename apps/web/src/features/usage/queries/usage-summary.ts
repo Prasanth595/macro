@@ -87,6 +87,18 @@ export function toUsageSummary(
           }
         : undefined,
     autoReload: toAutoReload(snapshot, catalog),
+    ...(snapshot.credit_purchase?.monthly_limit_cents != null
+      ? {
+          purchaseLimit: {
+            limitCents: snapshot.credit_purchase.monthly_limit_cents,
+            remainingCents: Math.max(
+              0,
+              snapshot.credit_purchase.monthly_limit_cents -
+                snapshot.credit_purchase.committed_cents
+            ),
+          },
+        }
+      : {}),
     billingAccess:
       snapshot.tier === 'free'
         ? 'free'

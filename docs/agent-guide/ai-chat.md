@@ -821,7 +821,11 @@ on a paid plan, it offers **One-time** and, while Auto-Reload is off or
 suspended, **Auto-reload**:
 
 - **One-time** picks a credit pack ($25 / $50 / $100 from the plan catalog) and
-  **Buy $25 in credits** opens Stripe Checkout, returning to the same page.
+  **Buy $25 in credits** charges the card on file right away, closing with an
+  `Added $25 in credits. Resend your message.` toast. Team members see it too:
+  it charges the team owner's card, shows **Team monthly limit** (`$X of $Y
+  left`), and disables packs over what is left. A declined card shows inline;
+  the payer gets **Add payment method**, a member is told to ask the owner.
 - **Auto-reload** shows the reload (`$25 when below $5`), an editable
   **Monthly limit** prefilled with the plan default ($200 Pro, $1,000 Max; blank
   means no limit), and **Turn on auto-reload**, which enables it in one click.
@@ -832,7 +836,7 @@ suspended, **Auto-reload**:
 
 The primary action uses the ink-filled `primary` Button; **Usage settings** and
 **Dismiss** are ghost buttons. Team members who don't pay see `Open usage
-settings` instead. Credit purchases and Auto-Reload thresholds also live in
+settings` only when they cannot buy (no paid, metered plan). Credit purchases and Auto-Reload thresholds also live in
 Settings → Usage; subscription changes live in Settings → Billing.
 
 The free plan is a hard cap: when its monthly allowance is used up, requests

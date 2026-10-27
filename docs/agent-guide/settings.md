@@ -338,12 +338,17 @@ the flag off. The production usage-limit dialog follows the same flag. Its
 **Monthly limit** meter displays a percentage using the backend's current-period
 usage and allowance. The info button explains AI agent chat and AI document
 editing. **Usage Credits** shows the dollar balance and `Add more`, which opens
-**Need more usage?** with `$25` / `$50` / `$100` / `Other`. Supported amounts
-redirect to Stripe Checkout; unsupported custom amounts are disabled. Free
-accounts see `View plans` instead of purchase or reload controls; paid team
-members who are not the payer see only “Usage credits are managed by your team.”
-Their credit balance and automatic reload row are hidden, with no
-credit-purchase action.
+**Need more usage?** with `$25` / `$50` / `$100` / `Other`. **Buy $25 in
+credits** charges the card on file right away (no Stripe Checkout redirect),
+shows an `Added $25 in credits.` toast, and reports a declined card inline;
+unsupported custom amounts are disabled. Free accounts see `View plans` instead
+of purchase or reload controls. Paid team members who are not the payer see the
+shared balance with `Add more`, described as “Shared team balance. You can add
+$X more this month, within your team's $Y limit.” Their purchases charge the
+team owner's card and are capped by the team's monthly credit limit: the owner's
+Auto-Reload monthly limit, or the plan default ($200 Pro, $1,000 Max) when the
+owner set none. Packs over what is left are refused, and `Add more` is disabled
+once no pack fits. Members never see the automatic reload row.
 Team owners who pay for their team's seats manage the shared credit balance and
 automatic reload here in Usage, including purchases, balance thresholds, the
 monthly reload cap, and payment methods. Team payers see **Team Usage

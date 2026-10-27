@@ -11,8 +11,8 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import {
   useAiBillingPlansQuery,
   useAiBillingSummaryQuery,
-  useCreateAiCreditCheckoutMutation,
   useCreateBillingPortalMutation,
+  usePurchaseAiCreditsMutation,
   useUpdateAiAutoReloadMutation,
   useUpdateAiOverageMutation,
 } from '@queries/auth';
@@ -31,7 +31,7 @@ export function Usage() {
   const summary = useAiBillingSummaryQuery();
   const plans = useAiBillingPlansQuery();
   const aiUsageBilling = useFeatureFlag(enableAiUsageBilling);
-  const checkout = useCreateAiCreditCheckoutMutation();
+  const purchase = usePurchaseAiCreditsMutation();
   const portal = useCreateBillingPortalMutation();
   const overage = useUpdateAiOverageMutation();
   const autoReloadMutation = useUpdateAiAutoReloadMutation();
@@ -73,27 +73,24 @@ export function Usage() {
     refresh: () => {
       fireAndForget(summary.refetch(), 'usage');
     },
-    checkout: {
-      pending: () => checkout.isPending,
+    creditPurchase: {
+      pending: () => purchase.isPending,
       supportedAmounts: () =>
         plans.isSuccess
           ? plans.data.credit_packs_cents
           : [1_000, 2_500, 5_000, 10_000],
-      start: async (amountCents) => {
+      // Team members buy on the owner's card within the team's monthly limit.
+      buy: async (amountCents) => {
         if (
           !available() ||
           previewing() ||
           !summary.isSuccess ||
           summary.data.unlimited ||
-          summary.data.tier === 'free' ||
-          !summary.data.can_manage_billing
+          summary.data.tier === 'free'
         )
           throw new Error('Credit purchase unavailable');
-        return await checkout.mutateAsync({
-          amountCents,
-          successUrl: `${returnUrl}?aiCreditsSuccess=true`,
-          cancelUrl: `${returnUrl}?aiCreditsCancel=true`,
-        });
+        const result = await purchase.mutateAsync({ amountCents });
+        return result.status;
       },
     },
     autoReload: {

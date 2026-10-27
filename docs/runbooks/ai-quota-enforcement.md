@@ -161,9 +161,21 @@ target balance. The minimum, target, and optional monthly spend limit are stored
 per payer on `ai_billing_account` (column defaults `$5`, `$25`, and no limit).
 Clients start an off Auto-Reload from the plan catalog: `auto_reload_defaults`
 and each plan's `auto_reload_default_monthly_limit_cents` ($200 Pro, $1,000 Max). The
-monthly limit counts reloads Stripe may still collect (pending, paid, or failed
-with an invoice) within the UTC calendar month, independent of the Stripe period
-anchor; a remainder under the Stripe minimum charge is skipped. Each reload is one `ai_credit_reload` row reserved under the
+monthly limit is the team's monthly credit limit: it counts automatic reloads and
+one-time card purchases Stripe may still collect (pending, paid, or failed with
+an invoice) within the UTC calendar month, independent of the Stripe period
+anchor; a remainder under the Stripe minimum charge is skipped.
+
+One-time purchases (`POST /ai-billing/credits/purchase`, packs $25 / $50 / $100)
+charge the payer's card on file through the same invoice path and are
+`ai_credit_reload` rows with `kind = 'purchase'` and `purchased_by` set to the
+buyer. Any paid, metered seat may buy. The payer's purchases are capped by their
+monthly limit when set; a team member's always are, falling back to the plan
+default when the owner set none. A declined purchase is marked failed with its
+invoice kept open; buying again pays that invoice instead of charging twice, and
+it never suspends automatic reloads. Automatic reloads and the settlement sweep
+only consider `kind = 'automatic'` rows. The older Stripe Checkout credit
+endpoint (`/ai-billing/credits/checkout`) remains but the app no longer calls it. Each reload is one `ai_credit_reload` row reserved under the
 payer lock and collected as a one-off Stripe invoice stamped
 `macro_purpose = ai_credit_reload`; a paid invoice books an `ai_credit_ledger`
 purchase, idempotent on the invoice id. A declined invoice stays pending, which
