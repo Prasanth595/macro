@@ -789,6 +789,9 @@ export function createSoupLiveQuery(
               // The next evaluation reads through this one's last row.
               if (result.kind === 'mail-page')
                 setLocalMailEdge(result.endCursor ?? null);
+              // Set here: a new edge reruns the effect, which supersedes
+              // this request before its `finally`.
+              if (mailView) setLocalMailCurrent(true);
               // The filter, fragments, and final revision agree. A newer coherent
               // page is valid even if hydration advanced past the initial read.
               // Publish both result kinds' watermarks: the Mail guard avoids a
@@ -810,8 +813,8 @@ export function createSoupLiveQuery(
           // the stale network/normalized-cache fallback already on screen.
         } finally {
           // Only the latest request decides, after any stale-revision retries.
-          if (mailView && requestId === localRequest)
-            setLocalMailCurrent(outcome === 'success');
+          if (mailView && requestId === localRequest && outcome !== 'success')
+            setLocalMailCurrent(false);
           span.setAttr('evaluation.outcome', outcome);
           span.setAttr('evaluation.retry_count', retryCount);
           span.setAttr('evaluation.discarded', discarded);
@@ -886,13 +889,37 @@ export function createSoupLiveQuery(
   });
 
   // Keeps the server pages as deep as a local Mail list, so it stays as deep
-  // when the network page becomes authoritative again. Not awaited: the local
-  // page is what the user sees, and a failed server page is retried on the
-  // next scroll.
-  const fetchServerPageInStep = () => {
-    if (!query.hasNextPage || offline()) return;
-    inStepPageIndex = query.data?.pageParams.length;
-    fireAndForget(query.fetchNextPage(), 'soup-live-query');
+  // when the network page becomes authoritative again. Load More raises the
+  // rows wanted, and one chain fetches pages until the server has them: the
+  // infinite query coalesces a next page requested while one is in flight.
+  // Not awaited: the local page is what the user sees. A failed page ends the
+  // chain, and the next Load More retries it.
+  let serverRowsWanted = 0;
+  const fetchServerPagesInStep = (rows: number) => {
+    const running = serverRowsWanted > 0;
+    serverRowsWanted = Math.max(serverRowsWanted, rows);
+    if (running) return;
+    const input = firstPageInput();
+    fireAndForget(
+      (async () => {
+        try {
+          while (
+            firstPageInput() === input &&
+            query.hasNextPage &&
+            !offline() &&
+            (query.data?.records().length ?? 0) < serverRowsWanted
+          ) {
+            const pages = query.data?.pageParams.length ?? 0;
+            inStepPageIndex = pages;
+            await query.fetchNextPage();
+            if ((query.data?.pageParams.length ?? 0) === pages) return;
+          }
+        } finally {
+          serverRowsWanted = 0;
+        }
+      })(),
+      'soup-live-query'
+    );
   };
   const cachedMail = createMemo(
     () => !networkIsAuthoritative() && Boolean(displayLocalProjection()?.mail)
@@ -964,9 +991,9 @@ export function createSoupLiveQuery(
         return;
       }
       if (!local.mail.nextCursor || fetchingMailPage()) return;
-      fetchServerPageInStep();
       const initial =
         'initial' in local.input ? local.input.initial : undefined;
+      fetchServerPagesInStep(local.displayedKeys.size + (initial?.limit ?? 20));
       const host = getGraphqlSoupCacheHost();
       if (
         !initial ||
@@ -1039,8 +1066,11 @@ export function createSoupLiveQuery(
     resetToInitialPage: () => {
       query.resetToInitialPage();
       if (displayLocalProjection()?.mail) {
-        setLocalProjection(undefined);
-        setLocalEvaluationTrigger((value) => value + 1);
+        batch(() => {
+          setLocalProjection(undefined);
+          setLocalMailEdge(null);
+          setLocalEvaluationTrigger((value) => value + 1);
+        });
       }
     },
     refresh: async () => {
