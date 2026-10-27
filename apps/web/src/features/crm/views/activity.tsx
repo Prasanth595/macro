@@ -1,8 +1,8 @@
 import { fireAndForget } from '@core/util/fireAndForget';
 import PlusIcon from '@icon/system/regular/plus.svg';
+import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
 import { Button } from '@ui';
 import { createSignal, Show } from 'solid-js';
-import { ActivityAssociations } from '../components/activity-associations';
 import { useCrmContext } from '../context/crm-context';
 import type { CrmActivityTab } from '../core/navigation';
 import { RecordItemList } from './record-item-list';
@@ -18,10 +18,6 @@ const DESCRIPTIONS: Record<CrmActivityTab, string> = {
 export function CrmActivityView(props: { tab: CrmActivityTab }) {
   const crm = useCrmContext();
   const source = crm.createActivity(() => props.tab);
-  const associations = crm.createActivityAssociations(() =>
-    source.isPending || source.isError ? [] : (source.data?.entities ?? [])
-  );
-  const navigation = crm.createNavigation();
   const [retrying, setRetrying] = createSignal(false);
   const retry = async () => {
     if (!source.refetch || retrying()) return;
@@ -50,18 +46,6 @@ export function CrmActivityView(props: { tab: CrmActivityTab }) {
         </Show>
       </div>
       <div class="min-h-0 flex-1 overflow-y-auto p-4">
-        <Show when={associations.isError()}>
-          <div class="mb-2 flex items-center gap-2 text-xs text-ink-muted">
-            Some related records could not be loaded.
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => fireAndForget(associations.refetch(), 'crm')}
-            >
-              Retry
-            </Button>
-          </div>
-        </Show>
         <Show
           when={!source.isError}
           fallback={
@@ -80,14 +64,10 @@ export function CrmActivityView(props: { tab: CrmActivityTab }) {
           <RecordItemList
             source={source}
             empty={`No ${props.tab} linked to your CRM companies or people yet.`}
-            rowFooter={(entity) => (
-              <ActivityAssociations
-                associations={associations.forEntity(entity)}
-                onOpen={(target, newSplit) =>
-                  navigation.openWithSplit(target, { preferNewSplit: newSplit })
-                }
-              />
-            )}
+            referencePropertyIds={[
+              SYSTEM_PROPERTY_IDS.COMPANIES,
+              SYSTEM_PROPERTY_IDS.CONTACTS,
+            ]}
           />
         </Show>
       </div>

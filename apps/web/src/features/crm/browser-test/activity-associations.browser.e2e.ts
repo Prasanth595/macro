@@ -38,21 +38,48 @@ for (const device of [
     }) => {
       const row = page.locator('.entity-root').first();
       await row
-        .getByRole('button', { name: 'Example Company', exact: true })
+        .getByRole('button', {
+          name: 'Companies: Example Company',
+          exact: true,
+        })
         .click();
-      await expect(page.locator('output')).toHaveText(
-        'company:company:current'
-      );
+      await expect(page.getByTestId('destination')).toContainText('company');
+      await expect(page.getByTestId('split-count')).toHaveText('1');
+      await expect(page.locator('output').first()).toHaveText('Nothing opened');
       if (!device.hasTouch) {
         await row
-          .getByRole('button', { name: 'Example Company', exact: true })
+          .getByRole('button', {
+            name: 'Contacts: Example Contact With a Longer Name',
+            exact: true,
+          })
           .click({ modifiers: ['Shift'] });
-        await expect(page.locator('output')).toHaveText('company:company:new');
+        await expect(page.getByTestId('destination')).toContainText('contact');
+        await expect(page.getByTestId('split-count')).toHaveText('2');
       }
       await row
         .getByText('Prepare the renewal proposal', { exact: true })
         .click();
-      await expect(page.locator('output')).toHaveText('item:task');
+      await expect(page.locator('output').first()).toHaveText('item:task');
+      const title = await row
+        .getByText('Prepare the renewal proposal', { exact: true })
+        .boundingBox();
+      const pill = await row
+        .getByRole('button', {
+          name: 'Companies: Example Company',
+          exact: true,
+        })
+        .boundingBox();
+      expect(title).not.toBeNull();
+      expect(pill).not.toBeNull();
+      expect(
+        Math.abs(title!.y + title!.height / 2 - (pill!.y + pill!.height / 2))
+      ).toBeLessThan(16);
+      await expect(
+        page
+          .locator('.entity-root')
+          .nth(1)
+          .getByRole('button', { name: /Companies:|Contacts:/ })
+      ).toHaveCount(0);
       expect(
         await page.evaluate(() => document.body.scrollWidth <= innerWidth)
       ).toBe(true);
@@ -62,13 +89,37 @@ for (const device of [
       });
     });
 
+    test('removes a reference after its shared preview loses access', async ({
+      page,
+    }) => {
+      const row = page.locator('.entity-root').first();
+      await expect(
+        row.getByRole('button', {
+          name: 'Companies: Example Company',
+          exact: true,
+        })
+      ).toBeVisible();
+      await page
+        .getByRole('button', { name: 'Revoke additional contacts' })
+        .click();
+      await expect(
+        row.getByRole('button', { name: /more property values/ })
+      ).toHaveCount(0);
+      await page.getByRole('button', { name: 'Revoke company access' }).click();
+      await expect(row.getByRole('button', { name: /Companies:/ })).toHaveCount(
+        0
+      );
+      await expect(
+        row.getByText('Prepare the renewal proposal', { exact: true })
+      ).toBeVisible();
+    });
     test('opens overflow associations by keyboard or touch', async ({
       page,
     }) => {
       const overflow = page
         .locator('.entity-root')
         .first()
-        .getByRole('button', { name: 'Show 2 more associations' });
+        .getByRole('button', { name: 'Show 2 more property values' });
       if (device.hasTouch) await overflow.tap();
       else {
         await overflow.focus();
@@ -81,9 +132,10 @@ for (const device of [
         await contact.focus();
         await page.keyboard.press('Enter');
       }
-      await expect(page.locator('output')).toHaveText(
-        'contact:second-contact:current'
+      await expect(page.getByTestId('destination')).toContainText(
+        'second-contact'
       );
+      await expect(page.locator('output').first()).toHaveText('Nothing opened');
       await expect(page.getByRole('menu')).toBeHidden();
     });
   });

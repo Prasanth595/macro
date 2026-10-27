@@ -1,6 +1,5 @@
 import type { Property } from '@property/types';
 import type { Accessor } from 'solid-js';
-import type { ActivityAssociation } from '../core/activity-associations';
 import type { CrmCompany } from '../core/company';
 import type { CrmContact } from '../core/contact';
 import type { CrmListConfig } from '../core/navigation';
@@ -127,11 +126,6 @@ export type ListsSource = {
 
 export type CrmEmailScope = 'team' | 'me';
 export type CrmEmailSignal = 'signal' | 'all';
-export type ActivityAssociationsSource = {
-  forEntity(entity: import('@entity').EntityData): ActivityAssociation[];
-  isError: Accessor<boolean>;
-  refetch(): Promise<void>;
-};
 /** A paged soup list: email threads, files, calls or references of a CRM record. */
 export type ItemListSource = {
   /** True until the first page is readable (including disabled queries). */

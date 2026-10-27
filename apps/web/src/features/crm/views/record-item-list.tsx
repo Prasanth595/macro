@@ -1,5 +1,5 @@
+import { createKeyedProjection } from '@app/lib/queries/soup/create-keyed-projection';
 import { fireAndForget } from '@core/util/fireAndForget';
-import type { EntityData } from '@entity';
 import {
   ListEntity,
   ListEntityMetadataQueryProvider,
@@ -34,14 +34,20 @@ export function RecordItemList(props: {
   search?: string;
   /** Row layout when the list is narrow, e.g. in the information panel. */
   narrowLayout?: NarrowLayoutVariant;
-  rowFooter?: (entity: EntityData) => JSX.Element;
+  /** Property IDs to display as inline reference pills when needed. */
+  referencePropertyIds?: readonly string[];
 }) {
   const { openEntity } = useCrmContext().createNavigation();
   // Reading `data` before the first page resolves would suspend the tab.
   const items = () =>
     props.source.isPending ? [] : (props.source.data?.entities ?? []);
+  const rows = createKeyedProjection(
+    items,
+    (item) => `${item.type}:${item.id}`,
+    (item) => item
+  );
   const filteredItems = createMemo(() =>
-    items().filter((item) => recordItemMatchesSearch(item, props.search ?? ''))
+    rows().filter((item) => recordItemMatchesSearch(item, props.search ?? ''))
   );
   const [listRef, setListRef] = createSignal<HTMLElement>();
   const [sentinelRef, setSentinelRef] = createSignal<HTMLDivElement>();
@@ -94,7 +100,7 @@ export function RecordItemList(props: {
                     hideCheckbox
                     timestamp={entity.updatedAt}
                     onClick={() => openEntity(entity)}
-                    footer={props.rowFooter?.(entity)}
+                    referencePropertyIds={props.referencePropertyIds}
                   />
                 )}
               </For>

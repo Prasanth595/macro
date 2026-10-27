@@ -5,6 +5,7 @@ domain-specific extractors, editing surfaces, query and mutation adapters, and
 search/notification adapters. The `@entity` alias is the feature's public
 app-local entry point.
 
-`ListEntity` accepts a caller-owned `footer` slot below its responsive content.
-Use it for supplementary row details without replacing the standard row layout;
-interactive footer controls own their events so they do not open the parent item.
+`ListEntity.referencePropertyIds` opts stored reference properties into the
+existing inline metadata area. Names and icons use the shared property preview
+cache; the row does not search for related entities. Narrow rows compact these
+pills to icons, with full names available in tooltips and the overflow menu.

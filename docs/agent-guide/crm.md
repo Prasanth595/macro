@@ -52,16 +52,13 @@ same preset. With an embedded company or contact detail open, global Create
 prefills the current breadcrumb record; a contact also includes its company.
 Closing the detail returns global Create to the unassociated CRM preset.
 
-Activity rows show **Linked to** company/contact chips under each item. Click a
-chip to open that record; Shift-click opens a new split without opening the
-parent item. The first two records appear inline; **+N** opens the remaining
-records by mouse, keyboard, or touch. Long labels have tooltips on desktop.
-Email participant-address matches are labeled **Email match**, not saved links;
-domain-only matches do not invent a contact association. Association details
-load independently of the feed. A failed metadata refresh hides its cached
-chips and offers **Retry** without hiding the items; a successful retry restores
-only the records that remain accessible. Verify these interactions at desktop
-and phone widths.
+Activity rows show stored Companies and Contacts reference pills in the shared
+Soup row. Click a pill to open its record; Shift-click opens a new split without
+opening the parent item. The first two references appear inline; **+N** opens
+the remainder. Email matches still determine feed membership, but an address
+or domain match without a stored property does not add a display pill. The row
+uses shared property previews rather than a separate association lookup.
+Verify these interactions at desktop and phone widths.
 
 Verify activity loading with a CRM containing thousands of companies and
 contacts, not only an empty fixture. Opening a tab must settle without repeated

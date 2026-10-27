@@ -51,7 +51,6 @@ import { PipelineDatabaseEditor, PipelineShare } from './pipeline-adapter';
 import { createCrmPipelineEntries } from './pipeline-entries-adapter';
 import { createCrmPermissions } from './primitives/team-config';
 import { useCrmActivityQuery } from './queries/activity';
-import { createActivityAssociations } from './queries/activity-associations';
 import {
   createCompanyImporter,
   useCompanyQuery,
@@ -224,8 +223,6 @@ export function createAppCrmContext(): CrmContext {
       withRowNotifications(
         useCrmActivityQuery(useSoupAstItemsQuery, tab, userId)
       ),
-    createActivityAssociations: (entities) =>
-      createActivityAssociations(deps, entities),
     openTaskComposer: () =>
       layout.popoverSplit({
         type: 'component',

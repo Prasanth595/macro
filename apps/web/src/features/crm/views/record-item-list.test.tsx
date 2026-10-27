@@ -1,13 +1,19 @@
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
-import type { ParentProps } from 'solid-js';
+import { createSignal, type ParentProps } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ItemListSource } from '../context/crm-sources';
 import { RecordItemList } from './record-item-list';
 
+const mounted = vi.hoisted(() => vi.fn());
+
 vi.mock('@entity', () => ({
-  ListEntity: (props: { entity: { name: string } }) => (
-    <div>{props.entity.name}</div>
-  ),
+  ListEntity: (props: {
+    entity: { name: string };
+    referencePropertyIds?: readonly string[];
+  }) => {
+    mounted(props.referencePropertyIds);
+    return <div>{props.entity.name}</div>;
+  },
   ListEntityMetadataQueryProvider: (props: ParentProps) => props.children,
   ListLayoutProvider: (props: ParentProps) => props.children,
 }));
@@ -102,4 +108,32 @@ it('only declares no search results after the final page', () => {
   ));
   screen.getByText('Searching more…');
   expect(screen.queryByText('No matching items.')).toBeNull();
+});
+
+it('retains earlier row nodes when a page appends and updates their content', () => {
+  mounted.mockClear();
+  const [entities, setEntities] = createSignal([
+    { id: 'doc-1', type: 'document', name: 'First page' },
+  ]);
+  const list = source({ hasNextPage: true });
+  Object.defineProperty(list, 'data', {
+    get: () => ({ entities: entities() }),
+  });
+  const view = render(() => (
+    <RecordItemList
+      source={list}
+      empty="Nothing"
+      referencePropertyIds={['reference-id']}
+    />
+  ));
+  const first = screen.getByText('First page');
+  setEntities([
+    { id: 'doc-1', type: 'document', name: 'First page updated' },
+    { id: 'doc-2', type: 'document', name: 'Second page' },
+  ]);
+  expect(screen.getByText('First page updated')).toBe(first);
+  screen.getByText('Second page');
+  expect(mounted).toHaveBeenCalledTimes(2);
+  expect(mounted).toHaveBeenCalledWith(['reference-id']);
+  view.unmount();
 });

@@ -75,17 +75,13 @@ links; Notes excludes task, snippet and skill Markdown subtypes. Email matches
 visible company domains/contact addresses in the viewer's own mailbox, without
 team-scope widening or requiring a property link on the email.
 
-Activity rows show clickable Companies and Contacts beneath the shared Soup row.
-Explicit property links say **Linked to**; exact participant-address matches in
-Email say **Email match** and do not create a property link. Two records remain
-visible, with additional records in a keyboard- and touch-accessible menu.
-`queries/activity-associations.ts` resolves only the loaded rows' references and
-participant addresses in batches of at most 100, with one request per batch.
-It keeps exact contact IDs separate from email-deduplicated discovery, omits
-inaccessible/hidden records, and shares Soup invalidation. A failed metadata
-refresh removes that batch's cached links until a successful Retry; the feed
-itself stays visible.
-Record-detail lists and activity membership/pagination remain unchanged.
+Activity rows render stored Companies and Contacts reference properties as inline
+pills through the shared Soup row. Pills use the shared property preview and open
+a record independently of the row; additional values use the shared overflow menu.
+Email still matches visible company domains and contact addresses for feed
+membership, but the row displays only stored properties, not inferred matches.
+No separate CRM association metadata lookup or row footer runs during paging.
+Record-detail lists and activity membership remain unchanged.
 
 Activity extends the existing authorized CRM association path rather than
 splitting the feed into independent client queries. This preserves one sorted
