@@ -96,9 +96,9 @@ const Paywall = lazyNamed(
   () => import('@app/features/paywall/Paywall'),
   'Paywall'
 );
-const MacrodPairingApprover = lazyNamed(
-  () => import('@macro/tauri/MacrodPairingApprover'),
-  'MacrodPairingApprover'
+const LocalRuntimeHost = lazyNamed(
+  () => import('@app/features/local-runtime/local-runtime-host'),
+  'LocalRuntimeHost'
 );
 const PropertyEditorModal = lazyNamed(
   () => import('@app/features/property/editor/PropertyEditorModal'),
@@ -286,7 +286,7 @@ export function AppChrome(props: ParentProps) {
           </Suspense>
           <GlobalBulkEditEntityModal />
           <Show when={isDesktopPlatform()}>
-            <MacrodPairingApprover />
+            <LocalRuntimeHost />
           </Show>
           <NativeShareSheet />
           <MacroMcpSetupModal />

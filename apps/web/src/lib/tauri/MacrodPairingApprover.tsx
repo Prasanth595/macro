@@ -9,7 +9,7 @@ import { type MacrodStatus, macrodStatus, onMacrodStatus } from './macrod';
  * signed-in session, wherever the user is in the app. The daemon re-pairs
  * on its own (an expired credential, a supervisor restart), and nobody types
  * a code on the desktop app, so approval cannot wait for Settings to be open.
- * Mount once, on desktop, inside the authenticated shell.
+ * Mounted by `LocalRuntimeHost`.
  */
 export function MacrodPairingApprover() {
   const approve = useApproveOwnHarnessPairingMutation();
