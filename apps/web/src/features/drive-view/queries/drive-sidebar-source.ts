@@ -14,6 +14,7 @@ import { hiddenFormDatabases } from './drive-forms';
 
 type DriveSidebarOptions = {
   userId: Accessor<string | undefined>;
+  databasesEnabled: Accessor<boolean>;
   formsEnabled: Accessor<boolean>;
 };
 
@@ -44,14 +45,17 @@ function createSidebarFavorites() {
 function createSidebarDatabases(options: DriveSidebarOptions) {
   const databases = useDatabasesQuery();
   const forms = useFormsQuery();
-  // Wait for the forms list, which names the databases made for polls.
   return createMemo(() => {
-    if (!databases.isSuccess) return [];
-    if (options.formsEnabled() && forms.isPending) return [];
+    if (!options.databasesEnabled() || databases.isPending) return [];
+    // The forms list names the databases made for polls; without it, show none.
+    const formsEnabled = options.formsEnabled();
+    if (formsEnabled && forms.isPending) return [];
+    const listedForms = formsEnabled ? forms.data : [];
+    if (!listedForms) return [];
     return selectSidebarDatabases(
-      databases.data,
+      databases.data ?? [],
       options.userId(),
-      forms.isSuccess ? hiddenFormDatabases(forms.data) : new Set()
+      hiddenFormDatabases(listedForms)
     );
   });
 }

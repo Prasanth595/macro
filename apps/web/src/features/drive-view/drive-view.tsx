@@ -75,6 +75,7 @@ function DriveComposition(props: { route: DriveRouteState }) {
   const selection = () => ({ ...viewState(), search: searchText() });
   const sidebar = createDriveSidebarSource({
     userId,
+    databasesEnabled: () => databasesFlag().enabled,
     formsEnabled: () => formsFlag().enabled,
   });
   const source = withSplitPanelOwner(listOwnedSlotName('data-source'), () =>
