@@ -191,9 +191,10 @@ describe('SourceControls', () => {
     const { expandAccount, container } = renderControls();
     expandAccount('gabtest1@macro.com');
     const badge = container.querySelector(
-      '[title="Calendar needs attention: Precondition check failed."]'
+      '[title="Some events may be missing or out of date. Macro will keep trying to sync this calendar."]'
     );
     expect(badge).toBeTruthy();
+    expect(container.innerHTML).not.toContain('Precondition check failed.');
   });
 
   it('leaves a healthy calendar unbadged', () => {

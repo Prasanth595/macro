@@ -99,6 +99,23 @@ Browser fixture screenshots: [desktop](media/calendar-notes/desktop.png) ·
 
 ## Calendar — `/app/calendar/<month-or-week-or-day>`
 
+Persistent sync failures appear in the shared dismissible toast region. The short
+heading names the problem; the calendar name and connected account wrap below it.
+Invalid event data shows **Check event details**, temporary failures show
+**Calendar sync paused**, and uncertain automatic replies show **Check invitation
+reply**. Sidebar badges and calendar settings use the same readable descriptions;
+provider diagnostics and tracing details never appear in these surfaces.
+Repeated retries do not duplicate a toast or reopen a dismissed one while the
+calendar view stays mounted. Recovery removes the notice, and a later failure
+can notify again. Multiple calendar warnings queue one at a time. Setup and
+reconnect actions keep precedence over sync notices.
+Verify dismissal, retry, recovery, and long calendar labels in both themes on
+desktop and phone with
+`apps/web/src/features/calendar/browser-test/playwright.config.ts`.
+
+Shared toast fixture screenshots: [desktop](media/calendar-sync/desktop.png) ·
+[phone](media/calendar-sync/phone.png).
+
 Microsoft calendars use the same editor and calendar views after calendar consent.
 Conference choices follow the selected calendar's capabilities: Microsoft Teams
 where supported and Google Meet for Google calendars. Selecting a calendar that

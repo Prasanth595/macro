@@ -6,6 +6,7 @@ import { Checkbox } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import type { CalendarSource } from '../types';
 import { groupCalendarSourcesByAccount } from '../utils/calendar-source-groups';
+import { calendarSyncIssue } from '../utils/calendar-sync-issue';
 
 interface SourceControlsProps {
   ref?: (element: HTMLUListElement) => void;
@@ -115,13 +116,15 @@ export function SourceControls(props: SourceControlsProps) {
                           <Show when={source.syncError}>
                             {(error) => (
                               <span
-                                title={`Calendar needs attention: ${error()}`}
+                                title={calendarSyncIssue(error()).description}
                                 class="flex shrink-0 text-alert-ink"
                               >
                                 <WarningIcon
                                   aria-hidden={false}
                                   class="size-3"
-                                  aria-label={`Calendar needs attention: ${error()}`}
+                                  aria-label={
+                                    calendarSyncIssue(error()).description
+                                  }
                                 />
                               </span>
                             )}

@@ -1,5 +1,7 @@
 import { useCalendarPager } from '@app/features/calendar/components/CalendarPagerContext';
+import { CalendarSyncNotifications } from '@app/features/calendar/components/CalendarSyncNotifications';
 import { isCalendarRangeSupported } from '@app/features/calendar/utils/calendar-supported-range';
+import { calendarSyncIssue } from '@app/features/calendar/utils/calendar-sync-issue';
 import { useUserId } from '@core/context/user';
 import { useAddInboxFlow } from '@core/email-link';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -7,7 +9,7 @@ import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
 import { useEmailLinksQuery } from '@queries/email/link';
 import type { Link as EmailLink } from '@service-email/generated/schemas';
 import { Button } from '@ui';
-import { createMemo, For, Show } from 'solid-js';
+import { createMemo, Show } from 'solid-js';
 
 const SETUP_MESSAGES = {
   connect: {
@@ -46,7 +48,18 @@ export function SetupStatus() {
   const calendarsQuery = useVisibleCalendarsQuery();
   const warnings = createMemo(() =>
     calendarsQuery.isSuccess
-      ? calendarsQuery.data.filter((calendar) => calendar.syncError)
+      ? calendarsQuery.data.flatMap((calendar) =>
+          calendar.syncError
+            ? [
+                {
+                  id: calendar.id,
+                  name: calendar.name,
+                  emailAddress: calendar.emailAddress,
+                  issue: calendarSyncIssue(calendar.syncError),
+                },
+              ]
+            : []
+        )
       : []
   );
   const startAddInbox = useAddInboxFlow();
@@ -139,20 +152,10 @@ export function SetupStatus() {
 
   return (
     <>
-      <Show when={setupState() === undefined && warnings().length > 0}>
-        <div
-          role="status"
-          class="absolute bottom-2 left-2 right-2 z-20 flex flex-col gap-1 rounded-lg border border-warning/40 bg-warning-bg p-3 text-xs text-warning-ink"
-        >
-          <For each={warnings()}>
-            {(calendar) => (
-              <p>
-                {calendar.emailAddress} — {calendar.name}: {calendar.syncError}
-              </p>
-            )}
-          </For>
-        </div>
-      </Show>
+      <CalendarSyncNotifications
+        warnings={setupState() === undefined ? warnings() : []}
+        loaded={calendarsQuery.isSuccess}
+      />
       <Show when={setupState() !== undefined}>
         <Show
           when={!hasEvents() && !seesWorkingCalendar()}

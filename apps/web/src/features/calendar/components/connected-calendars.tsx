@@ -8,6 +8,7 @@ import PlusIcon from '@icon/system/regular/plus.svg';
 import { Checkbox } from '@ui';
 import { Index, Show } from 'solid-js';
 import type { CalendarSource } from '../types';
+import { calendarSyncIssue } from '../utils/calendar-sync-issue';
 import { CalendarColorPicker } from './calendar-color-picker';
 
 export interface ConnectedCalendarAccount {
@@ -195,9 +196,11 @@ export function ConnectedCalendars(props: {
                               </span>
                             </Show>
                             <Show when={calendar().syncError}>
-                              <span class="block text-xs text-failure">
-                                Sync failed: {calendar().syncError}
-                              </span>
+                              {(error) => (
+                                <span class="block text-xs text-failure">
+                                  {calendarSyncIssue(error()).description}
+                                </span>
+                              )}
                             </Show>
                           </Checkbox.Label>
                         </Checkbox>
