@@ -93,6 +93,10 @@ together: every height is read from one layout, then the resizes are applied and
 only the last scroll correction is written. Measuring row by row interleaves
 reads with sizer and scroll writes and forces a full list layout per row, which
 cost a channel open over 100ms. Later size changes belong to ResizeObserver.
+The end offset comes from the virtualizer's own sizes, `max(0, total - viewport)`,
+not `scrollHeight`: the scroller holds only the sizer, and reading the DOM there
+forced a layout of just-mounted rows on every scroll to latest, reconcile frame,
+and end check.
 `targetId` keeps the pending thread mounted for precise navigation to nested replies;
 only the list translates that ID into a virtual index. Snapshot
 restoration pairs the offset with `takeSnapshot()`.
