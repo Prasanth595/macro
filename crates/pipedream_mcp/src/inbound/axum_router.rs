@@ -3,7 +3,10 @@ use crate::domain::{
     ports::{ConnectionStore, ConnectorDirectory, PipedreamConnect},
     service::{
         catalog::browse_catalog,
-        connect::{PipedreamConnectError, complete_pipedream_connection, disconnect_mcp_server},
+        connect::{
+            PipedreamConnectError, complete_pipedream_connection, disconnect_mcp_server,
+            recover_pipedream_connection,
+        },
     },
 };
 use axum::{
@@ -149,6 +152,10 @@ where
             post(complete_connection::<S, P, Auth>),
         )
         .route(
+            "/pipedream/mcp/recover",
+            post(recover_connection::<S, P, Auth>),
+        )
+        .route(
             "/pipedream/mcp/catalog",
             get(browse_catalog_handler::<S, P, Auth>),
         )
@@ -276,6 +283,17 @@ pub struct PipedreamCompleteRequest {
     account_id: String,
     /// Optional display name for the connector. Defaults to the app's name
     /// for new connections; existing connections keep their name.
+    #[serde(default)]
+    server_name: Option<String>,
+}
+
+/// Request body for recovering a connect flow whose result the Connect UI
+/// never reported.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct PipedreamRecoverRequest {
+    /// The Pipedream app the flow was connecting, by name slug.
+    app_slug: String,
+    /// Optional display name for the connector, as for completion.
     #[serde(default)]
     server_name: Option<String>,
 }
@@ -605,6 +623,56 @@ where
         body.server_name.as_deref(),
     )
     .await?;
+
+    if let Some(hook) = &state.on_auth_completed {
+        hook(record.clone()).await;
+    }
+
+    Ok(Json(PipedreamConnectionResponse::from_record(&record)))
+}
+
+#[utoipa::path(
+    post,
+    path = "/pipedream/mcp/recover",
+    tag = "pipedream-mcp",
+    operation_id = "recover_pipedream_mcp_connection",
+    request_body = PipedreamRecoverRequest,
+    responses(
+        (status = 200, body = PipedreamConnectionResponse),
+        (status = 401, body = String),
+        (status = 404, body = ErrorResponse),
+        (status = 501, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
+    )
+)]
+/// Register an account a Connect flow created but the Connect UI never
+/// reported.
+///
+/// Called after the Connect UI closes without a success event. Answers 404
+/// when Pipedream has no new account for this user and app.
+#[tracing::instrument(skip_all, err, fields(connector.app_slug = %body.app_slug))]
+pub async fn recover_connection<S, P, Auth>(
+    State(state): State<PipedreamRouterState<S, P, Auth>>,
+    authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    Json(body): Json<PipedreamRecoverRequest>,
+) -> Result<Json<PipedreamConnectionResponse>, PipedreamHandlerErr>
+where
+    S: ConnectionStore,
+    P: PipedreamConnect + ConnectorDirectory,
+    Auth: MacroAuthorizationService,
+    anyhow::Error: From<S::Err>,
+{
+    let user = &authorization.authorization.user;
+    let record = recover_pipedream_connection(
+        state.store.as_ref(),
+        state.pipedream()?.as_ref(),
+        &user.macro_user_id,
+        &body.app_slug,
+        body.server_name.as_deref(),
+        chrono::Utc::now(),
+    )
+    .await?
+    .ok_or(PipedreamHandlerErr::NotFound)?;
 
     if let Some(hook) = &state.on_auth_completed {
         hook(record.clone()).await;
