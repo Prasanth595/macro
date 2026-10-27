@@ -8,6 +8,7 @@ vi.mock('./make-mark-done-action', () => ({
 }));
 
 import {
+  emailSenderBucket,
   resolveEntityActionViewContext,
   toSingleEntityActionListState,
 } from './entity-action-context';
@@ -64,5 +65,30 @@ describe('resolveEntityActionViewContext sender bucket', () => {
   it('has none for views without those tabs', () => {
     expect(bucket('search', 'all')).toBeUndefined();
     expect(bucket('project-1', undefined)).toBeUndefined();
+  });
+});
+
+describe('emailSenderBucket', () => {
+  const email = (isSignal?: boolean) =>
+    ({
+      type: 'email',
+      id: 't1',
+      name: 'Thread',
+      ownerId: 'owner',
+      isRead: true,
+      isDraft: false,
+      isImportant: false,
+      done: false,
+      isSignal,
+    }) as EntityData;
+
+  it("reads an email's own Signal or Noise placement", () => {
+    expect(emailSenderBucket(email(true))).toBe('signal');
+    expect(emailSenderBucket(email(false))).toBe('noise');
+  });
+
+  it('is unknown when the server did not say, or for other rows', () => {
+    expect(emailSenderBucket(email())).toBeUndefined();
+    expect(emailSenderBucket(channel)).toBeUndefined();
   });
 });

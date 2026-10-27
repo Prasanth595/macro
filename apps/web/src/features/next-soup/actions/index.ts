@@ -5,6 +5,7 @@ export {
   type EntityActionNavigationHandler,
   type EntityActionSenderBucket,
   type EntityActionViewContext,
+  emailSenderBucket,
   resolveEntityActionViewContext,
   type ToEntityActionListStateOptions,
   toEntityActionListState,

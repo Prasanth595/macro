@@ -5,7 +5,10 @@ import {
 } from '@app/features/chat/ChatWithAgentButton';
 import type { EmailThreadListNavigation } from '@app/features/email-thread/context/email-thread-context';
 import { useEmailThreadState } from '@app/features/email-thread/context/email-thread-state-context';
-import { makeMoveToProjectAction } from '@app/features/next-soup/actions';
+import {
+  emailSenderBucket,
+  makeMoveToProjectAction,
+} from '@app/features/next-soup/actions';
 import { useMaybeSoup } from '@app/features/next-soup/soup-context';
 import {
   openEntityInSplitFromUnifiedList,
@@ -35,6 +38,7 @@ import EnvelopeSimpleOpenIcon from '@icon/system/regular/envelope-simple-open.sv
 import TaskIcon from '@icon/system/regular/list-checks.svg';
 import ProhibitIcon from '@icon/system/regular/prohibit.svg';
 import TrashIcon from '@icon/system/regular/trash.svg';
+import SignalIcon from '@icon/system/regular/wave-sine.svg';
 import NoiseIcon from '@icon/system/regular/waveform.svg';
 import { useEmailLinksQuery } from '@queries/email/link';
 import { queryReadyGate } from '@queries/gate';
@@ -95,6 +99,10 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
       done: thread ? !thread.inbox_visible : undefined,
     });
   };
+
+  // The thread's own Signal or Noise placement, when the list row that opened
+  // it said; unknown offers both sender moves, as in Search.
+  const senderBucket = () => emailSenderBucket(emailEntity());
 
   const moveToFolder = () => {
     const entity = emailEntity();
@@ -268,10 +276,17 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
     },
     {
       group: 'sender',
+      label: 'Sender → Signal',
+      icon: SignalIcon,
+      action: () => emailCtx.markSenderSignal(),
+      condition: () => isOwnThread() && senderBucket() !== 'signal',
+    },
+    {
+      group: 'sender',
       label: 'Sender → Noise',
       icon: NoiseIcon,
       action: () => emailCtx.markSenderNoise(),
-      condition: isOwnThread,
+      condition: () => isOwnThread() && senderBucket() !== 'noise',
     },
     {
       group: 'sender',

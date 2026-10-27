@@ -63,6 +63,14 @@ type AdaptedRow = {
   entity: EntityData;
 };
 
+/** The Signal or Noise bucket an email is in, when the server said. */
+export function emailSenderBucket(
+  entity: EntityData | undefined
+): EntityActionSenderBucket | undefined {
+  if (entity?.type !== 'email' || entity.isSignal === undefined) return;
+  return entity.isSignal ? 'signal' : 'noise';
+}
+
 /**
  * The sender bucket a view's tab shows. Views without a Signal or Noise tab
  * (Search, folders, Recent) have none, so their rows offer no sender moves.

@@ -3,6 +3,7 @@ import {
   type EntityActionListState,
   type EntityActionNavigationHandler,
   type EntityActionViewContext,
+  emailSenderBucket,
   makeArchiveSessionAction,
   makeBlockSenderAction,
   makeChannelPictureAction,
@@ -531,9 +532,14 @@ export function createSoupEntityActions(
     // Sender group: Sender → Signal, Sender → Noise, Block Sender
     const senderItems: SoupEntityActionItem[] = [];
 
+    // Each email's own bucket decides, falling back to the view's tab; with
+    // neither known (some Search rows), both moves are offered.
+    const senderBucketOf = (entity: EntityData) =>
+      emailSenderBucket(entity) ?? viewContext.senderBucket;
+
     if (
-      viewContext.senderBucket === 'noise' &&
-      canExecuteAll(markSenderSignalAction.canExecute)
+      canExecuteAll(markSenderSignalAction.canExecute) &&
+      entities.some((entity) => senderBucketOf(entity) !== 'signal')
     ) {
       senderItems.push({
         id: 'sender-signal',
@@ -543,8 +549,8 @@ export function createSoupEntityActions(
     }
 
     if (
-      viewContext.senderBucket === 'signal' &&
-      canExecuteAll(markSenderNoiseAction.canExecute)
+      canExecuteAll(markSenderNoiseAction.canExecute) &&
+      entities.some((entity) => senderBucketOf(entity) !== 'noise')
     ) {
       senderItems.push({
         id: 'sender-noise',

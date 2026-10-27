@@ -1146,7 +1146,11 @@ which open the property editor like their shortcuts. Agent sessions add
 requests offer **Open in new split**, **Copy GitHub Link**, **Open on GitHub**,
 and **Copy Branch Name** when the head branch is stored. Rows inside a Drive
 folder offer **Remove from folder**, as in a folder's own view. Channel message
-rows have no **Copy ID**. **Mark Done** (and `e`) works in Home, the triaged
+rows have no **Copy ID**. Email rows and the email "…" menu offer **Sender →
+Signal** for a sender in Noise and **Sender → Noise** for one in Signal, read
+from the email itself (falling back to the view's tab); when neither says, as
+for some Search rows or an email opened directly, both are offered, with
+**Block Sender**. **Mark Done** (and `e`) works in Home, the triaged
 Email tabs, and Search, where a marked row stays listed as done. On Home,
 right-click **Mark Done** moves the preview to the next item, like the `e` key. A detail view's "…" menu also offers
 **Snooze notifications…** beside Mute.
