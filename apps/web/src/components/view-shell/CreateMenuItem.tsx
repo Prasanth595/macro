@@ -12,6 +12,8 @@ export function CreateMenuItem(
     icon: Component<{ class?: string }>;
     title: string;
     description: string;
+    /** Title and description share one row. The description truncates instead of wrapping. */
+    singleLine?: boolean;
   }
 ) {
   const [local, rest] = splitProps(props, [
@@ -19,6 +21,7 @@ export function CreateMenuItem(
     'title',
     'description',
     'class',
+    'singleLine',
   ]);
   const descriptionId = createUniqueId();
   return (
@@ -26,14 +29,32 @@ export function CreateMenuItem(
       {...rest}
       aria-label={local.title}
       aria-describedby={descriptionId}
-      class={cn('items-start gap-3 py-3', local.class)}
+      class={cn(
+        local.singleLine ? 'gap-3' : 'items-start gap-3 py-3',
+        local.class
+      )}
     >
-      <local.icon class="mt-0.5 size-5 shrink-0" />
-      <span class="flex min-w-0 flex-col gap-1">
-        <span>{local.title}</span>
+      <local.icon
+        class={cn(
+          'shrink-0',
+          local.singleLine ? 'size-(--sidebar-icon-size)' : 'mt-0.5 size-5'
+        )}
+      />
+      <span
+        class={cn(
+          'flex min-w-0',
+          local.singleLine ? 'flex-1 items-center gap-3' : 'flex-col gap-1'
+        )}
+      >
+        <span class={cn(local.singleLine && 'shrink-0')}>{local.title}</span>
         <span
           id={descriptionId}
-          class="whitespace-normal font-[family-name:Inter_Variable,sans-serif] text-xs font-normal text-ink-extra-muted"
+          class={cn(
+            'font-[family-name:Inter_Variable,sans-serif] text-xs font-normal',
+            local.singleLine
+              ? 'min-w-0 truncate text-ink-placeholder'
+              : 'whitespace-normal text-ink-extra-muted'
+          )}
         >
           {local.description}
         </span>

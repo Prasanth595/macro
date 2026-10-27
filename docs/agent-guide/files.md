@@ -151,7 +151,7 @@ way do not take over. A category the mouse moves to directly, or rests on for
 300 ms, opens in its place. Escape and outside clicks still dismiss immediately.
 `Sort files` offers modified, created, and viewed dates.
 Recent uses the viewer's own interaction order and does not offer a sort override.
-The New menu and drag/drop uploads target the selected folder. **New → Folder**
+The New menu and drag/drop uploads target the selected folder. Each New choice is one line: the title beside a muted description, in a wider menu that truncates the description only when the window is narrow. **New → Folder**
 and the launcher’s **Folder** action open the folder composer. Enter **Folder name**,
 choose **Add tags**, and stage files or nested folders in the large drop area
 (or use **Add files** / **Add folder**). Staged items can be removed before

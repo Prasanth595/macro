@@ -117,7 +117,7 @@ export function DriveCreateMenu(props: {
           aria-label={label()}
         />
       </Show>
-      <Dropdown.Content class="w-80 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto">
+      <Dropdown.Content class="w-[32rem] max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto">
         <Dropdown.Group>
           <Dropdown.GroupLabel class="min-w-0 gap-1.5">
             <span class="shrink-0">Create in</span>
@@ -135,6 +135,7 @@ export function DriveCreateMenu(props: {
                   creationDescriptions[option.blockName] ??
                   `Create a ${option.label.toLowerCase()} in this folder.`
                 }
+                singleLine
                 onSelect={() => select(option.blockName)}
               />
             )}
@@ -145,12 +146,14 @@ export function DriveCreateMenu(props: {
             icon={UploadIcon}
             title="Upload files"
             description="Bring existing files from your computer into this folder."
+            singleLine
             onSelect={actions.uploadFiles}
           />
           <CreateMenuItem
             icon={FolderIcon}
             title="Upload folder"
             description="Import a folder and the files inside it."
+            singleLine
             onSelect={actions.uploadFolder}
           />
         </Dropdown.Group>
