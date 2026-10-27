@@ -31,7 +31,7 @@ use uuid::Uuid;
 
 use super::models::{
     CreateProjectArgs, EditProjectArgs, MarkedUploadedTree, MutatedProject, ProjectError,
-    PurgedProjectTree, RevertDeleteResult, SoftDeleteResult, UploadFolderRepoArgs,
+    ProjectTree, PurgedProjectTree, RevertDeleteResult, SoftDeleteResult, UploadFolderRepoArgs,
 };
 
 /// Repository for reading project data from persistent storage.
@@ -81,6 +81,16 @@ pub trait ProjectRepo: Send + Sync + 'static {
         &self,
         project_id: &str,
     ) -> impl Future<Output = Result<Vec<Item>, Self::Err>> + Send;
+
+    /// Get the live folders below a project and the live documents and chats
+    /// filed in it or them. Returns at most `limit` folders and at most
+    /// `limit` items, so a caller detects an oversized tree by asking for
+    /// one more than it accepts.
+    fn get_project_tree(
+        &self,
+        project_id: &str,
+        limit: usize,
+    ) -> impl Future<Output = Result<ProjectTree, Self::Err>> + Send;
 
     /// Get the project's share permission configuration.
     fn get_project_share_permission(
@@ -375,6 +385,15 @@ pub trait ProjectService: Send + Sync + 'static {
         &self,
         receipt: EntityAccessReceipt<ViewAccessLevel>,
     ) -> impl Future<Output = Result<Vec<ItemWithUserAccessLevel>, ProjectError>> + Send;
+
+    /// Get the live folders, documents, and chats below a project, at most
+    /// `limit` folders and `limit` items (see [`ProjectRepo::get_project_tree`]).
+    /// The receipt covers the project; callers check each entry themselves.
+    fn get_project_tree(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        limit: usize,
+    ) -> impl Future<Output = Result<ProjectTree, ProjectError>> + Send;
 
     /// Get project share permissions for an owner.
     fn get_project_permissions(
