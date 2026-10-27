@@ -15,6 +15,35 @@ note: |-
   `files` in each ts-/tsx-feature-* rule. Block-agent uses `ui/` for
   presentation and `component/` for composition.
 files:
+  - apps/web/src/features/command/queries/**
+  - apps/web/src/features/document-composer/queries/**
+  - apps/web/src/features/task-composer/queries/**
+  - apps/web/src/features/command/primitives/**
+  - apps/web/src/features/document-composer/primitives/**
+  - apps/web/src/features/task-composer/primitives/**
+  - apps/web/src/features/command/components/**
+  - apps/web/src/features/document-composer/components/**
+  - apps/web/src/features/task-composer/components/**
+  - apps/web/src/features/command/views/**
+  - apps/web/src/features/document-composer/views/**
+  - apps/web/src/features/task-composer/views/**
+  - apps/web/src/features/command/context/**
+  - apps/web/src/features/document-composer/context/**
+  - apps/web/src/features/task-composer/context/**
+  - apps/web/src/features/universal-input/queries/**
+  - apps/web/src/features/universal-input/primitives/**
+  - apps/web/src/features/universal-input/components/**
+  - apps/web/src/features/universal-input/views/**
+  - apps/web/src/features/universal-input/context/**
+  - apps/web/src/features/saved-views/context/**
+  - apps/web/src/features/saved-views/queries/**
+  - apps/web/src/features/saved-views/primitives/**
+  - apps/web/src/features/saved-views/components/**
+  - apps/web/src/features/saved-views/views/**
+  - apps/web/src/features/calendar-notes/queries/**
+  - apps/web/src/features/calendar-notes/primitives/**
+  - apps/web/src/features/calendar-notes/components/**
+  - apps/web/src/features/calendar-notes/views/**
   - apps/web/src/features/access-requests/primitives/**
   - apps/web/src/features/access-requests/views/**
   - apps/web/src/features/agent-activity/queries/**
@@ -115,8 +144,6 @@ files:
   - apps/web/src/features/property/tags/queries/**
   - apps/web/src/features/property/tags/primitives/**
   - apps/web/src/features/property/tags/views/**
-  - apps/web/src/features/claude-connection/components/**
-  - apps/web/src/features/claude-connection/primitives/**
   - apps/web/src/features/activity/components/**
   - apps/web/src/features/drive-view/components/**
   - apps/web/src/features/activity/queries/**

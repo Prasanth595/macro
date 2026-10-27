@@ -29,6 +29,7 @@ export type SettingsTab =
   | 'Desktop App'
   | 'Agent'
   | 'Agents'
+  | 'Routines'
   | 'Harness'
   | 'Bots'
   | 'Team'
@@ -37,7 +38,6 @@ export type SettingsTab =
   | 'Tags'
   | 'CRM'
   | 'Connected'
-  | 'Connections'
   | 'Email'
   | 'GitHub'
   | 'Admin';

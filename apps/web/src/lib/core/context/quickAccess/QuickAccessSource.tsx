@@ -54,7 +54,6 @@ import { useQuickAccessSnippetsQuery } from '@queries/soup/quick-access-snippets
 import { useRecentlyViewedSoupQuery } from '@queries/soup/recently-viewed';
 import { useDatabasesQuery } from '@queries/storage/databases';
 import { useFormsQuery } from '@queries/storage/forms';
-import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
 import { subscribeToVisibleCacheChanges } from '@queries/subscribe-to-visible-cache-changes';
 import type { ApiChannelWithLatest } from '@service-storage/channel-list-types';
 import { getGraphqlSoupCacheHost } from '@service-storage/graphql-soup';
@@ -422,7 +421,6 @@ export function createQuickAccessValue(): QuickAccessContextValue {
       )
     );
   });
-  const instructionsIdQuery = useInstructionsMdIdQuery();
   const { query: crmCompaniesQuery, companies: crmCompaniesAccessor } =
     useQuickAccessCrmCompaniesQuery();
   const { query: crmContactsQuery, contacts: crmContactsAccessor } =
@@ -440,26 +438,6 @@ export function createQuickAccessValue(): QuickAccessContextValue {
   const formsFlag = useFeatureFlag(enableForms);
   const { query: initiativesQuery, initiatives: initiativesAccessor } =
     useQuickAccessInitiativesQuery();
-
-  // globally hidden ids
-  const [hiddenIds, setHiddenIds] = createSignal<Set<string>>(new Set());
-
-  const hideId = (id: string) => {
-    setHiddenIds((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-  };
-
-  // instructions.md effect
-  createEffect(() => {
-    const instructionsReady = queryReadyGate(instructionsIdQuery);
-    if (!instructionsReady) return;
-    const instructionsId = instructionsIdQuery.data;
-    if (!instructionsId) return;
-    hideId(instructionsId);
-  });
 
   // stable cache for transformed items
   const itemCache = new Map<string, CacheEntry>();
@@ -485,7 +463,6 @@ export function createQuickAccessValue(): QuickAccessContextValue {
 
     // Process history items
     const historyData = queryReadyGate(historyQuery) ? historyQuery.data : [];
-    const hidden = hiddenIds();
     for (const item of historyData) {
       if (item.deletedAt) continue;
       if (
@@ -493,7 +470,6 @@ export function createQuickAccessValue(): QuickAccessContextValue {
         item.subType?.type === 'initiative_description'
       )
         continue;
-      if (hidden.has(item.id)) continue;
       seenIds.add(item.id);
 
       const viewedAt = latestDate(viewedAtMap.get(item.id), item.viewedAt);
@@ -631,7 +607,6 @@ export function createQuickAccessValue(): QuickAccessContextValue {
   const crmCompanyEntries = createLazyMemo(() => {
     const viewedAtMap = soupViewedAtMap();
     const allEntries: IndexEntry[] = [];
-    const hidden = hiddenIds();
 
     // Process CRM companies (live soup list, complements the
     // recently-viewed feed which only has companies the user has
@@ -639,8 +614,6 @@ export function createQuickAccessValue(): QuickAccessContextValue {
     // updated_at for unviewed companies — same shape as channels.
     const crmCompanyData = crmCompaniesAccessor();
     for (const company of crmCompanyData) {
-      if (hidden.has(company.id)) continue;
-
       const viewedAt =
         viewedAtMap.get(company.id) ?? company.viewedAt ?? undefined;
 
@@ -695,9 +668,8 @@ export function createQuickAccessValue(): QuickAccessContextValue {
   // not Macro users, so they stay out of the 'person' bucket.
   const crmContactEntries = createLazyMemo(() => {
     const allEntries: IndexEntry[] = [];
-    const hidden = hiddenIds();
     for (const contact of crmContactsAccessor()) {
-      if (contact.hidden || hidden.has(contact.id)) continue;
+      if (contact.hidden) continue;
       const version = getCrmContactVersion(contact);
       const cached = itemCache.get(contact.id);
       const item =
@@ -718,7 +690,6 @@ export function createQuickAccessValue(): QuickAccessContextValue {
     const viewedAtMap = soupViewedAtMap();
     const seenIds = new Set(historyEntries().ids);
     const allEntries: IndexEntry[] = [];
-    const hidden = hiddenIds();
 
     // Process snippets (live soup list, complements the history feed
     // which only has snippets the user has opened). Widens the pool to
@@ -727,7 +698,6 @@ export function createQuickAccessValue(): QuickAccessContextValue {
     // already opened.
     const snippetData = snippetsAccessor();
     for (const snippet of snippetData) {
-      if (hidden.has(snippet.id)) continue;
       if (seenIds.has(snippet.id)) continue;
       seenIds.add(snippet.id);
 
@@ -785,7 +755,6 @@ export function createQuickAccessValue(): QuickAccessContextValue {
     const viewedAtMap = soupViewedAtMap();
     const seenIds = new Set(historyEntries().ids);
     const allEntries: IndexEntry[] = [];
-    const hidden = hiddenIds();
 
     // Process skills (live soup list, complements the history feed which
     // only has skills the user has opened). Widens the pool to shared
@@ -793,7 +762,6 @@ export function createQuickAccessValue(): QuickAccessContextValue {
     // History-fed entries win for skills the user has already opened.
     const skillData = skillsAccessor();
     for (const skill of skillData) {
-      if (hidden.has(skill.id)) continue;
       if (seenIds.has(skill.id)) continue;
       seenIds.add(skill.id);
 
@@ -845,10 +813,8 @@ export function createQuickAccessValue(): QuickAccessContextValue {
 
   const agentSessionEntries = createLazyMemo(() => {
     const viewedAtMap = soupViewedAtMap();
-    const hidden = hiddenIds();
     const entries: IndexEntry[] = [];
     for (const session of agentSessionsAccessor()) {
-      if (hidden.has(session.id)) continue;
       const viewedAt = viewedAtMap.get(session.id) ?? session.viewedAt;
       const sortTimestamp =
         toTimestamp(viewedAt) || toTimestamp(session.updatedAt);
@@ -882,11 +848,10 @@ export function createQuickAccessValue(): QuickAccessContextValue {
   // time is the only timestamp to sort on.
   const databaseEntries = createLazyMemo(() => {
     if (!databasesFlag().enabled) return [];
-    const hidden = hiddenIds();
     const entries: IndexEntry[] = [];
     const listed = databasesQuery.isSuccess ? databasesQuery.data : [];
     for (const { database, grant } of listed) {
-      if (database.trashed_at || hidden.has(database.id)) continue;
+      if (database.trashed_at) continue;
       const sortTimestamp = toTimestamp(database.created_at);
       const entity: DatabaseEntity = {
         type: 'database',
@@ -920,11 +885,9 @@ export function createQuickAccessValue(): QuickAccessContextValue {
   // Forms, like databases, have only a creation time to sort on.
   const formEntries = createLazyMemo(() => {
     if (!formsFlag().enabled) return [];
-    const hidden = hiddenIds();
     const entries: IndexEntry[] = [];
     const listed = formsQuery.isSuccess ? formsQuery.data : [];
     for (const { form, access } of listed) {
-      if (hidden.has(form.id)) continue;
       const sortTimestamp = toTimestamp(form.createdAt);
       const entity: FormEntity = {
         type: 'form',
@@ -957,10 +920,8 @@ export function createQuickAccessValue(): QuickAccessContextValue {
 
   const initiativeEntries = createLazyMemo(() => {
     const viewedAtMap = soupViewedAtMap();
-    const hidden = hiddenIds();
     const entries: IndexEntry[] = [];
     for (const initiative of initiativesAccessor()) {
-      if (hidden.has(initiative.id)) continue;
       const viewedAt = viewedAtMap.get(initiative.id) ?? initiative.viewedAt;
       const sortTimestamp =
         toTimestamp(viewedAt) || toTimestamp(initiative.updatedAt);

@@ -64,7 +64,7 @@ vi.mock('@channel/channel-invite-button', () => ({
   ChannelInviteButton: () => null,
 }));
 vi.mock('@channel/components/ChannelTopIcon', () => ({
-  ChannelTopIcon: () => null,
+  ChannelTitleIcon: () => null,
 }));
 vi.mock('@channel/Participants/ChannelParticipantsTab', () => ({
   ChannelParticipantsTab: () => null,
@@ -88,7 +88,6 @@ vi.mock('@components/app/split-layout/layoutUtils', () => ({
   useSplitDisplayName: () => {},
   useSplitPanelOrThrow: () => ({ splitHotkeyScope: 'test-scope' }),
 }));
-vi.mock('@core/component/TabsInset', () => ({ TabsInset: () => null }));
 vi.mock('@core/constant/allBlocks', () => ({
   blocks: {},
   resolveBlockAlias: (type: string) => type,

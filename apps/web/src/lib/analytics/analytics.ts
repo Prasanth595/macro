@@ -7,6 +7,7 @@ import {
   initializeGoogleAnalytics,
   initializeMetaPixel,
 } from '@app/lib/analytics/providers';
+import { frontendInstanceId } from '@app/observability/frontend-instance';
 import { DEV_MODE_ENV, PROD_MODE_ENV } from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { getPlatform, isTauri } from '@core/util/platform';
@@ -135,6 +136,10 @@ const initializePosthog = (instance: PostHog) => {
     api_host: 'https://macro-prox.macroverse.workers.dev/i/ph',
     ui_host: 'https://us.posthog.com',
     defaults: '2026-01-30',
+    // Scroll depth listens to every scroll in the app (capture phase) and
+    // reads window geometry, forcing a layout per scroll. The app shell never
+    // scrolls the window, so the depth it reports is always zero.
+    disable_scroll_properties: true,
     prepare_external_dependency_script: (script) => {
       const url = new URL(script.src);
 
@@ -150,6 +155,7 @@ const initializePosthog = (instance: PostHog) => {
       if (isPrivateCallPage()) return null;
       if (cr) {
         cr.properties = redactLinkTokenProperties(cr.properties);
+        cr.properties.frontend_instance_id = frontendInstanceId;
         if (cr.$set) cr.$set = redactLinkTokenProperties(cr.$set);
         if (cr.$set_once) {
           cr.$set_once = redactLinkTokenProperties(cr.$set_once);

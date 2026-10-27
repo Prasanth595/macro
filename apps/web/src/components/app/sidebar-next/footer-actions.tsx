@@ -1,4 +1,5 @@
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
+import { t } from '@app/lib/i18n';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { SidebarOpenInSplitMenu } from '@components/app/app-sidebar/sidebar';
 import { UserIcon } from '@core/component/UserIcon';
@@ -7,8 +8,8 @@ import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
 import { useEmail, useUserId } from '@core/context/user';
 import { TOKENS } from '@core/hotkey/tokens';
 import DeviceMobileDownloadIcon from '@icon/device-mobile-download.svg';
-import GearIcon from '@phosphor/gear.svg';
-import GearFillIcon from '@phosphor-fill/gear-fill.svg';
+import GearFillIcon from '@icon/system/fill/gear-fill.svg';
+import GearIcon from '@icon/system/regular/gear.svg';
 import { isRealNamePart, useOwnUserName } from '@queries/auth/user-name-self';
 import { Button, cn, pressHandlers } from '@ui';
 import { createMemo, Show } from 'solid-js';
@@ -61,8 +62,8 @@ const MobileAppButton = () => {
           'size-10 cursor-default rounded-xl',
           isActive() && 'bg-hover text-ink'
         )}
-        label="Get the mobile app"
-        tooltip="Get the mobile app"
+        label={t('nav.getMobileApp')}
+        tooltip={t('nav.getMobileApp')}
         tooltipPlacement="right"
         draggable={false}
         aria-current={isActive() ? 'page' : undefined}
@@ -138,11 +139,13 @@ export const FooterActions = (props: {
             'size-10 cursor-default rounded-xl',
             isSettingsActive() && 'bg-hover text-ink'
           )}
-          label="Settings"
+          label={t('nav.settings')}
           aria-description={
-            accountName() ? `Signed in as ${accountName()}` : undefined
+            accountName()
+              ? t('nav.signedInAs', { name: accountName() ?? '' })
+              : undefined
           }
-          tooltip="Settings"
+          tooltip={t('nav.settings')}
           tooltipPlacement="right"
           hotkey={TOKENS.global.toggleSettings}
           draggable={false}
