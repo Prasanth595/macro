@@ -97,26 +97,20 @@ export type ButtonClassOptions = {
   variant?: ButtonVariant;
   /** Composed rows own their surface states without layering a second button face. */
   appearance?: 'default' | 'bare';
-  /** Non-ghost/link controls default to raised on desktop and glass on touch. */
+  /** Outline is always flat; other framed variants adapt to desktop and touch. */
   finish?: ButtonFinish;
   size?: ButtonSize;
   fullWidth?: boolean;
   class?: string;
 };
 
-const raisedBorderButtonStyles =
-  'not-touch:not-data-disabled:active:border-border-secondary not-touch:aria-pressed:border-border-secondary not-touch:aria-expanded:border-border-secondary';
-
 function buttonFinishClasses(variant: ButtonVariant, finish?: ButtonFinish) {
-  if (finish === 'flat') return 'shadow-none';
+  if (finish === 'flat' || variant === 'outline') return 'shadow-none';
   if (finish !== 'raised' && (variant === 'ghost' || variant === 'link')) {
     return undefined;
   }
 
-  return cn(
-    raisedButtonStyles,
-    variant === 'outline' && raisedBorderButtonStyles
-  );
+  return raisedButtonStyles;
 }
 
 /** Non-interactive frame material shared by Button and ButtonGroup. */
