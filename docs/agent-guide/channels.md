@@ -9,6 +9,30 @@ the message text, including link labels and mention names, once per preview.
 Verify wide and narrow rows and channel/thread cards; links and mentions remain
 interactive inside the opened conversation.
 
+Conversation headers and shared detail breadcrumbs use the same identity icon:
+the recipient for human DMs, the persona for agent DMs, and the channel picture
+or glyph for named channels. Message and thread breadcrumbs resolve identity
+from their parent channel rather than the message or thread ID.
+
+## Message links
+
+A channel search namespace with `threadId` and no `messageId` targets the thread
+root. Home, Chat, and the full-screen touch conversation normalize this URL in
+the shared channel search schema; an explicit message continues to target its
+reply within that thread.
+
+Bare URLs, common bare domains, and email addresses are clickable in opened
+messages, including agent/API messages and older messages. Explicit Markdown
+links still use their label. Inline code, code blocks, and escaped URLs stay
+literal. Removing a link in the composer remains effective after sending and
+reopening the message for editing.
+
+Verify a bare App Store URL on desktop and mobile, a percent-encoded URL, a URL
+containing Markdown punctuation, and Remove link → send → reopen. Channel and
+Home previews remain display-only as described above. The backend-free browser
+check is in
+`apps/web/src/lib/core/component/LexicalMarkdown/component/core/browser-test/README.md`.
+
 ## Empty direct messages
 
 An empty human DM shows the centered conversations illustration and “Say hello”
@@ -603,14 +627,14 @@ Press `Escape` to clear selection; the parent Home shortcut is then available
 again. Typing `e` in the composer or inline editor should still enter text.
 Verify a message link in a fresh browser tab as well as inside an open channel:
 the initial page should center the requested message, including older history.
-On a cold notification open, the destination shows one conversation placeholder
+On a cold notification open, the destination shows the three-block Macro loader
 while channel metadata and the targeted message window load in parallel. It
 must not briefly fetch or display the latest messages before resolving an
 uncached message link. Explicit thread replies load their parent window and
 replies together; known root messages skip the message-kind lookup. Throttle
-these requests and verify the placeholder transitions directly to the target,
-without a blank body or Macro spinner. A newer link supersedes an unresolved
-one, while a jump inside an already-mounted conversation preserves its composer.
+these requests and verify the loader transitions directly to the target,
+without a blank body or message-shaped placeholders. A newer link supersedes an
+unresolved one, while a jump inside an already-mounted conversation preserves its composer.
 Returning through split navigation restores the saved message position and expanded
 threads. Switching channel tabs and returning restores the Messages position,
 expanded threads, and pending reply from when the tab was left. The `Scroll to bottom` control appears when scrolling down through history;
@@ -796,9 +820,14 @@ Cache misses, HTTP/GraphQL failures, and failures to load an uncached continuati
 still show errors and retry controls; background refresh retries continue.
 
 Right-clicking a favorite opens the same menu as its channel's row in the
-sections below — `Mark Read`, `Unfavorite`, `Mute notifications`, `Copy Link`,
+sections below — `Mark Read`, `Open in new split`, `Unfavorite`,
+`Mute notifications`, `Copy Link`,
 and the label actions when channel labels are enabled — and focuses the
 favorite row rather than the channel's own row.
+`Open in new split` is available for favorites, channels, and DMs on desktop.
+It follows the shared navigation behavior: a conversation already shown inline
+is focused with a `Content already open` toast. The action is hidden on phones
+and disabled when there is no room for another split.
 
 ### Threads tab
 
@@ -1229,7 +1258,8 @@ conversation renders an inline detail whose top bar holds the channel avatar
 and name, the same inset tab strip, live viewer avatars, and the `Call` and
 `Ask Macro` buttons. An ellipsis follows the name — after the breadcrumb where
 the host supplies one, as in Home — and opens the same entity actions as
-right-clicking the conversation's rail row: `Rename`, `Set channel picture`,
+right-clicking the conversation's rail row: `Open in new split` (when available),
+`Rename`, `Set channel picture`,
 `Remove channel picture` (only when the channel has one),
 `Favorite`/`Unfavorite`, `Snooze notifications…`, `Mute notifications`,
 `Remind me`, `Copy Link`, `Copy ID`. A channel can therefore be favorited or

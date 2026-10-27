@@ -1,7 +1,7 @@
 import { isModality } from '@core/mobile/inputModality';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import CheckIcon from '@icon/system/regular/check.svg';
 import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
-import CheckIcon from '@phosphor/check.svg';
 import {
   type ComponentProps,
   createSignal,
@@ -318,7 +318,7 @@ function DropdownGroup(props: DropdownGroupProps) {
   const [local, rest] = splitProps(props, ['class']);
   return (
     <KobalteDropdownMenu.Group
-      class={cn('flex flex-col p-1.5 bg-menu', local.class)}
+      class={cn('flex flex-col p-1.5', local.class)}
       {...rest}
     />
   );

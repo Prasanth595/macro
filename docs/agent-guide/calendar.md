@@ -3,8 +3,7 @@
 ## Meeting notes
 
 Meeting notes require `enable-calendar-meeting-notes`. It is on automatically in
-dev; production uses PostHog, with an initial rollout intended for `@macro.com`
-users. `VITE_ENABLE_CALENDAR_MEETING_NOTES=true` or `false` overrides it locally.
+dev; production uses PostHog, enabled for `@macro.com` users. `VITE_ENABLE_CALENDAR_MEETING_NOTES=true` or `false` overrides it locally.
 With the flag off, event notes and document Share meeting-link controls do not
 mount or request note data, on desktop or phone. The flag does not revoke saved
 meeting/team grants or change API permissions.
@@ -14,8 +13,12 @@ This creates a Markdown document named after the meeting, links it with meeting
 viewer access, and opens it immediately. Team access starts off. A meeting can
 have multiple notes; **Create** and **Link** remain on the section title row
 so you can keep creating notes or linking existing documents.
+Both actions are available while notes load. Reopening a recently viewed event
+uses cached notes immediately while stale data refreshes in the background.
+The picker can open while existing links load, but submission waits for that
+check so selecting an already-linked note cannot change its sharing.
 
-Choose **Link** to search your markdown documents, select one, review
+Choose **Link** to search the titles of Markdown documents you own, select one, review
 the sharing explanation, and optionally include your existing team before
 **Link note**. Team access starts off for each note. Recurring meetings link only
 the displayed occurrence. Notes on a
@@ -24,18 +27,33 @@ Existing document editors and other sharing keep their access.
 Notes use the event details' existing row layout and controls. Team choices come
 from current Macro team memberships; they do not introduce departments or subteams.
 
+Linked meetings also appear in the note’s side-panel **References** section.
+Only readers with meeting-detail access see those references; owners retain safe
+unavailable-meeting entries.
+Click a meeting reference to reopen that exact occurrence. If the calendar
+backend has not yet deployed embedded reference previews, the dialog reports
+that meeting details are temporarily unavailable and offers **Retry**. Missing
+fields must not be described as removed meeting access.
+
 Open the linked title to read the original document. On desktop it opens in a
 new split; on mobile it replaces the calendar pane and closes event details.
 Opening a note leaves focus available to the document as it mounts; dismissing
 desktop details normally returns focus to the calendar event.
-Meeting access and occurrence scope are explained in the linking/access dialog;
-each note shows any additional team audience. Document owners use **Options →
-Manage access** to change that team, or **Options → Unlink from meeting** to remove
-this meeting's grants without deleting the document. Keep access explanations as
-plain text and actions labeled.
-In the linking dialog, only the document results scroll. The meeting context,
+Meeting access and occurrence scope are explained in the linking dialog;
+each note shows any additional team audience. **Options → Share** opens the same
+document Share dialog as the note toolbar. Its **Meeting links** section lets the
+owner change each link’s optional team access. **Options → Unlink from meeting**
+removes this meeting’s grants without deleting the document. Keep the labeled
+Options button visible beside long titles; truncate the title without widening
+the event details. Labeled note controls do not need extra hover tooltips.
+The linking dialog uses a wider desktop layout and a phone sheet. Only the
+document results scroll. The picker starts with owned Markdown matches from
+Quick Access's local cache, then adds the calendar notes endpoint's title
+results (up to 30 per query), not full-text search. Matching results stay visible
+while typing and searches are cached across opens. The meeting context,
 sharing controls, and action buttons stay visible, including in a short viewport.
-If the owner has since left the selected team, **Remove team access** still works.
+A former team’s grant can be removed in Share while the meeting is still visible;
+unlinking remains available even if the meeting is no longer accessible.
 Failed saves retain the selection and audience for retry; dismissing starts fresh.
 If creation succeeds but linking fails, **Retry linking** reuses the saved document;
 **Open saved note** lets you continue editing before the link is confirmed. Closing
@@ -48,6 +66,10 @@ links** (inside **Link** on mobile). Every saved link remains removable here eve
 if the meeting was cancelled, fell outside the sync window, or stopped being
 shared with the owner. **Unlink** asks before removing its meeting/team grants.
 Unavailable meetings use a safe label rather than revealing private details.
+Checking **Also share with Macro** also updates **Team access** to **View via
+meeting** when there is no direct team grant. The dropdown's **Use meeting
+access** option removes only additional direct sharing; uncheck the meeting's
+checkbox to remove its team grant. Unlink stays in place while a team save runs.
 
 Full-detail team events expose the same note controls; provider actions such as
 editing the event or RSVPing stay unavailable. Busy-only team entries and
@@ -59,10 +81,12 @@ viewer leaves that team; it does not make the calendar event visible to that tea
 
 Verify on desktop and phone: create and open notes, add a second note, retry a failed
 link without duplicating the new document, link an existing note with team unchecked,
-add/remove a team, and unlink while keeping the document. On desktop, hover a note
-title and select a neighboring note while its tooltip is visible. The
+add/remove a team in Share, and unlink while keeping the document. Link a long
+title and verify its Options menu opens without horizontal scrolling. The
 backend-free browser suite mounts the real event popover and mobile drawer with
-sample data and preview service adapters. It is
+sample data and preview service adapters. It previews the real meeting-access
+controls inside a sample Share shell; verify the full Share dialog in the app
+as well. It is
 `apps/web/src/features/calendar-notes/browser-test/playwright.config.ts`.
 API permission cases are covered in `crates/calendar_events/src/outbound/pg/test/notes.rs`.
 The fixture accepts `?notes=off` to check the event details without notes.
@@ -97,8 +121,9 @@ surface, so they blend with the dialog instead of using the darker page fill.
 Their menus stay inside the composer's portal scope. Verify that calendar,
 recurrence, Guests, conferencing, Location, and Notifications open on the first
 click from the title field and accept changes without closing the composer.
-Open the start/end date picker and its nested time list; selecting a time keeps
-the date picker open. Escape dismisses the active menu before the composer.
+Each end is a date button (its calendar closes on a pick) and, unless all day,
+a time field: type `3p` or `15:30` and the list jumps there, Enter commits,
+Escape restores the old time. Escape dismisses the active menu before the composer.
 Moving the start date or time moves the end with it, keeping the event's length
 (all-day dates keep their day count), until the end is picked in the same edit;
 after that the end stays put, and a start past it shows the end-before-start
@@ -142,6 +167,14 @@ responses: switch Month/Week/Day rapidly and navigate without blanking the grid.
 Confirm mixed event shapes, stable positions, clean handoff, and an uncovered Retry.
 Reduced-motion mode disables pulses and transitions. The page stays busy until the
 handoff starts. Hidden pages do not animate. Resize to confirm skeleton alignment.
+
+Imported Google all-day events whose start and end dates match display as one day.
+This also applies to recurring instances and moved exceptions. Sync keeps the
+original provider dates without editing the Google event; reversed dates remain
+invalid. Verify that a calendar containing both such an all-day event and an
+ordinary timed event completes sync and shows both.
+The [calendar component fixture](media/calendar-import/one-day.png) shows a
+normalized one-day occurrence beside a timed event on the same date.
 
 Imported timed events with identical start and end are points: they show a compact
 chip with one time and `No duration` in details, and do not block availability.
@@ -502,6 +535,13 @@ switches the open details.
 Desktop event details stay inside the visible calendar grid, including Home
 previews and narrow splits. They overlap wide Day-view events when needed and
 shrink to fit the pane; long details scroll while the RSVP row stays visible.
+As in Google Calendar, the popover opens beside the event, aligned with its top,
+and switches only between the right and left side; when it doesn't fit below,
+it slides up to stay in the window instead of opening above the event. Sections
+that load after it opens (join requests, meeting notes) therefore never move it
+from below the event to above it. Check placement with an event low in a tall
+window, a short window, and a pending join request; the backend-free regression
+is `apps/web/src/features/calendar-view/browser-test/playwright.config.ts`.
 
 The `New event` composer (also opened by dragging a range on the grid) has an `Event kind`
 pill choosing between `Event` and `Out of office`. Picking `Out of office` hides the guests,
@@ -580,7 +620,9 @@ tell them apart by calendar color), and each copy answers only for its own inbox
 guest copy stays a guest copy, marked `(you)` on that inbox's row alone, even when
 another connected inbox organizes the event. An Outlook guest copy never offers `Add
 guests` (Outlook lets only the organizer change a meeting) and shows the same
-explanation; an Outlook organizer adds guests like a Google one.
+explanation; an Outlook organizer adds guests like a Google one. The organizer's row on an
+Outlook event shows `Accepted` and `Going?` has `Yes` pressed, as on Google, although
+Microsoft lists the organizer as not having answered.
 A guest the organizer does not let modify the event (`viewerCan.editDetails` false while
 `viewerCan.rsvp` is true) opens an editor whose date/time, all-day, title, description,
 repeat, conferencing and location controls are disabled, each with the tooltip `Only the
@@ -633,10 +675,13 @@ every copy. A new event on a calendar other than the primary lists its creator a
 when it has other guests, as Google's own client does, so an event of one's own shows as one
 block in Google. With guests, Google also invites the creator's primary calendar; Macro shows
 both copies as one event, sends the organizer's changes and Delete through the copy on the
-secondary calendar, and keeps reminders and answers on the invitation. To verify, create an
-event on a secondary calendar with no guests and another with a guest, open each (no `Only the
-organizer can change this event.`), change the title, add a guest, then delete it, and check
-Google: the first shows once, and both disappear from every calendar after the delete.
+secondary calendar, and keeps reminders and answers on the invitation. Google takes 15 to 30
+seconds to carry the organizer's changes to that invitation; Macro shows them at once and never
+falls back to the old title, description or guests meanwhile. To verify, create an event on a
+secondary calendar with no guests and another with a guest, open each (no `Only the organizer
+can change this event.`), change the title, add a guest, and watch the chip and details for 40
+seconds (the new values must stay), then delete it, and check Google: the first shows once, and
+both disappear from every calendar after the delete.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description
@@ -1363,3 +1408,5 @@ not create another copy while the existing operation is unresolved. Events with
 native details that cannot be safely copied are rejected before any invitations.
 For an Outlook invitation you attend, `Open in Outlook` below the RSVP controls
 opens the actual occurrence so you can clear your own response there.
+
+Calendar's New menus explain Event, Call, and Booking link with icons and muted descriptions. Call and Booking link keep their existing feature gates. Booking link opens the personal Scheduling workspace with an unsaved link editor; canceling creates nothing. The URL request is consumed once after the profile is ready.
