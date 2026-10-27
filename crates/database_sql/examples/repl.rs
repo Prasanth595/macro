@@ -135,6 +135,7 @@ fn catalog() -> Catalog {
             ],
             source: TableSource::Database,
         }],
+        scope: None,
     }
 }
 

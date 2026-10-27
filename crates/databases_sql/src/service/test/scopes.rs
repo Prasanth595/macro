@@ -100,3 +100,59 @@ async fn an_available_scope_keeps_other_accessible_databases_available_for_joins
         ]]
     );
 }
+
+#[tokio::test]
+async fn the_scoped_database_wins_an_unqualified_table_name_two_databases_use() {
+    let world = world();
+    world.lock().unwrap().databases[1].tables[0].table.name = "Guests".into();
+    for sql_text in [
+        "ALTER TABLE \"Guests\" RENAME TO \"Rooms\"",
+        "ALTER TABLE \"Guests\" ADD COLUMN Capacity number",
+    ] {
+        world.lock().unwrap().op_answers.push_back(Ok(Vec::new()));
+        sql(&world)
+            .execute(
+                agent_for(OWNER),
+                SqlRequest {
+                    sql: sql_text.into(),
+                    scope: Some(VENUES),
+                    base_versions: HashMap::new(),
+                },
+            )
+            .await
+            .unwrap();
+    }
+    let tables: Vec<TableId> = world
+        .lock()
+        .unwrap()
+        .applied
+        .iter()
+        .flat_map(|applied| &applied.ops)
+        .map(|op| match op {
+            DatabaseOp::Table { table, .. }
+            | DatabaseOp::Column { table, .. }
+            | DatabaseOp::Rows { table, .. } => *table,
+            other => panic!("a table change sends no {other:?}"),
+        })
+        .collect();
+    assert_eq!(tables, vec![HALLS, HALLS]);
+
+    let outcome = sql(&world)
+        .execute(
+            agent_for(OWNER),
+            SqlRequest {
+                sql: "SELECT \"Name\" FROM \"Guests\" ORDER BY \"Name\"".into(),
+                scope: Some(OFFSITE),
+                base_versions: HashMap::new(),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        outcome.result.unwrap().rows,
+        vec![
+            vec![Some(Cell::Text("Maria".into()))],
+            vec![Some(Cell::Text("Sam".into()))],
+        ]
+    );
+}

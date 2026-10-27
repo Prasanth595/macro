@@ -227,6 +227,7 @@ fn star_expands_and_every_column_kind_types_its_literal() {
         resolve(
             &Catalog {
                 tables: catalog().tables.into_iter().take(2).collect(),
+                scope: None,
             },
             parse(sql).unwrap()
         )
@@ -855,6 +856,7 @@ fn exact_case_resolves_a_case_insensitive_collision() {
     };
     let catalog = Catalog {
         tables: vec![table(1, "Test"), table(2, "test")],
+        scope: None,
     };
     let Query::Select(select) = compile(&catalog, "SELECT * FROM test.\"Table 1\"").unwrap() else {
         panic!("a select");
