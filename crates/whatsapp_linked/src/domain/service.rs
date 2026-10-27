@@ -20,7 +20,6 @@ mod timeline;
 /// DSS use cases for personal linked devices.
 #[derive(Clone)]
 pub struct LinkedService {
-    features: Features,
     accounts: Arc<dyn AccountRepository>,
     groups: Arc<dyn GroupRepository>,
     bindings: Arc<dyn BindingRepository>,
@@ -32,7 +31,6 @@ pub struct LinkedService {
 impl LinkedService {
     /// Wire adapters at the composition root.
     pub fn new<R>(
-        features: Features,
         repository: Arc<R>,
         send_rate_limiter: Arc<dyn SendRateLimiter>,
     ) -> Self
@@ -45,7 +43,6 @@ impl LinkedService {
             + 'static,
     {
         Self {
-            features,
             accounts: repository.clone(),
             groups: repository.clone(),
             bindings: repository.clone(),
@@ -53,11 +50,6 @@ impl LinkedService {
             timeline: repository,
             send_rate_limiter,
         }
-    }
-
-    /// Server rollout switches.
-    pub fn features(&self) -> Features {
-        self.features
     }
 
     /// Personal settings never depend on workspace administration.
@@ -74,9 +66,6 @@ impl LinkedService {
         authority: SendAuthority,
     ) -> LinkedResult<Pairing> {
         human(authority)?;
-        if !self.features.pairing {
-            return Err(LinkedError::ConfigurationRequired.into());
-        }
         let pairing = self.accounts.begin_pairing(user, replace).await?;
         let span = tracing::Span::current();
         span.record("pairing_id", tracing::field::display(pairing.id));
@@ -106,9 +95,6 @@ impl LinkedService {
         authority: SendAuthority,
     ) -> LinkedResult<()> {
         human(authority)?;
-        if !self.features.pairing {
-            return Err(LinkedError::ConfigurationRequired.into());
-        }
         if !response.is_object() || response.to_string().len() > PASSKEY_LIMIT_BYTES {
             return Err(LinkedError::Invalid("invalid passkey response").into());
         }
@@ -168,9 +154,6 @@ impl LinkedService {
         fields(count, account_id)
     )]
     pub async fn chats(&self, user: &MacroUserIdStr<'_>) -> LinkedResult<ChatList> {
-        if !self.features.adoption {
-            return Err(LinkedError::ConfigurationRequired.into());
-        }
         let (account, identity) = self.connected(user).await?;
         tracing::Span::current().record("account_id", tracing::field::display(account.id));
         self.groups.request_groups_refresh(&[account.id]).await?;
@@ -285,9 +268,6 @@ impl LinkedService {
         authority: SendAuthority,
     ) -> LinkedResult<Binding> {
         human(authority)?;
-        if !self.features.adoption {
-            return Err(LinkedError::ConfigurationRequired.into());
-        }
         let (account, identity) = self.connected(user).await?;
         let adoption = if is_group_jid(&request.group_jid) {
             let group = self
@@ -382,7 +362,7 @@ impl LinkedService {
             }
             _ => None,
         };
-        Ok(reply_block(self.features, account, binding, facts.as_ref()))
+        Ok(reply_block(account, binding, facts.as_ref()))
     }
 
     /// Record a deliberate send for the person's own account. The account's
@@ -402,9 +382,6 @@ impl LinkedService {
         sender(authority)?;
         let (user, group_id) = receipt_scope(access)?;
         tracing::Span::current().record("group_id", tracing::field::display(group_id));
-        if !self.features.sending {
-            return Err(LinkedError::ConfigurationRequired.into());
-        }
         validate_request(request)?;
         let digest: [u8; 32] = Sha256::digest(
             serde_json::to_vec(request).map_err(|_| LinkedError::Invalid("invalid request"))?,
@@ -503,9 +480,6 @@ impl LinkedService {
         sender(authority)?;
         let (user, group_id) = receipt_scope(access)?;
         tracing::Span::current().record("group_id", tracing::field::display(group_id));
-        if !self.features.sending {
-            return Err(LinkedError::ConfigurationRequired.into());
-        }
         let kind = MediaKind::of(mime).ok_or(LinkedError::Invalid(
             "this file type cannot be sent to WhatsApp",
         ))?;
@@ -704,8 +678,7 @@ pub(crate) fn sending_facts(
 fn refusal(block: ReplyBlock) -> LinkedError {
     match block {
         ReplyBlock::NoAccount | ReplyBlock::Disconnected => LinkedError::Disconnected,
-        ReplyBlock::SendingDisabled
-        | ReplyBlock::NotObserving
+        ReplyBlock::NotObserving
         | ReplyBlock::NotAllowedInGroup
         | ReplyBlock::GroupUnavailable => LinkedError::Forbidden,
     }
@@ -713,14 +686,10 @@ fn refusal(block: ReplyBlock) -> LinkedError {
 
 /// Why the person cannot send now, from the current facts.
 pub(crate) fn reply_block(
-    features: Features,
     account: Option<&Account>,
     binding: &Binding,
     facts: Option<&SendingFacts>,
 ) -> Option<ReplyBlock> {
-    if !features.sending {
-        return Some(ReplyBlock::SendingDisabled);
-    }
     let Some(account) = account else {
         return Some(ReplyBlock::NoAccount);
     };
