@@ -18,6 +18,9 @@ milliseconds instead of waiting on container provisioning.
   and log replay on reconnect.
 - `src/domain/admission.rs` + `src/outbound/approval_gate.rs`: usage/plan
   admission and tool-approval gating for in-memory sessions.
+- `src/domain/model_access.rs` (`SessionModels`) and `AgentState::turn_agent_key`:
+  an agent with its own usable API key (`agent_api_keys`) runs every turn on
+  it without admission, and its session offers only that provider's models.
 
 ## Scope
 
@@ -66,6 +69,10 @@ DecideReview are eager internal tools in both standard and code modes.
   `models::resolve`.
 - Keep session-aware `NameSearch`, `ContentSearch`, and `ListEntities` native in
   code mode; legacy `ReadChat` must not appear in either runtime tool catalog.
+- Every turn cuts tool results over `agent::ToolResultLimit`'s limit (about
+  25k tokens) for the model and offers `ReadToolResult` to page through them.
+  The stream, log and history keep the whole result; replay cuts it again, so
+  build turn messages with `to_rig_messages_limited`, not `to_rig_messages`.
 - Replay tool calls using `_meta.macro.toolName`; ACP titles may be human-readable
   MCP labels, so only use the title for older frames without tool-name metadata.
 

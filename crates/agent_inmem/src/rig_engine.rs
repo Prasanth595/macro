@@ -23,7 +23,7 @@
 
 use std::sync::Arc;
 
-use agent::{AgentError, AgentLoop, StreamPart, SystemPrompt};
+use agent::{AgentError, AgentLoop, ReadToolResult, StreamPart, SystemPrompt, ToolResultLimit};
 use ai_tools::user_tool_review::{ReviewError, UserToolAuthorizer, authorized_user_tool_finisher};
 use ai_tools::{AiHost, DeferredToolSet, ToolServiceContext, tools_for};
 use ai_toolset::{AsyncToolCollection, ToolSet as AiToolSet};
@@ -126,8 +126,9 @@ impl RigTurnEngine {
 }
 
 /// Native tools never gated: asking the user something, and finding or
-/// loading a connected app's tools, spend nobody's access.
-const UNGATED_NATIVE_TOOLS: [&str; 3] = ["AskUser", "SearchTools", "LoadTools"];
+/// loading a connected app's tools, or reading the rest of a result the
+/// turn already got, spend nobody's access.
+const UNGATED_NATIVE_TOOLS: [&str; 4] = ["AskUser", "SearchTools", "LoadTools", "ReadToolResult"];
 
 /// A turn's tools, each call to one of Macro's own asked of the gate first.
 /// Remote MCP tools are left to the egress proxy, which gates them already.
@@ -230,6 +231,7 @@ fn add_native_actor_schema(name: &str, schema: &mut schemars::Schema) {
 struct InMemToolContext {
     base: ToolServiceContext,
     ask_user: AskUserContext,
+    tool_results: ToolResultLimit,
 }
 
 impl FromRef<InMemToolContext> for ToolServiceContext {
@@ -244,11 +246,19 @@ impl FromRef<InMemToolContext> for AskUserContext {
     }
 }
 
+impl FromRef<InMemToolContext> for ToolResultLimit {
+    fn from_ref(context: &InMemToolContext) -> Self {
+        context.tool_results.clone()
+    }
+}
+
 fn tools_for_turn(
     base_tools: ai_tools::AiToolSet,
     supports_user_input: bool,
 ) -> AsyncToolCollection<InMemToolContext> {
-    let tools = AsyncToolCollection::<InMemToolContext>::new().add_subtoolset(base_tools);
+    let tools = AsyncToolCollection::<InMemToolContext>::new()
+        .add_subtoolset(base_tools)
+        .add_tool::<ReadToolResult, ToolResultLimit>();
     if supports_user_input {
         tools.add_tool::<AskUser, AskUserContext>()
     } else {
@@ -451,6 +461,7 @@ async fn drive_turn(
         cancel,
         user_input,
         reviewer,
+        agent_key,
     } = request;
     let started = tokio::time::Instant::now();
 
@@ -473,6 +484,13 @@ async fn drive_turn(
     // reads no memory, offers the model no tools, and is read, not shown, so
     // no opening line races it.
     let summarizing = purpose == crate::domain::engine::TurnPurpose::Summary;
+    if let Some(key) = &agent_key
+        && agent_api_keys::domain::ModelProvider::of_model(&model) != Some(key.key.provider())
+    {
+        return Err(AgentError::Other(anyhow::anyhow!(
+            "the agent's API key does not serve {model}"
+        )));
+    }
 
     // Started before anything else so its line is out before the turn's
     // model has a first token.
@@ -499,7 +517,9 @@ async fn drive_turn(
         )
     };
     // A closed receiver has no verdict, and the turn's own stream follows.
-    let mut opening_line = if summarizing {
+    // The opening line runs on Macro's own fast model, so a turn the agent's
+    // key pays for goes without one.
+    let mut opening_line = if summarizing || agent_key.is_some() {
         mpsc::channel(1).1
     } else {
         opener_span.in_scope(|| {
@@ -569,11 +589,16 @@ async fn drive_turn(
             .with_actor(identity.bot)
             .with_actor_name(&identity.name);
     }
+    // Results too long for the model to read whole are cut, the turn's as
+    // they arrive and earlier ones as history is replayed below, and kept
+    // here for `ReadToolResult`.
+    let tool_results = ToolResultLimit::default();
     let tool_context = InMemToolContext {
         base: tool_context,
         ask_user: AskUserContext {
             requester: user_input,
         },
+        tool_results: tool_results.clone(),
     };
 
     // GenAI telemetry stays off here: this runtime's turns and tool calls
@@ -584,7 +609,18 @@ async fn drive_turn(
         .with_model(&model)
         .with_reasoning_effort(reasoning_effort)
         .with_speed(speed)?
-        .with_genai_telemetry(false);
+        .with_genai_telemetry(false)
+        .with_tool_result_limit(tool_results.clone());
+    // Only the loop's own model calls run on the agent's key, so only they are
+    // recorded against it; tools keep `usage_ctx`, since they call models on
+    // Macro's keys.
+    let loop_usage = match agent_key {
+        Some(key) => {
+            agent_loop = agent_loop.with_provider_api_key(key.key.expose())?;
+            usage_ctx.with_agent_api_key(key.bot_id)
+        }
+        None => usage_ctx,
+    };
     let mut reviewed_tools = Vec::new();
     if let Some(reviewer) = reviewer.filter(|_| !summarizing) {
         reviewed_tools = toolset.user_tools.keys().cloned().collect();
@@ -653,7 +689,7 @@ async fn drive_turn(
         reviewed_tools,
     });
     let session = agent_loop
-        .session(toolset, Arc::new(tool_context), system_prompt, usage_ctx)
+        .session(toolset, Arc::new(tool_context), system_prompt, loop_usage)
         .await;
     let (mut session, loop_cancel) = session.cancellable();
 
@@ -668,7 +704,7 @@ async fn drive_turn(
         }
     }));
 
-    let rig_messages = agent::to_rig_messages(&messages);
+    let rig_messages = agent::to_rig_messages_limited(&messages, &tool_results);
     let result = async {
         let mut stream = session.send_message(rig_messages).await?;
         let mut turn_spoke = false;

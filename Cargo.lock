@@ -252,6 +252,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent_api_keys"
+version = "0.1.0"
+dependencies = [
+ "ai_billing",
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "cursor_api_key",
+ "lazy-regex",
+ "macro_db_migrator",
+ "macro_user_id",
+ "macro_uuid",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "workspace-hack",
+ "zeroize",
+]
+
+[[package]]
 name = "agent_changes"
 version = "0.1.0"
 dependencies = [
@@ -399,6 +419,7 @@ version = "0.1.0"
 dependencies = [
  "agent",
  "agent-client-protocol",
+ "agent_api_keys",
  "agent_egress",
  "agent_fold",
  "agent_runtime_protocol",
@@ -482,6 +503,7 @@ dependencies = [
  "activity",
  "agent",
  "agent-client-protocol",
+ "agent_api_keys",
  "agent_changes",
  "agent_code_mode",
  "agent_egress",
@@ -499,6 +521,7 @@ dependencies = [
  "ai_tools",
  "ai_toolset",
  "ai_usage",
+ "analytics_client",
  "anyhow",
  "async-openai",
  "async-stream",
@@ -560,6 +583,8 @@ dependencies = [
  "http 1.4.0",
  "http-body-util",
  "import",
+ "import_jira",
+ "import_linear",
  "import_notion",
  "initiative",
  "jev",
@@ -569,6 +594,7 @@ dependencies = [
  "lexical_client",
  "lexical_mention_extractor",
  "log",
+ "lru 0.16.4",
  "macro_auth",
  "macro_authorization",
  "macro_aws_config",
@@ -659,6 +685,7 @@ version = "0.1.0"
 dependencies = [
  "agent",
  "agent-client-protocol",
+ "agent_api_keys",
  "agent_code_mode",
  "agent_egress",
  "agent_fold",
@@ -1128,6 +1155,8 @@ dependencies = [
  "github_pull_requests",
  "image_generation",
  "import",
+ "import_jira",
+ "import_linear",
  "import_notion",
  "initiative",
  "initiative_description",
@@ -1309,11 +1338,14 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "hex",
+ "macro_env",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "tokio",
  "tracing",
+ "uuid",
  "workspace-hack",
 ]
 
@@ -2084,6 +2116,7 @@ name = "authentication_service"
 version = "0.1.0"
 dependencies = [
  "aes-gcm 0.10.3",
+ "agent_api_keys",
  "ai_billing",
  "ai_usage",
  "analytics_client",
@@ -3085,6 +3118,15 @@ dependencies = [
  "pin-project-lite",
  "rand 0.8.6",
  "tokio",
+]
+
+[[package]]
+name = "backon"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cffb0e931875b666fc4fcb20fee52e9bbd1ef836fd9e9e04ec21555f9f85f7ef"
+dependencies = [
+ "fastrand 2.4.1",
 ]
 
 [[package]]
@@ -5425,9 +5467,9 @@ dependencies = [
 
 [[package]]
 name = "crypto-bigint"
-version = "0.7.5"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a52aa3fcda4e6302a9f48734f234d35d4721b96f8fe07d073f07ce9df4f0271"
+checksum = "6bb08299a6046833a879ace115697f12fd2bd6c8d3e93c909ffc9e0738e7cae0"
 dependencies = [
  "cpubits",
  "ctutils",
@@ -6423,6 +6465,7 @@ dependencies = [
  "call",
  "channel_bots",
  "channel_labels",
+ "channel_sender",
  "channels",
  "chat",
  "chrono",
@@ -6564,6 +6607,7 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "webhook",
+ "whatsapp_linked",
  "work_feed",
  "workspace-hack",
  "zip 9.0.5",
@@ -7059,7 +7103,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d65aa39b3a5c1c9c1b745c9a019234bb7a21b77abcb4f4d266d706e2d577d65"
 dependencies = [
  "base16ct 1.0.0",
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.6",
  "crypto-common 0.2.2",
  "digest 0.11.3",
  "ff 0.14.0",
@@ -7358,6 +7402,7 @@ dependencies = [
  "models_properties",
  "notification",
  "once_cell",
+ "rand 0.9.4",
  "redis",
  "regex",
  "reqwest 0.13.4",
@@ -8969,6 +9014,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "uuid",
  "workspace-hack",
 ]
@@ -10424,6 +10470,7 @@ dependencies = [
  "dateparser",
  "futures",
  "import_notion",
+ "import_tracker",
  "macro_authorization",
  "macro_db_migrator",
  "macro_user_id",
@@ -10451,6 +10498,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "import_jira"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "http 1.4.0",
+ "import_tracker",
+ "macro_user_id",
+ "pipedream_mcp",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "import_linear"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "http 1.4.0",
+ "import_tracker",
+ "macro_user_id",
+ "pipedream_mcp",
+ "serde",
+ "serde_json",
+ "strum 0.27.2",
+ "tokio",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
 name = "import_notion"
 version = "0.1.0"
 dependencies = [
@@ -10463,6 +10545,24 @@ dependencies = [
  "macro_user_id",
  "pipedream_mcp",
  "rand 0.9.4",
+ "rootcause",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "import_tracker"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "http 1.4.0",
+ "macro_user_id",
+ "pipedream_mcp",
  "rootcause",
  "serde",
  "serde_json",
@@ -15246,7 +15346,7 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c555a6e4eb7d4e158fcb028c835c3b8642206ddc279b5c6b202ef9a8bdb592f4"
 dependencies = [
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.6",
  "crypto-common 0.2.2",
  "ff 0.14.0",
  "rand_core 0.10.1",
@@ -15523,7 +15623,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22505a5c94da8e3b7c2996394d1c933236c4d743e81a410bcca4e6989fc066a4"
 dependencies = [
  "bytes",
- "heck 0.5.0",
+ "heck 0.4.1",
  "itertools 0.12.1",
  "log",
  "multimap",
@@ -15543,7 +15643,7 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
- "heck 0.5.0",
+ "heck 0.4.1",
  "itertools 0.14.0",
  "log",
  "multimap",
@@ -16124,12 +16224,15 @@ version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72d32a1ac9123f0d84fda64bfc02a271d9868483162dd2d9099b5c362ece064c"
 dependencies = [
+ "arc-swap",
  "arcstr",
  "async-lock",
+ "backon",
  "bytes",
  "cfg-if",
  "combine",
  "crc16",
+ "futures-channel",
  "futures-util",
  "itoa",
  "log",
@@ -16284,8 +16387,11 @@ dependencies = [
  "axum",
  "axum-extra",
  "chrono",
+ "crm",
  "email",
  "entity_access",
+ "entity_access_management",
+ "frecency",
  "http-body-util",
  "macro_authorization",
  "macro_db_migrator",
@@ -16430,7 +16536,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4a459cddafb3fe76b31fd8f1108007566c40301feb64dc7b54656eb7388172b"
 dependencies = [
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.6",
  "hmac 0.13.0",
 ]
 
@@ -16705,7 +16811,7 @@ dependencies = [
  "bytes",
  "cbc 0.2.1",
  "cipher 0.5.2",
- "crypto-bigint 0.7.5",
+ "crypto-bigint 0.7.6",
  "ctr 0.10.1",
  "curve25519-dalek 5.0.0",
  "data-encoding",
@@ -19606,7 +19712,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand 2.4.1",
- "getrandom 0.4.2",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.52.0",
@@ -21477,6 +21583,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a28ac98ddc8b9274cb41bb4d9d4d5c425b6020c50c46f25559911905610b4a88"
 
 [[package]]
+name = "whatsapp_e2e"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "entity_access",
+ "entity_access_db_utils",
+ "macro_db_migrator",
+ "sqlx",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+ "whatsapp_fake_server",
+ "whatsapp_linked",
+ "whatsapp_session_service",
+ "whatsapp_store_pg",
+ "whatsmeow",
+ "whatsmeow_signal",
+ "workspace-hack",
+ "zeroize",
+]
+
+[[package]]
 name = "whatsapp_fake_server"
 version = "0.1.0"
 dependencies = [
@@ -21485,6 +21615,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "chrono",
+ "flate2",
  "futures",
  "hmac 0.12.1",
  "nom 8.0.0",
@@ -21501,6 +21632,105 @@ dependencies = [
  "whatsmeow",
  "whatsmeow_signal",
  "workspace-hack",
+]
+
+[[package]]
+name = "whatsapp_linked"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "chrono",
+ "entity_access",
+ "entity_access_db_utils",
+ "entity_registry_db_utils",
+ "harness_id",
+ "macro_authorization",
+ "macro_db_migrator",
+ "macro_user_id",
+ "model-entity",
+ "model_owner",
+ "model_user",
+ "models_permissions",
+ "opentelemetry",
+ "rootcause",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "share_permission_db_utils",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tower 0.5.3",
+ "tracing",
+ "tracing-opentelemetry",
+ "utoipa",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "whatsapp_session_service"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "aws-sdk-kms",
+ "axum",
+ "chrono",
+ "database_env_vars",
+ "doppler-config",
+ "futures",
+ "macro_aws_config",
+ "macro_config",
+ "macro_db_migrator",
+ "macro_entrypoint",
+ "macro_env",
+ "macro_env_var",
+ "macro_service_urls",
+ "rootcause",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+ "whatsapp_fake_server",
+ "whatsapp_linked",
+ "whatsapp_store_pg",
+ "whatsmeow",
+ "whatsmeow_signal",
+ "workspace-hack",
+]
+
+[[package]]
+name = "whatsapp_store_pg"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm 0.10.3",
+ "async-trait",
+ "aws-sdk-kms",
+ "chrono",
+ "futures",
+ "hex",
+ "macro_db_migrator",
+ "postcard",
+ "prost 0.14.3",
+ "rand 0.9.4",
+ "rootcause",
+ "serde",
+ "sqlx",
+ "strum 0.27.2",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+ "whatsmeow",
+ "workspace-hack",
+ "zeroize",
 ]
 
 [[package]]
@@ -21537,6 +21767,7 @@ dependencies = [
  "tokio-tungstenite 0.28.0",
  "tokio-util",
  "tracing",
+ "tracing-subscriber",
  "uuid",
  "whatsmeow_proto",
  "workspace-hack",

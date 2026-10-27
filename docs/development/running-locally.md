@@ -154,7 +154,8 @@ compiled worker; rebuild the sync image after backend protocol changes.
 Open the frontend URL in your browser.
 
 The local environment supplies both `LOCAL_AWS_URL` (the container endpoint)
-and `LOCAL_AWS_PUBLIC_URL` (the app's HTTPS origin with `/local-storage`).
+and `LOCAL_AWS_PUBLIC_URL` (this machine's hostname on the proxy port, with
+`/local-storage`, in both the hot and the static-frontend flavor).
 Document downloads and presigned uploads use this storage proxy, so remote
 browsers do not need a separate localhost storage connection. Container clients
 translate that public endpoint back to LocalStack internally. If a download or
@@ -458,6 +459,10 @@ just stack down               # remove containers, volumes, and state
 All the `run_local` flags apply to `stack` too. This includes `--instance`, `--no-doppler`, `--no-build`, and `--binaries-dir`.
 
 The app is served at `<proxy>/app/`. The bundle resolves its backend from the origin it is served on. The same stack works on localhost or behind any hostname without a rebuild.
+
+For Pipedream Connect on a machine hostname, include that HTTPS origin in
+`PIPEDREAM_ALLOWED_ORIGINS` through `--env-file`; the headless default names only
+localhost. Reuse that override file on subsequent stack invocations.
 
 ### Init Snapshots
 
