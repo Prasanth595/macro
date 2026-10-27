@@ -25,7 +25,7 @@ export default defineDoc({
   name: 'Creation Menus',
   category: 'Actions',
   description:
-    'Creation choices use original icons and muted descriptions inside the existing New menu. Tasks, Agents, Calendar, Drive, and CRM share this row treatment.',
+    'Creation choices use original icons and muted descriptions inside the existing New menu. Tasks, Agents, Calendar, and CRM stack a wrapping description under the title. Drive keeps each choice on one line in a wider menu.',
   guidelines: {
     do: [
       'Use CreateMenuItem for a title, icon, and short description of what each action creates.',
