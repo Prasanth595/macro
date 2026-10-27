@@ -2,6 +2,7 @@ import { DEFAULT_ROUTE } from '@app/constants/defaultRoute';
 import { openAddInboxDialog } from '@app/features/inbox/AddInboxDialog';
 import { AdminConsentRequiredDialog } from '@app/features/inbox/AdminConsentRequiredDialog';
 import { ShareInboxConflictDialog } from '@app/features/inbox/ShareInboxConflictDialog';
+import { onboardingPathWithStep } from '@app/features/onboarding/core/next-target';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import type { AppEvents } from '@app/lib/analytics/app-events';
 import { updateUserAuth } from '@core/auth';
@@ -16,8 +17,8 @@ import { isMobile } from '@core/mobile/isMobile';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { whenSettled } from '@core/util/whenSettled';
+import SpinnerIcon from '@icon/system/regular/spinner-gap.svg';
 import { Telemetry } from '@macro-inc/observability';
-import SpinnerIcon from '@phosphor/spinner-gap.svg';
 import { fetchEmailConnectionProviders } from '@queries/auth/outlook-link';
 import {
   invalidateAllAfterLogin,
@@ -208,7 +209,7 @@ function EmailLinkCallback(props: Pick<EmailAuthParams, 'successPath'>) {
       !isNativeMobilePlatform() &&
       userInfoQuery.data?.tutorialComplete === false
     ) {
-      navigate('/onboarding', { replace: true });
+      navigate(onboardingPathWithStep(searchParams.step), { replace: true });
       return;
     }
     if (linkId && restoreLayoutBeforeConsent(linkId)) return;
