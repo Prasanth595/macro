@@ -109,11 +109,28 @@ const CATALOG: Array<{ label: string; widget: Widget }> = [
     },
   },
   {
-    label: 'cards',
+    // One to three cards stack.
+    label: 'cards · stacked',
     widget: {
       type: 'cards',
       items: [
         { type: 'document', id: DOC_SHOWCASE },
+        { type: 'document', id: DOC_STABILIZE },
+        { type: 'channel', id: CH_MACRO },
+      ],
+    },
+  },
+  {
+    // Four to six sit in a grid, two across once the view is wide enough.
+    label: 'cards · grid',
+    widget: {
+      type: 'cards',
+      title: 'Tool rendering work',
+      items: [
+        { type: 'document', id: TASK_GROUP_TOOLS },
+        { type: 'document', id: TASK_LINK_MSG },
+        { type: 'document', id: TASK_GEN_BUTTON },
+        { type: 'document', id: TASK_REVIEW_PR },
         { type: 'document', id: DOC_STABILIZE },
       ],
     },
