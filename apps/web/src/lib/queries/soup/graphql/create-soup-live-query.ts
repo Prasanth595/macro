@@ -99,6 +99,9 @@ export function createSoupLiveQuery(
   // above it. Native engines that predate positions report none and re-read
   // the first page.
   const [localMailEdge, setLocalMailEdge] = createSignal<string | null>(null);
+  // Bumped when the page chain starts over (new input, reset to the first
+  // page), so paging still in flight then cannot restore the old depth.
+  let pagingGeneration = 0;
   // The last local Mail evaluation for this input succeeded, so cache writes
   // keep the page current; incomplete or failed ones leave the network page.
   const [localMailCurrent, setLocalMailCurrent] = createSignal(false);
@@ -640,6 +643,7 @@ export function createSoupLiveQuery(
     const requestGeneration = cacheGeneration;
     if (input !== previousInitialInput) {
       previousInitialInput = input;
+      pagingGeneration += 1;
       setLocalProjection(undefined);
       setLocalMailEdge(null);
       setLocalMailCurrent(false);
@@ -893,29 +897,31 @@ export function createSoupLiveQuery(
   // rows wanted, and one chain fetches pages until the server has them: the
   // infinite query coalesces a next page requested while one is in flight.
   // Not awaited: the local page is what the user sees. A failed page ends the
-  // chain, and the next Load More retries it.
-  let serverRowsWanted = 0;
+  // chain, and the next Load More retries it; so does a restarted page chain.
+  let serverCatchUp: { generation: number; rows: number } | undefined;
   const fetchServerPagesInStep = (rows: number) => {
-    const running = serverRowsWanted > 0;
-    serverRowsWanted = Math.max(serverRowsWanted, rows);
-    if (running) return;
-    const input = firstPageInput();
+    if (serverCatchUp?.generation === pagingGeneration) {
+      serverCatchUp.rows = Math.max(serverCatchUp.rows, rows);
+      return;
+    }
+    const catchUp = { generation: pagingGeneration, rows };
+    serverCatchUp = catchUp;
     fireAndForget(
       (async () => {
         try {
           while (
-            firstPageInput() === input &&
+            catchUp.generation === pagingGeneration &&
             query.hasNextPage &&
             !offline() &&
-            (query.data?.records().length ?? 0) < serverRowsWanted
+            (query.data?.records().length ?? 0) < catchUp.rows
           ) {
             const pages = query.data?.pageParams.length ?? 0;
             inStepPageIndex = pages;
             await query.fetchNextPage();
-            if ((query.data?.pageParams.length ?? 0) === pages) return;
+            if ((query.data?.pageParams.length ?? 0) <= pages) return;
           }
         } finally {
-          serverRowsWanted = 0;
+          if (serverCatchUp === catchUp) serverCatchUp = undefined;
         }
       })(),
       'soup-live-query'
@@ -991,6 +997,7 @@ export function createSoupLiveQuery(
         return;
       }
       if (!local.mail.nextCursor || fetchingMailPage()) return;
+      const generation = pagingGeneration;
       const initial =
         'initial' in local.input ? local.input.initial : undefined;
       fetchServerPagesInStep(local.displayedKeys.size + (initial?.limit ?? 20));
@@ -1027,6 +1034,7 @@ export function createSoupLiveQuery(
           keys,
           mailView,
         });
+        if (generation !== pagingGeneration) return;
         if (
           displayLocalProjection() !== local ||
           result.revision !== local.mail.revision ||
@@ -1064,6 +1072,7 @@ export function createSoupLiveQuery(
       }
     },
     resetToInitialPage: () => {
+      pagingGeneration += 1;
       query.resetToInitialPage();
       if (displayLocalProjection()?.mail) {
         batch(() => {

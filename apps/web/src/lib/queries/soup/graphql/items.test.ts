@@ -2007,7 +2007,7 @@ describe('createGraphqlSoupAstItemsQuery', () => {
       onCacheChanged: () => () => {},
       onCacheGenerationChanged: () => () => {},
     });
-    const all = ['one', 'two', 'three'].map(
+    const all = ['one', 'two', 'three', 'four'].map(
       (id) => `GraphqlSoupEmailThread:${id}`
     );
     entityFilterMock.mockImplementation(
@@ -2051,6 +2051,8 @@ describe('createGraphqlSoupAstItemsQuery', () => {
     });
     const serverPage = (id: string, next: string | null) =>
       graphqlSoupPage({ items: [{ id }], next_cursor: next });
+    const ids = () => query.data()?.entities.map((entity) => entity.id);
+    const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
     try {
       await vi.waitFor(() => expect(query.data()?.cachedMail).toBe(true));
       fake.executions[0].next(serverPage('one', 's1'), {
@@ -2060,28 +2062,37 @@ describe('createGraphqlSoupAstItemsQuery', () => {
       // Two local pages while the first server page behind them is in flight.
       await query.fetchNextPage();
       await query.fetchNextPage();
-      expect(query.data()?.entities.map((entity) => entity.id)).toEqual([
-        'one',
-        'two',
-        'three',
-      ]);
+      expect(ids()).toEqual(['one', 'two', 'three']);
       expect(fake.executions).toHaveLength(2);
       fake.executions[1].next(serverPage('two', 's2'), {
         source: 'normalized-cache-hit',
         revision: REVISION_0,
       });
-      // The server pages catch up with the third local row.
+      // The server pages catch up with the third local row, then stop.
       await vi.waitFor(() => expect(fake.executions).toHaveLength(3));
       expect(fake.executions[2].variables).toMatchObject({
         input: { continuation: { cursor: 's2' } },
       });
-      fake.executions[2].next(serverPage('three', null), {
+      fake.executions[2].next(serverPage('three', 's3'), {
         source: 'normalized-cache-hit',
         revision: REVISION_0,
       });
-      // The last server page ends the chain.
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await tick();
       expect(fake.executions).toHaveLength(3);
+
+      // A reset while a server page is in flight ends the catch-up: nothing
+      // fetches the pages it dropped again.
+      await query.fetchNextPage();
+      expect(fake.executions).toHaveLength(4);
+      query.resetToInitialPage();
+      await vi.waitFor(() => expect(ids()).toEqual(['one']));
+      fake.executions[3].next(serverPage('four', null), {
+        source: 'normalized-cache-hit',
+        revision: REVISION_0,
+      });
+      await tick();
+      expect(fake.executions).toHaveLength(4);
+      expect(ids()).toEqual(['one']);
     } finally {
       dispose();
       online.mockRestore();
@@ -2284,6 +2295,31 @@ describe('createGraphqlSoupAstItemsQuery', () => {
       // Resetting to the first page forgets the edge.
       query.resetToInitialPage();
       await vi.waitFor(() => expect(ids()).toEqual(['z', 'a']));
+      expect(entityFilterMock.mock.calls.at(-1)?.[0].mail).toEqual({
+        view: 'INBOX',
+      });
+
+      // A Load More still reading its records when the list resets does not
+      // bring the old depth back.
+      const pageRecords = deferred<{
+        revision: string;
+        records: ReturnType<typeof mailThreadRecords>;
+      }>();
+      let pageKeys: string[] = [];
+      readRecordsByKeysMock.mockImplementationOnce(
+        (_host, _selection, requested: string[]) => {
+          pageKeys = requested;
+          return pageRecords.promise;
+        }
+      );
+      const loading = query.fetchNextPage();
+      await vi.waitFor(() => expect(pageKeys).not.toHaveLength(0));
+      query.resetToInitialPage();
+      await vi.waitFor(() => expect(ids()).toEqual(['z', 'a']));
+      pageRecords.resolve({ revision, records: mailThreadRecords(pageKeys) });
+      await loading;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(ids()).toEqual(['z', 'a']);
       expect(entityFilterMock.mock.calls.at(-1)?.[0].mail).toEqual({
         view: 'INBOX',
       });
