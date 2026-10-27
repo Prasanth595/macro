@@ -390,6 +390,21 @@ impl SessionRepository for PgLinkedRepository {
         tx.commit().await.map_err(failure)
     }
 
+    async fn group_left(
+        &self,
+        scope: SessionScope,
+        group: &str,
+        observed_at: chrono::DateTime<chrono::Utc>,
+    ) -> LinkedResult<()> {
+        let mut tx = self.pool.begin().await.map_err(failure)?;
+        let account = fence_exclusive_in(&mut tx, scope).await?;
+        if account.state != AccountState::Connected {
+            return Ok(());
+        }
+        groups::group_left_in(&mut tx, &account, group, observed_at).await?;
+        tx.commit().await.map_err(failure)
+    }
+
     async fn observed_groups(&self, scope: SessionScope) -> LinkedResult<Vec<String>> {
         let mut tx = self.pool.begin().await.map_err(failure)?;
         let account = fence_in(&mut tx, scope).await?;
@@ -411,6 +426,60 @@ impl SessionRepository for PgLinkedRepository {
         } else {
             vec![]
         })
+    }
+
+    async fn update_chats(&self, scope: SessionScope, chats: &[ChatUpdate]) -> LinkedResult<()> {
+        let mut tx = self.pool.begin().await.map_err(failure)?;
+        let account = fence_in(&mut tx, scope).await?;
+        if account.state != AccountState::Connected {
+            return Ok(());
+        }
+        chats::update_chats_in(&mut tx, &account, chats).await?;
+        tx.commit().await.map_err(failure)
+    }
+
+    async fn backfill_work(&self, scope: SessionScope) -> LinkedResult<Vec<BackfillWork>> {
+        let mut tx = self.pool.begin().await.map_err(failure)?;
+        let account = fence_in(&mut tx, scope).await?;
+        if account.state != AccountState::Connected {
+            return Ok(vec![]);
+        }
+        let work = chats::backfill_work_in(&mut tx, &account).await?;
+        tx.commit().await.map_err(failure)?;
+        Ok(work)
+    }
+
+    async fn backfill_requested(&self, scope: SessionScope, group: Uuid) -> LinkedResult<()> {
+        let mut tx = self.pool.begin().await.map_err(failure)?;
+        let account = fence_in(&mut tx, scope).await?;
+        chats::set_backfill_in(&mut tx, &account, group, BackfillState::Running, true).await?;
+        tx.commit().await.map_err(failure)
+    }
+
+    async fn backfill_unanswered(&self, scope: SessionScope, group: Uuid) -> LinkedResult<()> {
+        let mut tx = self.pool.begin().await.map_err(failure)?;
+        let account = fence_in(&mut tx, scope).await?;
+        chats::set_backfill_in(
+            &mut tx,
+            &account,
+            group,
+            BackfillState::WaitingForPhone,
+            false,
+        )
+        .await?;
+        tx.commit().await.map_err(failure)
+    }
+
+    async fn backfill_page(
+        &self,
+        scope: SessionScope,
+        page: &HistoryPage,
+    ) -> LinkedResult<Vec<(Uuid, BackfillState)>> {
+        let mut tx = self.pool.begin().await.map_err(failure)?;
+        let account = fence_in(&mut tx, scope).await?;
+        let states = chats::backfill_page_in(&mut tx, &account, page).await?;
+        tx.commit().await.map_err(failure)?;
+        Ok(states)
     }
 
     async fn ingest(

@@ -6,10 +6,17 @@ use models_permissions::share_permission::{
     LinkShare, SharePermissionV2, UpdateSharePermissionRequestV2, access_level::AccessLevel,
 };
 
+fn backfill(state: Option<&str>, imported: i32) -> Option<Backfill> {
+    Some(Backfill {
+        state: BackfillState::parse(state?)?,
+        imported: imported.max(0) as u32,
+    })
+}
+
 #[async_trait]
 impl TimelineRepository for PgLinkedRepository {
     async fn visible_groups(&self, user: &str) -> LinkedResult<Vec<VisibleGroup>> {
-        let rows = sqlx::query!(r#"SELECT g.id,g.name,g.user_id,g.group_jid,g.state,g.adopted_at,
+        let rows = sqlx::query!(r#"SELECT g.id,g.name,g.user_id,g.group_jid,g.state,g.adopted_at,g.backfill_state,g.backfill_imported,
             (SELECT count(*) FROM whatsapp_group_message m WHERE m.binding_id=g.id AND m.message_id IS NOT NULL
               AND m.deleted_at IS NULL AND m.origin<>'history'
               AND NOT EXISTS(SELECT 1 FROM whatsapp_external_person p WHERE p.id=m.person_id AND p.user_id=$1)
@@ -23,7 +30,8 @@ impl TimelineRepository for PgLinkedRepository {
             WHERE whatsapp_group_can_view(g.id,$1)
               AND (r.user_id IS NOT NULL OR EXISTS (SELECT 1 FROM entity_access ea
                 WHERE ea.entity_id=g.id AND ea.entity_type='whatsapp_group'
-                  AND (ea.source_id=$1 OR ea.source_id IN (SELECT team_id::text FROM team_user WHERE user_id=$1))))
+                  AND (ea.source_id=$1 OR ea.source_id IN (SELECT team_id::text FROM team_user WHERE user_id=$1)
+                    OR ea.source_id IN (SELECT channel_id::text FROM comms_channel_participants WHERE user_id=$1 AND left_at IS NULL))))
             ORDER BY g.adopted_at DESC LIMIT 2000"#,user)
             .fetch_all(&self.pool).await.map_err(failure)?;
         rows.into_iter()
@@ -37,6 +45,7 @@ impl TimelineRepository for PgLinkedRepository {
                         last_message_at: row.last_message_at,
                         can_send: false,
                         send_reason: None,
+                        backfill: backfill(row.backfill_state.as_deref(), row.backfill_imported),
                     },
                     binding: bindings::binding(bindings::BindingRow {
                         id: row.id,
@@ -51,7 +60,7 @@ impl TimelineRepository for PgLinkedRepository {
             .collect()
     }
     async fn summary(&self, group: Uuid, user: &str) -> LinkedResult<WhatsAppGroupSummary> {
-        let row = sqlx::query!(r#"SELECT g.id,g.name,g.user_id,
+        let row = sqlx::query!(r#"SELECT g.id,g.name,g.user_id,g.backfill_state,g.backfill_imported,
             (SELECT count(*) FROM whatsapp_group_message m WHERE m.binding_id = g.id AND m.message_id IS NOT NULL
               AND m.deleted_at IS NULL AND m.origin <> 'history'
               AND NOT EXISTS (SELECT 1 FROM whatsapp_external_person p WHERE p.id = m.person_id AND p.user_id = $2)
@@ -67,6 +76,7 @@ impl TimelineRepository for PgLinkedRepository {
             last_message_at: row.last_message_at,
             can_send: false,
             send_reason: None,
+            backfill: backfill(row.backfill_state.as_deref(), row.backfill_imported),
         })
     }
     async fn messages(
@@ -152,13 +162,20 @@ impl TimelineRepository for PgLinkedRepository {
         let r=sqlx::query!(r#"SELECT sp.id,sp."linkShare" AS "link_share: LinkShare",sp."linkShareAccessLevel" AS "link_level: AccessLevel",
             sp.team_share_access_level AS "team_level: AccessLevel",g.user_id FROM whatsapp_group g JOIN "SharePermission" sp ON sp.id=g.share_permission_id WHERE g.id=$1"#,group)
             .fetch_optional(&self.pool).await.map_err(failure)?.ok_or(LinkedError::NotFound)?;
+        let channels = entity_access_db_utils::get_direct_channel_grants(
+            &self.pool,
+            &group,
+            entity_access_db_utils::EntityType::WhatsAppGroup,
+        )
+        .await
+        .map_err(failure)?;
         Ok(SharePermissionV2 {
             id: r.id,
             link_share: r.link_share,
             link_share_access_level: r.link_level,
             team_share_access_level: r.team_level,
             owner: r.user_id,
-            channel_share_permissions: None,
+            channel_share_permissions: Some(channels),
         })
     }
     async fn share_facts(
@@ -205,6 +222,20 @@ impl TimelineRepository for PgLinkedRepository {
         share_permission_db_utils::update_link_share(&mut *tx, &permission, update)
             .await
             .map_err(failure)?;
+        if let Some(channels) = update
+            .channel_share_permissions
+            .as_deref()
+            .filter(|channels| !channels.is_empty())
+        {
+            entity_access_db_utils::update_entity_access_channel_share_permissions(
+                &mut tx,
+                &group,
+                entity_access_db_utils::EntityType::WhatsAppGroup,
+                channels,
+            )
+            .await
+            .map_err(failure)?;
+        }
         tx.commit().await.map_err(failure)
     }
 }

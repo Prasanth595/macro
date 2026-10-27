@@ -152,49 +152,132 @@ impl LinkedService {
         Ok((account, identity))
     }
 
-    /// Fresh metadata for one of the account's groups; stale facts trigger a
-    /// refresh and a retryable error rather than authorizing anything.
-    async fn fresh_group(&self, account: &Account, group: &str) -> LinkedResult<GroupInfo> {
-        let info = self.groups.account_group(account.id, group).await?;
-        match info {
-            Some(info) if is_fresh(info.observed_at, Utc::now()) => Ok(info),
-            Some(_) => {
-                self.groups.request_groups_refresh(account.id).await?;
-                Err(LinkedError::Refreshing.into())
-            }
-            None => {
-                self.groups.request_groups_refresh(account.id).await?;
-                Err(LinkedError::NotFound.into())
-            }
-        }
-    }
-
-    /// Only a person's own joined groups are discoverable. Stale lists are
-    /// returned while a refresh is requested.
+    /// Only a person's own joined groups are discoverable. The stored list is
+    /// returned at once and a refresh is requested (rate limited per account).
+    /// Each group points at the caller's own Macro group once added, or at
+    /// someone else's group that was shared with them.
     #[tracing::instrument(name = "whatsapp.linked.groups", skip_all, err, fields(count))]
     pub async fn groups(&self, user: &str) -> LinkedResult<Vec<GroupInfo>> {
         if !self.features.adoption {
             return Err(LinkedError::ConfigurationRequired.into());
         }
-        let (account, _) = self.connected(user).await?;
+        let (account, identity) = self.connected(user).await?;
+        self.groups.request_groups_refresh(&[account.id]).await?;
         let mut groups = self.groups.account_groups(account.id).await?;
-        let now = Utc::now();
-        if groups.is_empty() || groups.iter().any(|g| !is_fresh(g.observed_at, now)) {
-            self.groups.request_groups_refresh(account.id).await?;
-        }
         let jids: Vec<String> = groups.iter().map(|g| g.jid.clone()).collect();
-        for (jid, group_id) in self.groups.visible_adoptions(user, &jids).await? {
-            if let Some(group) = groups.iter_mut().find(|g| g.jid == jid) {
-                group.group = Some(group_id);
-            }
+        let adoptions = self.groups.visible_adoptions(user, &jids).await?;
+        for group in &mut groups {
+            (group.group, group.shared) = adoption_of(user, &adoptions, &group.jid);
+            group.name = group.display_name(&identity);
         }
         groups.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         tracing::Span::current().record("count", groups.len());
         Ok(groups)
     }
 
-    /// Bind an existing group the person has joined; never creates or joins a
-    /// group in WhatsApp.
+    /// The person's WhatsApp chat list, as WhatsApp Web shows it: groups and
+    /// direct chats, newest activity first. Groups carry the same added /
+    /// shared / addable facts as [`Self::groups`]; direct chats are listed but
+    /// not addable yet. Returns stored data and requests a group refresh.
+    #[tracing::instrument(name = "whatsapp.linked.chats", skip_all, err, fields(count))]
+    pub async fn chats(&self, user: &str) -> LinkedResult<ChatList> {
+        if !self.features.adoption {
+            return Err(LinkedError::ConfigurationRequired.into());
+        }
+        let (account, identity) = self.connected(user).await?;
+        self.groups.request_groups_refresh(&[account.id]).await?;
+        let roster = self.groups.account_groups(account.id).await?;
+        let stored = self.groups.account_chats(account.id).await?;
+        let mut group_jids: Vec<String> = roster.iter().map(|g| g.jid.clone()).collect();
+        group_jids.extend(
+            stored
+                .iter()
+                .filter(|chat| chat.kind == ChatKind::Group)
+                .map(|chat| chat.jid.clone()),
+        );
+        group_jids.sort();
+        group_jids.dedup();
+        let adoptions = self.groups.visible_adoptions(user, &group_jids).await?;
+        let mut chats: Vec<Chat> = Vec::with_capacity(stored.len() + roster.len());
+        let mut listed = std::collections::HashMap::new();
+        for chat in stored {
+            listed.insert(chat.jid.clone(), chats.len());
+            let (group, shared) = adoption_of(user, &adoptions, &chat.jid);
+            let name = chat
+                .name
+                .clone()
+                .filter(|name| !name.trim().is_empty())
+                .unwrap_or_else(|| chat_fallback_name(&chat.jid, chat.kind, &identity));
+            let reason = match chat.kind {
+                ChatKind::Direct => cannot_add::DIRECT,
+                // Listed by WhatsApp but not in the account's groups any more.
+                ChatKind::Group => cannot_add::NOT_IN_GROUP,
+            };
+            chats.push(Chat {
+                name: if chat.jid == identity {
+                    "You".to_owned()
+                } else {
+                    name
+                },
+                jid: chat.jid,
+                kind: chat.kind,
+                last_activity_at: chat.last_activity_at,
+                archived: chat.archived,
+                pinned: chat.pinned,
+                can_add: false,
+                cannot_add_reason: (group.is_none() && shared.is_none()).then(|| reason.to_owned()),
+                group,
+                shared,
+            });
+        }
+        for info in roster {
+            let index = match listed.get(&info.jid) {
+                Some(index) => *index,
+                None => {
+                    chats.push(Chat {
+                        jid: info.jid.clone(),
+                        kind: ChatKind::Group,
+                        name: String::new(),
+                        last_activity_at: None,
+                        archived: false,
+                        pinned: false,
+                        group: None,
+                        shared: None,
+                        can_add: false,
+                        cannot_add_reason: None,
+                    });
+                    chats.len() - 1
+                }
+            };
+            let chat = &mut chats[index];
+            chat.kind = ChatKind::Group;
+            chat.name = info.display_name(&identity);
+            (chat.group, chat.shared) = adoption_of(user, &adoptions, &info.jid);
+            let reason = if info.community {
+                Some(cannot_add::COMMUNITY)
+            } else if info.disappearing {
+                Some(cannot_add::DISAPPEARING)
+            } else if info.participant(&identity).is_none() {
+                Some(cannot_add::NOT_IN_GROUP)
+            } else {
+                None
+            };
+            let open = chat.group.is_none() && chat.shared.is_none();
+            chat.can_add = open && reason.is_none();
+            chat.cannot_add_reason = reason.filter(|_| open).map(str::to_owned);
+        }
+        chats.sort_by(|a, b| {
+            b.last_activity_at
+                .cmp(&a.last_activity_at)
+                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        });
+        tracing::Span::current().record("count", chats.len());
+        Ok(ChatList { chats })
+    }
+
+    /// Add an existing group the person has joined as their own Macro group;
+    /// never creates or joins a group in WhatsApp. Adding the same group twice
+    /// returns the existing one.
     #[tracing::instrument(
         name = "whatsapp.linked.adopt",
         skip_all,
@@ -211,31 +294,35 @@ impl LinkedService {
         if !self.features.adoption {
             return Err(LinkedError::ConfigurationRequired.into());
         }
-        if !is_group_jid(&request.group_jid)
-            || request
-                .name
-                .as_deref()
-                .is_some_and(|name| name.trim().is_empty() || name.chars().count() > 100)
-        {
-            return Err(LinkedError::Invalid("invalid group name or JID").into());
+        if !is_group_jid(&request.group_jid) {
+            return Err(LinkedError::Invalid("invalid WhatsApp group").into());
         }
         let (account, identity) = self.connected(user).await?;
-        let group = self.fresh_group(&account, &request.group_jid).await?;
-        if group.community || group.disappearing {
+        let group = self
+            .groups
+            .account_group(account.id, &request.group_jid)
+            .await?
+            .ok_or(LinkedError::Invalid(
+                "your WhatsApp is not in this group any more",
+            ))?;
+        if group.community {
+            return Err(LinkedError::Invalid("community groups can't be added to Macro").into());
+        }
+        if group.disappearing {
             return Err(LinkedError::Invalid(
-                "community and disappearing-message groups are not supported",
+                "groups with disappearing messages can't be added to Macro",
             )
             .into());
         }
         if group.participant(&identity).is_none() {
-            return Err(LinkedError::Forbidden.into());
+            return Err(LinkedError::Invalid("your WhatsApp is not in this group any more").into());
         }
         let adopted = self
             .bindings
             .adopt(AdoptionRecord {
                 user,
                 account: &account,
-                request,
+                name: &group.display_name(&identity),
                 group: &group,
             })
             .await?;
@@ -282,13 +369,7 @@ impl LinkedService {
             }
             _ => None,
         };
-        Ok(reply_block(
-            self.features,
-            account,
-            binding,
-            facts.as_ref(),
-            Utc::now(),
-        ))
+        Ok(reply_block(self.features, account, binding, facts.as_ref()))
     }
 
     /// Record a deliberate send for the person's own account. The account's
@@ -311,8 +392,25 @@ impl LinkedService {
         if !self.features.sending {
             return Err(LinkedError::ConfigurationRequired.into());
         }
-        self.send_rate_limiter.check(user).await?;
         validate_request(request)?;
+        let digest: [u8; 32] = Sha256::digest(
+            serde_json::to_vec(request).map_err(|_| LinkedError::Invalid("invalid request"))?,
+        )
+        .into();
+        // A retry with the same intent key returns the original send, whatever
+        // happened since; it never sends twice.
+        if let Some((stored, progress)) = self
+            .sends
+            .stored_send(group_id, user, request.idempotency_key)
+            .await?
+        {
+            if stored != digest {
+                return Err(LinkedError::Conflict.into());
+            }
+            tracing::Span::current().record("send_id", tracing::field::display(progress.id));
+            return Ok(progress);
+        }
+        self.send_rate_limiter.check(user).await?;
         let binding = self
             .bindings
             .binding(group_id)
@@ -321,12 +419,6 @@ impl LinkedService {
         let account = self.accounts.owned_account(user).await?;
         match self.reply_block(account.as_ref(), &binding).await? {
             None => {}
-            Some(ReplyBlock::Refreshing) => {
-                if let Some(account) = &account {
-                    self.groups.request_groups_refresh(account.id).await?;
-                }
-                return Err(LinkedError::Refreshing.into());
-            }
             Some(ReplyBlock::NoAccount | ReplyBlock::Disconnected) => {
                 return Err(LinkedError::Disconnected.into());
             }
@@ -371,10 +463,6 @@ impl LinkedService {
                 .ok_or(LinkedError::NotFound)?;
             authorize_mutation(*operation, &target, identity, Utc::now())?;
         }
-        let digest: [u8; 32] = Sha256::digest(
-            serde_json::to_vec(request).map_err(|_| LinkedError::Invalid("invalid request"))?,
-        )
-        .into();
         let progress = self
             .sends
             .enqueue(SendIntent {
@@ -540,11 +628,46 @@ fn view_scope<T: RequiredPermission>(
     ))
 }
 
-fn is_fresh(observed_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
-    now - observed_at <= chrono::Duration::seconds(GROUP_FACTS_MAX_AGE_SECONDS)
+/// WhatsApp group JIDs: digits, optionally `creator-timestamp`, at `g.us`.
+/// The caller's own Macro group for a WhatsApp group, else someone else's
+/// group for it that was shared with them.
+fn adoption_of(
+    user: &str,
+    adoptions: &[VisibleAdoption],
+    jid: &str,
+) -> (Option<GroupReference>, Option<SharedGroupReference>) {
+    let mine = adoptions
+        .iter()
+        .find(|adoption| adoption.group_jid == jid && adoption.owner_id == user)
+        .map(|adoption| GroupReference {
+            id: adoption.id,
+            name: adoption.name.clone(),
+        });
+    let shared = mine.is_none().then(|| {
+        adoptions
+            .iter()
+            .find(|adoption| adoption.group_jid == jid && adoption.owner_id != user)
+            .map(|adoption| SharedGroupReference {
+                id: adoption.id,
+                name: adoption.name.clone(),
+                owner_id: adoption.owner_id.clone(),
+            })
+    });
+    (mine, shared.flatten())
 }
 
-/// WhatsApp group JIDs: digits, optionally `creator-timestamp`, at `g.us`.
+/// A chat WhatsApp gave no name: a direct chat by its phone number.
+fn chat_fallback_name(jid: &str, kind: ChatKind, identity: &str) -> String {
+    match kind {
+        ChatKind::Group => "WhatsApp group".to_owned(),
+        ChatKind::Direct if jid == identity => "You".to_owned(),
+        ChatKind::Direct => jid
+            .strip_suffix("@s.whatsapp.net")
+            .map(|phone| format!("+{phone}"))
+            .unwrap_or_else(|| "WhatsApp contact".to_owned()),
+    }
+}
+
 pub(crate) fn is_group_jid(jid: &str) -> bool {
     jid.len() <= 256
         && jid.strip_suffix("@g.us").is_some_and(|user| {
@@ -558,7 +681,6 @@ pub(crate) fn reply_block(
     account: Option<&Account>,
     binding: &Binding,
     facts: Option<&SendingFacts>,
-    now: DateTime<Utc>,
 ) -> Option<ReplyBlock> {
     if !features.sending {
         return Some(ReplyBlock::SendingDisabled);
@@ -577,9 +699,6 @@ pub(crate) fn reply_block(
     };
     if !facts.remote_member || !facts.can_post {
         return Some(ReplyBlock::NotAllowedInGroup);
-    }
-    if !facts.observed_at.is_some_and(|at| is_fresh(at, now)) {
-        return Some(ReplyBlock::Refreshing);
     }
     None
 }

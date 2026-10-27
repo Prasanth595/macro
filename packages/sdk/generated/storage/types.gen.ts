@@ -4772,7 +4772,7 @@ export type CrmAssociation = {
      * Items associated with the contact.
      */
     contact: string;
-};
+} | 'activity';
 
 /**
  * The crm company filters used to narrow which CRM companies appear in soup.
@@ -8982,17 +8982,14 @@ export type LinkedAccountView = {
 };
 
 /**
- * Explicit adoption request; the account is selected server-side.
+ * Explicit adoption request; the account is selected server-side. The
+ * group's name always follows WhatsApp.
  */
 export type LinkedAdoptGroup = {
     /**
      * Group the requester's account has joined.
      */
     group_jid: string;
-    /**
-     * Name for a newly created group entity; defaults to the group subject.
-     */
-    name?: string | null;
 };
 
 /**
@@ -9031,6 +9028,25 @@ export type LinkedAttachment = {
 export type LinkedAttachmentState = 'loading' | 'ready' | 'unavailable' | 'unsupported';
 
 /**
+ * Earlier messages imported after adding a group.
+ */
+export type LinkedBackfill = {
+    /**
+     * Messages received from the phone so far (including ones already shown).
+     */
+    imported: number;
+    /**
+     * Progress.
+     */
+    state: LinkedBackfillState;
+};
+
+/**
+ * Where importing a group's earlier messages stands.
+ */
+export type LinkedBackfillState = 'pending' | 'running' | 'waiting_for_phone' | 'done' | 'partial';
+
+/**
  * Operations implemented for linked groups, independent of current permission.
  */
 export type LinkedCapabilities = {
@@ -9058,6 +9074,64 @@ export type LinkedCapabilities = {
      * Maximum UTF-8 bytes per text send.
      */
     text_limit_bytes: number;
+};
+
+/**
+ * One chat of the caller's WhatsApp chat list, as WhatsApp Web lists it.
+ */
+export type LinkedChat = {
+    /**
+     * Archived in WhatsApp.
+     */
+    archived: boolean;
+    /**
+     * "Add to Macro" works now.
+     */
+    canAdd: boolean;
+    /**
+     * Why it can't be added, when it is neither added, shared nor addable.
+     */
+    cannotAddReason?: string | null;
+    group?: null | LinkedGroupReference;
+    /**
+     * WhatsApp chat JID: a group, or the other person's phone-number JID
+     * (LID when WhatsApp never told us the number).
+     */
+    jid: string;
+    /**
+     * Group or direct chat.
+     */
+    kind: LinkedChatKind;
+    /**
+     * Newest activity WhatsApp reported (message or history sync); `null`
+     * when unknown. The list is sorted by it, newest first, unknown last.
+     */
+    lastActivityAt?: string | null;
+    /**
+     * Group: the subject, or member names for an unnamed group. Direct: the
+     * contact or WhatsApp name, else `+<phone>`. Always non-empty.
+     */
+    name: string;
+    /**
+     * Pinned in WhatsApp.
+     */
+    pinned: boolean;
+    shared?: null | LinkedSharedGroupReference;
+};
+
+/**
+ * Whether a WhatsApp chat is a group or a one-to-one chat.
+ */
+export type LinkedChatKind = 'group' | 'direct';
+
+/**
+ * The caller's WhatsApp chat list.
+ */
+export type LinkedChats = {
+    /**
+     * Newest activity first; chats with unknown activity last, by name.
+     */
+    chats: Array<LinkedChat>;
 };
 
 /**
@@ -9148,10 +9222,11 @@ export type LinkedGroupInfo = {
      * Full roster.
      */
     participants: Array<LinkedParticipant>;
+    shared?: null | LinkedSharedGroupReference;
 };
 
 /**
- * A group entity bound to a group.
+ * A group entity bound to a remote group.
  */
 export type LinkedGroupReference = {
     /**
@@ -9159,7 +9234,7 @@ export type LinkedGroupReference = {
      */
     id: string;
     /**
-     * Channel name.
+     * Display name, following WhatsApp.
      */
     name: string;
 };
@@ -9280,7 +9355,7 @@ export type LinkedParticipant = LinkedIdentity & {
 /**
  * Why the viewer cannot send now.
  */
-export type LinkedReplyBlock = 'sending_disabled' | 'no_account' | 'disconnected' | 'not_observing' | 'not_allowed_in_group' | 'refreshing' | 'group_unavailable';
+export type LinkedReplyBlock = 'sending_disabled' | 'no_account' | 'disconnected' | 'not_observing' | 'not_allowed_in_group' | 'group_unavailable';
 
 /**
  * Content of a deliberate send.
@@ -9371,6 +9446,24 @@ export type LinkedSendReply = {
      * Group message being quoted, within this group.
      */
     reply_to?: string | null;
+};
+
+/**
+ * Another person's group entity the caller can view.
+ */
+export type LinkedSharedGroupReference = {
+    /**
+     * Group entity id.
+     */
+    id: string;
+    /**
+     * Display name, following WhatsApp.
+     */
+    name: string;
+    /**
+     * Macro user who added the group and shared it.
+     */
+    owner_id: string;
 };
 
 /**
@@ -16092,6 +16185,7 @@ export type WhatsAppGroupSender = {
  * Adopted group visible through ordinary entity sharing.
  */
 export type WhatsAppGroupSummary = {
+    backfill?: null | LinkedBackfill;
     /**
      * Caller may currently send from their own account.
      */
@@ -22768,6 +22862,19 @@ export type LinkedAccountResponses = {
 };
 
 export type LinkedAccountResponse = LinkedAccountResponses[keyof LinkedAccountResponses];
+
+export type LinkedChatsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/chats';
+};
+
+export type LinkedChatsResponses = {
+    200: LinkedChats;
+};
+
+export type LinkedChatsResponse = LinkedChatsResponses[keyof LinkedChatsResponses];
 
 export type LinkedConfigurationData = {
     body?: never;

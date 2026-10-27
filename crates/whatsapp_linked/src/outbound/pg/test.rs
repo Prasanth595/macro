@@ -17,6 +17,7 @@ use entity_access::domain::models::{
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use std::sync::Arc;
 
+mod changes;
 mod concurrency;
 mod media;
 mod pairing;
@@ -150,6 +151,7 @@ fn group(members: &[&str]) -> GroupInfo {
         community: false,
         observed_at: Utc::now(),
         group: None,
+        shared: None,
     }
 }
 
@@ -169,6 +171,7 @@ fn text(event: u128, sender: &str, source: &str, body: &str) -> InboundEvent {
             kind: MessageKind::Text,
             text: body.into(),
             history: false,
+            from_me: false,
             revision: 0,
             target: None,
             media: vec![],
@@ -193,7 +196,8 @@ fn receipt<T: entity_access::domain::models::RequiredPermission>(
     .unwrap()
 }
 
-/// Alice and Bob paired and both observing an adopted group with a customer.
+/// Alice and Bob paired and both observing Alice's group, shared with Bob,
+/// with a customer.
 async fn adopted(
     pool: &PgPool,
 ) -> (
@@ -222,7 +226,6 @@ async fn adopted(
             ALICE,
             &AdoptGroup {
                 group_jid: GROUP.into(),
-                name: Some("Escalations".into()),
             },
             SendAuthority::Human,
         )
@@ -248,12 +251,38 @@ async fn adopted(
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn adoption_creates_a_shared_entity_and_leaving_whatsapp_keeps_view_access(pool: PgPool) {
     let (linked, session, _, binding, _, bob) = adopted(&pool).await;
+    assert_eq!(binding.user_id, ALICE);
+    let mine = &linked.groups(ALICE).await.unwrap()[0];
     assert_eq!(
-        linked.groups(BOB).await.unwrap()[0].group,
-        Some(GroupReference {
-            id: binding.id,
-            name: "Escalations".into()
-        })
+        (mine.group.clone(), mine.shared.clone()),
+        (
+            Some(GroupReference {
+                id: binding.id,
+                name: "Customer escalations".into()
+            }),
+            None
+        )
+    );
+    let shared = &linked.groups(BOB).await.unwrap()[0];
+    assert_eq!(
+        (shared.group.clone(), shared.shared.clone()),
+        (
+            None,
+            Some(SharedGroupReference {
+                id: binding.id,
+                name: "Customer escalations".into(),
+                owner_id: ALICE.into()
+            })
+        )
+    );
+    assert!(
+        linked
+            .group_detail(&receipt::<MessageView>(BOB, binding.id))
+            .await
+            .unwrap()
+            .group
+            .can_send,
+        "a viewer whose own account is in the group can send"
     );
     for (viewer, expected) in [(ALICE, true), (BOB, true), (CAROL, false)] {
         assert_eq!(
@@ -280,6 +309,39 @@ async fn adoption_creates_a_shared_entity_and_leaving_whatsapp_keeps_view_access
             .group
             .can_send
     );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn each_person_adds_their_own_group_once(pool: PgPool) {
+    let (linked, _, _, binding, _, _) = adopted(&pool).await;
+    let request = AdoptGroup {
+        group_jid: GROUP.into(),
+    };
+    let again = linked
+        .adopt(ALICE, &request, SendAuthority::Human)
+        .await
+        .unwrap();
+    assert_eq!(again.id, binding.id, "adding twice returns the same group");
+    let bobs = linked
+        .adopt(BOB, &request, SendAuthority::Human)
+        .await
+        .unwrap();
+    assert_ne!(bobs.id, binding.id);
+    assert_eq!(bobs.user_id, BOB);
+    let listed = &linked.groups(BOB).await.unwrap()[0];
+    assert_eq!(
+        (listed.group.as_ref().map(|g| g.id), listed.shared.clone()),
+        (Some(bobs.id), None),
+        "your own group wins over one shared with you"
+    );
+    assert!(matches!(
+        linked
+            .adopt(CAROL, &request, SendAuthority::Human)
+            .await
+            .unwrap_err()
+            .current_context(),
+        LinkedError::Disconnected
+    ));
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
@@ -355,6 +417,89 @@ async fn an_unverified_lid_is_quarantined_instead_of_guessed(pool: PgPool) {
     assert_eq!(state, "quarantined");
 }
 
+/// The person and Macro user each alias of the binding resolves to.
+async fn aliases(pool: &PgPool, binding: Uuid) -> Vec<(String, Uuid, Option<String>)> {
+    sqlx::query!(
+        "SELECT a.jid, a.person_id, p.user_id FROM whatsapp_identity_alias a JOIN whatsapp_external_person p ON p.id = a.person_id WHERE a.binding_id = $1 ORDER BY a.jid",
+        binding
+    )
+    .fetch_all(pool)
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|row| (row.jid, row.person_id, row.user_id))
+    .collect()
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_message_from_me_is_the_account_owner_even_when_addressed_by_lid(pool: PgPool) {
+    let (_, session, _, binding, alice, _) = adopted(&pool).await;
+    let by_phone = text(1, ALICE_JID, "3EB0D001", "from my phone number");
+    session.ingest_event(alice, &by_phone).await.unwrap();
+    let mut by_lid = text(2, "53949570789492@lid", "3EB0D002", "Hi there");
+    let InboundKind::Message(message) = &mut by_lid.kind else {
+        unreachable!()
+    };
+    message.from_me = true;
+
+    assert_eq!(
+        session.ingest_event(alice, &by_lid).await.unwrap(),
+        IngestOutcome::Applied
+    );
+    let aliases = aliases(&pool, binding.id).await;
+    assert_eq!(
+        aliases
+            .iter()
+            .map(|(jid, _, user)| (jid.as_str(), user.as_deref()))
+            .collect::<Vec<_>>(),
+        [
+            (ALICE_JID, Some(ALICE)),
+            ("53949570789492@lid", Some(ALICE))
+        ]
+    );
+    assert_eq!(aliases[0].1, aliases[1].1, "one person for both addresses");
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_quarantined_lid_sender_ingests_once_the_roster_pairs_it(pool: PgPool) {
+    let (_, session, _, binding, alice, _) = adopted(&pool).await;
+    const CUSTOMER_LID: &str = "987654321@lid";
+    session
+        .ingest_event(alice, &text(1, CUSTOMER_JID, "3EB0E001", "by phone"))
+        .await
+        .unwrap();
+    let by_lid = text(2, CUSTOMER_LID, "3EB0E002", "by lid");
+    assert_eq!(
+        session.ingest_event(alice, &by_lid).await.unwrap(),
+        IngestOutcome::Quarantined
+    );
+
+    let mut info = group(&[ALICE_JID, BOB_JID, CUSTOMER_JID]);
+    info.participants[2].identity.alternate_jid = Some(CUSTOMER_LID.to_owned());
+    session.update_groups(alice, &[info], true).await.unwrap();
+    sqlx::query!("UPDATE whatsapp_inbound_event SET retry_at = now()")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    assert_eq!(session.replay_deferred(alice).await.unwrap(), 1);
+    let aliases = aliases(&pool, binding.id).await;
+    assert_eq!(
+        aliases
+            .iter()
+            .map(|(jid, _, _)| jid.as_str())
+            .collect::<Vec<_>>(),
+        [CUSTOMER_JID, CUSTOMER_LID]
+    );
+    assert_eq!(aliases[0].1, aliases[1].1, "one person for both addresses");
+    let remaining =
+        sqlx::query_scalar!(r#"SELECT count(*) AS "count!" FROM whatsapp_inbound_event"#)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(remaining, 0);
+}
+
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn a_reaction_before_its_message_is_deferred_and_replayed(pool: PgPool) {
     let (_, session, repository, binding, alice, _) = adopted(&pool).await;
@@ -369,6 +514,7 @@ async fn a_reaction_before_its_message_is_deferred_and_replayed(pool: PgPool) {
             kind: MessageKind::Reaction,
             text: "👍".into(),
             history: false,
+            from_me: false,
             revision: 1,
             target: Some(Target {
                 source_id: "3EB0ORIG".into(),
@@ -425,6 +571,7 @@ async fn edits_apply_in_source_order_and_deletes_are_permanent(pool: PgPool) {
             kind: MessageKind::Edit,
             text: body.into(),
             history: false,
+            from_me: false,
             revision,
             target: Some(Target {
                 source_id: "3EB0EDIT".into(),
@@ -763,34 +910,67 @@ async fn disconnecting_fails_undispatched_sends_and_stops_observation(pool: PgPo
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn stale_group_facts_block_adoption_until_refreshed(pool: PgPool) {
+async fn stored_group_facts_authorize_adoption_and_sending_however_old(pool: PgPool) {
     workspace(&pool).await;
     let (linked, session, _) = services(&pool);
     let alice = pair(&linked, &session, ALICE, ALICE_JID).await;
-    let mut info = group(&[ALICE_JID]);
-    info.observed_at = Utc::now() - Duration::minutes(10);
-    session.update_groups(alice, &[info], true).await.unwrap();
+    let mut info = group(&[ALICE_JID, CUSTOMER_JID]);
+    info.name = String::new();
+    info.observed_at = Utc::now() - Duration::days(3);
+    session
+        .update_groups(alice, std::slice::from_ref(&info), true)
+        .await
+        .unwrap();
     let request = AdoptGroup {
         group_jid: GROUP.into(),
-        name: None,
     };
-    assert!(matches!(
-        linked
-            .adopt(ALICE, &request, SendAuthority::Human)
-            .await
-            .unwrap_err()
-            .current_context(),
-        LinkedError::Refreshing
-    ));
+    let binding = linked
+        .adopt(ALICE, &request, SendAuthority::Human)
+        .await
+        .unwrap();
+    let detail = linked
+        .group_detail(&receipt::<MessageView>(ALICE, binding.id))
+        .await
+        .unwrap();
+    assert!(detail.group.can_send);
+    assert_eq!(
+        detail.group.name, "+15558880001",
+        "unnamed groups show members"
+    );
+    let progress = linked
+        .send_reply(
+            &receipt::<MessageWrite>(ALICE, binding.id),
+            &SendReply {
+                idempotency_key: Uuid::now_v7(),
+                message: ReplyContent::Text { text: "hi".into() },
+                reply_to: None,
+            },
+            SendAuthority::Human,
+        )
+        .await
+        .unwrap();
+    let claimed = session.claim_sends(alice, 8).await.unwrap();
+    assert_eq!(claimed[0].id, progress.id);
+    session
+        .begin_dispatch(alice, progress.id, "3EB0OLDFACTS")
+        .await
+        .unwrap();
     let mut community = group(&[ALICE_JID]);
+    community.jid = "120363000000000002@g.us".into();
     community.community = true;
     session
-        .update_groups(alice, &[community], true)
+        .update_groups(alice, &[info, community], true)
         .await
         .unwrap();
     assert!(matches!(
         linked
-            .adopt(ALICE, &request, SendAuthority::Human)
+            .adopt(
+                ALICE,
+                &AdoptGroup {
+                    group_jid: "120363000000000002@g.us".into()
+                },
+                SendAuthority::Human
+            )
             .await
             .unwrap_err()
             .current_context(),
@@ -865,3 +1045,5 @@ async fn rate_limited_send_never_creates_a_dispatchable_intent(pool: PgPool) {
     assert_eq!(error.current_context(), &LinkedError::RateLimited);
     assert!(session.claim_sends(alice, 8).await.unwrap().is_empty());
 }
+
+mod chats;

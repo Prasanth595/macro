@@ -3122,6 +3122,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "backon"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cffb0e931875b666fc4fcb20fee52e9bbd1ef836fd9e9e04ec21555f9f85f7ef"
+dependencies = [
+ "fastrand 2.4.1",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6729,6 +6738,7 @@ dependencies = [
  "comms_db_client",
  "connection",
  "document_sub_type",
+ "docx_engine",
  "dotenvy",
  "embedding",
  "entity_access",
@@ -6746,6 +6756,7 @@ dependencies = [
  "jsonwebtoken 10.3.0",
  "kafka_util",
  "lexical_client",
+ "loro",
  "macro_authorization",
  "macro_aws_config",
  "macro_db_client",
@@ -7394,6 +7405,7 @@ dependencies = [
  "models_properties",
  "notification",
  "once_cell",
+ "rand 0.9.4",
  "redis",
  "regex",
  "reqwest 0.13.4",
@@ -16215,12 +16227,15 @@ version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72d32a1ac9123f0d84fda64bfc02a271d9868483162dd2d9099b5c362ece064c"
 dependencies = [
+ "arc-swap",
  "arcstr",
  "async-lock",
+ "backon",
  "bytes",
  "cfg-if",
  "combine",
  "crc16",
+ "futures-channel",
  "futures-util",
  "itoa",
  "log",
@@ -21634,6 +21649,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "chrono",
+ "flate2",
  "futures",
  "hmac 0.12.1",
  "nom 8.0.0",
@@ -21670,6 +21686,7 @@ dependencies = [
  "model_owner",
  "model_user",
  "models_permissions",
+ "opentelemetry",
  "rootcause",
  "serde",
  "serde_json",
@@ -21680,6 +21697,7 @@ dependencies = [
  "tokio",
  "tower 0.5.3",
  "tracing",
+ "tracing-opentelemetry",
  "utoipa",
  "uuid",
  "workspace-hack",

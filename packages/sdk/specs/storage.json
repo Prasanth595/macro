@@ -16047,6 +16047,25 @@
         }
       }
     },
+    "/meta/linked/chats": {
+      "get": {
+        "tags": ["whatsapp_linked::inbound::router"],
+        "summary": "The caller's WhatsApp chat list (groups and direct chats), newest\nactivity first, with what can be added to Macro.",
+        "operationId": "linked_chats",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkedChats"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/meta/linked/configuration": {
       "get": {
         "tags": ["whatsapp_linked::inbound::router"],
@@ -16547,7 +16566,7 @@
       },
       "patch": {
         "tags": ["whatsapp_linked::inbound::router"],
-        "summary": "The owner, in their own session, updates link and team sharing.",
+        "summary": "The owner, in their own session, updates link, team and channel sharing.",
         "operationId": "whatsapp_group_update_permissions",
         "parameters": [
           {
@@ -26426,6 +26445,11 @@
                 "description": "Items associated with the contact."
               }
             }
+          },
+          {
+            "type": "string",
+            "description": "Activity across visible CRM-enabled teams, excluding hidden records.",
+            "enum": ["activity"]
           }
         ],
         "description": "The CRM record an association filter names."
@@ -33336,16 +33360,12 @@
       },
       "LinkedAdoptGroup": {
         "type": "object",
-        "description": "Explicit adoption request; the account is selected server-side.",
+        "description": "Explicit adoption request; the account is selected server-side. The\ngroup's name always follows WhatsApp.",
         "required": ["group_jid"],
         "properties": {
           "group_jid": {
             "type": "string",
             "description": "Group the requester's account has joined."
-          },
-          "name": {
-            "type": ["string", "null"],
-            "description": "Name for a newly created group entity; defaults to the group subject."
           }
         }
       },
@@ -33388,6 +33408,28 @@
         "type": "string",
         "description": "Where an attachment of a linked message stands.",
         "enum": ["loading", "ready", "unavailable", "unsupported"]
+      },
+      "LinkedBackfill": {
+        "type": "object",
+        "description": "Earlier messages imported after adding a group.",
+        "required": ["state", "imported"],
+        "properties": {
+          "imported": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Messages received from the phone so far (including ones already shown).",
+            "minimum": 0
+          },
+          "state": {
+            "$ref": "#/components/schemas/LinkedBackfillState",
+            "description": "Progress."
+          }
+        }
+      },
+      "LinkedBackfillState": {
+        "type": "string",
+        "description": "Where importing a group's earlier messages stands.",
+        "enum": ["pending", "running", "waiting_for_phone", "done", "partial"]
       },
       "LinkedCapabilities": {
         "type": "object",
@@ -33438,6 +33480,87 @@
             "format": "int32",
             "description": "Maximum UTF-8 bytes per text send.",
             "minimum": 0
+          }
+        }
+      },
+      "LinkedChat": {
+        "type": "object",
+        "description": "One chat of the caller's WhatsApp chat list, as WhatsApp Web lists it.",
+        "required": ["jid", "kind", "name", "archived", "pinned", "canAdd"],
+        "properties": {
+          "archived": {
+            "type": "boolean",
+            "description": "Archived in WhatsApp."
+          },
+          "canAdd": {
+            "type": "boolean",
+            "description": "\"Add to Macro\" works now."
+          },
+          "cannotAddReason": {
+            "type": ["string", "null"],
+            "description": "Why it can't be added, when it is neither added, shared nor addable."
+          },
+          "group": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedGroupReference",
+                "description": "The caller's own Macro group for this chat, once added."
+              }
+            ]
+          },
+          "jid": {
+            "type": "string",
+            "description": "WhatsApp chat JID: a group, or the other person's phone-number JID\n(LID when WhatsApp never told us the number)."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LinkedChatKind",
+            "description": "Group or direct chat."
+          },
+          "lastActivityAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Newest activity WhatsApp reported (message or history sync); `null`\nwhen unknown. The list is sorted by it, newest first, unknown last."
+          },
+          "name": {
+            "type": "string",
+            "description": "Group: the subject, or member names for an unnamed group. Direct: the\ncontact or WhatsApp name, else `+<phone>`. Always non-empty."
+          },
+          "pinned": {
+            "type": "boolean",
+            "description": "Pinned in WhatsApp."
+          },
+          "shared": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedSharedGroupReference",
+                "description": "Someone else's Macro group for this chat shared with the caller, when\nthe caller has not added their own."
+              }
+            ]
+          }
+        }
+      },
+      "LinkedChatKind": {
+        "type": "string",
+        "description": "Whether a WhatsApp chat is a group or a one-to-one chat.",
+        "enum": ["group", "direct"]
+      },
+      "LinkedChats": {
+        "type": "object",
+        "description": "The caller's WhatsApp chat list.",
+        "required": ["chats"],
+        "properties": {
+          "chats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinkedChat"
+            },
+            "description": "Newest activity first; chats with unknown activity last, by name."
           }
         }
       },
@@ -33539,7 +33662,7 @@
               },
               {
                 "$ref": "#/components/schemas/LinkedGroupReference",
-                "description": "The caller's adopted entity for this remote group, when one is adopted in their\nworkspace and they can see it. Only set by the groups listing."
+                "description": "The caller's own Macro group for this remote group, once they added\nit. Only set by the groups listing."
               }
             ]
           },
@@ -33562,12 +33685,23 @@
               "$ref": "#/components/schemas/LinkedParticipant"
             },
             "description": "Full roster."
+          },
+          "shared": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedSharedGroupReference",
+                "description": "Someone else's Macro group for this remote group that was shared with\nthe caller, when the caller has not added their own. Only set by the\ngroups listing."
+              }
+            ]
           }
         }
       },
       "LinkedGroupReference": {
         "type": "object",
-        "description": "A group entity bound to a group.",
+        "description": "A group entity bound to a remote group.",
         "required": ["id", "name"],
         "properties": {
           "id": {
@@ -33577,7 +33711,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Channel name."
+            "description": "Display name, following WhatsApp."
           }
         }
       },
@@ -33728,7 +33862,6 @@
           "disconnected",
           "not_observing",
           "not_allowed_in_group",
-          "refreshing",
           "group_unavailable"
         ]
       },
@@ -33864,6 +33997,26 @@
             "type": ["string", "null"],
             "format": "uuid",
             "description": "Group message being quoted, within this group."
+          }
+        }
+      },
+      "LinkedSharedGroupReference": {
+        "type": "object",
+        "description": "Another person's group entity the caller can view.",
+        "required": ["id", "name", "owner_id"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Group entity id."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name, following WhatsApp."
+          },
+          "owner_id": {
+            "type": "string",
+            "description": "Macro user who added the group and shared it."
           }
         }
       },
@@ -44571,6 +44724,17 @@
         "description": "Adopted group visible through ordinary entity sharing.",
         "required": ["id", "name", "user_id", "unread_count", "can_send"],
         "properties": {
+          "backfill": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedBackfill",
+                "description": "Importing earlier messages after the group was added; `null` for\ngroups added before this existed."
+              }
+            ]
+          },
           "can_send": {
             "type": "boolean",
             "description": "Caller may currently send from their own account."

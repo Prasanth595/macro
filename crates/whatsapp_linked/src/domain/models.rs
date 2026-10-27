@@ -172,16 +172,14 @@ pub struct PairState {
     pub expires_at: DateTime<Utc>,
 }
 
-/// Explicit adoption request; the account is selected server-side.
+/// Explicit adoption request; the account is selected server-side. The
+/// group's name always follows WhatsApp.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedAdoptGroup))]
 pub struct AdoptGroup {
     /// Group the requester's account has joined.
     pub group_jid: String,
-    /// Name for a newly created group entity; defaults to the group subject.
-    #[serde(default)]
-    pub name: Option<String>,
 }
 
 /// Binding lifecycle.
@@ -196,7 +194,7 @@ pub enum BindingState {
     Detached,
 }
 
-/// One person's group entity bound to a remote group.
+/// One remote group bound to a person's group entity.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedBinding))]
@@ -227,6 +225,22 @@ pub struct Identity {
     /// Untrusted display name.
     #[serde(default)]
     pub display_name: Option<String>,
+}
+
+impl Identity {
+    /// What to call this person: their WhatsApp name, else their phone number.
+    pub fn label(&self) -> Option<String> {
+        if let Some(name) = self.display_name.as_deref().map(str::trim)
+            && !name.is_empty()
+        {
+            return Some(name.to_owned());
+        }
+        [Some(self.jid.as_str()), self.alternate_jid.as_deref()]
+            .into_iter()
+            .flatten()
+            .find_map(|jid| jid.strip_suffix("@s.whatsapp.net"))
+            .map(|phone| format!("+{phone}"))
+    }
 }
 
 /// Current remote participant; Macro access is a separate grant.
@@ -262,21 +276,39 @@ pub struct GroupInfo {
     pub community: bool,
     /// When the session service read this metadata.
     pub observed_at: DateTime<Utc>,
-    /// The caller's adopted entity for this remote group, when one is adopted in their
-    /// workspace and they can see it. Only set by the groups listing.
+    /// The caller's own Macro group for this remote group, once they added
+    /// it. Only set by the groups listing.
     #[serde(default)]
     pub group: Option<GroupReference>,
+    /// Someone else's Macro group for this remote group that was shared with
+    /// the caller, when the caller has not added their own. Only set by the
+    /// groups listing.
+    #[serde(default)]
+    pub shared: Option<SharedGroupReference>,
 }
 
-/// A group entity bound to a group.
+/// A group entity bound to a remote group.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedGroupReference))]
 pub struct GroupReference {
     /// Group entity id.
     pub id: Uuid,
-    /// Channel name.
+    /// Display name, following WhatsApp.
     pub name: String,
+}
+
+/// Another person's group entity the caller can view.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "schema", schema(as = LinkedSharedGroupReference))]
+pub struct SharedGroupReference {
+    /// Group entity id.
+    pub id: Uuid,
+    /// Display name, following WhatsApp.
+    pub name: String,
+    /// Macro user who added the group and shared it.
+    pub owner_id: String,
 }
 
 impl GroupInfo {
@@ -287,6 +319,36 @@ impl GroupInfo {
         })
     }
 
+    /// The WhatsApp subject, or for an unnamed group the names of its other
+    /// members as WhatsApp shows them: "Ana, Ben, +2".
+    pub fn display_name(&self, identity: &str) -> String {
+        let subject = self.name.trim();
+        if !subject.is_empty() {
+            return subject.to_owned();
+        }
+        let others: Vec<&Participant> = self
+            .participants
+            .iter()
+            .filter(|p| {
+                p.identity.jid != identity && p.identity.alternate_jid.as_deref() != Some(identity)
+            })
+            .collect();
+        let names: Vec<String> = others
+            .iter()
+            .filter_map(|p| p.identity.label())
+            .take(2)
+            .collect();
+        if names.is_empty() {
+            return "WhatsApp group".to_owned();
+        }
+        let rest = others.len() - names.len();
+        if rest == 0 {
+            names.join(", ")
+        } else {
+            format!("{}, +{rest}", names.join(", "))
+        }
+    }
+
     /// Whether the given identity may post under the group's current settings.
     pub fn can_post(&self, identity: &str) -> bool {
         self.participant(identity)
@@ -295,6 +357,158 @@ impl GroupInfo {
             && !self.disappearing
     }
 }
+
+/// Whether a WhatsApp chat is a group or a one-to-one chat.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "schema", schema(as = LinkedChatKind))]
+pub enum ChatKind {
+    /// A group chat (`…@g.us`).
+    Group,
+    /// A direct chat with one person.
+    Direct,
+}
+
+impl ChatKind {
+    /// Stable storage spelling.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Group => "group",
+            Self::Direct => "direct",
+        }
+    }
+
+    /// Parse the storage spelling.
+    pub fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "group" => Self::Group,
+            "direct" => Self::Direct,
+            _ => return None,
+        })
+    }
+}
+
+/// Why a chat can't be added to Macro. The same sentences adoption refuses with.
+pub mod cannot_add {
+    /// The account's WhatsApp left the group or was removed.
+    pub const NOT_IN_GROUP: &str = "your WhatsApp is not in this group any more";
+    /// Community announcement or parent groups.
+    pub const COMMUNITY: &str = "community groups can't be added to Macro";
+    /// Disappearing messages are on.
+    pub const DISAPPEARING: &str = "groups with disappearing messages can't be added to Macro";
+    /// Direct chats are listed but not addable yet.
+    pub const DIRECT: &str = "direct chats can't be added to Macro yet";
+}
+
+/// One chat of the caller's WhatsApp chat list, as WhatsApp Web lists it.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "schema", schema(as = LinkedChat))]
+pub struct Chat {
+    /// WhatsApp chat JID: a group, or the other person's phone-number JID
+    /// (LID when WhatsApp never told us the number).
+    pub jid: String,
+    /// Group or direct chat.
+    pub kind: ChatKind,
+    /// Group: the subject, or member names for an unnamed group. Direct: the
+    /// contact or WhatsApp name, else `+<phone>`. Always non-empty.
+    pub name: String,
+    /// Newest activity WhatsApp reported (message or history sync); `null`
+    /// when unknown. The list is sorted by it, newest first, unknown last.
+    pub last_activity_at: Option<DateTime<Utc>>,
+    /// Archived in WhatsApp.
+    pub archived: bool,
+    /// Pinned in WhatsApp.
+    pub pinned: bool,
+    /// The caller's own Macro group for this chat, once added.
+    pub group: Option<GroupReference>,
+    /// Someone else's Macro group for this chat shared with the caller, when
+    /// the caller has not added their own.
+    pub shared: Option<SharedGroupReference>,
+    /// "Add to Macro" works now.
+    pub can_add: bool,
+    /// Why it can't be added, when it is neither added, shared nor addable.
+    pub cannot_add_reason: Option<String>,
+}
+
+/// The caller's WhatsApp chat list.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "schema", schema(as = LinkedChats))]
+pub struct ChatList {
+    /// Newest activity first; chats with unknown activity last, by name.
+    pub chats: Vec<Chat>,
+}
+
+/// Where importing a group's earlier messages stands.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "schema", schema(as = LinkedBackfillState))]
+pub enum BackfillState {
+    /// Waiting to start: the owner's account has not seen a message in this
+    /// chat yet, or has not picked it up.
+    Pending,
+    /// Asking the owner's phone for earlier messages.
+    Running,
+    /// The owner's phone did not answer; retried when it is back.
+    WaitingForPhone,
+    /// Everything the phone had (within the limits) was imported.
+    Done,
+    /// Stopped at the limits ([`BACKFILL_MESSAGE_LIMIT`] messages or
+    /// [`BACKFILL_MAX_AGE_DAYS`] days); older messages stay in WhatsApp.
+    Partial,
+}
+
+impl BackfillState {
+    /// Stable storage spelling.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Running => "running",
+            Self::WaitingForPhone => "waiting_for_phone",
+            Self::Done => "done",
+            Self::Partial => "partial",
+        }
+    }
+
+    /// Parse the storage spelling.
+    pub fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "pending" => Self::Pending,
+            "running" => Self::Running,
+            "waiting_for_phone" => Self::WaitingForPhone,
+            "done" => Self::Done,
+            "partial" => Self::Partial,
+            _ => return None,
+        })
+    }
+
+    /// Still importing (show "Importing history…").
+    pub const fn is_active(self) -> bool {
+        matches!(self, Self::Pending | Self::Running | Self::WaitingForPhone)
+    }
+}
+
+/// Earlier messages imported after adding a group.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "schema", schema(as = LinkedBackfill))]
+pub struct Backfill {
+    /// Progress.
+    pub state: BackfillState,
+    /// Messages received from the phone so far (including ones already shown).
+    pub imported: u32,
+}
+
+/// Most earlier messages imported when a group is added.
+pub const BACKFILL_MESSAGE_LIMIT: u32 = 500;
+/// Earlier messages older than this many days before adding are not imported.
+pub const BACKFILL_MAX_AGE_DAYS: i64 = 90;
 
 /// Deliberate operations on an existing linked-group message.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -529,8 +743,6 @@ pub const TEXT_LIMIT_BYTES: usize = 16 * 1024;
 pub const MUTATION_WINDOW_SECONDS: i64 = 10 * 60;
 /// Unattempted intents expire this long after they were created.
 pub const SEND_EXPIRY_SECONDS: i64 = 10 * 60;
-/// Group facts older than this cannot authorize adoption or sending.
-pub const GROUP_FACTS_MAX_AGE_SECONDS: i64 = 2 * 60;
 
 /// Operations implemented for linked groups, independent of current permission.
 #[derive(Debug, Clone, Serialize)]
@@ -594,8 +806,6 @@ pub enum ReplyBlock {
     NotObserving,
     /// The viewer is not in the group, or only admins may post.
     NotAllowedInGroup,
-    /// The group facts are being refreshed.
-    Refreshing,
     /// The group is detached.
     GroupUnavailable,
 }
@@ -651,9 +861,6 @@ pub enum LinkedError {
     /// The account is not connected.
     #[error("connect your WhatsApp account first")]
     Disconnected,
-    /// Group facts are being refreshed; retry shortly.
-    #[error("refreshing WhatsApp group details; try again shortly")]
-    Refreshing,
     /// A sender identity is ambiguous; the event is quarantined.
     #[error("identity_conflict")]
     IdentityConflict,
@@ -681,7 +888,6 @@ impl LinkedError {
             Self::Forbidden => "forbidden",
             Self::Conflict => "conflict",
             Self::Disconnected => "disconnected",
-            Self::Refreshing => "refreshing",
             Self::IdentityConflict => "identity_conflict",
             Self::SendExpired => "send_expired",
             Self::Fenced => "lease_fenced",

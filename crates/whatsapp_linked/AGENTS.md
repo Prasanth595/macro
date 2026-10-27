@@ -3,7 +3,8 @@
 ## What it is
 
 Personal WhatsApp accounts linked as devices: owner-bound pairing, adopting an
-existing group as an independently shared `WhatsAppGroup` entity, ingesting group traffic, and
+existing group as the adopter's own, independently shared `WhatsAppGroup`
+entity (one per owner and WhatsApp group, named after WhatsApp), ingesting group traffic, and
 deliberate sends from each person's own account. DSS serves the HTTP API
 (`/meta/linked/*`); the WhatsApp session service calls
 `domain::session::SessionService` in-process. They share no HTTP: only MacroDB
@@ -16,8 +17,22 @@ rows and `NOTIFY` (the `outbound::pg` notify helper).
   its event types (no whatsmeow types).
 - `src/domain/effects.rs`: notification outbox drained by DSS.
 - `src/outbound/pg/ingest.rs`: canonical identity `(binding, person, source id)`,
-  quarantine, deferral and the standalone message write.
-- `src/outbound/pg/sends.rs`: enqueue, claim, dispatch fence, outcome.
+  quarantine, deferral and the standalone message write. Senders are resolved
+  first (`resolve_sender_in`): WhatsApp's from-me flag means the account's own
+  identity; a LID-only sender takes its phone number from the account's roster
+  pair. Only what is still LID-only is quarantined.
+- `src/outbound/pg/chats.rs`: the account's chat list (`whatsapp_chat`,
+  `GET /chats` via `LinkedService::chats`) and importing earlier messages of
+  added groups (`backfill_*` columns on `whatsapp_group`; limits
+  `BACKFILL_MESSAGE_LIMIT` / `BACKFILL_MAX_AGE_DAYS` in `models.rs`). History
+  messages skip the adoption-time boundary but only reach the account owner's
+  own groups (`observed_bindings_in`).
+- `src/outbound/pg/sends.rs`: enqueue, claim, dispatch fence, outcome. A
+  repeated intent key returns the stored send before any other check.
+- `src/outbound/pg.rs` `signals`: JSON `NOTIFY` payloads with `traceparent`
+  (`src/outbound/trace_context.rs`). Every write a page shows calls
+  `notify_change` (`whatsapp_changed`); DSS pushes it to viewers. Roster writes
+  signal only real changes (`groups.rs` `same_facts`).
 - Migrations: `crates/macro_db_client/migrations/20261027061310_whatsapp_linked.sql` (the
   final schema, including the one view rule `whatsapp_group_access_level`,
   which entity_access also calls) and `20261027061311_validate_entity_whatsapp_group_type.sql`
@@ -44,8 +59,9 @@ rows and `NOTIFY` (the `outbound::pg` notify helper).
   an outcome becomes `unknown` on takeover and is never resent; a later echo
   with its `allocated_source_id` settles it.
 - Bot view receipts can read a known shared group, but never borrow an acting user's phone, send records, or unread cursor.
-- View access uses ordinary `entity_access` grants and link/team sharing, independent
-  of WhatsApp membership. Only the adopter receives an owner grant; use the generic
+- View access uses ordinary `entity_access` grants (people, teams, and channels
+  through mentions) and link/team sharing, independent of WhatsApp membership;
+  `whatsapp_group_can_view` must resolve the same sources as `entity_access`. Only the adopter receives an owner grant; use the generic
   direct-access endpoints to share with people.
 - `src/domain/timeline.rs` and `src/domain/service/timeline.rs` own list/detail,
   timeline, unread and sharing use cases. Group HTTP paths are

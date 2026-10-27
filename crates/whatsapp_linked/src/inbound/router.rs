@@ -81,7 +81,7 @@ impl IntoResponse for ApiError {
             | LinkedError::IdentityConflict
             | LinkedError::Disconnected
             | LinkedError::SendExpired => StatusCode::CONFLICT,
-            LinkedError::Refreshing | LinkedError::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
+            LinkedError::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
             LinkedError::Fenced => StatusCode::INTERNAL_SERVER_ERROR,
         };
         let mut response = (
@@ -143,6 +143,7 @@ where
             get(pairing::<Eas, Auth>).delete(cancel::<Eas, Auth>),
         )
         .route("/groups", get(groups::<Eas, Auth>))
+        .route("/chats", get(chats::<Eas, Auth>))
         .route("/groups/adopt", post(adopt::<Eas, Auth>))
         .route("/whatsapp-groups", get(adopted_groups::<Eas, Auth>))
         .route(
@@ -376,6 +377,21 @@ pub async fn groups<Eas, Auth: MacroAuthorizationService>(
     ))
 }
 
+/// The caller's WhatsApp chat list (groups and direct chats), newest
+/// activity first, with what can be added to Macro.
+#[utoipa::path(get, path = "/meta/linked/chats", operation_id = "linked_chats", responses((status = 200, body = ChatList)))]
+pub async fn chats<Eas, Auth: MacroAuthorizationService>(
+    State(state): State<LinkedRouterState<Eas, Auth>>,
+    auth: MacroAuthorizationExtractor<Auth, UserOnly>,
+) -> Result<Json<ChatList>, ApiError> {
+    Ok(Json(
+        state
+            .service
+            .chats(auth.authorization.macro_user_id.as_ref())
+            .await?,
+    ))
+}
+
 /// Adopt one of the caller's groups into a standalone group entity.
 #[utoipa::path(post, path = "/meta/linked/groups/adopt", operation_id = "linked_adopt", request_body = AdoptGroup, responses((status = 200, body = AdoptedGroup)))]
 pub async fn adopt<Eas, Auth: MacroAuthorizationService>(
@@ -559,7 +575,7 @@ pub async fn permissions<Eas: EntityAccessService, Auth: MacroAuthorizationServi
             .await?,
     ))
 }
-/// The owner, in their own session, updates link and team sharing.
+/// The owner, in their own session, updates link, team and channel sharing.
 #[utoipa::path(patch,path="/meta/linked/whatsapp-groups/{group_id}/permissions",operation_id="whatsapp_group_update_permissions",params(("group_id"=Uuid,Path)),request_body=UpdateSharePermissionRequestV2,responses((status=204)))]
 pub async fn update_permissions<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
