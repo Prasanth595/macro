@@ -43,7 +43,7 @@ mutations, and the realtime subscription.
   verifies exported GraphQL descriptions. Document `#[Object]` impl blocks
   because their documentation supplies the schema type description.
 
-- `notification_event/whatsapp_group.rs` exposes live group-message metadata; its notification targets the standalone group entity.
+- `notification_event/external_chat.rs` exposes live external chat message metadata (provider, chat name, message id); its notification targets the external chat entity.
 - Read a notification's type from `targetEntityType` (canonical `GraphqlEntityType`), so shared entities outside Soup keep their identity. `entityType` keeps its original `GraphqlSoupEntityType` output for deployed clients and is deprecated until 2026-12-01; changing its type would break them (`cargo x graphql-schema-compat`).
 
 ## Related
