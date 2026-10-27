@@ -27,7 +27,7 @@ export const useButtonGroupContext = () => useContext(ButtonGroupContext);
 
 export type ButtonGroupProps = Omit<ComponentProps<'div'>, 'size'> & {
   variant?: ButtonVariant;
-  /** Applied once to the shared frame, never inherited by its segments. */
+  /** The shared frame adapts by default; segments always stay flat. */
   finish?: ButtonFinish;
   size?: ButtonSize;
   orientation?: ButtonGroupOrientation;
@@ -94,6 +94,7 @@ function GroupButton<T extends ValidComponent = 'button'>(
   const group = useButtonGroupContext();
   const [local, rest] = splitProps(props as ButtonProps, [
     'variant',
+    'finish',
     'size',
     'class',
   ]);
@@ -105,6 +106,7 @@ function GroupButton<T extends ValidComponent = 'button'>(
       data-button-group-button=""
       variant={variant()}
       size={local.size ?? group?.size}
+      finish={group ? 'flat' : local.finish}
       class={cn(
         group && 'self-stretch rounded-none border-0 shadow-none',
         group && variant() === group.variant && 'bg-transparent',

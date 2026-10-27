@@ -223,9 +223,16 @@ function ThemesDemo() {
 function FinishesDemo() {
   return (
     <div class="flex flex-wrap items-center gap-4">
-      <Button variant="secondary">Plain</Button>
-      <Button variant="secondary" finish="raised">
-        Raised
+      <Button variant="secondary">Automatic</Button>
+      <Button variant="secondary" finish="flat">
+        Flat
+      </Button>
+      <Button variant="ghost" finish="raised">
+        Framed ghost
+      </Button>
+      <Button variant="ghost">Ghost</Button>
+      <Button variant="secondary" aria-pressed="true">
+        Pressed
       </Button>
     </div>
   );
@@ -236,7 +243,7 @@ export default defineDoc({
   name: 'Button',
   category: 'Actions',
   description:
-    'Shared action control with semantic materials, explicit icon sizes, an optional raised finish, and configurable tooltips.',
+    'Shared action control with semantic materials, automatic desktop elevation and touch glass, explicit icon sizes, and configurable tooltips.',
   status: 'beta',
   exports: ['Button', 'ButtonGroup'],
   import: "import { Button, ButtonGroup } from '@ui';",
@@ -248,6 +255,6 @@ export default defineDoc({
     { id: 'header', title: 'Header action', render: HeaderDemo, fill: true },
     { id: 'trigger', title: 'Headless menu trigger', render: TriggerDemo },
     { id: 'themes', title: 'Light and dark', render: ThemesDemo, fill: true },
-    { id: 'finishes', title: 'Optional raised finish', render: FinishesDemo },
+    { id: 'finishes', title: 'Automatic and flat finishes', render: FinishesDemo },
   ],
 });

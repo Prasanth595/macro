@@ -1182,8 +1182,8 @@ html[data-platform='ios'][data-touch-device='true'] :is(
   [data-input] [data-composer-collapsed],
   [data-mobile-dock-island],
   [data-header-island],
-  [data-slot='button-group'].glass,
-  :is(button, a, [role='button'], [role='tab']):is(.glass, .island, [class~='touch:island'])
+  [data-slot='button-group']:is(.glass, [class~='touch:glass']),
+  :is(button, a, [role='button'], [role='tab']):is(.glass, [class~='touch:glass'], .island, [class~='touch:island'])
 ) {
   /* The shimmer replaces native tap feedback only on these press surfaces. */
   -webkit-tap-highlight-color: transparent;

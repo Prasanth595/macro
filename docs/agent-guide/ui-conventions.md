@@ -39,17 +39,17 @@ lists which control to use for each role.
 On touch devices, low-emphasis header actions remain borderless with their
 existing hover and pressed states. Emphasized variants retain their treatment,
 including an active call's green ink. Button size does not change variant colors
-or framing. Button's only optional finish is `finish="raised"`; omit it for plain styling.
+or framing. Non-ghost/link Buttons automatically use raised desktop styling and glass on touch. Use `finish="flat"` to opt out, or `finish="raised"` to frame a ghost/link action.
 Primary Buttons use the theme accent and its resolved contrast color. Use secondary or outline for neutral actions; there is no separate accent variant or inverse neutral primary.
 Inline calendar-invitation text actions remove the transparent border to keep alignment.
 
 ## Canonical desktop surfaces
 
 Use `not-touch:elevated` for existing desktop control surfaces other than Button
-and ButtonGroup. Button owns its semantic materials and optional `raised` finish;
-ButtonGroup reuses those materials for its frame. Neither inherits the global
-elevation recipe. Inputs and unselected
-tab pills retain their existing surfaces. Group segments have no individual shadow.
+and ButtonGroup. Button applies its raised desktop recipe and the shared touch
+glass utility automatically; ButtonGroup applies the same material once to its
+frame. Explicit segments remain flat. Inputs and unselected tab pills retain
+their existing surfaces.
 In dark mode, compact controls use thinner, lower-opacity edges than composers
 and floating panels. Keep desktop shadows close and faint, with only a slight top
 highlight, and define the border with subtle edge contrast.

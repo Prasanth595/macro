@@ -92,47 +92,40 @@ const buttonStyles = createVariants(
 export type ButtonVariantProps = VariantProps<typeof buttonStyles>;
 export type ButtonVariant = NonNullable<ButtonVariantProps['variant']>;
 export type ButtonSize = NonNullable<ButtonVariantProps['size']>;
-export type ButtonFinish = 'raised';
+export type ButtonFinish = 'flat' | 'raised';
 export type ButtonClassOptions = {
   variant?: ButtonVariant;
   /** Composed rows own their surface states without layering a second button face. */
   appearance?: 'default' | 'bare';
-  /** Optional finish; omitted uses the plain variant styling. */
+  /** Non-ghost/link controls default to raised on desktop and glass on touch. */
   finish?: ButtonFinish;
   size?: ButtonSize;
   fullWidth?: boolean;
   class?: string;
 };
 
-const raisedBorderButtonStyles = cn(
-  raisedButtonStyles,
-  'not-data-disabled:active:border-border-secondary aria-pressed:border-border-secondary aria-expanded:border-border-secondary'
-);
+const raisedBorderButtonStyles =
+  'not-touch:not-data-disabled:active:border-border-secondary not-touch:aria-pressed:border-border-secondary not-touch:aria-expanded:border-border-secondary';
 
-const buttonFinishes: Partial<
-  Record<ButtonVariant, Partial<Record<ButtonFinish, string>>>
-> = {
-  primary: {
-    raised: raisedButtonStyles,
-  },
-  secondary: {
-    raised: cn(raisedButtonStyles, 'dark-mode:shadow-button'),
-  },
-  outline: { raised: raisedBorderButtonStyles },
-  danger: {
-    raised: raisedButtonStyles,
-  },
-  success: {
-    raised: raisedButtonStyles,
-  },
-};
+function buttonFinishClasses(variant: ButtonVariant, finish?: ButtonFinish) {
+  if (finish === 'flat') return 'shadow-none';
+  if (finish !== 'raised' && (variant === 'ghost' || variant === 'link')) {
+    return undefined;
+  }
+
+  return cn(
+    raisedButtonStyles,
+    variant === 'secondary' && 'not-touch:dark-mode:shadow-button',
+    variant === 'outline' && raisedBorderButtonStyles
+  );
+}
 
 /** Non-interactive frame material shared by Button and ButtonGroup. */
 export function buttonFrameClasses(
   options: Pick<ButtonClassOptions, 'variant' | 'finish'> = {}
 ) {
   const { variant = 'primary', finish } = options;
-  return cn(buttonFrames[variant], finish && buttonFinishes[variant]?.[finish]);
+  return cn(buttonFrames[variant], buttonFinishClasses(variant, finish));
 }
 
 export function buttonClasses(options: ButtonClassOptions = {}) {
@@ -142,7 +135,7 @@ export function buttonClasses(options: ButtonClassOptions = {}) {
   return cn(
     buttonStyles({ variant: isBare ? null : variant, size: options.size }),
     isBare && 'border-transparent bg-transparent shadow-none',
-    !isBare && finish && buttonFinishes[variant]?.[finish],
+    !isBare && buttonFinishClasses(variant, finish),
     options.fullWidth && 'w-full',
     options.class
   );
@@ -180,7 +173,7 @@ export type ButtonProps<T extends ValidComponent = 'button'> = PolymorphicProps<
 >;
 
 /**
- * Actions use Button; navigation uses anchors. Finishes are explicitly opt-in.
+ * Actions use Button; navigation uses anchors. Framed variants adapt to the device.
  * @do Set aria-label for icon-only actions and use an explicit icon-* size.
  * @do Use tooltip strings for content only, or options for hotkeys and placement.
  * @dont Use Button for links or size descendant icons through the control.

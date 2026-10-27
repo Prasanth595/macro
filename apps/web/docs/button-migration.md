@@ -7,8 +7,8 @@ Redesign the existing shared `Button` in place. Breaking component API changes a
 ## Implementation
 
 1. Update `components/ui/components/Button.tsx` in place. Keep the existing import path and `@ui` export.
-2. Use semantic materials, explicit icon sizes, optional finishes, loading treatment, and native/headless activation behavior.
-3. Use explicit `ButtonGroup.Button` composition. Ordinary Buttons remain independent. Share Button's frame materials and finishes; existing groups opt into `variant="secondary" finish="raised"`. Migrate headless triggers and action wrappers to explicit grouped controls.
+2. Use semantic materials, explicit icon sizes, automatic device-adaptive finishes, loading treatment, and native/headless activation behavior.
+3. Use explicit `ButtonGroup.Button` composition. Ordinary Buttons remain independent. Share Button's default frame materials and finishes; use `variant="secondary"` for neutral groups. Migrate headless triggers and action wrappers to explicit grouped controls.
 4. Remove the temporary `components/ui/next/` implementation and gallery registration.
 5. Migrate affected callers directly to the new API rather than translating old props in Button.
 6. Keep examples in the existing `Button.docs.tsx` gallery page.
@@ -18,17 +18,17 @@ Keep Button-specific helpers and materials within the app's shared UI and theme 
 ## API changes
 
 - Variants: `primary` (default), `secondary`, `outline`, `ghost`, `danger`, `success`, and `link`.
-- `finish="raised"` is the only supported finish. Omit `finish` for plain styling; gradient and glass finishes are removed.
+- Omitted `finish` gives non-ghost/link Buttons a raised desktop finish and the existing glass material on touch. `finish="flat"` opts out of both; `finish="raised"` forces the same adaptive finish even on ghost/link Buttons. The legacy glass boolean and gradient finish remain removed.
 - Use `primary` for the main action: create, save, submit, send, invite, approve, connect, and continue. Primary now uses the solid theme accent; the separate accent variant and inverse neutral primary are removed. Keep the shared New launcher (`ViewCreateButton`) neutral with `variant="secondary" finish="raised"`; opening a creation menu is not the final create action. Keep secondary/outline for neutral actions, ghost for utility/cancel controls, and danger for destructive actions.
-- Secondary uses a transparent border in its plain and raised states. Keep fills, shadows, geometry, and keyboard focus unchanged. The outline variant retains its border.
+- Desktop raised buttons use the existing edge and contact-shadow recipe; dark secondary buttons retain their perimeter-free treatment. Touch uses the shared glass blur, rim, and shadow instead of the desktop finish. Desktop pressed, toggled, and expanded buttons flatten without changing their geometry.
 - Sizes: `xs` through `xl`, plus `icon-xs` through `icon-xl`. Replace `icon-composer` with `icon-md`.
 - Use explicit `icon-*` sizes instead of `square`.
 - Set accessible names with `aria-label`, not `label`.
 - Tooltips accept a string or `{ content, placement, disabled, hotkey, shortcut }`. Shortcut and tooltip configuration no longer live on the Button root.
-- Remove `depth`, `glass`, and `noTouchResize`. Finishes are opt-in through `finish`; `appearance="bare"` leaves the face to a composed control.
+- Remove `depth`, `glass`, and `noTouchResize`. Ghost and link remain flat unless `finish="raised"` is explicit. `appearance="bare"` always leaves the face to a composed control, even when a finish is supplied.
 - `aria-expanded` drives expanded-state styling, not Kobalte's broader `data-expanded` state.
 - ButtonGroup uses a compound API: `ButtonGroup.Button` inherits group size and variant; standalone Button remains independent. Frame colors and finishes reuse Button's recipe without adding whole-group hover states. Segments retain their own hover, pressed, disabled, and focus states.
-- Group roots use native `aria-label` rather than `label`, and no longer accept `depth`. Existing action groups use `variant="secondary" finish="raised"`; omitting `finish` keeps the plain frame. CopyButton opts into a segment with `as={ButtonGroup.Button}`.
+- Group roots use native `aria-label` rather than `label`, and no longer accept `depth`. Their non-ghost/link frame adapts by default; `finish="flat"` disables its elevation and glass. Segments force a flat finish so the frame renders once, even when a segment supplies `finish="raised"`. CopyButton opts into a segment with `as={ButtonGroup.Button}`.
 - CopyButton uses its polymorphic `as` prop for composition. HeaderActionButton, list/filter/group/sort menus, and email controls expose `grouped`. Custom `BlockTool.buttonComponent` callbacks receive the same option. A segment outside a group keeps ordinary Button styling, preserving frame-free touch layouts.
 - HeaderActionGroup defaults to `sm` sizing with a minimum-height frame and accepts `size="md"`. Grouped labelled actions inherit the frame size. Header frames and the task document's split action omit the transparent border so it does not add 2px around their segments. The task split action uses `sm`/`icon-sm`, including when its label collapses. Calendar navigation and view selectors retain compact header sizing. Keep standalone New/Search controls and touch targets unchanged.
 - Email header groups currently trial `md` / `icon-md` (32px), including filters, reading-pane controls, reminders, read/done actions, Ask Macro, Create task, sharing, navigation, and the details toggle. Icon dimensions remain unchanged. Email icon actions pass their size through `HeaderActionButton`, which omits the visible label while retaining its accessible name and tooltip; header wrappers do not resize or pad descendant buttons. Touch controls retain their existing behavior.
@@ -64,11 +64,13 @@ Button materials live in `src/index.css`: fills, hover/pressed colors, borders, 
 
 `buttonAccentVars` in `features/theme/utils/buttonTheme.ts` only chooses `button-primary-ink` and `button-primary-state-mix` from the resolved accent. The root renderer and subtree previews supply those two variables; all mixing remains in CSS. Live color edits also refresh the existing light/dark scope marker. Derived values do not enter persisted theme data.
 
-Shared neutral borders use `border-primary`, `border-secondary`, `border-tertiary`, and `divider`: 16%, 12%, 8%, and 4% opacity respectively, white in dark mode and black in light mode. Outline Buttons use `border-border-secondary` in both modes. Secondary Buttons and their shared ButtonGroup frame use that border only in light mode; dark mode keeps transparent border geometry. Dark secondary raised finishes keep the contact shadow without the perimeter. Group separators retain `bg-divider`. The optional light raised perimeter also uses the secondary role. These CSS tokens reset on every theme scope and stay independent of text colors; existing `edge-*` consumers and focus/status treatments are unchanged. This replaces the button-only dark-border experiment without broadening the migration to unrelated controls.
+Shared neutral borders use `border-primary`, `border-secondary`, `border-tertiary`, and `divider`: 16%, 12%, 8%, and 4% opacity respectively, white in dark mode and black in light mode. Flat and pressed outline Buttons use the secondary role. Desktop raised edges use the Button shadow recipe; dark secondary buttons retain only the contact shadow. Touch uses the existing glass rim. Group separators retain `bg-divider`. These CSS tokens stay independent of text colors; existing focus/status treatments are unchanged.
 
 The Create menu's submit action uses the shared accent-colored `primary` variant so its background and text contrast stay paired; do not locally override accent colors while leaving the derived accent text unchanged.
 
 This keeps the current button materials without a second JavaScript material recipe. Variants, interaction selectors, and optional finish selection remain in the shared Button recipe. Checks and visual review remain paused.
+
+The existing native iOS glass press handler recognizes `touch:glass` on standalone controls and ButtonGroup frames. A group owns the press effect; its flat segments do not add their own glass layers. CSS continues to own the material, including its reduced-motion behavior.
 
 ## Consumer layout follow-up
 
