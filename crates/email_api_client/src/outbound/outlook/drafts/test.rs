@@ -122,7 +122,7 @@ async fn other_native_reply_failures_surface_without_a_standalone_draft() {
             None,
             EmailApiError::RateLimited {
                 retry_after: None,
-                origin: RateLimitOrigin::Provider,
+                origin: RateLimitOrigin::Provider { concurrency: false },
             },
         ),
         (

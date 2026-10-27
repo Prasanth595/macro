@@ -49,20 +49,59 @@ const dialogOpen = () =>
     .queryAllByRole('dialog')
     .some((dialog) => !dialog.hasAttribute('data-closed'));
 
-const groups = [
+const chat = {
+  kind: 'group' as const,
+  lastActivityAt: undefined,
+  archived: false,
+  inMacro: undefined,
+  canAdd: true,
+  cannotAddReason: undefined,
+};
+
+/** DSS's order: newest activity first. */
+const chats = [
   {
-    jid: '120363001@g.us',
-    name: 'Design Crit',
-    memberCount: 14,
-    group: { id: 'channel-design', name: 'design-crit' },
-    unsupported: undefined,
+    ...chat,
+    jid: '14155550199@s.whatsapp.net',
+    kind: 'direct' as const,
+    name: 'Ana Ruiz',
+    lastActivityAt: '2025-03-07T10:00:00Z',
+    canAdd: false,
+    cannotAddReason: "direct chats can't be added to Macro yet",
   },
   {
+    ...chat,
+    jid: '120363001@g.us',
+    name: 'Design Crit',
+    lastActivityAt: '2025-03-06T10:00:00Z',
+    inMacro: { kind: 'own' as const, groupId: 'group-design' },
+    canAdd: false,
+  },
+  {
+    ...chat,
     jid: '120363003@g.us',
     name: 'Launch War Room',
-    memberCount: 23,
-    group: undefined,
-    unsupported: undefined,
+    lastActivityAt: '2025-03-05T10:00:00Z',
+  },
+  {
+    ...chat,
+    jid: '120363004@g.us',
+    name: 'Ana, Ben, +2',
+    inMacro: {
+      kind: 'shared' as const,
+      groupId: 'group-family',
+      ownerId: 'macro|ana@example.test',
+      ownerName: 'Ana Silva',
+    },
+    canAdd: false,
+  },
+  {
+    ...chat,
+    jid: '120363005@g.us',
+    name: 'Neighbourhood',
+    archived: true,
+    canAdd: false,
+    cannotAddReason: "community groups can't be added to Macro",
   },
 ];
 
@@ -76,10 +115,10 @@ describe('not connected', () => {
     expect(
       screen.getByText(/unofficial WhatsApp client/, { exact: false })
     ).toBeTruthy();
-    expect(fake.groupsEnabled[0]?.()).toBe(false);
+    expect(fake.chatsEnabled[0]?.()).toBe(false);
 
     fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
-    expect(fake.capabilities.connect).toHaveBeenCalledWith(false);
+    expect(fake.capabilities.connect).toHaveBeenCalledOnce();
     const dialog = within(await screen.findByRole('dialog'));
     expect(dialog.getByText('Link WhatsApp')).toBeTruthy();
     expect(dialog.getByText('Preparing code…')).toBeTruthy();
@@ -167,47 +206,63 @@ describe('not connected', () => {
 });
 
 describe('connected', () => {
-  it('links a different account only after confirming the replacement', async () => {
+  it('lists chats to add by recent activity, opens shared ones, and disconnects after confirming', async () => {
     const fake = createFakeWhatsApp({
       account: { generation: 3, phone: '+14155550142', health: 'connected' },
-      groups,
-    });
-    mount(fake);
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Use a different account' })
-    );
-    expect(fake.capabilities.connect).not.toHaveBeenCalled();
-    const confirm = within(await screen.findByRole('dialog'));
-    fireEvent.click(
-      confirm.getByRole('button', { name: 'Link another account' })
-    );
-    await waitFor(() =>
-      expect(fake.capabilities.connect).toHaveBeenCalledWith(true)
-    );
-    expect(await screen.findByText('Link WhatsApp')).toBeTruthy();
-    // The old account still reads linked; only the new pairing closes it.
-    expect(dialogOpen()).toBe(true);
-  });
-
-  it('lists groups, opens adopted groups, and disconnects after confirming', async () => {
-    const fake = createFakeWhatsApp({
-      account: { generation: 3, phone: '+14155550142', health: 'connected' },
-      groups,
+      chats,
     });
     mount(fake);
 
     expect(screen.getByText('+14155550142')).toBeTruthy();
-    expect(screen.getByText('Connected · linked device')).toBeTruthy();
-    expect(fake.groupsEnabled[0]?.()).toBe(true);
-    const list = within(
-      screen.getByRole('list', { name: 'Your WhatsApp groups' })
-    );
-    expect(list.getByText('14 members')).toBeTruthy();
-    fireEvent.click(list.getByRole('button', { name: /In Macro/ }));
-    expect(fake.capabilities.openGroup).toHaveBeenCalledWith('channel-design');
+    expect(screen.getByText('Connected')).toBeTruthy();
+    expect(fake.chatsEnabled[0]?.()).toBe(true);
+    // Added chats live in External's sidebar until a search finds them.
+    expect(
+      screen.queryByRole('list', { name: 'WhatsApp chats in Macro' })
+    ).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
+    const list = within(
+      screen.getByRole('list', { name: 'Groups to add to Macro' })
+    );
+    expect(list.queryByText('Design Crit')).toBeNull();
+    expect(list.getAllByRole('listitem').map((row) => row.textContent)).toEqual(
+      [
+        'Launch War RoomGroupAdd to MacroMar 5, 2025',
+        'Ana, Ben, +2GroupShared with you by Ana SilvaOpen',
+      ]
+    );
+    fireEvent.click(
+      list.getByRole('button', { name: /shared with you by Ana Silva/i })
+    );
+    expect(fake.capabilities.openGroup).toHaveBeenCalledWith('group-family');
+
+    expect(screen.queryByText('Neighbourhood')).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: /Can't be added \(2\)/ })
+    );
+    const unsupported = within(
+      screen.getByRole('list', { name: "Can't be added" })
+    );
+    const direct = within(
+      unsupported.getByText('Ana Ruiz').closest('li') as HTMLElement
+    );
+    expect(direct.getByText('Direct chat')).toBeTruthy();
+    expect(direct.getByText('Mar 7, 2025')).toBeTruthy();
+    expect(direct.getByText("Can't add direct chats yet")).toBeTruthy();
+    expect(direct.queryByRole('button')).toBeNull();
+    expect(
+      unsupported.getByText("Community groups can't be added to Macro")
+    ).toBeTruthy();
+    expect(unsupported.getByText('Group · Archived')).toBeTruthy();
+
+    fireEvent.keyDown(
+      screen.getByRole('button', { name: 'WhatsApp account options' }),
+      { key: 'Enter' }
+    );
+    fireEvent.keyDown(
+      await screen.findByRole('menuitem', { name: 'Disconnect' }),
+      { key: 'Enter' }
+    );
     const confirm = within(await screen.findByRole('dialog'));
     expect(confirm.getByText('Disconnect WhatsApp?')).toBeTruthy();
     fireEvent.click(confirm.getByRole('button', { name: 'Disconnect' }));
@@ -221,52 +276,90 @@ describe('connected', () => {
     expect(screen.getByRole('button', { name: 'Connect' })).toBeTruthy();
   });
 
-  it('adds a group with a name and owner-only access', async () => {
+  it('searches every section, added chats included, by name or phone digits', async () => {
     const fake = createFakeWhatsApp({
       account: { generation: 3, phone: '+14155550142', health: 'connected' },
-      groups,
+      chats: [
+        ...chats,
+        {
+          ...chat,
+          jid: '14155550123@s.whatsapp.net',
+          kind: 'direct' as const,
+          name: '+1 415-555-0123',
+          canAdd: false,
+          cannotAddReason: "direct chats can't be added to Macro yet",
+        },
+      ],
     });
     mount(fake);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add to Macro' }));
-    const dialog = within(await screen.findByRole('dialog'));
-    expect(dialog.getByText('Add “Launch War Room” to Macro')).toBeTruthy();
-    const name = dialog.getByLabelText('Group name') as HTMLInputElement;
-    expect(name.value).toBe('Launch War Room');
-    expect(dialog.queryByRole('checkbox')).toBeNull();
-    expect(dialog.getByText(/Only you have access at first/)).toBeTruthy();
-    expect(
-      dialog.getByText(/Each person replies from their own WhatsApp/)
-    ).toBeTruthy();
+    const search = screen.getByRole('searchbox', {
+      name: 'Search WhatsApp chats',
+    });
+    fireEvent.input(search, { target: { value: 'design' } });
+    const inMacro = within(
+      screen.getByRole('list', { name: 'WhatsApp chats in Macro' })
+    );
+    fireEvent.click(inMacro.getByRole('button', { name: 'Open' }));
+    expect(fake.capabilities.openGroup).toHaveBeenCalledWith('group-design');
 
-    fireEvent.input(name, { target: { value: 'war-room' } });
-    fireEvent.click(dialog.getByRole('button', { name: 'Add group' }));
-    await waitFor(() =>
-      expect(fake.capabilities.adopt).toHaveBeenCalledWith({
-        groupJid: '120363003@g.us',
-        name: 'war-room',
-      })
+    fireEvent.input(search, { target: { value: 'ana' } });
+    const list = within(
+      screen.getByRole('list', { name: 'Groups to add to Macro' })
     );
-    await waitFor(() =>
-      expect(screen.queryByText('Add “Launch War Room” to Macro')).toBeNull()
-    );
+    expect(list.getByText('Ana, Ben, +2')).toBeTruthy();
+    expect(list.queryByText('Launch War Room')).toBeNull();
+    expect(
+      screen.queryByRole('list', { name: 'WhatsApp chats in Macro' })
+    ).toBeNull();
+    // Matches in the folded section show without unfolding it.
+    expect(
+      screen
+        .getByRole('button', { name: /Can't be added \(1\)/ })
+        .getAttribute('aria-expanded')
+    ).toBe('true');
+    expect(screen.getByText('Ana Ruiz')).toBeTruthy();
+
+    fireEvent.input(search, { target: { value: '4155550123' } });
+    expect(screen.getByText('+1 415-555-0123')).toBeTruthy();
+    expect(screen.queryByText('Ana Ruiz')).toBeNull();
+
+    fireEvent.input(search, { target: { value: 'nothing like it' } });
+    expect(screen.getByText('No chats to add match your search.')).toBeTruthy();
   });
 
-  it('keeps the dialog open with an explanation when adding fails', async () => {
+  it('adds a group in one click, without a dialog', async () => {
     const fake = createFakeWhatsApp({
       account: { generation: 3, phone: '+14155550142', health: 'connected' },
-      groups,
+      chats,
+    });
+    mount(fake);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add to Macro' }));
+    await waitFor(() =>
+      expect(fake.capabilities.adopt).toHaveBeenCalledWith('120363003@g.us')
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('says exactly why adding failed, on the group it failed for', async () => {
+    const fake = createFakeWhatsApp({
+      account: { generation: 3, phone: '+14155550142', health: 'connected' },
+      chats,
     });
     fake.capabilities.adopt.mockReturnValueOnce(
-      errAsync({ kind: 'request-failed' })
+      errAsync({ kind: 'adopt-failed', reason: 'disconnected' })
     );
     mount(fake);
 
     fireEvent.click(screen.getByRole('button', { name: 'Add to Macro' }));
-    const dialog = within(await screen.findByRole('dialog'));
-    fireEvent.click(dialog.getByRole('button', { name: 'Add group' }));
-    expect(await dialog.findByText(/Couldn't add this group/)).toBeTruthy();
-    expect(screen.getByRole('dialog')).toBeTruthy();
+    const row = within(
+      screen.getByText('Launch War Room').closest('li') as HTMLElement
+    );
+    expect((await row.findByRole('alert')).textContent).toBe(
+      'Your WhatsApp is disconnected. Reconnect it, then add the group.'
+    );
+    expect(row.getByRole('button', { name: 'Add to Macro' })).toBeTruthy();
   });
 });
 
@@ -361,18 +454,4 @@ describe('passkey', () => {
     expect(pairingId?.()).toBe('01920000-0000-7000-8000-000000000009');
     expect(fake.capabilities.connect).not.toHaveBeenCalled();
   });
-});
-
-it('opens a shared group before the viewer connects WhatsApp', () => {
-  const fake = createFakeWhatsApp({
-    account: null,
-    sharedGroups: [
-      { id: 'shared-group', name: 'Shared Design Crit', unreadCount: 3 },
-    ],
-  });
-  mount(fake);
-  expect(screen.getByLabelText('3 unread messages')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: /Shared Design Crit/ }));
-  expect(fake.capabilities.openGroup).toHaveBeenCalledWith('shared-group');
-  expect(fake.capabilities.connect).not.toHaveBeenCalled();
 });

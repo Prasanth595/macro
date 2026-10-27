@@ -240,7 +240,7 @@ impl OutlookApiClientRepository {
             StatusCode::CONFLICT | StatusCode::PRECONDITION_FAILED => EmailApiError::Conflict,
             StatusCode::TOO_MANY_REQUESTS => EmailApiError::RateLimited {
                 retry_after,
-                origin: RateLimitOrigin::Provider,
+                origin: RateLimitOrigin::Provider { concurrency: false },
             },
             status if status.is_server_error() || status == StatusCode::REQUEST_TIMEOUT => {
                 EmailApiError::Transient {

@@ -5,9 +5,9 @@ import {
   type ParentProps,
   useContext,
 } from 'solid-js';
-import type { GroupSummary } from '../../whatsapp-group/core/group';
 import type { WhatsAppAccount } from '../core/account';
-import type { WhatsAppGroup } from '../core/group';
+import type { AdoptFailure } from '../core/adopt';
+import type { WhatsAppChat } from '../core/chat';
 import type { PairingStep, PasskeyChallenge } from '../core/pairing';
 
 /** A server read as the WhatsApp page needs it; `data` is set once loaded. */
@@ -73,29 +73,27 @@ export type WhatsAppLinkedCapabilities = {
   features: SourceRead<{ pairing: boolean; adoption: boolean }>;
   /** The person's own account, `null` when they never connected one. */
   account: SourceRead<WhatsAppAccount | null>;
-  /** Groups of the connected account; read only while `enabled`. */
-  groups: (enabled: Accessor<boolean>) => SourceRead<WhatsAppGroup[]>;
-  /** All adopted groups this viewer can read, including shared groups without WhatsApp. */
-  sharedGroups: SourceRead<GroupSummary[]>;
+  /**
+   * The connected account's WhatsApp chat list, newest activity first; read
+   * only while `enabled`.
+   */
+  chats: (enabled: Accessor<boolean>) => SourceRead<WhatsAppChat[]>;
   /** The live step of one pairing, polled while it is open. */
   pairing: (pairingId: Accessor<string>) => SourceRead<PairingRead>;
   passkey: PasskeyCapability;
-  /** `replace` retires the current identity for a different WhatsApp account. */
-  connect: (replace: boolean) => ResultAsync<StartedPairing, RequestFailure>;
+  /** One account at a time: switching means disconnecting first. */
+  connect: () => ResultAsync<StartedPairing, RequestFailure>;
   cancelPairing: (pairingId: string) => ResultAsync<void, RequestFailure>;
-  /** Pairing finished: refresh the account and its groups. */
+  /** Pairing finished: refresh the account and its chats. */
   pairingFinished: () => Promise<unknown>;
   disconnect: (
     generation: number
   ) => ResultAsync<{ remoteUnlinkRequested: boolean }, RequestFailure>;
-  adopt: (request: {
-    groupJid: string;
-    name: string;
-  }) => ResultAsync<{ groupId: string }, RequestFailure>;
+  /** One click: the Macro group takes the WhatsApp group's name and follows it. */
+  adopt: (groupJid: string) => ResultAsync<{ groupId: string }, AdoptFailure>;
   isConnecting: Accessor<boolean>;
   isDisconnecting: Accessor<boolean>;
-  isAdopting: Accessor<boolean>;
-  /** Host action: open an adopted group. */
+  /** Host action: open a group in Macro. */
   openGroup: (groupId: string) => void;
 };
 
