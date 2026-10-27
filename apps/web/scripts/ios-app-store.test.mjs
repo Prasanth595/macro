@@ -124,7 +124,7 @@ for (const [state, attachedBuild, releases] of [
   });
 }
 
-test('publish fails when App Store Connect does', () => {
+await test('publish fails when App Store Connect does', () => {
   const { child } = runCli(['publish', '--version', '2.0.10', '--build', '188'], {
     TEST_STATE: 'API_ERROR',
   });
