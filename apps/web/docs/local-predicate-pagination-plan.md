@@ -153,7 +153,7 @@ type EntityFilterCacheResult =
   | { kind: 'stale-cursor'; revision: CacheRevision };
 ```
 
-A stale cursor is a recoverable control-flow result: clear the local page chain and reevaluate it at the reported current revision, one page deeper than the chain that was displayed. It is not a user-visible error and must not silently continue from the stale boundary.
+A stale cursor means the engine generation or query changed; native engines that predate row positions also return it after any write. It is a recoverable control-flow result: clear the local page chain and reevaluate it at the reported current revision, one page deeper than the chain that was displayed. It is not a user-visible error and must not silently continue from the stale boundary.
 
 ## Keyset semantics
 
@@ -194,9 +194,9 @@ The existing revision-qualified reads provide the required consistency checks:
 4. a mismatch discards the page and retries from the current revision;
 5. a generation-change notification invalidates all revision and cursor watermarks.
 
-Continuation requests additionally require that the cursor revision equals the engine's current revision before predicate execution. Because engine commands are serialized, a successful predicate call observes one revision. Record selection is a separate command and retains the existing post-selection revision check.
+A cursor is a row position, valid across writes for one engine generation and query. A page read after a write continues after the same row at the current revision. Rows that moved past the boundary since are picked up by the evaluation that write triggers, so the client re-reads its chain rather than stitching together pages from different revisions.
 
-Do not attempt MVCC snapshots across revisions. Revision change means reset and reevaluate at the current depth, not continue reading an old snapshot.
+A Mail page request may pass `through`, a page's `endCursor`, instead of a cursor. The engine reads every row from the top through that position, and at least `limit` of them, within one engine command, paging the index past its per-query limit. A chain re-read this way ends at the same row when mail arrives above it. Because engine commands are serialized, a successful predicate call observes one revision. Record selection is a separate command and retains the existing post-selection revision check.
 
 ## Frontend local page state
 
@@ -265,7 +265,7 @@ In `cache-turso` and `cache-core`:
 - fetch one bounded extra result for next-cursor detection;
 - retain completeness and relevant-uncertainty checks in the same read transaction;
 - return revision-qualified `PredicatePage` values;
-- validate expected cursor revision/generation before execution;
+- validate the cursor's generation and query before execution;
 - return typed stale-cursor and incomplete outcomes;
 - verify relevant authoritative and optimistic indexes with `EXPLAIN QUERY PLAN`;
 - avoid scanning normalized record blobs, queue JSON, or projection blobs.
