@@ -2200,6 +2200,21 @@ describe('createGraphqlSoupAstItemsQuery', () => {
       expect(entityFilterMock.mock.calls.at(-1)?.[0].mail.through).toBe(
         undefined
       );
+
+      // Load More from a replaced engine restarts at the first page.
+      generation = 'third';
+      const requestsBeforeRestart = entityFilterMock.mock.calls.length;
+      await query.fetchNextPage();
+      await vi.waitFor(() => expect(ids()).toEqual(['z', 'a']));
+      expect(
+        entityFilterMock.mock.calls
+          .slice(requestsBeforeRestart)
+          .map(([args]) => args.mail)
+      ).toEqual([
+        { view: 'INBOX', cursor: `second|${key('a')}` },
+        { view: 'INBOX', through: `second|${key('a')}` },
+        { view: 'INBOX' },
+      ]);
     } finally {
       dispose();
       online.mockRestore();
