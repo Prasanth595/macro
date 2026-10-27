@@ -52,7 +52,7 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
 import { hasLoginCookie, updateCookie } from '@core/util/cookies';
 import { lazyNamed } from '@core/util/lazyNamed';
-import { isPlatform } from '@core/util/platform';
+import { isDesktopPlatform, isPlatform } from '@core/util/platform';
 import { useDesktopZoom } from '@macro/tauri/zoom';
 import { useUserInfoQuery } from '@queries/auth/user-info';
 import { queryClient } from '@queries/client';
@@ -95,6 +95,10 @@ const StarterDatabase = lazy(async () => {
 const Paywall = lazyNamed(
   () => import('@app/features/paywall/Paywall'),
   'Paywall'
+);
+const MacrodPairingApprover = lazyNamed(
+  () => import('@macro/tauri/MacrodPairingApprover'),
+  'MacrodPairingApprover'
 );
 const PropertyEditorModal = lazyNamed(
   () => import('@app/features/property/editor/PropertyEditorModal'),
@@ -281,6 +285,9 @@ export function AppChrome(props: ParentProps) {
             <PropertyEditorModal />
           </Suspense>
           <GlobalBulkEditEntityModal />
+          <Show when={isDesktopPlatform()}>
+            <MacrodPairingApprover />
+          </Show>
           <NativeShareSheet />
           <MacroMcpSetupModal />
           <CreateChannelModal />

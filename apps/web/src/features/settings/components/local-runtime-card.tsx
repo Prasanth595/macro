@@ -15,7 +15,6 @@ import {
   macrodSupport,
   onMacrodStatus,
 } from '@macro/tauri/macrod';
-import { useApproveHarnessPairingMutation } from '@queries/harnesses/harnesses';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { Button } from '@ui';
 import {
@@ -40,16 +39,14 @@ function errorMessage(error: unknown, fallback: string): string {
  * One-click local runtime on the desktop app: the bundled macrod daemon is
  * configured, paired, and supervised without the user touching a terminal.
  * The card detects which coding agents are installed on this computer, and
- * approving the pairing happens automatically — the daemon reports its code
- * over the sidecar channel and this card approves it with the signed-in
- * session, so no code is ever typed.
+ * the app-wide `MacrodPairingApprover` approves the daemon's pairing code with
+ * the signed-in session, so no code is ever typed.
  */
 export function LocalRuntimeCard() {
   // Everything here talks to the Tauri main process; on other platforms the
   // card renders nothing and calls nothing.
   if (!isDesktopPlatform()) return null;
 
-  const approvePairing = useApproveHarnessPairingMutation();
   const [support, setSupport] = createSignal<MacrodSupport>();
   const [snapshot, setSnapshot] = createSignal<MacrodSnapshot>();
   /** Whether a paired config already exists on disk (daemon may be stopped). */
@@ -61,33 +58,10 @@ export function LocalRuntimeCard() {
   const [workspace, setWorkspace] = createSignal('');
   const [fullAccess, setFullAccess] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
-  const [approveFailed, setApproveFailed] = createSignal(false);
-
-  // One approval attempt per pairing code; a failed attempt surfaces a Retry
-  // affordance instead of hammering the endpoint from the status stream.
-  const attemptedCodes = new Set<string>();
-
-  const approveCode = (code: string) => {
-    attemptedCodes.add(code);
-    setApproveFailed(false);
-    approvePairing.mutate(
-      { code, allowPermissionBypass: fullAccess() },
-      {
-        onError: () => setApproveFailed(true),
-      }
-    );
-  };
 
   const handleStatus = (next: MacrodSnapshot) => {
     setSnapshot(next);
     if (next.phase === 'running') setPaired(true);
-    if (
-      next.phase === 'pairing' &&
-      next.pairingCode &&
-      !attemptedCodes.has(next.pairingCode)
-    ) {
-      approveCode(next.pairingCode);
-    }
   };
 
   onMount(() => {
@@ -257,27 +231,7 @@ export function LocalRuntimeCard() {
                         Installing the agent adapter…
                       </Match>
                       <Match when={phase() === 'pairing'}>
-                        <Show
-                          when={!approveFailed()}
-                          fallback={
-                            <span class="flex items-center gap-2">
-                              Could not connect this computer.
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  const code = snapshot()?.pairingCode;
-                                  if (code) approveCode(code);
-                                }}
-                              >
-                                Retry
-                              </Button>
-                            </span>
-                          }
-                        >
-                          Connecting this computer to your account…
-                        </Show>
+                        Connecting this computer to your account…
                       </Match>
                       <Match when>Starting…</Match>
                     </Switch>
