@@ -202,8 +202,9 @@ pub struct PipedreamWebhookQuery {
 /// The body is taken as raw JSON on purpose. The payload shape is
 /// Pipedream's to change, and an endpoint whose whole job is telling us why
 /// connections fail must not start dropping events with a 422 the day they
-/// add a field. Known keys are pulled out so they can be indexed; the rest
-/// is logged verbatim.
+/// add a field. Only opaque ids, the app, and Pipedream's error text are
+/// logged: the payload also carries the Connect token and the account's
+/// name and external id, which are personal data.
 #[tracing::instrument(skip_all)]
 async fn pipedream_webhook(
     State(state): State<PipedreamWebhookState>,
@@ -216,25 +217,30 @@ async fn pipedream_webhook(
         return StatusCode::UNAUTHORIZED;
     }
 
-    let event = payload.get("event").and_then(serde_json::Value::as_str);
-    let external_user_id = payload
-        .get("external_user_id")
-        .and_then(serde_json::Value::as_str);
-    let failed = payload.get("error").is_some()
-        || event.is_some_and(|e| e.to_ascii_uppercase().contains("ERROR"));
+    let str_at = |pointer: &str| payload.pointer(pointer).and_then(serde_json::Value::as_str);
+    let event = str_at("/event");
+    let error = str_at("/error");
+    let account_id = str_at("/account/id");
+    let app_slug = str_at("/account/app/name_slug");
+    let connect_session_id = payload.get("connect_session_id").map(ToString::to_string);
+    let failed =
+        error.is_some() || event.is_some_and(|e| e.to_ascii_uppercase().contains("ERROR"));
 
     if failed {
         tracing::warn!(
-            event = event,
-            external_user_id = external_user_id,
-            payload = %payload,
+            event,
+            error,
+            account_id,
+            connector.app_slug = app_slug,
+            connect_session_id,
             "Pipedream connect flow failed"
         );
     } else {
         tracing::info!(
-            event = event,
-            external_user_id = external_user_id,
-            payload = %payload,
+            event,
+            account_id,
+            connector.app_slug = app_slug,
+            connect_session_id,
             "Pipedream connect flow event"
         );
     }
