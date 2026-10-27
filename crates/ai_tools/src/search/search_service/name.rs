@@ -18,7 +18,7 @@ use serde::Deserialize;
 #[derive(Debug, JsonSchema, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[schemars(
-    description = "Search items by their name or title: document name, email subject, agent session title, channel name, project name, call-record name, or CRM company name or domain. This is keyword search, not semantic search: queries only match literal words/tokens, prefixes, or exact quoted terms that appear in the indexed title/name. Use this for targeted name/title lookup, not for activity-summary questions like \"what happened today\", \"what's going on\", \"catch me up\", or \"what happened in standup today\"; those should start with ListEntities using time/type/channel filters. For emails, whitespace-separated terms are ANDed and each is a prefix match against the subject. For all other types the whole query is matched as a single adjacent phrase prefix — so pass 1-3 targeted keywords drawn from words that would literally appear in the title, not the user's natural-language description; long phrases will not match. Matching defaults to prefix; set matchType to 'exact' to match whole tokens/phrases with no prefix expansion. Wrap a multi-word phrase in double quotes to keep it together as one adjacent phrase. If the user's request combines a person with a topic, run separate searches (NameSearch for the person, ContentSearch for the topic) rather than one combined query. Leave entityTypes empty by default; only filter when the user explicitly scopes to a type. Company results carry the id to pass to GetCompany. Results for documents, emails, projects, and call records include the tags visible to the user as {label, scope} pairs; to restrict a search to tagged items, pass the tag labels in the tags argument (ListTags shows which tags exist).",
+    description = "Search items by their name or title: document name, email subject, agent session title, channel name, project name, call-record name, or CRM company name or domain. This is keyword search, not semantic search: queries only match literal words/tokens, prefixes, or exact quoted terms that appear in the indexed title/name. Use this for targeted name/title lookup, not for activity-summary questions like \"what happened today\", \"what's going on\", \"catch me up\", or \"what happened in standup today\"; those should start with ListEntities using time/type/channel filters. For emails, whitespace-separated terms are ANDed and each is a prefix match against the subject. For all other types the whole query is matched as a single adjacent phrase prefix — so pass 1-3 targeted keywords drawn from words that would literally appear in the title, not the user's natural-language description; long phrases will not match. Matching defaults to prefix; set matchType to 'exact' to match whole tokens/phrases with no prefix expansion. Wrap a multi-word phrase in double quotes to keep it together as one adjacent phrase. If the user's request combines a person with a topic, run separate searches (NameSearch for the person, ContentSearch for the topic) rather than one combined query. Leave entityTypes empty by default; only filter when the user explicitly scopes to a type. Results for documents, emails, projects, and call records include the tags visible to the user as {label, scope} pairs; to restrict a search to tagged items, pass the tag labels in the tags argument (ListTags shows which tags exist).",
     title = "NameSearch"
 )]
 pub struct NameSearch {
@@ -67,11 +67,9 @@ Ignored unless tags is set.")]
 }
 
 impl NameSearch {
-    /// The unified-search half of a name search (every type but channels),
-    /// or `None` when only channels were requested. CRM companies have no
-    /// entity type of their own, so they are searched whenever no type
-    /// filter is set; the search service still gates them on the caller's
-    /// team CRM access and drops them under a tag filter.
+    /// The non-channel half of a name search, or `None` if only channels
+    /// were requested. CRM companies have no entity type, so they are
+    /// included only when no type filter is set.
     fn unified_request(&self, base_filters: EntityFilters) -> Option<UnifiedSearchRequest> {
         let non_channel_types = if self.entity_types.is_empty() {
             vec![
