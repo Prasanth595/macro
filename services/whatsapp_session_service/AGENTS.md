@@ -22,8 +22,14 @@ current, ingests standalone `whatsapp_group` traffic through `whatsapp_linked`'s
 - `domain/account.rs`: one account. `begin_lease` bumps `lease_epoch`; every
   domain and store write is fenced by it, and `Fenced` stops the account.
   Pairing an account that is not connected deletes the stored device first
-  (fresh keys); `whatsapp_account_changed` to `disconnected` logs the device
-  out at WhatsApp (the remote unlink DSS's disconnect promises).
+  (`PgWhatsAppStore::reset_device`, without unwrapping its key; fresh keys).
+  A device that can never be read again (KMS refused its data key, or it
+  doesn't decrypt: `SessionError::DeviceUnreadable`) is replaced once when
+  pairing, and without a pairing marks a connected account `logged_out`, so
+  the web asks its owner to reconnect. A KMS outage (`KmsUnavailable`) wipes
+  nothing: the account exits `Failed` and the next rescan retries.
+  `whatsapp_account_changed` to `disconnected` logs the device out at
+  WhatsApp (the remote unlink DSS's disconnect promises).
 - `domain/inbound.rs`: durable inbound. The client's event handler (with
   `synchronous_ack`) calls the `InboundGate`: drop unadopted groups, else
   `enqueue_inbound` (one fenced insert), and only then is the node acked;
@@ -38,8 +44,13 @@ current, ingests standalone `whatsapp_group` traffic through `whatsapp_linked`'s
   `SessionService` (`discoverable_accounts`, `fleet_health`).
 - `outbound/signals.rs`: `LISTEN` for `whatsapp_{account_released,
   pairing_requested, send_requested, groups_requested, account_changed}`.
-  Payloads are `whatsapp_linked::outbound::pg::signals::Signal` JSON; each
-  one's `traceparent` parents a `whatsapp.signal.receive` span.
+  Payloads are `whatsapp_linked::signals::Signal` JSON; each
+  one's `traceparent` parents a `whatsapp.signal.receive` span that travels
+  with the signal (`ports::Traced`): the supervisor's work and the runner's
+  `whatsapp.account.signal` span run inside it, and a runner started by it
+  links its `whatsapp.account.connect` span to it. By hand,
+  send JSON: `SELECT pg_notify('whatsapp_pairing_requested',
+  '{"id":"<pairing id>"}')`.
 - Group rosters: the whole list is read on connect, on resync, and on
   `whatsapp_groups_requested` (pages opening; at most once per
   `groups_refresh_interval`, 30 s, per account). Live `JoinedGroup` /
@@ -48,15 +59,30 @@ current, ingests standalone `whatsapp_group` traffic through `whatsapp_linked`'s
   No periodic refresh. The domain signals `whatsapp_changed` only when a roster
   write changed something.
 - `outbound/whatsapp.rs` (+ `events.rs`): `whatsapp_store_pg` device store,
-  whatsmeow `Client` (`whatsmeow_signal::libsignal()`), event mapping. Only
-  group events become inbound events; the gate drops groups the account has
-  not adopted. Before storing, `events::complete_sender` fills the other half
-  of a sender's phone-number/LID pair from the account's LID store (pairing,
+  whatsmeow `Client` (`whatsmeow_signal::libsignal()`), event mapping. Group
+  and direct-chat events become inbound events (`events::chat_of`: a direct
+  chat by phone number, its LID alongside); the gate drops chats the account
+  has not adopted, matching a direct chat by either address. Before storing,
+  `events::complete_addresses` fills the other half of a sender's and a
+  direct chat's phone-number/LID pair from the account's LID store (pairing,
   group participant lists, message addressing); `from_me` carries WhatsApp's
-  own-message flag. Adopted groups stay cached until `whatsapp_account_changed`;
+  own-message flag. If the LID store can't be read, the event is left
+  unacknowledged (WhatsApp redelivers it) rather than gated without its
+  other address. History requests name a direct chat by LID
+  (`events::phone_chat`), as phones key it. Adopted groups stay cached until `whatsapp_account_changed`;
   a miss always waits for a load that started after the event arrived
   (single-flight), so an adoption that committed just before is seen. Media locators (direct path, media key, hashes) are sealed with
   `PgWhatsAppStore::seal("media-locator", …)` before they leave the process.
+- Message types (`events.rs` + `events/rich.rs`): text, media (with declared
+  size/length; stickers, GIFs and PTT voice notes marked), quotes on any
+  content part, mentions, forwarding, polls, locations, contact cards (vCard
+  name and numbers), events; pins and call logs become system lines, as do
+  live group notifications (`map_event` returns the roster refresh plus one
+  system line per change), group icon changes and history stub messages.
+  Poll votes are decrypted in `Forwarder::poll_vote` with the poll's stored
+  message secret (undecryptable ones are acked and dropped). View-once media
+  (unwrapped by the port, or flagged on the media) is imported like any media
+  and marked `view_once`.
 - Chat list and history: `outbound/whatsapp.rs` `Forwarder` turns history
   sync bundles, live messages (any chat) and contact/archive/pin events into
   `ChatUpdate`s (`events.rs`: `history_chats`, `message_chat`,
@@ -65,9 +91,14 @@ current, ingests standalone `whatsapp_group` traffic through `whatsapp_linked`'s
   `Client::parse_web_message`, ingested as history events through the inbound
   gate, then reported as a `HistoryPage`. The runner's `backfill` asks the
   phone for pages of added groups (`request_history`, plus `request_message`
-  for an anchor that predates adoption), marks unanswered requests
+  for an anchor that predates adoption), marks a group with no anchor
+  `waiting_for_message` (an `update_chats` that gives it one returns true and
+  the runner imports at once), marks unanswered requests
   `waiting_for_phone` after `backfill_timeout` and retries after
   `backfill_retry` or on reconnect.
+- QR pairing: whatsmeow rotates codes (60 s, then 20 s each) and then
+  times out; that timeout ends the pairing as `expired`
+  (`SessionEvent::PairExpired`), not `failed`, so the web starts a new one.
 - Passkey pairing: `PairPasskeyRequest` → `PairingUpdate::Passkey { challenge }`;
   on `whatsapp_pairing_requested`, and on every tick in case the notify was
   missed, the runner takes the owner's assertion (`take_passkey_response`)
@@ -95,8 +126,11 @@ current, ingests standalone `whatsapp_group` traffic through `whatsapp_linked`'s
 Spans: `whatsapp.account.{lease,release,rescan,connect}`,
 `whatsapp.inbound.ingest`, `whatsapp.media.import`, `whatsapp.send.dispatch`
 (parented on the trace of the request that recorded the send),
-`whatsapp.groups.{refresh,event}`, `whatsapp.signal.receive`, `whatsapp.drain`,
-`whatsapp.history.{sync,page}`, `whatsapp.backfill.request`. Log events read by `infra/stacks/monitoring/monitors/
+`whatsapp.groups.{refresh,event}`, `whatsapp.signal.receive`,
+`whatsapp.account.signal`, `whatsapp.drain`,
+`whatsapp.history.{sync,page}`, `whatsapp.backfill.request`
+(`whatsapp.inbound.ingest` records the message `kind`; `whatsapp.history.page`
+counts what a page stored, could not parse and skipped, by stub type). Log events read by `infra/stacks/monitoring/monitors/
 whatsapp-session.ts` (`telemetry_event` = `whatsapp_session_health`,
 `whatsapp_session_reconnect`, `whatsapp_send_outcome`,
 `whatsapp_session_drain`): keep their field names. Opaque ids only; never
@@ -112,9 +146,13 @@ JIDs, phone numbers, QR codes or message text.
 - **All accounts offline**: check the lock URL points at the instance endpoint,
   replicas are not crash-looping on a lost lock connection, and capacity
   (`accounts_running` vs `WHATSAPP_SESSION_MAX_ACCOUNTS` × replicas).
-- **KMS failure**: accounts exit `Failed` at open (`whatsapp.account.connect`
-  outcome `failed`, error "KMS refused"); check the task role can use the key
-  alias and the key is enabled. Nothing is lost; the next rescan retries.
+- **KMS failure**: an outage (throttled, unreachable) makes accounts exit
+  `Failed` at open (`whatsapp.account.connect` outcome `failed`); nothing is
+  lost and the next rescan retries. A refusal (key deleted or disabled, no
+  permission, a LocalStack that lost its key) is outcome
+  `device_unreadable`: connected accounts become `logged_out` and must pair
+  again, which replaces the device. Check the task role can use the key
+  alias and the key is enabled before people re-pair.
 - **Unknown sends**: never resent automatically; a later echo with the same
   message id settles them.
 
@@ -132,7 +170,7 @@ JIDs, phone numbers, QR codes or message text.
   never wait on the runner (session events go through an unbounded channel).
 - Every path that acknowledges an event without storing it logs a debug
   event `whatsapp.inbound.skipped` with a `reason` (`not_group_content`,
-  `group_not_adopted`, `invalid_event`). Once stored, the domain may still
+  `group_not_adopted`, `invalid_event`, `undecryptable_poll_vote`). Once stored, the domain may still
   drop an event as not observed (consent boundary).
 - whatsmeow's media, send and history futures are large: the adapter and the
   runner box them, or nesting them overflows a 2 MiB stack in debug builds

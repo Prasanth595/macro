@@ -303,12 +303,16 @@ export {
 export { AccessRequest, EntityAccess } from './entities/sharing/access';
 export type { SharePermissionOptions } from './entities/sharing/permissions';
 export { WhatsAppAccount } from './entities/whatsapp/account';
-export { WhatsAppChat } from './entities/whatsapp/chat';
+export {
+  WhatsAppChat,
+  type WhatsAppCommunity,
+} from './entities/whatsapp/chat';
 export {
   WhatsAppGroup,
   type WhatsAppReply,
 } from './entities/whatsapp/group';
 export { WhatsAppMessage } from './entities/whatsapp/message';
+export { WhatsAppParticipant } from './entities/whatsapp/participant';
 export { WhatsAppSend } from './entities/whatsapp/send';
 export { WhatsAppUpload } from './entities/whatsapp/upload';
 export type {

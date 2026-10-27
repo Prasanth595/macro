@@ -36,7 +36,11 @@ impl MediaService {
         tracing::Span::current().record("due", due.len());
         let mut imported = 0;
         for import in &due {
-            match self.documents.store(import).await {
+            // One file's bytes in memory at a time.
+            let Some(bytes) = self.repository.import_bytes(import).await? else {
+                continue;
+            };
+            match self.documents.store(import, bytes).await {
                 Ok(()) => {
                     self.repository.import_stored(import).await?;
                     imported += 1;
@@ -46,6 +50,7 @@ impl MediaService {
                         document_id = %import.document_id,
                         attempts = import.attempts,
                         code = error.current_context().code(),
+                    error = %error,
                         "WhatsApp attachment import will retry"
                     );
                     self.repository
@@ -58,8 +63,9 @@ impl MediaService {
         Ok(imported)
     }
 
-    /// Delete staged uploads that were never sent.
-    pub async fn expire_uploads(&self) -> LinkedResult<u64> {
-        self.repository.expire_uploads().await
+    /// Delete staged uploads that were never sent, old participant receipts
+    /// and old consumed pairings.
+    pub async fn expire_retained(&self) -> LinkedResult<u64> {
+        self.repository.expire_retained().await
     }
 }

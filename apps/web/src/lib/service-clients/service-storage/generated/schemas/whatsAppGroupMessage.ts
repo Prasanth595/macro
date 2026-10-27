@@ -8,8 +8,11 @@ import type { LinkedAttachment } from './linkedAttachment';
 import type { WhatsAppGroupMessageDeliveryState } from './whatsAppGroupMessageDeliveryState';
 import type { WhatsAppGroupMessageEditedAt } from './whatsAppGroupMessageEditedAt';
 import type { WhatsAppGroupMessageReplyTo } from './whatsAppGroupMessageReplyTo';
+import type { WhatsAppGroupMessageRich } from './whatsAppGroupMessageRich';
 import type { WhatsAppGroupReaction } from './whatsAppGroupReaction';
 import type { WhatsAppGroupSender } from './whatsAppGroupSender';
+import type { WhatsAppMention } from './whatsAppMention';
+import type { WhatsAppMessageKind } from './whatsAppMessageKind';
 
 /**
  * One message in an adopted group.
@@ -21,19 +24,28 @@ export interface WhatsAppGroupMessage {
   body: string;
   /** Deleted for everyone. */
   deleted: boolean;
-  delivery_state?: WhatsAppGroupMessageDeliveryState;
+  deliveryState?: WhatsAppGroupMessageDeliveryState;
   /** Last edit timestamp. */
-  edited_at?: WhatsAppGroupMessageEditedAt;
+  editedAt?: WhatsAppGroupMessageEditedAt;
+  /** Forwarded from another chat. */
+  forwarded: boolean;
   /** Stable message id. */
   id: string;
+  /** A message, or a system line. */
+  kind: WhatsAppMessageKind;
+  /** People the body @-mentions. */
+  mentions: WhatsAppMention[];
   /** Reactions grouped by emoji. */
   reactions: WhatsAppGroupReaction[];
   /** Timestamp first received by Macro. */
-  received_at: string;
+  receivedAt: string;
   /** Message quoted by this one. */
-  reply_to?: WhatsAppGroupMessageReplyTo;
+  replyTo?: WhatsAppGroupMessageReplyTo;
+  rich?: WhatsAppGroupMessageRich;
   /** Sender. */
   sender: WhatsAppGroupSender;
   /** Timestamp assigned by WhatsApp. */
-  sent_at: string;
+  sentAt: string;
+  /** Sent as view-once in WhatsApp; Macro shows it like any media. */
+  viewOnce: boolean;
 }

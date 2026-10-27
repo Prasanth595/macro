@@ -116,7 +116,7 @@ impl PgLinkedRepository {
                     sha256: row
                         .sha256
                         .try_into()
-                        .map_err(|_| LinkedError::Unavailable)?,
+                        .map_err(|_| corrupt("sha256 is not 32 bytes"))?,
                     locator: row.locator,
                 })
             })
@@ -231,7 +231,7 @@ impl MediaRepository for PgLinkedRepository {
                 ORDER BY retry_at LIMIT $1 FOR UPDATE SKIP LOCKED)
               AND blob.document_id = a.document_id
             RETURNING a.binding_id, a.person_id, a.source_id, a.ordinal, a.document_id, a.attempts,
-                blob.group_id, blob.user_id, blob.filename, blob.mime, blob.sha256, blob.bytes"#,
+                blob.group_id, blob.user_id, blob.filename, blob.mime, blob.sha256"#,
             limit
         )
         .fetch_all(&self.pool)
@@ -254,12 +254,21 @@ impl MediaRepository for PgLinkedRepository {
                     sha256: row
                         .sha256
                         .try_into()
-                        .map_err(|_| LinkedError::Unavailable)?,
-                    bytes: row.bytes,
+                        .map_err(|_| corrupt("sha256 is not 32 bytes"))?,
                     attempts: row.attempts,
                 })
             })
             .collect()
+    }
+
+    async fn import_bytes(&self, import: &DocumentImport) -> LinkedResult<Option<Vec<u8>>> {
+        sqlx::query_scalar!(
+            "SELECT bytes FROM whatsapp_media_blob WHERE document_id = $1",
+            import.document_id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(failure)
     }
 
     async fn import_stored(&self, import: &DocumentImport) -> LinkedResult<()> {
@@ -316,14 +325,30 @@ impl MediaRepository for PgLinkedRepository {
         tx.commit().await.map_err(failure)
     }
 
-    async fn expire_uploads(&self) -> LinkedResult<u64> {
-        Ok(sqlx::query!(
+    async fn expire_retained(&self) -> LinkedResult<u64> {
+        let uploads = sqlx::query!(
             r#"DELETE FROM whatsapp_media_blob b WHERE b.created_at < now() - interval '1 day'
             AND NOT EXISTS (SELECT 1 FROM whatsapp_group_attachment a WHERE a.document_id = b.document_id)"#
         )
         .execute(&self.pool)
         .await
         .map_err(failure)?
-        .rows_affected())
+        .rows_affected();
+        let receipts = sqlx::query!(
+            "DELETE FROM whatsapp_participant_receipt WHERE source_at < now() - make_interval(days => $1)",
+            crate::domain::models::RECEIPT_RETENTION_DAYS
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(failure)?
+        .rows_affected();
+        let pairings = sqlx::query!(
+            "DELETE FROM whatsapp_pairing WHERE consumed_at < now() - interval '1 day'"
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(failure)?
+        .rows_affected();
+        Ok(uploads + receipts + pairings)
     }
 }

@@ -5,20 +5,35 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LinkedAttachmentDocumentId } from './linkedAttachmentDocumentId';
+import type { LinkedAttachmentDurationSeconds } from './linkedAttachmentDurationSeconds';
+import type { LinkedAttachmentHeight } from './linkedAttachmentHeight';
+import type { LinkedAttachmentPresentation } from './linkedAttachmentPresentation';
 import type { LinkedAttachmentState } from './linkedAttachmentState';
+import type { LinkedAttachmentWidth } from './linkedAttachmentWidth';
 
 /**
  * One attachment of a linked message.
  */
 export interface LinkedAttachment {
   /** The private document, once ready. */
-  document_id?: LinkedAttachmentDocumentId;
+  documentId?: LinkedAttachmentDocumentId;
+  /**
+   * Length of audio or video in whole seconds, when declared.
+   * @minimum 0
+   */
+  durationSeconds?: LinkedAttachmentDurationSeconds;
   /** Display filename. */
-  file_name: string;
+  fileName: string;
+  /**
+   * Pixel height, when declared.
+   * @minimum 0
+   */
+  height?: LinkedAttachmentHeight;
   /** Declared MIME type. */
   mime: string;
   /** Position within the message. */
   ordinal: number;
+  presentation?: LinkedAttachmentPresentation;
   /**
    * Declared size in bytes.
    * @minimum 0
@@ -26,4 +41,9 @@ export interface LinkedAttachment {
   size: number;
   /** Current state. */
   state: LinkedAttachmentState;
+  /**
+   * Pixel width of an image, sticker or video, when WhatsApp declared it.
+   * @minimum 0
+   */
+  width?: LinkedAttachmentWidth;
 }
