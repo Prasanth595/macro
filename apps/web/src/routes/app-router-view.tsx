@@ -6,6 +6,7 @@ import { ChannelInviteAcceptance } from '@app/features/channel-invitations/Chann
 import { ChannelsViewSkeleton } from '@app/features/channels-view/channels-view-skeleton';
 import { DriveViewSkeleton } from '@app/features/drive-view/drive-view-skeleton';
 import { EmailViewSkeleton } from '@app/features/email-view/email-view-skeleton';
+import { ExternalViewSkeleton } from '@app/features/external-view/external-view-skeleton';
 import { InviteLinksPortal } from '@app/features/gtm-invite/InviteLinksPortal';
 import { InviteWelcome } from '@app/features/gtm-invite/InviteWelcome';
 import {
@@ -114,6 +115,8 @@ import {
   emailSignupCallbackRoute,
   emailSplitRoute,
   emailThreadRoute,
+  externalRoute,
+  externalWhatsappGroupRoute,
   foldersRoute,
   formRespondRoute,
   homeCalendarRoute,
@@ -151,6 +154,7 @@ import {
   tasksSplitRoute,
   teamInviteRoute,
   welcomeRoute,
+  whatsappGroupRoute,
 } from './routes';
 import {
   AppShell,
@@ -160,6 +164,15 @@ import {
   withMeetingShell,
 } from './shells';
 
+const WhatsAppGroupRedirectRouteView = lazyNamed(
+  () => import('@app/features/whatsapp-group/route-views'),
+  'WhatsAppGroupRedirectRouteView'
+);
+const ExternalWhatsAppGroupRouteView = lazyNamed(
+  () => import('@app/features/external-view/route-views'),
+  'ExternalWhatsAppGroupRouteView'
+);
+
 const { Router, Route } = SplitRouter;
 
 // Views under appRoute load lazily (lazy-route-views.ts); auth and booking
@@ -167,6 +180,10 @@ const { Router, Route } = SplitRouter;
 const BookingLinksRouteView = lazyNamed(
   () => import('@app/features/scheduling/route-views'),
   'BookingLinksRouteView'
+);
+const ExternalRouteView = lazyNamed(
+  () => import('@app/features/external-view/route-views'),
+  'ExternalRouteView'
 );
 
 /** Debug views stay behind the registry's lazy import. */
@@ -385,6 +402,16 @@ export function AppRouterView() {
           component={BookingLinksRouteView}
         />
         <Route
+          definition={externalRoute}
+          component={ExternalRouteView}
+          loading={ExternalViewSkeleton}
+        >
+          <Route
+            definition={externalWhatsappGroupRoute}
+            component={ExternalWhatsAppGroupRouteView}
+          />
+        </Route>
+        <Route
           definition={calendarSplitRoute}
           component={CalendarRouteView}
           loading={CalendarViewSkeleton}
@@ -403,6 +430,10 @@ export function AppRouterView() {
         <Route definition={callsRoute} component={CallsRouteView}>
           <Route definition={callsCallRoute} component={CallsCallDetail} />
         </Route>
+        <Route
+          definition={whatsappGroupRoute}
+          component={WhatsAppGroupRedirectRouteView}
+        />
         <Route definition={callDetailRoute} component={CallDetailRouteView} />
         <Route definition={companiesRoute} component={CompaniesRouteView}>
           <Route definition={crmPipelineRoute}>

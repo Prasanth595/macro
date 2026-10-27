@@ -1,8 +1,10 @@
 import { parseLocalDate } from '@app/features/calendar/utils/calendar-date';
 import { calendarMentionOpen } from '@app/features/calendar-view/mention-open-target';
 import { openCalendarEventSplit } from '@app/features/calendar-view/open-calendar-event';
+import { whatsappGroupContent } from '@app/features/external-view/hosted-content';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
+import { useSplitLayout } from '@components/app/split-layout/layout';
 import {
   type BlockAlias,
   type BlockName,
@@ -20,6 +22,7 @@ import { EntityIcon } from '@core/component/EntityIcon';
 import { HoverCard } from '@core/component/HoverCard';
 import { InlineTaskProperties } from '@core/component/InlineTaskProperties';
 import { useItemPreviewData } from '@core/component/ItemPreview';
+import { TaskStatusIcon } from '@core/component/TaskStatusIcon';
 import {
   itemToBlockName,
   resolveBlockAlias,
@@ -37,15 +40,15 @@ import { matches } from '@core/util/match';
 import { openInNewSplitForMention } from '@core/util/openInNewSplit';
 import { ThrownResultError } from '@core/util/result';
 import { useNativeSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
+import ArrowsOut from '@icon/system/regular/arrows-out-simple.svg';
+import EyeSlashDuo from '@icon/system/regular/eye-slash.svg';
+import TrashSimple from '@icon/system/regular/trash-simple.svg';
 import {
   $convertMentionToCard,
   $isDocumentMentionNode,
   DocumentCardNode,
   type DocumentMentionDecoratorProps,
 } from '@macro-inc/lexical-core';
-import ArrowsOut from '@phosphor/arrows-out-simple.svg';
-import EyeSlashDuo from '@phosphor/eye-slash.svg';
-import TrashSimple from '@phosphor/trash-simple.svg';
 import {
   failedReadAccess,
   type ItemEntity,
@@ -232,11 +235,18 @@ function InlinePreview(props: {
           fallback={
             <MentionContainer
               icon={
-                <EntityIcon
-                  targetType={props.blockName as any}
-                  size="fill"
-                  class="animate-pulse"
-                />
+                <Show
+                  when={props.blockName === 'task'}
+                  fallback={
+                    <EntityIcon
+                      targetType={props.blockName as any}
+                      size="fill"
+                      class="animate-pulse"
+                    />
+                  }
+                >
+                  <TaskStatusIcon size="fill" />
+                </Show>
               }
               text={
                 <span
@@ -273,7 +283,17 @@ function InlinePreview(props: {
           fallback={
             <MentionContainer
               icon={
-                <EntityIcon targetType={props.blockName as any} size="fill" />
+                <Show
+                  when={props.blockName === 'task'}
+                  fallback={
+                    <EntityIcon
+                      targetType={props.blockName as any}
+                      size="fill"
+                    />
+                  }
+                >
+                  <TaskStatusIcon size="fill" />
+                </Show>
               }
               text={
                 <span
@@ -416,6 +436,9 @@ export function DocumentMention(props: DocumentMentionDecoratorProps) {
       </Match>
       <Match when={props.blockName === 'skill'}>
         <SkillDocumentMention {...props} />
+      </Match>
+      <Match when={props.blockName === 'whatsapp_group'}>
+        <WhatsAppGroupMention {...props} />
       </Match>
     </Switch>
   );
@@ -761,6 +784,48 @@ function FormMention(props: DocumentMentionDecoratorProps) {
   );
 }
 
+/**
+ * A WhatsApp group: not a previewable document, so it shows its stored name
+ * and opens inside External.
+ */
+function WhatsAppGroupMention(props: DocumentMentionDecoratorProps) {
+  const { openWithSplit } = useSplitLayout();
+  const open = (event: MouseEvent | KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openWithSplit(whatsappGroupContent(props.documentId), {
+      preferNewSplit: openInNewSplitForMention(event.shiftKey, true),
+    });
+  };
+  return (
+    <span
+      class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+      role="link"
+      tabIndex={0}
+      on:mousedown={(event) => event.preventDefault()}
+      on:click={open}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') open(event);
+      }}
+    >
+      <MentionContainer
+        icon={<EntityIcon targetType="whatsapp_group" size="fill" />}
+        collapsed={props.collapsed}
+        text={
+          <span
+            data-document-mention="true"
+            data-document-id={props.documentId}
+            data-block-name="whatsapp_group"
+            data-document-name={props.documentName}
+          >
+            {props.documentName || 'WhatsApp group'}
+          </span>
+        }
+      />
+    </span>
+  );
+}
+
 function SkillDocumentMention(props: DocumentMentionDecoratorProps) {
   const systemSkills = useSystemSkillsQuery();
   return (
@@ -813,7 +878,16 @@ export function DocumentMentionStatic(props: DocumentMentionDecoratorProps) {
   }
   return (
     <MentionContainer
-      icon={<EntityIcon targetType={props.blockName as any} size="fill" />}
+      icon={
+        <Show
+          when={props.blockName === 'task'}
+          fallback={
+            <EntityIcon targetType={props.blockName as any} size="fill" />
+          }
+        >
+          <TaskStatusIcon size="fill" />
+        </Show>
+      }
       collapsed={props.collapsed}
       text={
         <span

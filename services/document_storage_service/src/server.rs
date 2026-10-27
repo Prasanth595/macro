@@ -247,14 +247,26 @@ pub async fn run() -> anyhow::Result<()> {
         "initialized db connection"
     );
 
+    let (readonly_min_connections, readonly_max_connections) = match config.environment {
+        // Once all tasks use this cap, three dev tasks allow 60 replica sessions,
+        // or 120 during a full rolling overlap.
+        // Keep excess reads queued in the service instead of exhausting replica memory.
+        Environment::Develop => (2, 20),
+        Environment::Production | Environment::Local => (min_connections, max_connections),
+    };
+
     let readonly_db = match PgPoolOptions::new()
-        .min_connections(min_connections)
-        .max_connections(max_connections)
+        .min_connections(readonly_min_connections)
+        .max_connections(readonly_max_connections)
         .connect(&config.database_url_readonly)
         .await
     {
         Ok(pool) => {
-            tracing::trace!("initialized readonly db connection");
+            tracing::trace!(
+                min_connections = readonly_min_connections,
+                max_connections = readonly_max_connections,
+                "initialized readonly db connection"
+            );
             pool
         }
         Err(e) => {
@@ -1384,7 +1396,9 @@ pub async fn run() -> anyhow::Result<()> {
     macro_agent_tool_context.channel_tool_context =
         ai_tools::build_channel_tool_context_with_dispatcher(
             db.clone(),
-            std::sync::Arc::new(SpawnedChannelEventDispatcher::new(channel_side_effects)),
+            std::sync::Arc::new(SpawnedChannelEventDispatcher::new(
+                channel_side_effects.clone(),
+            )),
             message_service.clone(),
         );
     let macro_agent_tools = ai_tools::tools_for(ai_tools::AiHost::ChannelBot);
@@ -1465,6 +1479,25 @@ pub async fn run() -> anyhow::Result<()> {
         entity_access_service: entity_access_service.clone(),
         authorization_state: authorization_state.clone(),
     };
+    let whatsapp_linked_state =
+        crate::whatsapp_linked::build(crate::whatsapp_linked::Dependencies {
+            redis: redis_client.clone(),
+            documents: document_service.clone(),
+            s3: macro_aws_config::s3_client().await,
+            document_bucket: config.document_storage_bucket.as_ref().to_owned(),
+            features: whatsapp_linked::domain::models::Features {
+                pairing: config.whatsapp_linked_pairing_enabled,
+                adoption: config.whatsapp_linked_adoption_enabled,
+                sending: config.whatsapp_linked_sending_enabled,
+            },
+            pool: db.clone(),
+            access: entity_access_service.clone(),
+            authorization: authorization_state.clone(),
+            notifications: notification_ingress_service.clone(),
+            connection_gateway: conn_gateway_client.clone(),
+            tracker: consumer_tracker.clone(),
+            cancellation: consumer_cancellation_token.clone(),
+        });
 
     // Held by value here and behind an `Arc` in the router state: the impl is a
     // pool handle, so cloning is cheap and `SoupImpl` needs an owned service.
@@ -2124,6 +2157,7 @@ pub async fn run() -> anyhow::Result<()> {
             authorization_state.clone(),
         ),
         slack_state,
+        whatsapp_linked_state,
         reminders_state: RemindersRouterState::new(
             Arc::new(reminders_service),
             entity_access_service.clone(),

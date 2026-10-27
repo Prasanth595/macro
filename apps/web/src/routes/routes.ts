@@ -578,6 +578,31 @@ export const reviewsSplitRoute = defineRoute({
   search: [reviewsTabSearch.namespace],
 });
 
+/** Retired `/whatsapp-group/:groupId` links; redirects into External. */
+export const whatsappGroupRoute = defineRoute({
+  id: 'whatsapp-group',
+  path: 'whatsapp-group/:groupId',
+  params: z.object({ groupId: z.string().uuid() }),
+  remountKey: ({ groupId }) => groupId,
+});
+
+/** A shareable WhatsApp conversation in External's main pane, with no channel or legacy block. */
+export const externalWhatsappGroupRoute = defineRoute({
+  id: 'external-whatsapp-group',
+  path: 'whatsapp/:groupId',
+  params: z.object({ groupId: z.string().uuid() }),
+  remountKey: ({ groupId }) => groupId,
+  claim: ({ groupId }) => ({ namespace: 'whatsapp-group', id: groupId }),
+});
+
+/** External: outside messaging accounts (WhatsApp) linked into Macro. */
+export const externalRoute = defineRoute({
+  id: 'view-external',
+  path: 'external',
+  // A WhatsApp pairing handed off to Macro desktop, by id only.
+  externalSearch: ['whatsappPairing'],
+});
+
 export const bookingLinksRoute = defineRoute({
   id: 'view-booking-links',
   path: 'scheduling',
