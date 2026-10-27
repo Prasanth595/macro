@@ -350,6 +350,18 @@ and applied immediately. Copy a theme with the clipboard button beside any
 theme pill, then import it on another device or share it in a message for
 others to copy and import.
 
+Appearance ends with **Language**. On a team, **Team language** sets the default
+interface language for every member; only admins and owners can change it, and
+others see it disabled with an explanation. It starts at **Automatic (each
+person's browser language)**. **Your language** starts at **Use team language
+(…)**, or **Automatic (…)** naming the browser's language when the team has none
+or there is no team, and overrides the team language for the signed-in person
+only; without a team it is the only dropdown. A browser language the app isn't
+offered in falls back to English. Menus, navigation, the command and
+create menus, and settings navigation switch language as soon as the setting
+saves; page contents and user data stay as written. The choice is remembered on
+the device, so the next launch starts in the same language.
+
 Existing settings URLs remain valid; `connections` still opens Integrations,
 `agent-connections` aliases Integrations, and `harness` aliases Runtimes.
 
@@ -516,8 +528,8 @@ connected) or `Specific apps`, which reveals a `Search connectors` box over the 
 Pipedream catalog (results are `option` rows; picking one adds it) and a row per picked app
 with a connected / not-connected dot for the *current viewer* plus an inline `Connect`
 that opens the Pipedream Connect flow inside the web page. Native apps open
-consent in the system browser; choose **Return to Macro** after authorization
-to save the connection in the waiting app. Unconnected picks never block
+consent in the system browser, which returns to the waiting app on its own after
+authorization (**Return to Macro** is the fallback link). Unconnected picks never block
 saving; each teammate connects their own account. An agent session that calls a picked
 but unconnected app gets a tool result saying so, and the agent's reply renders a
 `Connect <app>` chip that opens Agents → Connections for that app. The same page
@@ -625,7 +637,10 @@ mention picker; select text to open the formatting menu. Saved instructions
 retain mention identities using the shared editor's Markdown format and reopen
 with their formatting intact. Enter adds a new paragraph; use `Create agent` or
 `Save changes` to submit. The form also includes runtime selectors.
-Under the runtime, `Answering a mention` chooses between `Coding agent` (a
+`Advanced` starts collapsed on desktop and mobile, showing only its heading,
+summary, and `Show` action, without an empty card beneath it. `Show` reveals the
+settings; `Hide` collapses them again and preserves the selected options.
+Under `Advanced`, `Answering a mention` chooses between `Coding agent` (a
 channel mention is answered with a magic chip that opens into the live session)
 and `Chat agent` (the agent replies in the thread, like `@macro`). It is the
 agent's own setting and always saved: a new form starts from the selected runtime

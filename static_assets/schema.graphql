@@ -339,6 +339,12 @@ type CompleteMutationRoot {
 	"""
 	setEmailThreadArchived(input: SetEmailThreadArchivedInput!): GraphqlSoupEmailThread!
 	"""
+	Set archive-based Done on many threads with one provider write per
+	inbox. Returns the threads that could not change and the
+	primary-backed record of every requested thread the caller can load.
+	"""
+	setEmailThreadsArchived(input: SetEmailThreadsArchivedInput!): SetEmailThreadsArchivedPayload!
+	"""
 	Add or remove one label from an accessible email thread and return its authoritative cache record.
 	"""
 	updateEmailThreadLabel(input: UpdateEmailThreadLabelInput!): GraphqlSoupEmailThread!
@@ -3655,6 +3661,34 @@ type GraphqlDatePropertyValue {
 }
 
 """
+A date range accepted when setting an entity property.
+"""
+input GraphqlDateRangeInput {
+	"""
+	Where the range starts, as an RFC 3339 date-time.
+	"""
+	start: String!
+	"""
+	Where the range ends, as an RFC 3339 date-time no earlier than the start.
+	"""
+	end: String!
+}
+
+"""
+A date-range property value.
+"""
+type GraphqlDateRangePropertyValue {
+	"""
+	Where the range starts, formatted as RFC 3339.
+	"""
+	start: String!
+	"""
+	Where the range ends, formatted as RFC 3339; never before the start.
+	"""
+	end: String!
+}
+
+"""
 The two operands of a recursive `DocumentFilterExpr` binary expression.
 """
 input GraphqlDocumentBinaryExpr {
@@ -6107,6 +6141,10 @@ enum GraphqlPropertyDataType {
 	"""
 	DATE
 	"""
+	A span from a start date-time to an end one.
+	"""
+	DATE_RANGE
+	"""
 	Numeric values.
 	"""
 	NUMBER
@@ -6408,7 +6446,7 @@ enum GraphqlPropertyTargetEntityType {
 """
 A property value represented by a type-safe GraphQL union.
 """
-union GraphqlPropertyValue = GraphqlBooleanPropertyValue | GraphqlNumberPropertyValue | GraphqlStringPropertyValue | GraphqlDatePropertyValue | GraphqlSelectOptionPropertyValue | GraphqlEntityReferencePropertyValue | GraphqlLinkPropertyValue
+union GraphqlPropertyValue = GraphqlBooleanPropertyValue | GraphqlNumberPropertyValue | GraphqlStringPropertyValue | GraphqlDatePropertyValue | GraphqlDateRangePropertyValue | GraphqlSelectOptionPropertyValue | GraphqlEntityReferencePropertyValue | GraphqlLinkPropertyValue
 
 """
 The two operands of a recursive reminder filter expression. Ignored.
@@ -6869,6 +6907,10 @@ input GraphqlSetPropertyValue @oneOf {
 	An RFC 3339 date-time value.
 	"""
 	date: String
+	"""
+	A span from a start date-time to an end one.
+	"""
+	dateRange: GraphqlDateRangeInput
 	"""
 	A numeric value.
 	"""
@@ -10252,6 +10294,35 @@ input SetEmailThreadStateInput {
 	Desired state.
 	"""
 	value: Boolean!
+}
+
+"""
+Input for archive-based Done and its inverse on many threads at once.
+"""
+input SetEmailThreadsArchivedInput {
+	"""
+	Threads whose inbox membership should change, at most 100.
+	"""
+	threadIds: [ID!]!
+	"""
+	True for Done; false for Mark Not Done or Undo.
+	"""
+	archived: Boolean!
+}
+
+"""
+Result of archiving or unarchiving many email threads.
+"""
+type SetEmailThreadsArchivedPayload {
+	"""
+	Primary-backed record of every requested thread the caller can still
+	load, changed or not.
+	"""
+	threads: [GraphqlSoupEmailThread!]!
+	"""
+	Requested threads whose archive state could not change.
+	"""
+	failedThreadIds: [ID!]!
 }
 
 """
