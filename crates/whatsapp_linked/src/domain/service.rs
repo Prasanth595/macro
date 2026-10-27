@@ -30,10 +30,7 @@ pub struct LinkedService {
 
 impl LinkedService {
     /// Wire adapters at the composition root.
-    pub fn new<R>(
-        repository: Arc<R>,
-        send_rate_limiter: Arc<dyn SendRateLimiter>,
-    ) -> Self
+    pub fn new<R>(repository: Arc<R>, send_rate_limiter: Arc<dyn SendRateLimiter>) -> Self
     where
         R: AccountRepository
             + GroupRepository
@@ -678,9 +675,9 @@ pub(crate) fn sending_facts(
 fn refusal(block: ReplyBlock) -> LinkedError {
     match block {
         ReplyBlock::NoAccount | ReplyBlock::Disconnected => LinkedError::Disconnected,
-        ReplyBlock::NotObserving
-        | ReplyBlock::NotAllowedInGroup
-        | ReplyBlock::GroupUnavailable => LinkedError::Forbidden,
+        ReplyBlock::NotObserving | ReplyBlock::NotAllowedInGroup | ReplyBlock::GroupUnavailable => {
+            LinkedError::Forbidden
+        }
     }
 }
 

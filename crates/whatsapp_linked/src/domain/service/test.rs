@@ -34,10 +34,7 @@ fn facts() -> SendingFacts {
 fn reply_block_names_the_first_missing_fact() {
     let active = binding(BindingState::Active);
     let connected = account(AccountState::Connected);
-    assert_eq!(
-        reply_block(Some(&connected), &active, Some(&facts())),
-        None
-    );
+    assert_eq!(reply_block(Some(&connected), &active, Some(&facts())), None);
     assert_eq!(
         reply_block(None, &active, None),
         Some(ReplyBlock::NoAccount)
