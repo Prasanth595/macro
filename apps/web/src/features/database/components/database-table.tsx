@@ -758,10 +758,28 @@ export function DatabaseTable(props: DatabaseTableProps) {
                 }}
               >
                 {/* Keep unchanged records and their editors mounted across reads. */}
+                {/* Painted as empty rows: a fast scroll can outrun mounting rows,
+                    and the compositor then shows this rather than a blank. */}
                 <div
-                  class="relative shrink-0"
-                  style={{ height: `${virtualizer.getTotalSize()}px` }}
+                  class="relative grid shrink-0"
+                  style={{
+                    height: `${virtualizer.getTotalSize()}px`,
+                    'grid-template-columns': template(),
+                    'background-image': `repeating-linear-gradient(to bottom, transparent 0px, transparent ${ROW_HEIGHT - 1}px, color-mix(in srgb, var(--color-edge-muted) 60%, transparent) ${ROW_HEIGHT - 1}px, color-mix(in srgb, var(--color-edge-muted) 60%, transparent) ${ROW_HEIGHT}px)`,
+                  }}
                 >
+                  <div
+                    aria-hidden="true"
+                    class="border-r border-edge-muted/40"
+                  />
+                  <For each={columns()}>
+                    {() => (
+                      <div
+                        aria-hidden="true"
+                        class="border-r border-edge-muted/40"
+                      />
+                    )}
+                  </For>
                   <Key each={virtualItems()} by={(item) => item.key}>
                     {(item) => {
                       const rowId = item().key;

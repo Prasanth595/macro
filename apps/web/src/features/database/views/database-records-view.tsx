@@ -605,21 +605,6 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
             />
           </Match>
         </Switch>
-        <Show when={props.source.pagination?.hasMore()}>
-          <div class="flex shrink-0 items-center justify-between border-t border-edge-muted px-4 py-1 text-xs text-ink-muted">
-            <span>{rows().length.toLocaleString()} records loaded</span>
-            <Button
-              variant="ghost"
-              size="xs"
-              disabled={
-                props.source.pagination?.loading() || props.source.refreshing()
-              }
-              onClick={() => void props.source.pagination?.loadMore()}
-            >
-              {props.source.pagination?.loading() ? 'Loading…' : 'Load more'}
-            </Button>
-          </div>
-        </Show>
         <Show when={records.selected()}>
           {(row) => (
             <RecordPanel
