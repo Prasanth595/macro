@@ -20,11 +20,13 @@ enforced by the ordinary backend APIs.
 - `src/entities/sharing/`, `messages/`: scoped access requests and message threads.
 - `src/entities/databases/query.ts`: SQL statements, typed table/row references and version guards.
 - `src/entities/crm/pipeline.ts`: pipeline-authorized table/row handles.
+- `src/entities/whatsapp/`: owner account, standalone group/message/send/upload handles, and remote discovery.
 - `services.ts`, `openapi-ts.config.ts`: generated service contract inputs.
 
 ## Boundaries
 
 - Keep handwritten behavior in `src/`; never edit `generated/` or `specs/`.
+- Keep WhatsApp pairing, passkeys, connection setup/disconnect and rollout configuration out of the handwritten public SDK; operate on accounts linked in the app, with personal bearer sessions for account/access controls. Sends/uploads accept the connection owner's session or own API token; bots never send.
 - Use existing entity handles for reads and mutations. Follow the
   [SDK rule](../../.agents/rules/sdk.md) and `add-sdk-endpoint` skill.
 - `../sdk-docs/` generates the public TypeDoc reference and static docs Worker.
@@ -57,7 +59,8 @@ the existing gateway prefixes.
 - Calendar notes accept a document handle and the occurrence returned by calendar
   reads. `CalendarNote` owns optional team sharing and unlinking; clearing its team
   sends explicit null and never changes the document's other permissions.
-  `Document.meetingNotes()` discovers durable grants for revocation after losing
+  `Document.meetingNotes()` discovers visible meeting links for readers and
+  durable grants for owners to revoke after losing
   meeting access.
 - Regenerate Rust OpenAPI and web service clients before `bun run sync-specs &&
   bun run generate`; do not copy deployed schemas over a local API change.
@@ -93,3 +96,10 @@ the existing gateway prefixes.
   draft read and explicit reapproval; never refresh the generation to replay an
   old edit.
 - SQL result schemas are dynamic typed-cell unions; inspect `truncatedTables` before interpreting aggregates. Queries can write and are never retried automatically.
+
+- Workspace-import report/cancel endpoints remain app-only review plumbing,
+  explicitly classified alongside the existing Notion routes in coverage skips.
+
+WhatsApp handles address adopted `whatsapp_group` entities and their own messages;
+remote discovery uses `WhatsAppRemoteGroup`. Pairing/passkey/configuration remain
+excluded; personal sessions and owner API tokens can send, bots cannot.
