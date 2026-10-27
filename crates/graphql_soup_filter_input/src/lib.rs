@@ -406,8 +406,9 @@ impl TryFrom<GraphqlPropertyEntityType> for PropertyEntityType {
 pub struct GraphqlEntityFilterAst {
     /// Restrict results to the authenticated viewer's favorites when true.
     favorites_only: Option<bool>,
-    /// Restrict every entity type to items associated with this CRM record.
-    /// Requires an expanded query sorted by a timestamp or task due date.
+    /// Restrict every entity type to items associated with this CRM record,
+    /// or to activity across visible CRM-enabled teams.
+    /// Requires an expanded query sorted by a timestamp or selected property.
     crm_association: Option<GraphqlCrmAssociation>,
     /// The calendar event filter to apply.
     calendar_event_filter: Option<GraphqlCalendarEventExpr>,
@@ -760,6 +761,8 @@ enum GraphqlCrmAssociation {
     Company(ID),
     /// Items associated with the contact.
     Contact(ID),
+    /// Activity across visible CRM-enabled teams; only true is valid.
+    Activity(bool),
 }
 
 impl GraphqlCrmAssociation {
@@ -768,6 +771,8 @@ impl GraphqlCrmAssociation {
         Ok(match self {
             Self::Company(id) => CrmAssociation::Company(parse_id(id, "company")?),
             Self::Contact(id) => CrmAssociation::Contact(parse_id(id, "contact")?),
+            Self::Activity(true) => CrmAssociation::Activity,
+            Self::Activity(false) => return Err(InputError::new("activity must be true")),
         })
     }
 }

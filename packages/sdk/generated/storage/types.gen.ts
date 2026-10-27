@@ -168,7 +168,7 @@ export type AddFavoriteRequest = {
     /**
      * The type of the entity to favorite.
      */
-    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
 };
 
 /**
@@ -190,6 +190,16 @@ export type AddPinRequest = {
      * The type of the pin
      */
     pinType: string;
+};
+
+/**
+ * Adoption response.
+ */
+export type AdoptedGroup = {
+    /**
+     * Shareable entity identifier.
+     */
+    groupId: string;
 };
 
 /**
@@ -3195,7 +3205,7 @@ export type CollabSurfaceResponse = {
     /**
      * Type of the parent entity.
      */
-    parentEntityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+    parentEntityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
     /**
      * Lifecycle state (`ready` for every surface visible via the API).
      */
@@ -4763,7 +4773,7 @@ export type CrmAssociation = {
      * Items associated with the contact.
      */
     contact: string;
-};
+} | 'activity';
 
 /**
  * The crm company filters used to narrow which CRM companies appear in soup.
@@ -6311,7 +6321,7 @@ export type EnsureCollabSurfaceRequest = {
     /**
      * Type of the parent entity access derives from.
      */
-    parentEntityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+    parentEntityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
 };
 
 /**
@@ -6617,7 +6627,7 @@ export type Favorite = {
     /**
      * The type of the favorited entity.
      */
-    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
     /**
      * File type of the favorited document, when applicable.
      */
@@ -6639,7 +6649,7 @@ export type FavoriteEntityRef = {
     /**
      * The type of the favorited entity.
      */
-    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
 };
 
 /**
@@ -8958,6 +8968,540 @@ export type LeaveCallResponse = {
 export type LinkShare = 'PUBLIC' | 'TEAM';
 
 /**
+ * One person's account, never owned by a workspace.
+ */
+export type LinkedAccount = {
+    /**
+     * Explicit consent generation; reconnecting a socket never changes it.
+     */
+    authorizationGeneration: number;
+    /**
+     * Stable account identity.
+     */
+    id: string;
+    /**
+     * WhatsApp-verified identity, absent until the first pairing succeeds.
+     */
+    identityJid?: string | null;
+    /**
+     * Lifecycle.
+     */
+    state: LinkedAccountState;
+    /**
+     * Authenticated owner.
+     */
+    userId: string;
+};
+
+/**
+ * Account lifecycle. Transport outages are not stored: a connected account
+ * stays connected while its session service reconnects.
+ */
+export type LinkedAccountState = 'pairing' | 'connected' | 'logged_out' | 'disconnected';
+
+/**
+ * Owner-scoped account state, including not connected.
+ */
+export type LinkedAccountView = {
+    account?: null | LinkedAccount;
+};
+
+/**
+ * Explicit adoption request; the account is selected server-side. The
+ * group's name always follows WhatsApp.
+ */
+export type LinkedAdoptGroup = {
+    /**
+     * A group the requester's account has joined, or a direct chat from
+     * their chat list (the other person's JID, as the list names it).
+     */
+    groupJid: string;
+};
+
+/**
+ * One attachment of a linked message.
+ */
+export type LinkedAttachment = {
+    /**
+     * The private document, once ready.
+     */
+    documentId?: string | null;
+    /**
+     * Length of audio or video in whole seconds, when declared.
+     */
+    durationSeconds?: number | null;
+    /**
+     * Display filename.
+     */
+    fileName: string;
+    /**
+     * Pixel height, when declared.
+     */
+    height?: number | null;
+    /**
+     * Declared MIME type.
+     */
+    mime: string;
+    /**
+     * Position within the message.
+     */
+    ordinal: number;
+    presentation?: null | LinkedMediaPresentation;
+    /**
+     * Declared size in bytes.
+     */
+    size: number;
+    /**
+     * Current state.
+     */
+    state: LinkedAttachmentState;
+    /**
+     * Pixel width of an image, sticker or video, when WhatsApp declared it.
+     */
+    width?: number | null;
+};
+
+/**
+ * Where an attachment of a linked message stands.
+ */
+export type LinkedAttachmentState = 'loading' | 'ready' | 'unavailable' | 'unsupported';
+
+/**
+ * Earlier messages imported after adding a group.
+ */
+export type LinkedBackfill = {
+    /**
+     * Messages received from the phone so far (including ones already shown).
+     */
+    imported: number;
+    /**
+     * Progress.
+     */
+    state: LinkedBackfillState;
+};
+
+/**
+ * Where importing a group's earlier messages stands.
+ */
+export type LinkedBackfillState = 'waiting_for_message' | 'pending' | 'running' | 'waiting_for_phone' | 'done' | 'partial';
+
+/**
+ * Why a chat can't be added to Macro; the app words it from the code.
+ */
+export type LinkedCannotAdd = 'not_in_group' | 'community' | 'own_chat' | 'not_in_chat_list';
+
+/**
+ * Operations implemented for linked groups, independent of current permission.
+ */
+export type LinkedCapabilities = {
+    /**
+     * Largest attachment in bytes.
+     */
+    attachmentLimitBytes: number;
+    /**
+     * Supported attachment MIME types.
+     */
+    attachmentTypes: Array<string>;
+    /**
+     * Attachments per send.
+     */
+    maxAttachments: number;
+    /**
+     * Edits and deletes are offered this long after sending.
+     */
+    mutationWindowSeconds: number;
+    /**
+     * Supported message operations.
+     */
+    mutations: Array<LinkedMutation>;
+    /**
+     * Maximum UTF-8 bytes per text send.
+     */
+    textLimitBytes: number;
+};
+
+/**
+ * One chat of the caller's WhatsApp chat list, as WhatsApp Web lists it.
+ */
+export type LinkedChat = {
+    /**
+     * Archived in WhatsApp.
+     */
+    archived: boolean;
+    /**
+     * "Add to Macro" works now.
+     */
+    canAdd: boolean;
+    cannotAddReason?: null | LinkedCannotAdd;
+    community?: null | LinkedCommunityReference;
+    group?: null | LinkedGroupReference;
+    /**
+     * WhatsApp chat JID: a group, or the other person's phone-number JID
+     * (LID when WhatsApp never told us the number).
+     */
+    jid: string;
+    /**
+     * Group or direct chat.
+     */
+    kind: LinkedChatKind;
+    /**
+     * Newest activity WhatsApp reported (message or history sync); `null`
+     * when unknown. The list is sorted by it, newest first, unknown last.
+     */
+    lastActivityAt?: string | null;
+    /**
+     * Group: the subject, or member names for an unnamed group. Direct: the
+     * contact or WhatsApp name, else `+<phone>`. Always non-empty.
+     */
+    name: string;
+    /**
+     * Pinned in WhatsApp.
+     */
+    pinned: boolean;
+    shared?: null | LinkedSharedGroupReference;
+};
+
+/**
+ * Whether a WhatsApp chat is a group or a one-to-one chat.
+ */
+export type LinkedChatKind = 'group' | 'direct';
+
+/**
+ * The caller's WhatsApp chat list.
+ */
+export type LinkedChats = {
+    /**
+     * Newest activity first; chats with unknown activity last, by name.
+     */
+    chats: Array<LinkedChat>;
+};
+
+/**
+ * The WhatsApp community a group belongs to.
+ */
+export type LinkedCommunityReference = {
+    /**
+     * This group is the community's announcement group.
+     */
+    announcements: boolean;
+    /**
+     * The community's WhatsApp JID.
+     */
+    id: string;
+    /**
+     * The community's name.
+     */
+    name: string;
+};
+
+/**
+ * Explicit pairing intent; replacement is a separate deliberate action.
+ */
+export type LinkedConnect = {
+    /**
+     * Replace the retained identity with a different WhatsApp account.
+     */
+    replace?: boolean;
+};
+
+/**
+ * Observed send state. `unknown` means the request may have reached WhatsApp;
+ * it is never sent again automatically.
+ */
+export type LinkedDeliveryState = 'pending' | 'sending' | 'unknown' | 'accepted' | 'failed';
+
+/**
+ * Result of disconnecting an account.
+ */
+export type LinkedDisconnect = {
+    /**
+     * The session service was asked to log the device out of WhatsApp. It
+     * unlinks asynchronously; WhatsApp's Linked devices list is authoritative.
+     */
+    remoteUnlinkRequested: boolean;
+};
+
+/**
+ * The consent generation the owner deliberately disconnects.
+ */
+export type LinkedDisconnectRequest = {
+    /**
+     * Fences retries against a later reconnect or replacement.
+     */
+    authorizationGeneration: number;
+};
+
+/**
+ * Independently controlled backend rollout switches. None grants access.
+ */
+export type LinkedFeatures = {
+    /**
+     * Allow explicit existing-group adoption and access grants.
+     */
+    adoption: boolean;
+    /**
+     * Allow new owner-bound pairing transactions.
+     */
+    pairing: boolean;
+    /**
+     * Allow new deliberate sends.
+     */
+    sending: boolean;
+};
+
+/**
+ * A group entity bound to a remote group.
+ */
+export type LinkedGroupReference = {
+    /**
+     * Group entity id.
+     */
+    id: string;
+    /**
+     * Display name, following WhatsApp.
+     */
+    name: string;
+};
+
+/**
+ * Attachment categories WhatsApp distinguishes.
+ */
+export type LinkedMediaKind = 'image' | 'audio' | 'video' | 'document';
+
+/**
+ * How WhatsApp shows an attachment, when not as a plain file of its kind.
+ */
+export type LinkedMediaPresentation = 'sticker' | 'gif' | 'voice_note';
+
+/**
+ * The attachments of one linked group message.
+ */
+export type LinkedMessageAttachments = {
+    /**
+     * Its attachments in order; deleted ones are omitted.
+     */
+    linkedAttachments: Array<LinkedAttachment>;
+    /**
+     * Group message.
+     */
+    messageId: string;
+};
+
+/**
+ * Deliberate operations on an existing linked-group message.
+ */
+export type LinkedMutation = 'reaction' | 'edit' | 'delete';
+
+/**
+ * Owner-only pairing status. Deliberately has no `Debug` implementation: the
+ * QR and pairing code are secrets for the duration of the transaction.
+ */
+export type LinkedPairState = {
+    /**
+     * WhatsApp's WebAuthn request options while the state is `passkey`; the
+     * native authenticator answers through the passkey route.
+     */
+    challenge?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Pairing code to type on the phone, when phone-number pairing is used.
+     */
+    code?: string | null;
+    /**
+     * Same owner-bound deadline.
+     */
+    expiresAt: string;
+    /**
+     * Verified identity once paired.
+     */
+    identityJid?: string | null;
+    /**
+     * Current QR content; rotates while the transaction waits.
+     */
+    qr?: string | null;
+    /**
+     * Current state.
+     */
+    state: LinkedPairingState;
+};
+
+/**
+ * Owner-bound pairing transaction, without its QR or pairing code.
+ */
+export type LinkedPairing = {
+    /**
+     * Account being connected.
+     */
+    accountId: string;
+    /**
+     * Database-assigned deadline.
+     */
+    expiresAt: string;
+    /**
+     * One-use transaction id.
+     */
+    id: string;
+    /**
+     * Current state.
+     */
+    state: LinkedPairingState;
+};
+
+/**
+ * Pairing transaction state.
+ */
+export type LinkedPairingState = 'waiting' | 'qr' | 'passkey' | 'success' | 'expired' | 'cancelled' | 'failed';
+
+/**
+ * Why the viewer cannot send now.
+ */
+export type LinkedReplyBlock = 'sending_disabled' | 'no_account' | 'disconnected' | 'not_observing' | 'not_allowed_in_group' | 'group_unavailable';
+
+/**
+ * Content of a deliberate send.
+ */
+export type LinkedReplyContent = {
+    /**
+     * Group participants the text @-mentions, by their WhatsApp id
+     * (`jid` of a roster participant); the text must contain
+     * `@<digits before the @ of the id>` for each.
+     */
+    mentions?: Array<string>;
+    /**
+     * UTF-8 text, at most [`TEXT_LIMIT_BYTES`] bytes.
+     */
+    text: string;
+    type: 'text';
+} | {
+    /**
+     * Optional caption; audio has none.
+     */
+    caption?: string | null;
+    type: 'media';
+    /**
+     * The staged upload, which becomes the message's private document.
+     */
+    uploadId: string;
+} | {
+    /**
+     * Existing group message, resolved to its WhatsApp source by the server.
+     */
+    messageId: string;
+    /**
+     * Explicit operation.
+     */
+    operation: LinkedMutation;
+    /**
+     * Replacement text or emoji; absent for delete, empty to remove a reaction.
+     */
+    text?: string | null;
+    type: 'mutation';
+};
+
+/**
+ * Durable result of a deliberate send.
+ */
+export type LinkedSendProgress = {
+    /**
+     * Intent creation time.
+     */
+    createdAt: string;
+    /**
+     * Sanitized failure code.
+     */
+    errorCode?: string | null;
+    /**
+     * Group entity.
+     */
+    groupId: string;
+    /**
+     * Stable intent id.
+     */
+    id: string;
+    /**
+     * Group message, once WhatsApp accepted it.
+     */
+    messageId?: string | null;
+    /**
+     * The original request, so a failed draft can be recovered.
+     */
+    payload: LinkedSendReply;
+    /**
+     * Current state.
+     */
+    state: LinkedDeliveryState;
+    /**
+     * Person who submitted it.
+     */
+    userId: string;
+};
+
+/**
+ * Explicit send action from a person. Only deliberate sends reach WhatsApp.
+ */
+export type LinkedSendReply = {
+    /**
+     * Stable client intent key. A changed payload with this key is a conflict.
+     */
+    idempotencyKey: string;
+    /**
+     * Content.
+     */
+    message: LinkedReplyContent;
+    /**
+     * Group message being quoted, within this group.
+     */
+    replyTo?: string | null;
+};
+
+/**
+ * Another person's group entity the caller can view.
+ */
+export type LinkedSharedGroupReference = {
+    /**
+     * Group entity id.
+     */
+    id: string;
+    /**
+     * Display name, following WhatsApp.
+     */
+    name: string;
+    /**
+     * Macro user who added the group and shared it.
+     */
+    ownerId: string;
+};
+
+/**
+ * Multipart body of the attachments route.
+ */
+export type LinkedUploadRequest = {
+    /**
+     * One supported image, audio, video, PDF or text file.
+     */
+    file: Blob | File;
+};
+
+/**
+ * A staged attachment, sent only by a later deliberate send.
+ */
+export type LinkedUploadedAttachment = {
+    /**
+     * Display filename.
+     */
+    filename: string;
+    /**
+     * Category.
+     */
+    kind: LinkedMediaKind;
+    /**
+     * Use as `upload_id` in a media send; also the future document id.
+     */
+    uploadId: string;
+};
+
+/**
  * A database's webhooks.
  */
 export type ListDatabaseWebhooksResponse = {
@@ -9069,6 +9613,16 @@ export type LocationResponseV3 = {
 };
 
 export type MacroUserIdStr = string;
+
+/**
+ * Mark messages through this message read.
+ */
+export type MarkRead = {
+    /**
+     * Message in the addressed group.
+     */
+    messageId: string;
+};
 
 /**
  * Persistent meeting metadata. No channel contents or archived media are exposed.
@@ -11920,7 +12474,7 @@ export type ShareEntity = {
 /**
  * An entity type with an existing Share surface.
  */
-export type ShareEntityType = 'document' | 'chat' | 'project' | 'initiative' | 'database' | 'call' | 'email_thread' | 'agent_session';
+export type ShareEntityType = 'document' | 'chat' | 'project' | 'initiative' | 'database' | 'call' | 'email_thread' | 'agent_session' | 'whatsapp_group';
 
 export type SharePermissionV2 = {
     /**
@@ -15560,6 +16114,461 @@ export type WebhookValidationTestEvent = {
      * Webhook being validated.
      */
     webhook_id: String;
+};
+
+/**
+ * A call in the group.
+ */
+export type WhatsAppCall = {
+    /**
+     * Length, when it connected.
+     */
+    durationSeconds?: number | null;
+    /**
+     * How it went for the account that saw it.
+     */
+    outcome: WhatsAppCallOutcome;
+    /**
+     * Video rather than voice.
+     */
+    video: boolean;
+};
+
+/**
+ * How a call went.
+ */
+export type WhatsAppCallOutcome = 'answered' | 'missed' | 'rejected' | 'other';
+
+/**
+ * One contact card, from its vCard.
+ */
+export type WhatsAppContactCard = {
+    /**
+     * Display name.
+     */
+    name: string;
+    /**
+     * Phone numbers as written on the card.
+     */
+    phones: Array<string>;
+};
+
+/**
+ * Contact cards.
+ */
+export type WhatsAppContacts = {
+    /**
+     * The cards, in order.
+     */
+    contacts: Array<WhatsAppContactCard>;
+};
+
+/**
+ * A WhatsApp event.
+ */
+export type WhatsAppEvent = {
+    /**
+     * Canceled by its organizer.
+     */
+    canceled?: boolean;
+    /**
+     * Description.
+     */
+    description?: string | null;
+    /**
+     * End.
+     */
+    endAt?: string | null;
+    /**
+     * Call link for an online event.
+     */
+    joinLink?: string | null;
+    /**
+     * Place name or address.
+     */
+    location?: string | null;
+    /**
+     * Title.
+     */
+    name: string;
+    /**
+     * Start.
+     */
+    startAt?: string | null;
+};
+
+/**
+ * Full group detail and current viewer capabilities.
+ */
+export type WhatsAppGroupDetail = WhatsAppGroupSummary & {
+    /**
+     * Caller's effective permission.
+     */
+    accessLevel: AccessLevel;
+    /**
+     * WhatsApp's disappearing-messages timer in seconds while it is on;
+     * Macro keeps the messages anyway. `null` when off or unknown.
+     */
+    disappearingSeconds?: number | null;
+    /**
+     * Size and mutation limits.
+     */
+    limits: LinkedCapabilities;
+    roster?: null | WhatsAppRoster;
+    /**
+     * Caller's own phone identity, never another account's identity.
+     */
+    sendingIdentity?: string | null;
+    /**
+     * Owner-controlled standard sharing configuration.
+     */
+    sharePermission: SharePermissionV2;
+};
+
+/**
+ * One message in an adopted group.
+ */
+export type WhatsAppGroupMessage = {
+    /**
+     * Imported or pending attachments.
+     */
+    attachments: Array<LinkedAttachment>;
+    /**
+     * Plain WhatsApp text.
+     */
+    body: string;
+    /**
+     * Deleted for everyone.
+     */
+    deleted: boolean;
+    deliveryState?: null | LinkedDeliveryState;
+    /**
+     * Last edit timestamp.
+     */
+    editedAt?: string | null;
+    /**
+     * Forwarded from another chat.
+     */
+    forwarded: boolean;
+    /**
+     * Stable message id.
+     */
+    id: string;
+    /**
+     * A message, or a system line.
+     */
+    kind: WhatsAppMessageKind;
+    /**
+     * People the body @-mentions.
+     */
+    mentions: Array<WhatsAppMention>;
+    /**
+     * Reactions grouped by emoji.
+     */
+    reactions: Array<WhatsAppGroupReaction>;
+    /**
+     * Timestamp first received by Macro.
+     */
+    receivedAt: string;
+    /**
+     * Message quoted by this one.
+     */
+    replyTo?: string | null;
+    rich?: null | WhatsAppRichContent;
+    /**
+     * Sender.
+     */
+    sender: WhatsAppGroupSender;
+    /**
+     * Timestamp assigned by WhatsApp.
+     */
+    sentAt: string;
+    /**
+     * Sent as view-once in WhatsApp; Macro shows it like any media.
+     */
+    viewOnce: boolean;
+};
+
+/**
+ * Newest-first timeline page; `before` is the last returned message id.
+ */
+export type WhatsAppGroupMessages = {
+    /**
+     * Messages in descending sent_at, id order.
+     */
+    messages: Array<WhatsAppGroupMessage>;
+    /**
+     * Cursor for older messages.
+     */
+    nextCursor?: string | null;
+};
+
+/**
+ * Grouped reactions.
+ */
+export type WhatsAppGroupReaction = {
+    /**
+     * Number of reacting people.
+     */
+    count: number;
+    /**
+     * Emoji.
+     */
+    emoji: string;
+    /**
+     * Caller has this reaction.
+     */
+    mine: boolean;
+};
+
+/**
+ * Message sender from protocol-verified identity evidence.
+ */
+export type WhatsAppGroupSender = {
+    /**
+     * Display name, never authentication evidence.
+     */
+    name: string;
+    /**
+     * External person identity.
+     */
+    personId: string;
+    /**
+     * Verified Macro user association, if present.
+     */
+    userId?: string | null;
+};
+
+/**
+ * Adopted group visible through ordinary entity sharing.
+ */
+export type WhatsAppGroupSummary = {
+    backfill?: null | LinkedBackfill;
+    /**
+     * Caller may currently send from their own account.
+     */
+    canSend: boolean;
+    community?: null | LinkedCommunityReference;
+    /**
+     * Entity identifier.
+     */
+    id: string;
+    /**
+     * A group, or a direct chat with one person (only its owner sends).
+     */
+    kind: LinkedChatKind;
+    /**
+     * Latest message timestamp.
+     */
+    lastMessageAt?: string | null;
+    /**
+     * Display name: the group's, or a direct chat's other person.
+     */
+    name: string;
+    sendReason?: null | LinkedReplyBlock;
+    /**
+     * Unread live messages for this viewer, counted up to
+     * [`UNREAD_COUNT_CAP`].
+     */
+    unreadCount: number;
+    /**
+     * Actual entity owner.
+     */
+    userId: string;
+};
+
+/**
+ * A shared place.
+ */
+export type WhatsAppLocation = {
+    /**
+     * Street address.
+     */
+    address?: string | null;
+    /**
+     * Caption or comment.
+     */
+    comment?: string | null;
+    /**
+     * Degrees.
+     */
+    latitude: number;
+    /**
+     * Shared as a live location (this is where it started).
+     */
+    live?: boolean;
+    /**
+     * Degrees.
+     */
+    longitude: number;
+    /**
+     * Place name.
+     */
+    name?: string | null;
+    /**
+     * Link the sender attached.
+     */
+    url?: string | null;
+};
+
+/**
+ * An @-mention in a message body.
+ */
+export type WhatsAppMention = WhatsAppPersonRef & {
+    /**
+     * What follows the `@` in the body (the digits of the person's WhatsApp
+     * id); replace `@<token>` with the name.
+     */
+    token: string;
+};
+
+/**
+ * What a timeline entry is.
+ */
+export type WhatsAppMessageKind = 'message' | 'system';
+
+/**
+ * Someone in a WhatsApp chat; Macro access is a separate grant.
+ */
+export type WhatsAppParticipant = {
+    /**
+     * Group admin.
+     */
+    admin: boolean;
+    /**
+     * The other address WhatsApp verified for them.
+     */
+    alternateJid?: string | null;
+    /**
+     * Their WhatsApp name, untrusted.
+     */
+    displayName?: string | null;
+    /**
+     * Phone-number or LID JID.
+     */
+    jid: string;
+};
+
+/**
+ * A person named in a message: a Macro user when verified, else their
+ * WhatsApp name, else their phone number.
+ */
+export type WhatsAppPersonRef = {
+    /**
+     * Display name, never authentication evidence.
+     */
+    name: string;
+    /**
+     * Verified Macro user, if any.
+     */
+    userId?: string | null;
+};
+
+/**
+ * A poll, read-only in Macro.
+ */
+export type WhatsAppPoll = {
+    /**
+     * Options in order, with tallies.
+     */
+    options: Array<WhatsAppPollOption>;
+    /**
+     * The question.
+     */
+    question: string;
+    /**
+     * How many options one person may choose; 0 means any number.
+     */
+    selectableCount: number;
+    /**
+     * People who voted for anything.
+     */
+    voters: number;
+};
+
+/**
+ * One option of a poll with its votes.
+ */
+export type WhatsAppPollOption = {
+    /**
+     * The caller chose it.
+     */
+    mine: boolean;
+    /**
+     * Option text.
+     */
+    name: string;
+    /**
+     * Who chose it.
+     */
+    voters: Array<WhatsAppPersonRef>;
+    /**
+     * People who chose it.
+     */
+    votes: number;
+};
+
+/**
+ * Structured content of a message besides its body.
+ */
+export type WhatsAppRichContent = (WhatsAppPoll & {
+    type: 'poll';
+}) | (WhatsAppLocation & {
+    type: 'location';
+}) | (WhatsAppContacts & {
+    type: 'contacts';
+}) | (WhatsAppEvent & {
+    type: 'event';
+}) | (WhatsAppSystemLine & {
+    type: 'system';
+});
+
+/**
+ * A chat's WhatsApp metadata as the caller's account last read it.
+ */
+export type WhatsAppRoster = {
+    /**
+     * Only admins may post.
+     */
+    announce: boolean;
+    /**
+     * WhatsApp subject.
+     */
+    name: string;
+    /**
+     * When this was read from WhatsApp.
+     */
+    observedAt: string;
+    /**
+     * Everyone in the chat.
+     */
+    participants: Array<WhatsAppParticipant>;
+};
+
+/**
+ * Kinds of system lines.
+ */
+export type WhatsAppSystemAction = 'group_created' | 'participants_added' | 'participants_removed' | 'participants_left' | 'participants_joined' | 'participants_promoted' | 'participants_demoted' | 'subject_changed' | 'icon_changed' | 'description_changed' | 'disappearing_changed' | 'message_pinned' | 'message_unpinned' | 'call';
+
+/**
+ * Something that happened in the group.
+ */
+export type WhatsAppSystemLine = {
+    /**
+     * What happened.
+     */
+    action: WhatsAppSystemAction;
+    actor?: null | WhatsAppPersonRef;
+    call?: null | WhatsAppCall;
+    /**
+     * Who it happened to (added, removed, promoted, …).
+     */
+    participants: Array<WhatsAppPersonRef>;
+    /**
+     * New subject or description; disappearing-messages timer in seconds
+     * (`"0"` is off).
+     */
+    value?: string | null;
 };
 
 /**
@@ -20659,7 +21668,7 @@ export type ListFavoritesData = {
         /**
          * Restrict to favorites whose entity is one of these types.
          */
-        entityType?: Array<'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form'>;
+        entityType?: Array<'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group'>;
         /**
          * Restrict to favorites whose entity is one of these ids.
          */
@@ -20728,7 +21737,7 @@ export type RemoveFavoriteByEntityData = {
         /**
          * The type of an entity in Macro
          */
-        entity_type: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+        entity_type: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
         /**
          * The id of the favorited entity.
          */
@@ -22203,6 +23212,341 @@ export type EntityMessageTypingResponses = {
 };
 
 export type EntityMessageTypingResponse = EntityMessageTypingResponses[keyof EntityMessageTypingResponses];
+
+export type LinkedAccountData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/account';
+};
+
+export type LinkedAccountResponses = {
+    200: LinkedAccountView;
+};
+
+export type LinkedAccountResponse = LinkedAccountResponses[keyof LinkedAccountResponses];
+
+export type LinkedChatsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/chats';
+};
+
+export type LinkedChatsResponses = {
+    200: LinkedChats;
+};
+
+export type LinkedChatsResponse = LinkedChatsResponses[keyof LinkedChatsResponses];
+
+export type LinkedConfigurationData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/configuration';
+};
+
+export type LinkedConfigurationResponses = {
+    200: LinkedFeatures;
+};
+
+export type LinkedConfigurationResponse = LinkedConfigurationResponses[keyof LinkedConfigurationResponses];
+
+export type LinkedConnectData = {
+    body: LinkedConnect;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/connect';
+};
+
+export type LinkedConnectResponses = {
+    200: LinkedPairing;
+};
+
+export type LinkedConnectResponse = LinkedConnectResponses[keyof LinkedConnectResponses];
+
+export type LinkedDisconnectData = {
+    body: LinkedDisconnectRequest;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/disconnect';
+};
+
+export type LinkedDisconnectResponses = {
+    200: LinkedDisconnect;
+};
+
+export type LinkedDisconnectResponse = LinkedDisconnectResponses[keyof LinkedDisconnectResponses];
+
+export type LinkedAdoptData = {
+    body: LinkedAdoptGroup;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/groups/adopt';
+};
+
+export type LinkedAdoptResponses = {
+    200: AdoptedGroup;
+};
+
+export type LinkedAdoptResponse = LinkedAdoptResponses[keyof LinkedAdoptResponses];
+
+export type LinkedCancelPairingData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/meta/linked/pairing/{id}';
+};
+
+export type LinkedCancelPairingResponses = {
+    204: void;
+};
+
+export type LinkedCancelPairingResponse = LinkedCancelPairingResponses[keyof LinkedCancelPairingResponses];
+
+export type LinkedPairingData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/meta/linked/pairing/{id}';
+};
+
+export type LinkedPairingResponses = {
+    200: LinkedPairState;
+};
+
+export type LinkedPairingResponse = LinkedPairingResponses[keyof LinkedPairingResponses];
+
+export type LinkedPasskeyData = {
+    body: {
+        [key: string]: unknown;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/meta/linked/pairing/{id}/passkey';
+};
+
+export type LinkedPasskeyResponses = {
+    204: void;
+};
+
+export type LinkedPasskeyResponse = LinkedPasskeyResponses[keyof LinkedPasskeyResponses];
+
+export type WhatsappGroupsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/whatsapp-groups';
+};
+
+export type WhatsappGroupsResponses = {
+    200: Array<WhatsAppGroupSummary>;
+};
+
+export type WhatsappGroupsResponse = WhatsappGroupsResponses[keyof WhatsappGroupsResponses];
+
+export type LinkedDetachData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}';
+};
+
+export type LinkedDetachResponses = {
+    204: void;
+};
+
+export type LinkedDetachResponse = LinkedDetachResponses[keyof LinkedDetachResponses];
+
+export type WhatsappGroupData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}';
+};
+
+export type WhatsappGroupResponses = {
+    200: WhatsAppGroupDetail;
+};
+
+export type WhatsappGroupResponse = WhatsappGroupResponses[keyof WhatsappGroupResponses];
+
+export type LinkedUploadData = {
+    body: LinkedUploadRequest;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/attachments';
+};
+
+export type LinkedUploadResponses = {
+    200: LinkedUploadedAttachment;
+};
+
+export type LinkedUploadResponse = LinkedUploadResponses[keyof LinkedUploadResponses];
+
+export type LinkedDeliveryData = {
+    body: Array<string>;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/delivery';
+};
+
+export type LinkedDeliveryResponses = {
+    200: Array<LinkedSendProgress>;
+};
+
+export type LinkedDeliveryResponse = LinkedDeliveryResponses[keyof LinkedDeliveryResponses];
+
+export type WhatsappGroupMessagesData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: {
+        /**
+         * Last message id in the previous page.
+         */
+        before?: string | null;
+        /**
+         * Page size, up to [`PAGE_LIMIT`]; [`DEFAULT_PAGE`] when absent.
+         */
+        limit?: number | null;
+    };
+    url: '/meta/linked/whatsapp-groups/{group_id}/messages';
+};
+
+export type WhatsappGroupMessagesResponses = {
+    200: WhatsAppGroupMessages;
+};
+
+export type WhatsappGroupMessagesResponse = WhatsappGroupMessagesResponses[keyof WhatsappGroupMessagesResponses];
+
+export type LinkedMessageAttachmentsData = {
+    body: Array<string>;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/messages/attachments';
+};
+
+export type LinkedMessageAttachmentsResponses = {
+    200: Array<LinkedMessageAttachments>;
+};
+
+export type LinkedMessageAttachmentsResponse = LinkedMessageAttachmentsResponses[keyof LinkedMessageAttachmentsResponses];
+
+export type WhatsappGroupMessageData = {
+    body?: never;
+    path: {
+        group_id: string;
+        message_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/messages/{message_id}';
+};
+
+export type WhatsappGroupMessageResponses = {
+    200: WhatsAppGroupMessage;
+};
+
+export type WhatsappGroupMessageResponse = WhatsappGroupMessageResponses[keyof WhatsappGroupMessageResponses];
+
+export type WhatsappGroupPermissionsData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/permissions';
+};
+
+export type WhatsappGroupPermissionsResponses = {
+    200: SharePermissionV2;
+};
+
+export type WhatsappGroupPermissionsResponse = WhatsappGroupPermissionsResponses[keyof WhatsappGroupPermissionsResponses];
+
+export type WhatsappGroupUpdatePermissionsData = {
+    body: UpdateSharePermissionRequestV2;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/permissions';
+};
+
+export type WhatsappGroupUpdatePermissionsResponses = {
+    204: void;
+};
+
+export type WhatsappGroupUpdatePermissionsResponse = WhatsappGroupUpdatePermissionsResponses[keyof WhatsappGroupUpdatePermissionsResponses];
+
+export type WhatsappGroupReadData = {
+    body: MarkRead;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/read';
+};
+
+export type WhatsappGroupReadResponses = {
+    204: void;
+};
+
+export type WhatsappGroupReadResponse = WhatsappGroupReadResponses[keyof WhatsappGroupReadResponses];
+
+export type WhatsappGroupSendsData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/sends';
+};
+
+export type WhatsappGroupSendsResponses = {
+    200: Array<LinkedSendProgress>;
+};
+
+export type WhatsappGroupSendsResponse = WhatsappGroupSendsResponses[keyof WhatsappGroupSendsResponses];
+
+export type LinkedReplyData = {
+    body: LinkedSendReply;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/sends';
+};
+
+export type LinkedReplyErrors = {
+    /**
+     * One send request per second per user; Retry-After: 1
+     */
+    429: unknown;
+};
+
+export type LinkedReplyResponses = {
+    200: LinkedSendProgress;
+};
+
+export type LinkedReplyResponse = LinkedReplyResponses[keyof LinkedReplyResponses];
 
 export type GetPinsHandlerData = {
     body?: never;

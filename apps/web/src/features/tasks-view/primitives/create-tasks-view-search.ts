@@ -40,6 +40,8 @@ export function createTasksViewSearch(options: {
           search.dueStart,
           search.dueEnd,
           options.nonListLayoutsEnabled?.() ?? true,
+          search.savedView,
+          state.savedViewActive,
         ] as const,
       ([
         tab,
@@ -53,11 +55,19 @@ export function createTasksViewSearch(options: {
         nonListLayoutsEnabled,
       ]) => {
         if (!options.enabled) return;
-        const requestedLayout = layout ?? entryLayout;
+        const savedViewActive = Boolean(
+          search.savedView || state.savedViewActive
+        );
+        const requestedLayout =
+          layout ?? (savedViewActive ? state.layout : entryLayout);
 
         options.setState(
           produce((draft) => {
-            if (draft.tab !== tab) {
+            if (
+              !search.savedView &&
+              !draft.savedViewActive &&
+              draft.tab !== tab
+            ) {
               draft.tab = tab;
               draft.facets = normalizeFacetSelection(
                 DEFAULT_TASK_FACET_SELECTION
@@ -66,40 +76,56 @@ export function createTasksViewSearch(options: {
               draft.dueDate = undefined;
             }
 
-            draft.layout = nonListLayoutsEnabled ? requestedLayout : 'list';
+            draft.layout =
+              savedViewActive || nonListLayoutsEnabled
+                ? requestedLayout
+                : 'list';
             draft.groupBy =
               groupBy ??
-              (tab === entryTab ? entryGroupBy : TASK_DEFAULT_GROUP_BY[tab]);
-            draft.sort = sort
-              ? [
-                  {
-                    id: sort,
-                    reversed:
-                      !sort.startsWith('due_date_') && sortReversed === 'true',
-                  },
-                ]
-              : entrySort.map((item) => ({ ...item }));
-            if (dueDate === 'range') {
-              const validRange =
-                (dueStart || dueEnd) &&
-                (!dueStart || !dueEnd || dueStart <= dueEnd);
-              draft.dueDate = undefined;
-              if (validRange) {
-                draft.dueDate = { type: 'range', start: dueStart, end: dueEnd };
+              (draft.savedViewActive || search.savedView
+                ? draft.groupBy
+                : tab === entryTab
+                  ? entryGroupBy
+                  : TASK_DEFAULT_GROUP_BY[tab]);
+            const reversed =
+              !sort?.startsWith('due_date_') && sortReversed === 'true';
+            if (!savedViewActive) {
+              draft.sort = sort
+                ? [{ id: sort, reversed }]
+                : entrySort.map((item) => ({ ...item }));
+            } else if (
+              sort &&
+              (draft.sort[0]?.id !== sort ||
+                !!draft.sort[0]?.reversed !== reversed)
+            ) {
+              draft.sort = [{ id: sort, reversed }];
+            }
+            if (!savedViewActive) {
+              if (dueDate === 'range') {
+                const validRange =
+                  (dueStart || dueEnd) &&
+                  (!dueStart || !dueEnd || dueStart <= dueEnd);
+                draft.dueDate = validRange
+                  ? { type: 'range', start: dueStart, end: dueEnd }
+                  : undefined;
+              } else if (dueDate === 'any') {
+                draft.dueDate = undefined;
+              } else if (dueDate) {
+                draft.dueDate = { type: dueDate };
+              } else if (tab === entryTab && entryDueDate) {
+                draft.dueDate = { ...entryDueDate };
+              } else {
+                draft.dueDate = undefined;
               }
-            } else if (dueDate === 'any') {
-              draft.dueDate = undefined;
-            } else if (dueDate) {
-              draft.dueDate = { type: dueDate };
-            } else if (tab === entryTab && entryDueDate) {
-              draft.dueDate = { ...entryDueDate };
-            } else {
-              draft.dueDate = undefined;
             }
           })
         );
 
-        if (!nonListLayoutsEnabled && requestedLayout !== 'list') {
+        if (
+          !savedViewActive &&
+          !nonListLayoutsEnabled &&
+          requestedLayout !== 'list'
+        ) {
           options.setSearch({ layout: 'list' }, { history: 'replace' });
         }
       }

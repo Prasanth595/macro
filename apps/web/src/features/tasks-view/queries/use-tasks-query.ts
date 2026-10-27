@@ -52,13 +52,21 @@ import { buildTaskSearchRequest } from './task-search';
 
 export type TasksDataSourceInput = Pick<
   TasksViewState,
-  'tab' | 'search' | 'groupBy' | 'sort' | 'facets' | 'dueDate'
+  | 'tab'
+  | 'search'
+  | 'groupBy'
+  | 'sort'
+  | 'facets'
+  | 'dueDate'
+  | 'savedViewActive'
 >;
 
 export type UseTasksDataSourceOptions = {
   userId: Accessor<string | undefined>;
   tagSets: Accessor<readonly TagSetResponse[]>;
   tagSetsReady: Accessor<boolean>;
+  /** Saved definitions supply stable tag bindings and viewer-relative people. */
+  facetContext?: Accessor<TaskFacetContext>;
   isGroupExpanded: (groupId: string) => boolean;
   /** Only tasks whose property references this entity. */
   reference?: Accessor<TaskReferenceScope>;
@@ -131,12 +139,18 @@ export function useTasksDataSource(
     withEntityNotifications(entity, notificationSource);
 
   const facetContext = createMemo(
-    (): TaskFacetContext => createTagFacetContext(options.tagSets())
+    (): TaskFacetContext =>
+      options.facetContext?.() ?? {
+        ...createTagFacetContext(options.tagSets()),
+        viewerId: options.userId(),
+      }
   );
   const facetOptionsReady = () =>
     (options.enabled?.() ?? true) &&
     state.tab !== 'projects' &&
-    tagFacetReady(state.facets, options.tagSetsReady());
+    (state.savedViewActive
+      ? Boolean(options.userId())
+      : tagFacetReady(state.facets, options.tagSetsReady()));
 
   const queryArgsFor = (nameContains?: string) =>
     buildTaskQuery({

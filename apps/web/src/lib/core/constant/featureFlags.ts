@@ -206,6 +206,12 @@ export const ENABLE_SCRIPTING = defineFlag({
   default: false,
 }).enabled;
 
+// Multiplex document sync over the connection gateway.
+export const SYNC_VIA_GATEWAY = defineFlag({
+  env: 'SYNC_VIA_GATEWAY',
+  default: true,
+}).enabled;
+
 export const ENABLE_PDF_MULTISPLIT = defineFlag({
   env: 'ENABLE_PDF_MULTISPLIT',
   default: true,
@@ -895,4 +901,16 @@ export const enableAiUsageBilling = defineFlag({
 export const enableInAppTours = defineFlag({
   key: 'enable-in-app-tours',
   env: 'ENABLE_IN_APP_TOURS',
+});
+
+/**
+ * Personal WhatsApp linked devices: the External tab, pairing, adding chats
+ * to Macro and sharing them by mention in channels. Off in dev too: dev has no WhatsApp session
+ * service, so the tab would only show errors. Override locally with
+ * VITE_ENABLE_WHATSAPP_LINKED=true. Backend switches gate each operation
+ * independently.
+ */
+export const enableWhatsappLinked = defineFlag({
+  key: 'enable-whatsapp-linked',
+  env: 'ENABLE_WHATSAPP_LINKED',
 });

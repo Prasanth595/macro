@@ -59,6 +59,8 @@ export type TasksViewState = {
   dueDate?: TaskDueDateFilter;
   collapsedGroupIds: string[];
   collapsedSidebarSectionIds: string[];
+  /** Transient marker: never persist saved-view filter drafts in entry history. */
+  savedViewActive?: boolean;
 };
 
 export type TasksViewStateOptions = Partial<TasksViewState>;

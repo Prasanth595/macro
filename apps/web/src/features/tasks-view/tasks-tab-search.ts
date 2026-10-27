@@ -11,6 +11,11 @@ export const tasksTabSearch = {
   namespace: 'tasks',
   schema: z.object({
     tab: z.enum(['my-tasks', 'created-by-me', 'team-tasks', 'projects']),
+    savedView: z
+      .string()
+      .uuid()
+      .transform((id) => id.toLowerCase())
+      .optional(),
     layout: z.enum(['list', 'board', 'gantt']).optional(),
     sort: z
       .enum([
@@ -53,6 +58,7 @@ export const tasksTabSearch = {
   }),
   defaults: {
     tab: 'my-tasks' as TasksTab,
+    savedView: undefined as string | undefined,
     layout: undefined as TasksViewState['layout'] | undefined,
     sort: undefined as TaskSortId | undefined,
     sortReversed: undefined as 'true' | 'false' | undefined,

@@ -198,11 +198,10 @@ export function buildTaskQuery(
   const sortMethod = match(featureSort)
     .with('updated_at', 'created_at', 'viewed_at', (sort) => sort)
     .otherwise(() => 'property' as const);
-  const compiledFacets = compileFacets(
-    options.facets,
-    TASK_FACETS,
-    options.facetContext ?? EMPTY_TASK_FACET_CONTEXT
-  );
+  const compiledFacets = compileFacets(options.facets, TASK_FACETS, {
+    ...(options.facetContext ?? EMPTY_TASK_FACET_CONTEXT),
+    viewerId: options.userId,
+  });
 
   const properties = propertyScope(
     options.tab,
