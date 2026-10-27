@@ -12,7 +12,6 @@ channels, email, calls, CRM, projects and tasks.
   - `macro-brief`: brief on a company, person or deal from Macro plus X and the web, citing every line.
   - `macro-take-task`: work a Macro task, commenting progress and closing it with a summary.
   - `macro-report-back`: reply in the Macro thread a request came from (see `services/bots/grok-bot-relay`).
-- `RULES.md`: the rules every skill ends with. Edit them there and copy into each skill; `scripts/validate.sh` fails if they drift.
 
 ## Try it
 
@@ -26,11 +25,6 @@ server directly: in the Grok Bot app, add a custom MCP server, choose
 **Remote HTTPS**, and enter the URL above. To use the skills, ask the Bot to
 save each `SKILL.md` as a skill, or install the plugin locally in Cursor by
 copying this folder to `~/.cursor/plugins/local/macro`.
-
-## Check
-
-`scripts/validate.sh` validates `plugin.json` and `mcp.json` against the
-Agent Plugins 1.0.0 schemas and checks each skill's frontmatter and rules.
 
 ## License
 
