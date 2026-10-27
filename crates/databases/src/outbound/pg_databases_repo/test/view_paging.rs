@@ -131,35 +131,205 @@ async fn changed_versions_cannot_continue_an_old_page(pool: PgPool) {
     ));
 }
 
-#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn formula_filters_and_sorts_cannot_read_missing_stored_cells(pool: PgPool) {
-    let (mut table, _) = page_fixture(&pool).await;
-    table.columns[0].formula = Some(models_databases::Formula::Number { value: 42.0 });
-    for view in [
-        ascending(&table),
-        filtered(
-            &table,
-            FilterTest::Number {
-                operator: NumberOperator::Is,
-                value: 42.0,
+/// Price, Qty and Due on six rows, and four formulas over them:
+/// Total = Price * Qty, Double = Total * 2, Ratio = Price / Qty and
+/// Follow-up = Due + Qty. Only the inputs are written: the cell store
+/// derives the formulas' cells as it inserts the rows.
+async fn formula_fixture(pool: &PgPool) -> (QueryTable, Vec<RowId>) {
+    use crate::domain::derivation::Derivation;
+    use crate::domain::models::{ColumnConfig, NewDefinition};
+    use models_databases::{Formula, Operator};
+    use models_properties::DataType;
+    let (repo, table, _) = fixture(pool).await;
+    let [price, qty, due, total, double, ratio, follow_up] =
+        [(); 7].map(|_| macro_uuid::generate_uuid_v7());
+    let column = |id: Uuid| {
+        Box::new(Formula::Column {
+            column: ColumnId::from_uuid(id),
+        })
+    };
+    let stored = |id: Uuid, name: &str, kind: ColumnKind| Column {
+        id,
+        placement: ColumnId::from_uuid(id),
+        name: name.into(),
+        kind,
+        formula: None,
+    };
+    let derived = |id: Uuid, name: &str, kind: ColumnKind, formula: Formula| Column {
+        formula: Some(formula),
+        ..stored(id, name, kind)
+    };
+    let query_table = QueryTable {
+        id: table.id,
+        database_id: table.database_id,
+        database: "Summer Offsite".into(),
+        name: "Guests".into(),
+        source: TableSource::Database,
+        columns: vec![
+            stored(price, "Price", ColumnKind::Number),
+            stored(qty, "Qty", ColumnKind::Number),
+            stored(due, "Due", ColumnKind::Date),
+            derived(
+                total,
+                "Total",
+                ColumnKind::Number,
+                Formula::Binary {
+                    operator: Operator::Multiply,
+                    left: column(price),
+                    right: column(qty),
+                },
+            ),
+            derived(
+                double,
+                "Double",
+                ColumnKind::Number,
+                Formula::Binary {
+                    operator: Operator::Multiply,
+                    left: column(total),
+                    right: Box::new(Formula::Number { value: 2.0 }),
+                },
+            ),
+            derived(
+                ratio,
+                "Ratio",
+                ColumnKind::Number,
+                Formula::Binary {
+                    operator: Operator::Divide,
+                    left: column(price),
+                    right: column(qty),
+                },
+            ),
+            derived(
+                follow_up,
+                "Follow-up",
+                ColumnKind::Date,
+                Formula::Binary {
+                    operator: Operator::Add,
+                    left: column(due),
+                    right: column(qty),
+                },
+            ),
+        ],
+    };
+    let mut position: models_databases::position::Position = "80".parse().unwrap();
+    let mut columns = Vec::new();
+    for placed in &query_table.columns {
+        position = models_databases::position::key_between(Some(&position), None).unwrap();
+        columns.push(Write::CreateColumn {
+            column: crate::domain::models::Column {
+                protections: vec![],
+                nullable: true,
+                id: placed.placement,
+                table_id: table.id,
+                property_definition_id: placed.id,
+                position: position.clone(),
+                config: placed
+                    .formula
+                    .clone()
+                    .map(|formula| ColumnConfig::Derived { formula }),
+                display_name: None,
+                infer_type: false,
             },
-        ),
-    ] {
-        let query = database_sql::compile_table_query(
-            table.id,
-            &view,
-            &Catalog {
-                tables: vec![table.clone()],
-            },
-        )
-        .unwrap();
-        assert!(matches!(
-            PgViewRows::new(pool.clone())
-                .page(&table, &query, TableVersion(0), None, 2)
-                .await,
-            Err(ViewRowsError::InvalidQuery)
-        ));
+            definition: Some(NewDefinition {
+                id: placed.id,
+                name: placed.name.clone(),
+                data_type: match placed.kind {
+                    ColumnKind::Date => DataType::Date,
+                    _ => DataType::Number,
+                },
+                is_multi_select: false,
+                specific_entity_type: None,
+                options: vec![],
+            }),
+        });
     }
+    commit(pool, table.database_id, columns).await;
+
+    let number = |value: f64| PropertyValue::Num(value);
+    let date = |value: &str| PropertyValue::Date(value.parse().unwrap());
+    commit(
+        pool,
+        table.database_id,
+        vec![Write::InsertRows {
+            table_id: table.id,
+            rows: vec![
+                vec![
+                    (price, number(10.0)),
+                    (qty, number(3.0)),
+                    (due, date("2026-10-01T00:00:00Z")),
+                ],
+                vec![(price, number(5.0)), (due, date("2026-10-02T00:00:00Z"))],
+                vec![],
+                vec![
+                    (price, number(2.0)),
+                    (qty, number(50.0)),
+                    (due, date("2026-09-01T00:00:00Z")),
+                ],
+                vec![(price, number(7.0)), (qty, number(0.0))],
+                vec![(qty, number(4.0)), (due, date("2026-10-03T00:00:00Z"))],
+            ],
+            restored: vec![],
+            derivation: Derivation::reading(&query_table, |_| true),
+        }],
+    )
+    .await;
+    let rows = repo.row_refs(table.id).await.unwrap();
+    (query_table, rows.into_iter().map(|row| row.id).collect())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn formulas_filter_and_sort_with_the_engine_rules(pool: PgPool) {
+    let (table, rows) = formula_fixture(&pool).await;
+    let sorted = |column: usize, direction: SortDirection| ViewQuery {
+        filter: None,
+        sort: vec![SortKey {
+            column: table.columns[column].placement,
+            direction,
+        }],
+    };
+    // Total: 30, 0 (empty Qty reads as 0), empty (every input empty), 100,
+    // 0, 0 (empty Price reads as 0). Ties keep row order.
+    assert_eq!(
+        pages(&pool, &table, &sorted(3, SortDirection::Ascending)).await,
+        vec![rows[1], rows[4], rows[5], rows[0], rows[3], rows[2]]
+    );
+    assert_eq!(
+        pages(&pool, &table, &sorted(3, SortDirection::Descending)).await,
+        vec![rows[3], rows[0], rows[1], rows[4], rows[5], rows[2]]
+    );
+    // Double reads Total, a formula itself: 60, 0, empty, 200, 0, 0.
+    assert_eq!(
+        pages(
+            &pool,
+            &table,
+            &ViewQuery {
+                filter: Some(FilterGroup {
+                    conjunction: Conjunction::And,
+                    conditions: vec![FilterNode::Condition(FilterCondition {
+                        column: table.columns[4].placement,
+                        test: FilterTest::Number {
+                            operator: NumberOperator::GreaterThanOrEqual,
+                            value: 60.0,
+                        },
+                    })],
+                }),
+                sort: vec![],
+            }
+        )
+        .await,
+        vec![rows[0], rows[3]]
+    );
+    // Ratio: 3.33, empty (5 / 0), empty, 0.04, empty (7 / 0), 0.
+    assert_eq!(
+        pages(&pool, &table, &sorted(5, SortDirection::Ascending)).await,
+        vec![rows[5], rows[3], rows[0], rows[1], rows[2], rows[4]]
+    );
+    // Follow-up, Due + Qty days: Oct 4, Oct 2, empty, Oct 21, empty (no
+    // Due), Oct 7.
+    assert_eq!(
+        pages(&pool, &table, &sorted(6, SortDirection::Ascending)).await,
+        vec![rows[1], rows[0], rows[5], rows[3], rows[2], rows[4]]
+    );
 }
 
 async fn values(

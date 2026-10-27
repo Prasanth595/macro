@@ -3,6 +3,7 @@
 
 pub mod activity;
 pub mod catalog;
+pub mod derivation;
 pub mod events;
 pub mod journal;
 pub mod models;

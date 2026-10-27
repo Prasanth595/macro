@@ -98,8 +98,8 @@ pub(super) fn page(
                 table
                     .columns
                     .iter()
-                    // Formula values are computed by the engine, not stored properties.
-                    .find(|column| column.id == id && column.formula.is_none())
+                    // A formula's values are stored in its definition like any cell.
+                    .find(|column| column.id == id)
                     .ok_or(ViewRowsError::InvalidQuery)
             })
             .collect::<Result<_, _>>()?,
