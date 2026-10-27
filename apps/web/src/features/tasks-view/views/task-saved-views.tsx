@@ -400,7 +400,7 @@ function TaskSavedViewRows(props: {
             </p>
           </Show>
           <Show when={empty()}>
-            <div class="flex flex-col items-start gap-2 px-3 py-1 group-data-closed/sidebar-section:invisible">
+            <div class="mx-2 my-1 flex flex-col items-start gap-2 rounded-lg border border-edge-muted p-3 group-data-closed/sidebar-section:invisible">
               <div class="space-y-1">
                 <p class="text-xs font-medium text-ink">
                   {t('viewMenus.savedViewsEmptyTitle')}
