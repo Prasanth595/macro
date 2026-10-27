@@ -573,6 +573,26 @@ impl PaymentGateway for StripePaymentGateway {
     }
 
     #[tracing::instrument(skip(self), err)]
+    async fn has_payment_method(
+        &self,
+        customer_id: &str,
+        scope: SubscriptionScope,
+    ) -> Result<bool> {
+        let customer_id = parse_customer(customer_id)?;
+        let customer = Customer::retrieve(&self.client, &customer_id, &[])
+            .await
+            .map_err(payment)?;
+        let subscriptions = self.non_canceled_subscriptions(&customer_id).await?;
+        Ok(
+            match charge_method(customer_fallback(&customer), &subscriptions, scope)? {
+                ChargeMethod::PaymentMethod(_) => true,
+                ChargeMethod::StripeFallback => customer.default_source.is_some(),
+                ChargeMethod::NoMatchingSubscription => false,
+            },
+        )
+    }
+
+    #[tracing::instrument(skip(self), err)]
     async fn subscription_period(
         &self,
         customer_id: &str,
@@ -612,6 +632,16 @@ impl PaymentGateway for NoOpPaymentGateway {
         &self,
         _charge_id: Uuid,
         _invoice_id: &str,
+        _scope: SubscriptionScope,
+    ) -> Result<bool> {
+        Err(BillingError::Payment(anyhow::anyhow!(
+            "payments are not configured in this service"
+        )))
+    }
+
+    async fn has_payment_method(
+        &self,
+        _customer_id: &str,
         _scope: SubscriptionScope,
     ) -> Result<bool> {
         Err(BillingError::Payment(anyhow::anyhow!(

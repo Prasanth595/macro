@@ -47,6 +47,7 @@ export const buttonGroupVariants = createVariants(
       success: '',
       ghost: '',
       strong: '',
+      primary: '',
       cta: '',
     },
     // Explicit cross-axis size so the frame matches a standalone Button of the
@@ -90,6 +91,7 @@ export const buttonGroupDividerVariants = createVariants(
       success: 'bg-edge-divider',
       ghost: 'bg-edge-divider',
       strong: 'bg-edge-divider',
+      primary: 'bg-edge-divider',
       cta: 'bg-edge-divider',
     },
   },

@@ -59,6 +59,16 @@ impl PaymentGateway for HttpPaymentGateway {
             .await
     }
 
+    async fn has_payment_method(
+        &self,
+        customer_id: &str,
+        scope: SubscriptionScope,
+    ) -> Result<bool> {
+        NoOpPaymentGateway
+            .has_payment_method(customer_id, scope)
+            .await
+    }
+
     async fn subscription_period(
         &self,
         customer_id: &str,

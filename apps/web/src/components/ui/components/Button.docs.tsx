@@ -13,6 +13,7 @@ const VARIANTS: ButtonVariant[] = [
   'success',
   'danger',
   'strong',
+  'primary',
   'cta',
 ];
 
@@ -195,7 +196,7 @@ export default defineDoc({
       id: 'variants',
       title: 'Variants',
       description:
-        '`ghost` for low-emphasis actions in dense chrome, `outline` for standard actions, `strong` for the same frame with bolder text, `accent` for the primary action in a group, `cta` for the single most important action on a screen. `danger` is reserved for destructive work. Framed variants use the shared elevated surface on desktop and glass on touch. `glass={false}` keeps a flat frame. Success and danger use colored ink with an unfilled outline frame; icon sizes preserve the same emphasis as text buttons.',
+        '`ghost` for low-emphasis actions in dense chrome, `outline` for standard actions, `strong` for the same frame with bolder text, `accent` for the primary action in a group, `primary` for the neutral ink-filled action that confirms a dialog, `cta` for the single most important action on a screen. `danger` is reserved for destructive work. Framed variants use the shared elevated surface on desktop and glass on touch. `glass={false}` keeps a flat frame. Success and danger use colored ink with an unfilled outline frame; icon sizes preserve the same emphasis as text buttons.',
       render: VariantsDemo,
       fill: true,
     },
