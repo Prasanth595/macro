@@ -118,7 +118,6 @@ overrides.
 | --- | --- | --- |
 | `MACRO_ENV` | var | `prod`, `dev` or `local` |
 | `MACRO_STORAGE_URL` | var | optional storage API override |
-| `MACRO_WEB_URL` | var | optional app origin for links |
 | `MACRO_WEBHOOK_SECRET` | secret | the webhook's signing secret |
 | `MACRO_BOT_TOKEN` | secret | the user-owned bot's `mbot_` token |
 | `MACRO_BOT_ID` | var | the bot's id |

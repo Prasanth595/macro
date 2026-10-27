@@ -1,7 +1,6 @@
 # Copy to .dev.vars for `wrangler dev`. Deployed values are Worker secrets.
 MACRO_ENV=prod
 # MACRO_STORAGE_URL=https://your-storage-api.example.com
-# MACRO_WEB_URL=https://your-macro-app.example.com
 MACRO_WEBHOOK_SECRET=replace_me
 MACRO_BOT_TOKEN=mbot_replace_me
 MACRO_BOT_ID=00000000-0000-0000-0000-000000000000

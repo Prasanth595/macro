@@ -28,7 +28,6 @@ export type WaitUntil = { waitUntil(promise: Promise<unknown>): void };
 export type WorkerEnv = {
   MACRO_ENV: string;
   MACRO_STORAGE_URL?: string;
-  MACRO_WEB_URL?: string;
   MACRO_WEBHOOK_SECRET: string;
   MACRO_BOT_TOKEN: string;
   MACRO_BOT_ID: string;
@@ -86,7 +85,7 @@ function relayConfig(env: WorkerEnv, macroEnv: MacroEnv): RelayConfig {
         .map((id) => id.trim())
         .filter((id) => id.length > 0)
     ),
-    webAppUrl: (env.MACRO_WEB_URL ?? WEB_APP_URLS[macroEnv]).replace(/\/$/, ''),
+    webAppUrl: WEB_APP_URLS[macroEnv],
   };
 }
 
