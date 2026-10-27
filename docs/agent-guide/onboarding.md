@@ -57,6 +57,6 @@ settled. `onboarding_v4_routines` records how many were suggested, recommended,
 turned on, and how many recommendations the user kept.
 
 Suggestions start generating when the user leaves the tools step, so the inbox
-and tools they connected inform them. Onboarding reads the free-model
-projection (`routines/suggestions-free`) whatever plan the user picks, since
-it starts before the plan step.
+they connected informs them. The server reads that inbox straight from Gmail or
+Outlook rather than waiting for it to synchronize, and every plan gets the
+free-tier model, since generation starts before the plan step.

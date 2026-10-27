@@ -4,8 +4,7 @@ import { analytics } from '@app/lib/analytics';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useHasPaidAccess } from '@core/auth/license';
 import { defaultModelForPlan } from '@core/component/AI/constant';
-import { PERMISSION_IDS } from '@core/constant/permissions';
-import { useHasPermission, useUserId } from '@core/context/user';
+import { useUserId } from '@core/context/user';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Tabs } from '@ui';
 import { createMemo, createSignal, Show } from 'solid-js';
@@ -35,10 +34,8 @@ function createProductionSuggestions(
   onLeave: () => void
 ) {
   const layout = useSplitLayout();
-  const premium = useHasPermission(PERMISSION_IDS.READ_PROFESSIONAL_FEATURES);
   const userId = useUserId();
   const source = createRoutineSuggestions({
-    premium,
     ready: () => userId() !== undefined,
   });
   const hasPaidAccess = useHasPaidAccess();

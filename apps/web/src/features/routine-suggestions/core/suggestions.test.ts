@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { serializeTriggers } from '../../routines/queries/routine-trigger-mapping';
 import {
-  decodeRoutineSuggestions,
   pickDefaultOn,
-  type RoutineSuggestionsResult,
+  type RoutineSuggestion,
   suggestionToDraft,
 } from './suggestions';
 
-type Raw = RoutineSuggestionsResult['suggestions'][number];
-
-function raw(overrides: Partial<Raw>): Raw {
+function raw(overrides: Partial<RoutineSuggestion>): RoutineSuggestion {
+  const surface = overrides.surface ?? 'email';
+  const title = overrides.title ?? 'Tag invoices';
   return {
+    id: JSON.stringify([surface, title.toLowerCase()]),
     surface: 'email',
     title: 'Tag invoices',
     summary: 'Labels invoices as they arrive.',
@@ -21,140 +20,19 @@ function raw(overrides: Partial<Raw>): Raw {
     affectsOthers: false,
     notify: false,
     trigger: {
+      id: 'trigger-1',
       kind: 'event',
-      event: 'email.message_received',
+      events: ['email.message_received'],
       condition: 'Is this email an invoice?',
     },
+    when: 'When a new email arrives',
     ...overrides,
   };
 }
 
-describe('decodeRoutineSuggestions', () => {
-  it('turns event and schedule suggestions into routine triggers', () => {
-    const [event, weekly, daily, monthly] = decodeRoutineSuggestions(
-      {
-        suggestions: [
-          raw({}),
-          raw({
-            surface: 'calendar',
-            title: 'Morning brief',
-            trigger: {
-              kind: 'schedule',
-              frequency: 'week',
-              time: '08:30',
-              weekdays: ['mon', 'Fri', 'mon'],
-            },
-          }),
-          raw({
-            surface: 'chat',
-            title: 'Channel digest',
-            trigger: { kind: 'schedule', frequency: 'day', time: '17:00' },
-          }),
-          raw({
-            surface: 'crm',
-            title: 'Pipeline audit',
-            trigger: {
-              kind: 'schedule',
-              frequency: 'month',
-              time: '09:00',
-              dayOfMonth: 2,
-            },
-          }),
-        ],
-      },
-      'America/New_York'
-    );
-    expect(serializeTriggers([event.trigger])).toEqual({
-      type: 'events',
-      filters: [
-        {
-          events: ['email.message_received'],
-          condition: 'Is this email an invoice?',
-        },
-      ],
-    });
-    expect(event.when).toBe('When a new email arrives');
-    expect(serializeTriggers([weekly.trigger])).toEqual({
-      type: 'cron',
-      schedule: '0 30 8 * * 2,6',
-      timezone: 'America/New_York',
-    });
-    expect(serializeTriggers([daily.trigger])).toEqual({
-      type: 'cron',
-      schedule: '0 0 17 * * 1,2,3,4,5,6,7',
-      timezone: 'America/New_York',
-    });
-    expect(serializeTriggers([monthly.trigger])).toEqual({
-      type: 'cron',
-      schedule: '0 0 9 2 * *',
-      timezone: 'America/New_York',
-    });
-  });
-
-  it('drops malformed suggestions without failing the rest', () => {
-    const decoded = decodeRoutineSuggestions(
-      {
-        suggestions: [
-          raw({ surface: 'spreadsheets' }),
-          raw({
-            title: 'Bad event',
-            trigger: { kind: 'event', event: 'channel.mentioned' },
-          }),
-          raw({
-            title: 'Bad time',
-            trigger: { kind: 'schedule', frequency: 'day', time: '9am' },
-          }),
-          raw({
-            title: 'No days',
-            trigger: {
-              kind: 'schedule',
-              frequency: 'week',
-              time: '09:00',
-              weekdays: ['someday'],
-            },
-          }),
-          raw({ title: '  ', instructions: 'Do it.' }),
-          raw({ title: 'Unknown icon', icon: 'rocket' }),
-        ],
-      },
-      'UTC'
-    );
-    expect(
-      decoded.map((suggestion) => [suggestion.title, suggestion.icon])
-    ).toEqual([['Unknown icon', 'sparkle']]);
-  });
-
-  it('keeps at most three per surface and no repeats', () => {
-    const decoded = decodeRoutineSuggestions(
-      {
-        suggestions: [
-          raw({ title: 'One' }),
-          raw({ title: 'one' }),
-          raw({ title: 'Two' }),
-          raw({ title: 'Three' }),
-          raw({ title: 'Four' }),
-          raw({ surface: 'tasks', title: 'One' }),
-        ],
-      },
-      'UTC'
-    );
-    expect(
-      decoded.map((suggestion) => [suggestion.surface, suggestion.title])
-    ).toEqual([
-      ['email', 'One'],
-      ['email', 'Two'],
-      ['email', 'Three'],
-      ['tasks', 'One'],
-    ]);
-  });
-});
-
 describe('suggestionToDraft', () => {
   it('creates an enabled routine that shows its runs when it notifies', () => {
-    const [suggestion] = decodeRoutineSuggestions(
-      { suggestions: [raw({ notify: true })] },
-      'UTC'
-    );
+    const suggestion = raw({ notify: true });
     const draft = suggestionToDraft(suggestion, {
       kind: 'agent',
       agentId: '0198c7a3-0000-7000-8000-000000000001',
@@ -175,17 +53,12 @@ describe('suggestionToDraft', () => {
 
 describe('pickDefaultOn', () => {
   const titled = (probabilities: number[]) =>
-    decodeRoutineSuggestions(
-      {
-        suggestions: probabilities.map((keepProbability, index) =>
-          raw({
-            surface: ['email', 'tasks', 'crm'][index % 3],
-            title: `Routine ${index}`,
-            keepProbability,
-          })
-        ),
-      },
-      'UTC'
+    probabilities.map((keepProbability, index) =>
+      raw({
+        surface: (['email', 'tasks', 'crm'] as const)[index % 3],
+        title: `Routine ${index}`,
+        keepProbability,
+      })
     );
   const titlesOf = (
     suggestions: ReturnType<typeof titled>,
@@ -218,49 +91,19 @@ describe('pickDefaultOn', () => {
   });
 
   it('never turns on a routine that affects other people', () => {
-    const suggestions = decodeRoutineSuggestions(
-      {
-        suggestions: [
-          raw({
-            title: 'Post updates',
-            keepProbability: 0.99,
-            affectsOthers: true,
-          }),
-          raw({ title: 'Tag mail', keepProbability: 0.3 }),
-          raw({ title: 'Digest', keepProbability: 0.2 }),
-        ],
-      },
-      'UTC'
-    );
+    const suggestions = [
+      raw({
+        title: 'Post updates',
+        keepProbability: 0.99,
+        affectsOthers: true,
+      }),
+      raw({ title: 'Tag mail', keepProbability: 0.3 }),
+      raw({ title: 'Digest', keepProbability: 0.2 }),
+    ];
     expect(
       suggestions
         .filter((suggestion) => pickDefaultOn(suggestions).has(suggestion.id))
         .map((suggestion) => suggestion.title)
     ).toEqual(['Tag mail', 'Digest']);
-  });
-
-  it('drops an event suggestion whose condition is too long to keep', () => {
-    expect(
-      decodeRoutineSuggestions(
-        {
-          suggestions: [
-            raw({
-              trigger: {
-                kind: 'event',
-                event: 'email.message_received',
-                condition: 'x'.repeat(501),
-              },
-            }),
-          ],
-        },
-        'UTC'
-      )
-    ).toEqual([]);
-  });
-
-  it('reads out-of-range estimates as their nearest bound', () => {
-    const [high, low] = titled([3, Number.NaN]);
-    expect(high.keepProbability).toBe(1);
-    expect(low.keepProbability).toBe(0);
   });
 });

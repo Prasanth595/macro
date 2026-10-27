@@ -27,4 +27,5 @@ export const AiFeature = {
   agent_repository_choice: 'agent_repository_choice',
   dictation: 'dictation',
   image_generation: 'image_generation',
+  routine_suggestions: 'routine_suggestions',
 } as const;

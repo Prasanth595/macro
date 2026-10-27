@@ -1,25 +1,23 @@
 import { createRoot } from 'solid-js';
 import { describe, expect, it, vi } from 'vitest';
-import { decodeRoutineSuggestions } from '../core/suggestions';
+import { toRoutineSuggestions } from '../queries/suggestion-wire';
 import { createSuggestionActions } from './suggestion-actions';
 
-const [suggestion] = decodeRoutineSuggestions(
-  {
-    suggestions: [
-      {
-        surface: 'tasks',
-        title: 'Follow-ups after calls',
-        summary: 'Creates follow-up tasks when a call ends.',
-        reason: 'You run many customer calls',
-        instructions: 'Create a task for each action item from the call.',
-        icon: 'task',
-        keepProbability: 0.9,
-        affectsOthers: false,
-        notify: false,
-        trigger: { kind: 'event', event: 'call.ended' },
-      },
-    ],
-  },
+const [suggestion] = toRoutineSuggestions(
+  [
+    {
+      surface: 'tasks',
+      title: 'Follow-ups after calls',
+      summary: 'Creates follow-up tasks when a call ends.',
+      reason: 'You run many customer calls',
+      instructions: 'Create a task for each action item from the call.',
+      icon: 'task',
+      keepProbability: 0.9,
+      affectsOthers: false,
+      notify: false,
+      trigger: { kind: 'event', event: 'call.ended' },
+    },
+  ],
   'UTC'
 );
 

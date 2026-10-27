@@ -4,8 +4,8 @@ import { createSignal, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import { RoutineSuggestionsCard } from '../components/routine-suggestions-card';
 import { RoutineSuggestionsDialog } from '../components/routine-suggestions-dialog';
-import { decodeRoutineSuggestions } from '../core/suggestions';
 import { createSuggestionActions } from '../primitives/suggestion-actions';
+import { toRoutineSuggestions } from '../queries/suggestion-wire';
 import { FIXTURE_ROUTINE_SUGGESTIONS } from '../tests/fixture-suggestions';
 import {
   SuggestionRows,
@@ -15,7 +15,7 @@ import {
 // The real card, modal, and rows over the fixture's email suggestions. Creating a
 // routine records the draft instead of calling the server; the first create
 // fails once so the retry path can be exercised.
-const suggestions = decodeRoutineSuggestions(
+const suggestions = toRoutineSuggestions(
   FIXTURE_ROUTINE_SUGGESTIONS,
   'America/New_York'
 ).filter((suggestion) => suggestion.surface === 'email');

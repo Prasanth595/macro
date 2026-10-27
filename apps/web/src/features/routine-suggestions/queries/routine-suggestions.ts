@@ -1,77 +1,93 @@
-import { FREE_DEFAULT_MODEL } from '@core/component/AI/constant';
 import { getDefaultTimezone } from '@core/util/cron';
-import type { CreateAIProjectionOptions } from '@queries/ai/projection';
-import { createAIProjection, warmAIProjection } from '@queries/ai/projection';
-import { type Accessor, createMemo } from 'solid-js';
+import { throwOnErr } from '@core/util/result';
+import { queryClient } from '@queries/client';
 import {
-  buildRoutineSuggestionsPrompt,
-  decodeRoutineSuggestions,
-  type RoutineSuggestion,
-  routineSuggestionsSchema,
-} from '../core/suggestions';
+  type RoutineSuggestionSet,
+  routineSuggestionsClient,
+} from '@service-cognition/routine-suggestions';
+import { type Query, queryOptions, useQuery } from '@tanstack/solid-query';
+import { type Accessor, createMemo, createSignal } from 'solid-js';
+import type { RoutineSuggestion } from '../core/suggestions';
+import { routineSuggestionKeys } from './keys';
+import { toRoutineSuggestions } from './suggestion-wire';
 
-/**
- * Suggestions come from one projection per plan: the definition is shared by
- * every user under its id, so each id pins one model. Premium users get the
- * server's default model; everyone else the free-tier model.
- */
-function projectionOptions(
-  premium: boolean
-): Omit<CreateAIProjectionOptions<typeof routineSuggestionsSchema>, 'enabled'> {
-  return {
-    id: premium ? 'routines/suggestions' : 'routines/suggestions-free',
-    prompt: buildRoutineSuggestionsPrompt(),
-    schema: routineSuggestionsSchema,
-    ...(premium ? {} : { model: FREE_DEFAULT_MODEL }),
-    // Regenerated every few days, and kept alive for a month without visits.
-    refreshCadence: 'low',
-    expiry: 'month',
-  };
+/** How often to ask again while the server is still generating. */
+const GENERATING_POLL_MS = 3_000;
+
+function pollWhileGenerating(query: Query<RoutineSuggestionSet>) {
+  return query.state.data?.status === 'generating' ? GENERATING_POLL_MS : false;
+}
+
+function routineSuggestionsQueryOptions(enabled: boolean) {
+  return queryOptions({
+    queryKey: routineSuggestionKeys.set.queryKey,
+    queryFn: () => throwOnErr(() => routineSuggestionsClient.get()),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: pollWhileGenerating,
+  });
+}
+
+async function startRefresh() {
+  const set = await throwOnErr(() => routineSuggestionsClient.refresh());
+  // A generating answer turns polling back on.
+  queryClient.setQueryData(routineSuggestionKeys.set.queryKey, set);
+  return set;
 }
 
 export type RoutineSuggestionsSource = {
-  /** Undefined until a result exists; stale results stay while refreshing. */
+  /** Undefined until a result exists; earlier results stay while refreshing. */
   suggestions(): RoutineSuggestion[] | undefined;
   /** A generation is running (first time or a refresh). */
   generating(): boolean;
+  /** Set when there is nothing to show because loading or generating failed. */
   error(): string | undefined;
   refresh(): Promise<unknown>;
 };
 
-/** The workspace's routine suggestions, from the cached AI projection. */
-export function createRoutineSuggestions(plan: {
-  /**
-   * Whether to read the premium-model projection. Onboarding passes false
-   * whatever the plan: it warms the free one before the user picks a plan.
-   */
-  premium: Accessor<boolean>;
-  /**
-   * Whether the user, and so their permissions, has loaded; asking earlier
-   * would start the wrong plan's projection for a premium user.
-   */
+/** The user's routine suggestions, generated and stored by the server. */
+export function createRoutineSuggestions(options: {
+  /** Whether the user has loaded, so the request carries their identity. */
   ready: Accessor<boolean>;
 }): RoutineSuggestionsSource {
-  const projection = createAIProjection(() => ({
-    ...projectionOptions(plan.premium()),
-    enabled: plan.ready(),
-  }));
+  const query = useQuery(() => routineSuggestionsQueryOptions(options.ready()));
+  const [refreshing, setRefreshing] = createSignal(false);
+  // FE-48: read data only once the query has settled, and keep it through
+  // refetch errors.
+  const set = () => (query.isPending ? undefined : query.data);
   const suggestions = createMemo(() => {
-    const data = projection.data();
-    if (data === undefined || typeof data === 'string') return undefined;
-    return decodeRoutineSuggestions(data, getDefaultTimezone());
+    const current = set();
+    if (!current) return undefined;
+    if (current.generatedAt == null && current.suggestions.length === 0) {
+      return undefined;
+    }
+    return toRoutineSuggestions(current.suggestions, getDefaultTimezone());
   });
   return {
     suggestions,
-    generating: projection.isGenerating,
-    error: projection.error,
-    refresh: projection.refresh,
+    generating: () => refreshing() || set()?.status === 'generating',
+    error: () => {
+      if (suggestions()?.length) return undefined;
+      if (query.isError && !set()) return query.error.message;
+      return set()?.status === 'failed'
+        ? 'Routine suggestions could not be generated.'
+        : undefined;
+    },
+    refresh: async () => {
+      setRefreshing(true);
+      try {
+        return await startRefresh();
+      } finally {
+        setRefreshing(false);
+      }
+    },
   };
 }
 
 /**
- * Starts generating the free-model suggestions onboarding shows, once the
- * user's inbox and tools are connected, so they are ready by its last step.
+ * Starts generating the suggestions onboarding's last step shows, from the
+ * inbox and tools connected so far, so they are ready by the time it opens.
  */
-export function warmOnboardingRoutineSuggestions(): Promise<void> {
-  return warmAIProjection(projectionOptions(false));
+export async function warmRoutineSuggestions(): Promise<void> {
+  await startRefresh();
 }

@@ -1,8 +1,8 @@
 import type { PaidPlanTier } from '@app/features/paywall/plans';
 import {
-  decodeRoutineSuggestions,
-  type RoutineSuggestionsResult,
-} from '@app/features/routine-suggestions/core/suggestions';
+  toRoutineSuggestions,
+  type WireSuggestion,
+} from '@app/features/routine-suggestions/queries/suggestion-wire';
 import { FIXTURE_ROUTINE_SUGGESTIONS } from '@app/features/routine-suggestions/tests/fixture-suggestions';
 import type { AiPlanCatalog } from '@service-auth/ai-billing-types';
 import type { ServerResponse } from '@service-cognition/generated/schemas';
@@ -57,7 +57,7 @@ export type FakeOnboardingWorld = {
   webhookDelayPolls: number;
   accent: string | undefined;
   /** The AI's routine suggestions; null while they are still generating. */
-  routineSuggestions: RoutineSuggestionsResult | null;
+  routineSuggestions: WireSuggestion[] | null;
   /** Names of the routines turned on, in order. */
   routines: string[];
   /** Capabilities that fail, with the message they report. */
@@ -372,7 +372,7 @@ export function createFakeOnboarding(
       source: {
         suggestions: () =>
           world.routineSuggestions
-            ? decodeRoutineSuggestions(
+            ? toRoutineSuggestions(
                 unwrap(world.routineSuggestions),
                 'America/New_York'
               )

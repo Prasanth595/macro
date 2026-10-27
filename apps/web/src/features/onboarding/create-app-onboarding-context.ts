@@ -38,7 +38,7 @@ import {
 } from '@queries/team/teams';
 import {
   createRoutineSuggestions,
-  warmOnboardingRoutineSuggestions,
+  warmRoutineSuggestions,
 } from '../routine-suggestions/queries/routine-suggestions';
 import { draftToCreateBody } from '../routines/queries/routine-draft';
 import { useCreateScheduleMutation } from '../routines/queries/schedules';
@@ -292,13 +292,12 @@ export function createAppOnboardingContext(): OnboardingContext {
       return { t: 'completed' };
     },
     warmRoutineSuggestions: () =>
-      fireAndForget(warmOnboardingRoutineSuggestions(), 'onboarding'),
+      fireAndForget(warmRoutineSuggestions(), 'onboarding'),
     createRoutineSuggestionsStep: () => {
       const create = useCreateScheduleMutation(undefined, 'suggestion');
       const hasPaidAccess = useHasPaidAccess();
       return {
         source: createRoutineSuggestions({
-          premium: () => false,
           ready: () => viewer().t === 'signed-in',
         }),
         target: () => ({
