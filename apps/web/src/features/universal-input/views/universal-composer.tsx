@@ -127,9 +127,9 @@ export function UniversalComposer(props: {
     <Show when={s.draft().text.trim() || a.attachmentCount()}>
       <fieldset
         disabled={s.sending()}
-        class="universal-input-fields min-w-0 space-y-4 rounded-2xl border border-edge-muted bg-panel px-5 py-4 shadow-sm sm:px-6 sm:py-5"
+        class="universal-input-fields flex max-h-(--universal-input-max-height) min-h-0 min-w-0 flex-col gap-4 rounded-2xl border border-edge-muted bg-panel px-5 py-4 shadow-sm sm:px-6 sm:py-5"
       >
-        <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex shrink-0 flex-wrap items-center justify-between gap-3">
           <Select<TypeOption>
             options={TYPE_OPTIONS}
             optionValue="value"
@@ -191,69 +191,75 @@ export function UniversalComposer(props: {
             </Show>
           </div>
         </div>
-        <Show when={a.attachmentCount()}>
-          <div class="flex items-center gap-2 text-xs text-ink-muted">
-            <span>{a.attachmentCount()} attached item(s) · AI context</span>
-            <Button size="sm" variant="ghost" onClick={a.clearAttachments}>
-              Remove
-            </Button>
-          </div>
-        </Show>
-        <Show
-          when={
-            (type() === 'email' && !a.inboxes().length) ||
-            (type() === 'calendar' && !a.calendars().length)
-          }
+        <div
+          role="region"
+          aria-label="Suggested fields"
+          class="min-h-0 space-y-4 overscroll-contain [overflow-y:var(--universal-input-body-overflow,visible)] empty:hidden"
         >
-          <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-panel px-3 py-2.5">
-            <p class="text-xs text-ink-muted">
-              Connect Google to send email and create calendar events. Then
-              return here to compose.
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={s.sending() || a.connectingGoogle()}
-              onClick={() =>
-                fireAndForget(a.connectGoogle(), 'universal-input')
-              }
-            >
-              Connect Google
-            </Button>
-          </div>
-        </Show>
-        <Show when={type() === 'ai'}>
-          <AiDraft state={s} actions={a} />
-        </Show>
-        <Show when={type() === 'search'}>{props.search?.(hotkeyScope)}</Show>
-        <Show when={type() === 'note'}>
-          <NoteDraft state={s} actions={a} tags={props.noteTags} />
-        </Show>
-        <Show when={type() === 'task'}>
-          <TaskDraft
-            state={s}
-            properties={
-              <Suspense
-                fallback={
-                  <span class="text-xs text-ink-muted">
-                    Loading task properties…
-                  </span>
+          <Show when={a.attachmentCount()}>
+            <div class="flex items-center gap-2 text-xs text-ink-muted">
+              <span>{a.attachmentCount()} attached item(s) · AI context</span>
+              <Button size="sm" variant="ghost" onClick={a.clearAttachments}>
+                Remove
+              </Button>
+            </div>
+          </Show>
+          <Show
+            when={
+              (type() === 'email' && !a.inboxes().length) ||
+              (type() === 'calendar' && !a.calendars().length)
+            }
+          >
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-panel px-3 py-2.5">
+              <p class="text-xs text-ink-muted">
+                Connect Google to send email and create calendar events. Then
+                return here to compose.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={s.sending() || a.connectingGoogle()}
+                onClick={() =>
+                  fireAndForget(a.connectGoogle(), 'universal-input')
                 }
               >
-                {props.taskFields}
-              </Suspense>
-            }
-          />
-        </Show>
-        <Show when={type() === 'email'}>
-          <EmailDraft state={s} actions={a} />
-        </Show>
-        <Show when={type() === 'message'}>
-          <MessageDraft state={s} actions={a} />
-        </Show>
-        <Show when={type() === 'calendar'}>
-          <CalendarDraft state={s} actions={a} />
-        </Show>
+                Connect Google
+              </Button>
+            </div>
+          </Show>
+          <Show when={type() === 'ai'}>
+            <AiDraft state={s} actions={a} />
+          </Show>
+          <Show when={type() === 'search'}>{props.search?.(hotkeyScope)}</Show>
+          <Show when={type() === 'note'}>
+            <NoteDraft state={s} actions={a} tags={props.noteTags} />
+          </Show>
+          <Show when={type() === 'task'}>
+            <TaskDraft
+              state={s}
+              properties={
+                <Suspense
+                  fallback={
+                    <span class="text-xs text-ink-muted">
+                      Loading task properties…
+                    </span>
+                  }
+                >
+                  {props.taskFields}
+                </Suspense>
+              }
+            />
+          </Show>
+          <Show when={type() === 'email'}>
+            <EmailDraft state={s} actions={a} />
+          </Show>
+          <Show when={type() === 'message'}>
+            <MessageDraft state={s} actions={a} />
+          </Show>
+          <Show when={type() === 'calendar'}>
+            <CalendarDraft state={s} actions={a} />
+          </Show>
+        </div>
         <Show
           when={type() !== 'search' || !isTouchDevice()}
           fallback={
@@ -262,12 +268,12 @@ export function UniversalComposer(props: {
             </p>
           }
         >
-          <div class="border-t border-edge-muted pt-4">
+          <div class="shrink-0 border-t border-edge-muted pt-4">
             <ComposerFooter state={s} statusId={`${listId}-status`} />
           </div>
         </Show>
         <Show when={s.error()}>
-          <p role="alert" class="text-sm text-failure">
+          <p role="alert" class="shrink-0 text-sm text-failure">
             {s.error()}
           </p>
         </Show>

@@ -31,6 +31,13 @@ test('keeps the mobile editor focused as forms appear above it and Enter adds a 
     'notification clicks are broken\npriority urgent\nInclude Android\nInclude iOS\nInclude tablets\nCheck navigation\nAdd regression coverage'
   );
   await expect(title).toHaveText('Fix mobile notification routing');
+  const description = page.getByRole('textbox', {
+    name: 'Description',
+    exact: true,
+  });
+  await description.fill(
+    'Check notification routing on every device.\n'.repeat(40)
+  );
   await page.evaluate(() =>
     document.documentElement.style.setProperty('--dvh', '5px')
   );
@@ -45,7 +52,21 @@ test('keeps the mobile editor focused as forms appear above it and Enter adds a 
   expect(inputBounds!.y + inputBounds!.height).toBeLessThanOrEqual(500);
   const create = page.getByRole('button', { name: 'Create task', exact: true });
   await expect(create).toBeEnabled();
-  await create.scrollIntoViewIfNeeded();
+  await expect(create).toBeInViewport({ ratio: 1 });
+  const card = page.locator('.universal-input-fields');
+  const cardBounds = await card.boundingBox();
+  const selector = page.getByLabel('Content type', { exact: true });
+  const selectorBounds = await selector.boundingBox();
+  const createBounds = await create.boundingBox();
+  const content = page.getByRole('region', { name: 'Suggested fields' });
+  const scrollTop = await content.evaluate((element) => element.scrollTop);
+  await content.hover();
+  await page.mouse.wheel(0, scrollTop ? -1000 : 1000);
+  await expect(content).not.toHaveJSProperty('scrollTop', scrollTop);
+  expect((await card.boundingBox())!.y).toBeCloseTo(cardBounds!.y);
+  expect((await selector.boundingBox())!.y).toBeCloseTo(selectorBounds!.y);
+  expect((await create.boundingBox())!.y).toBeCloseTo(createBounds!.y);
+  await expect(selector).toBeInViewport({ ratio: 1 });
   await create.tap();
   await expect(page.getByTestId('command-submission-count')).toHaveText('1');
   await expect(page.getByTestId('last-command-submission')).toContainText(

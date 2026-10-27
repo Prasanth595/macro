@@ -76,9 +76,10 @@ export function MobileSearchInput() {
                   <div
                     data-keep-keyboard
                     aria-label="Suggested action"
-                    class="pointer-events-auto overflow-y-auto overscroll-contain px-(--mobile-chrome-gutter)"
+                    class="pointer-events-auto px-(--mobile-chrome-gutter)"
                     style={{
-                      'max-height': `max(0px, calc(var(--dvh, 1dvh) * 100 - var(--mobile-content-inset-top, 0px) - ${inputSize.height ?? 44}px - var(--mobile-chrome-gutter) * 3 - var(--safe-bottom, 0px)))`,
+                      '--universal-input-max-height': `max(0px, calc(var(--dvh, 1dvh) * 100 - var(--mobile-content-inset-top, 0px) - ${inputSize.height ?? 44}px - var(--mobile-chrome-gutter) * 3 - var(--safe-bottom, 0px)))`,
+                      '--universal-input-body-overflow': 'auto',
                     }}
                   >
                     {parts.fields}
