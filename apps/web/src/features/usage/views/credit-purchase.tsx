@@ -52,6 +52,22 @@ export function CreditPurchaseView(props: {
     if (limit && amount > limit.remainingCents)
       return `${formatCreditBalance(limit.remainingCents)} of ${teamCard() ? "your team's" : 'your'} ${formatCreditBalance(limit.limitCents)} monthly credit limit is left. ${teamCard() ? 'Ask your team owner to raise it.' : 'Raise it in Automatic reload settings.'}`;
   };
+  /** No card on file: the payer pays this pack through Stripe Checkout. */
+  const checkout = async (amount: number) => {
+    if (teamCard()) {
+      setError(
+        "Your team doesn't have a card on file. Ask your team owner to add one."
+      );
+      return;
+    }
+    try {
+      props.context.navigateToPayment(
+        await props.context.creditPurchase.checkout(amount)
+      );
+    } catch {
+      setError("Couldn't open checkout. Please try again.");
+    }
+  };
   const buy = async () => {
     const amount = amountCents();
     if (
@@ -63,6 +79,10 @@ export function CreditPurchaseView(props: {
     setError(undefined);
     try {
       const status = await props.context.creditPurchase.buy(amount);
+      if (status === 'payment_method_required') {
+        await checkout(amount);
+        return;
+      }
       if (status === 'declined') {
         setError(
           teamCard()

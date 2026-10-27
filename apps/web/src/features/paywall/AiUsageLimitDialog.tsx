@@ -12,6 +12,7 @@ import { ThrownResultError } from '@core/util/result';
 import {
   useAiBillingPlansQuery,
   useAiBillingSummaryQuery,
+  useCreateAiCreditCheckoutMutation,
   useCreateBillingPortalMutation,
   usePurchaseAiCreditsMutation,
   useUpdateAiAutoReloadMutation,
@@ -58,6 +59,7 @@ export function AiUsageLimitDialog() {
   const autoReload = useUpdateAiAutoReloadMutation();
   const portal = useCreateBillingPortalMutation();
   const purchase = usePurchaseAiCreditsMutation();
+  const checkout = useCreateAiCreditCheckoutMutation();
   const [creditsDeclined, setCreditsDeclined] = createSignal(false);
   const [mode, setMode] = createSignal<PurchaseMode>('credits');
   /** The chosen credit pack; unset shows the smallest. */
@@ -141,12 +143,38 @@ export function AiUsageLimitDialog() {
       : (packs.find(fits) ?? packs[0]);
   };
 
+  /** No card on file: the payer pays this pack through Stripe Checkout. */
+  const checkoutCredits = async (amountCents: number) => {
+    if (!usageSnapshot()?.can_manage_billing) {
+      setOfferError(
+        "Your team doesn't have a card on file. Ask your team owner to add one."
+      );
+      return;
+    }
+    // Come back to this page so the user can resend from where they were.
+    const here = window.location.href;
+    try {
+      window.location.href = await checkout.mutateAsync({
+        amountCents,
+        successUrl: here,
+        cancelUrl: here,
+      });
+    } catch {
+      setOfferError("Couldn't open checkout. Please try again.");
+    }
+  };
+
   const buyCredits = async () => {
     const amountCents = selectedPack();
-    if (amountCents === undefined || purchase.isPending) return;
+    if (amountCents === undefined || purchase.isPending || checkout.isPending)
+      return;
     setOfferError(undefined);
     try {
       const result = await purchase.mutateAsync({ amountCents });
+      if (result.status === 'payment_method_required') {
+        await checkoutCredits(amountCents);
+        return;
+      }
       if (result.status === 'declined') {
         setCreditsDeclined(true);
         return;
@@ -235,7 +263,11 @@ export function AiUsageLimitDialog() {
         monthlyLimit: monthlyLimit(),
         paymentFailed: paymentFailed(),
       },
-      pending: autoReload.isPending || portal.isPending || purchase.isPending,
+      pending:
+        autoReload.isPending ||
+        portal.isPending ||
+        purchase.isPending ||
+        checkout.isPending,
       error: offerError(),
     };
   };

@@ -167,6 +167,14 @@ export function createBillingLab(initial: ScenarioId) {
         );
         return 'paid';
       },
+      // The lab has no Stripe; checkout opens its simulated payment flow.
+      checkout: async (amountCents) => {
+        if (!manageable()) throw new Error('Credit checkout unavailable');
+        await perform('Credit checkout', () =>
+          openPayment({ kind: 'credits', amountCents })
+        );
+        return '#billing-lab-checkout';
+      },
     },
     autoReload: {
       settings: () => state().autoReload,

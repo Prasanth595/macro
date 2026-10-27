@@ -911,6 +911,36 @@ export const authServiceClient = {
     });
   },
 
+  /** Stripe Checkout for a credit pack, for a payer with no card on file. */
+  async createAiCreditCheckout(args: {
+    amountCents: number;
+    successUrl: string;
+    cancelUrl: string;
+  }) {
+    return (
+      await fetchWithAuth<{ url: string }, 'PAID_PLAN_REQUIRED'>(
+        `${authHost}/ai-billing/credits/checkout`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            amountCents: args.amountCents,
+            successUrl: args.successUrl,
+            cancelUrl: args.cancelUrl,
+          }),
+          errorResponseHandler: async (response) => {
+            if (response.status === 402) {
+              return {
+                code: 'PAID_PLAN_REQUIRED',
+                message: 'A paid plan is required',
+              };
+            }
+            return statusError(response.status);
+          },
+        }
+      )
+    ).map((result) => result.url);
+  },
+
   async createPortalSession(args: { returnUrl: string }) {
     return (
       await fetchWithAuth<{ url: string }>(`${authHost}/user/stripe/portal`, {

@@ -159,6 +159,20 @@ export function usePurchaseAiCreditsMutation() {
   }));
 }
 
+/** Start a Stripe Checkout for a credit pack; resolves to the hosted URL. */
+export function useCreateAiCreditCheckoutMutation() {
+  return useMutation(() => ({
+    mutationFn: async (args: {
+      amountCents: number;
+      successUrl: string;
+      cancelUrl: string;
+    }) =>
+      await throwOnErr(
+        async () => await authServiceClient.createAiCreditCheckout(args)
+      ),
+  }));
+}
+
 /** Move the active subscription to another paid plan. */
 export function useChangePlanMutation() {
   return useMutation(() => ({

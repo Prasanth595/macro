@@ -11,6 +11,7 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import {
   useAiBillingPlansQuery,
   useAiBillingSummaryQuery,
+  useCreateAiCreditCheckoutMutation,
   useCreateBillingPortalMutation,
   usePurchaseAiCreditsMutation,
   useUpdateAiAutoReloadMutation,
@@ -32,6 +33,7 @@ export function Usage() {
   const plans = useAiBillingPlansQuery();
   const aiUsageBilling = useFeatureFlag(enableAiUsageBilling);
   const purchase = usePurchaseAiCreditsMutation();
+  const checkout = useCreateAiCreditCheckoutMutation();
   const portal = useCreateBillingPortalMutation();
   const overage = useUpdateAiOverageMutation();
   const autoReloadMutation = useUpdateAiAutoReloadMutation();
@@ -74,7 +76,7 @@ export function Usage() {
       fireAndForget(summary.refetch(), 'usage');
     },
     creditPurchase: {
-      pending: () => purchase.isPending,
+      pending: () => purchase.isPending || checkout.isPending,
       supportedAmounts: () =>
         plans.isSuccess
           ? plans.data.credit_packs_cents
@@ -91,6 +93,20 @@ export function Usage() {
           throw new Error('Credit purchase unavailable');
         const result = await purchase.mutateAsync({ amountCents });
         return result.status;
+      },
+      checkout: async (amountCents) => {
+        if (
+          !available() ||
+          previewing() ||
+          !summary.isSuccess ||
+          !summary.data.can_manage_billing
+        )
+          throw new Error('Credit checkout unavailable');
+        return await checkout.mutateAsync({
+          amountCents,
+          successUrl: `${returnUrl}?aiCreditsSuccess=true`,
+          cancelUrl: `${returnUrl}?aiCreditsCancel=true`,
+        });
       },
     },
     autoReload: {

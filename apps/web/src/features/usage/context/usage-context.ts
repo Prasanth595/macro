@@ -14,11 +14,16 @@ export type UsageContext = {
   failed: Accessor<boolean>;
   refresh: () => void;
   /** One-time credit purchases charged to the card on file (the team owner's
-   * for a member). Resolves to how the charge ended; rejects when refused. */
+   * for a member). Resolves to how the charge ended; rejects when refused.
+   * Without a card on file nothing is charged and the payer can `checkout`. */
   creditPurchase: {
     pending: Accessor<boolean>;
     supportedAmounts: Accessor<readonly number[]>;
-    buy: (amountCents: number) => Promise<'paid' | 'declined'>;
+    buy: (
+      amountCents: number
+    ) => Promise<'paid' | 'declined' | 'payment_method_required'>;
+    /** Stripe Checkout for the same pack; resolves to its URL. Payer only. */
+    checkout: (amountCents: number) => Promise<string>;
   };
   autoReload: {
     settings: Accessor<AutoReloadSettings>;

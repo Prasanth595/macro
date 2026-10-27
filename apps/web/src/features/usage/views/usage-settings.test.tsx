@@ -214,3 +214,59 @@ it('keeps team credit labels and the personal allowance explanation for an owner
     screen.getByText('These credits are shared by your entire team.')
   ).toBeTruthy();
 });
+
+it('sends a payer with no card on file to checkout for the same pack', async () => {
+  const lab = createBillingLab('pro');
+  const checkout = vi.fn(async () => 'https://checkout.stripe.test/session');
+  const navigateToPayment = vi.fn();
+  render(() => (
+    <UsageSettingsView
+      context={{
+        ...lab.usage,
+        creditPurchase: {
+          ...lab.usage.creditPurchase,
+          buy: async () => 'payment_method_required',
+          checkout,
+        },
+        navigateToPayment,
+      }}
+    />
+  ));
+
+  fireEvent.click(screen.getByRole('button', { name: 'Add more' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Buy $25 in credits' }));
+
+  await waitFor(() =>
+    expect(navigateToPayment).toHaveBeenCalledWith(
+      'https://checkout.stripe.test/session'
+    )
+  );
+  expect(checkout).toHaveBeenCalledWith(2_500);
+});
+
+it('asks a team member to have the owner add a card when the team has none', async () => {
+  const lab = createBillingLab('team-member');
+  const checkout = vi.fn(async () => 'https://checkout.stripe.test/session');
+  render(() => (
+    <UsageSettingsView
+      context={{
+        ...lab.usage,
+        creditPurchase: {
+          ...lab.usage.creditPurchase,
+          buy: async () => 'payment_method_required',
+          checkout,
+        },
+      }}
+    />
+  ));
+
+  fireEvent.click(screen.getByRole('button', { name: 'Add more' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Buy $25 in credits' }));
+
+  expect(
+    await screen.findByText(
+      "Your team doesn't have a card on file. Ask your team owner to add one."
+    )
+  ).toBeTruthy();
+  expect(checkout).not.toHaveBeenCalled();
+});

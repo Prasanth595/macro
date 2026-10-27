@@ -181,8 +181,13 @@ monthly limit when set; a team member's always are, falling back to the plan
 default when the owner set none. A declined purchase is marked failed with its
 invoice kept open; buying again pays that invoice instead of charging twice, and
 it never suspends automatic reloads. Automatic reloads and the settlement sweep
-only consider `kind = 'automatic'` rows. The older Stripe Checkout credit
-endpoint (`/ai-billing/credits/checkout`) remains but the app no longer calls it. Each reload is one `ai_credit_reload` row reserved under the
+only consider `kind = 'automatic'` rows. Before reserving, a purchase checks
+that Stripe has a card to charge (the subscription's or customer's default
+payment method, or a legacy default source); without one it reserves nothing
+and returns `payment_method_required`, and the app sends the payer to the Stripe
+Checkout credit endpoint (`/ai-billing/credits/checkout`) for the same pack.
+Checkout purchases are booked by the webhook and are not counted against the
+monthly limit. Each reload is one `ai_credit_reload` row reserved under the
 payer lock and collected as a one-off Stripe invoice stamped
 `macro_purpose = ai_credit_reload`; a paid invoice books an `ai_credit_ledger`
 purchase, idempotent on the invoice id. A declined invoice stays pending, which
