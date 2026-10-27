@@ -41,10 +41,8 @@ fn definitions<Context>(toolset: &AsyncToolCollection<Context>) -> impl Iterator
     })
 }
 
-/// Code mode for flagged users: SDK-covered native tools give way to the SDK.
-pub struct CodeModeSurface<Context> {
-    /// Native tools still listed in code mode, from `tools_for_mcp_code_mode`.
-    pub native: Arc<AsyncToolCollection<Context>>,
+/// Code mode for flagged users: `tools/list` is the SDK entrypoints only.
+pub struct CodeModeSurface {
     /// `ExecuteCode` and `DescribeCodeTools`.
     pub tools: Arc<AsyncToolCollection<UserCodeModeToolContext>>,
     /// User-scoped execution and Jev.
@@ -68,7 +66,7 @@ pub struct AuthenticatedToolService<Context> {
     /// Static file CDN used for attachments returned by authorized channel reads.
     static_file_base_url: url::Url,
     /// Present when this deployment can run code.
-    code_mode: Option<Arc<CodeModeSurface<Context>>>,
+    code_mode: Option<Arc<CodeModeSurface>>,
     /// Records sessions and tool calls to product analytics.
     analytics: McpAnalytics,
 }
@@ -93,7 +91,7 @@ impl<Context> AuthenticatedToolService<Context> {
     }
 
     /// Offer code mode to users with the `ai-code-mode` flag.
-    pub fn with_code_mode(mut self, code_mode: Arc<CodeModeSurface<Context>>) -> Self {
+    pub fn with_code_mode(mut self, code_mode: Arc<CodeModeSurface>) -> Self {
         self.code_mode = Some(code_mode);
         self
     }
@@ -102,13 +100,12 @@ impl<Context> AuthenticatedToolService<Context> {
         definitions(&self.toolset).collect()
     }
 
-    /// Tools listed for a mode. Code mode lists the reduced native set plus the
-    /// SDK tools; every native tool stays callable either way.
+    /// Tools listed for a mode. Code mode lists only `ExecuteCode` and
+    /// `DescribeCodeTools`. Native tools stay callable if a client already
+    /// knows their names.
     fn tool_definitions_for(&self, mode: ToolMode) -> Vec<Tool> {
         match (mode, &self.code_mode) {
-            (ToolMode::Code, Some(code_mode)) => definitions(&code_mode.native)
-                .chain(definitions(&code_mode.tools))
-                .collect(),
+            (ToolMode::Code, Some(code_mode)) => definitions(&code_mode.tools).collect(),
             _ => self.tool_definitions(),
         }
     }
@@ -197,11 +194,13 @@ where
             context.peer.set_peer_info(request);
         }
         let mut info = self.get_info();
-        if self.tool_mode(&user_id).await == ToolMode::Code
-            && let Some(instructions) = info.instructions.as_mut()
-        {
-            instructions.push_str("\n\n");
-            instructions.push_str(include_str!("code_mode_instructions.md"));
+        if self.tool_mode(&user_id).await == ToolMode::Code {
+            let base_url = self.item_base_url.trim_end_matches('/');
+            info.instructions = Some(format!(
+                "{}\n\n{}",
+                include_str!("code_mode_instructions.md").trim(),
+                prompt::mcp_instructions(base_url),
+            ));
         }
         Ok(info)
     }

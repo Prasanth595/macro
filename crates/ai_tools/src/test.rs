@@ -773,6 +773,8 @@ fn conversation_tools_only_advertise_new_sessions() {
 
 #[test]
 fn mcp_code_mode_hides_sdk_covered_tools_and_keeps_the_rest() {
+    // This is the unused reduced native set. Public MCP `tools/list` in code
+    // mode advertises `ExecuteCode` and `DescribeCodeTools` only.
     let standard = tools_for(AiHost::Mcp).toolset;
     let code = tools_for_mcp_code_mode().toolset;
     for hidden in ["ReadContent", "ReadChannelMessages", "ListCalendarEvents"] {

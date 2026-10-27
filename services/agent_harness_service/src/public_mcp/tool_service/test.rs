@@ -225,7 +225,8 @@ mod code_mode {
     use agent_code_mode::domain::{
         CodeModeError, ExecutionStatus, UserCodeMode, UserExecutionReceipt,
     };
-    use agent_inmem::domain::tool_mode::{ToolMode, ToolModeSelector};
+    use agent_inmem::domain::tool_mode::ToolModeSelector;
+    use ai_toolset::{ToolAnnotated, ToolAnnotations};
     use axum::{
         body::{Body, to_bytes},
         http::Request,
@@ -234,6 +235,7 @@ mod code_mode {
     use rmcp::transport::streamable_http_server::{
         StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
     };
+    use serde::Deserialize;
     use std::{future::Future, pin::Pin, sync::Mutex};
     use tokio_util::sync::CancellationToken;
     use tower::ServiceExt;
@@ -282,9 +284,108 @@ mod code_mode {
         }
     }
 
+    /// Direct tools that used to leak next to code mode on `tools/list`.
+    #[derive(Deserialize, schemars::JsonSchema)]
+    #[schemars(title = "NameSearch", description = "Search by name.")]
+    struct NameSearch {}
+    impl ToolAnnotated for NameSearch {
+        const ANNOTATIONS: ToolAnnotations = ToolAnnotations::read_only("Search by name");
+    }
+    #[async_trait::async_trait]
+    impl ai_toolset::AsyncTool<()> for NameSearch {
+        type Output = serde_json::Value;
+        async fn call(
+            &self,
+            _: ai_toolset::ServiceContext<()>,
+            _: ai_toolset::RequestContext,
+        ) -> ai_toolset::ToolResult<Self::Output> {
+            Ok(serde_json::json!({"ok": true}))
+        }
+    }
+
+    #[derive(Deserialize, schemars::JsonSchema)]
+    #[schemars(title = "ReadContent", description = "Read a document.")]
+    struct ReadContent {}
+    impl ToolAnnotated for ReadContent {
+        const ANNOTATIONS: ToolAnnotations = ToolAnnotations::read_only("Read document");
+    }
+    #[async_trait::async_trait]
+    impl ai_toolset::AsyncTool<()> for ReadContent {
+        type Output = serde_json::Value;
+        async fn call(
+            &self,
+            _: ai_toolset::ServiceContext<()>,
+            _: ai_toolset::RequestContext,
+        ) -> ai_toolset::ToolResult<Self::Output> {
+            Ok(serde_json::json!({"ok": true}))
+        }
+    }
+
+    #[derive(Deserialize, schemars::JsonSchema)]
+    #[schemars(title = "EditDocument", description = "Edit a document.")]
+    struct EditDocument {}
+    impl ToolAnnotated for EditDocument {
+        const ANNOTATIONS: ToolAnnotations = ToolAnnotations::destructive("Edit document");
+    }
+    #[async_trait::async_trait]
+    impl ai_toolset::AsyncTool<()> for EditDocument {
+        type Output = serde_json::Value;
+        async fn call(
+            &self,
+            _: ai_toolset::ServiceContext<()>,
+            _: ai_toolset::RequestContext,
+        ) -> ai_toolset::ToolResult<Self::Output> {
+            Ok(serde_json::json!({"ok": true}))
+        }
+    }
+
+    #[derive(Deserialize, schemars::JsonSchema)]
+    #[schemars(title = "ListCalendarEvents", description = "List calendar events.")]
+    struct ListCalendarEvents {}
+    impl ToolAnnotated for ListCalendarEvents {
+        const ANNOTATIONS: ToolAnnotations = ToolAnnotations::read_only("List calendar events");
+    }
+    #[async_trait::async_trait]
+    impl ai_toolset::AsyncTool<()> for ListCalendarEvents {
+        type Output = serde_json::Value;
+        async fn call(
+            &self,
+            _: ai_toolset::ServiceContext<()>,
+            _: ai_toolset::RequestContext,
+        ) -> ai_toolset::ToolResult<Self::Output> {
+            Ok(serde_json::json!({"ok": true}))
+        }
+    }
+
+    const DIRECT_TOOLS: [&str; 4] = [
+        "EditDocument",
+        "ListCalendarEvents",
+        "NameSearch",
+        "ReadContent",
+    ];
+
+    fn catalog() -> Arc<AsyncToolCollection<()>> {
+        Arc::new(
+            AsyncToolCollection::new()
+                .add_tool::<NameSearch, ()>()
+                .add_tool::<ReadContent, ()>()
+                .add_tool::<EditDocument, ()>()
+                .add_tool::<ListCalendarEvents, ()>(),
+        )
+    }
+
+    fn catalog_service() -> AuthenticatedToolService<()> {
+        AuthenticatedToolService::new(
+            catalog(),
+            (),
+            "https://macro.com".to_owned(),
+            url::Url::parse("https://static-file-service.macro.com").unwrap(),
+            McpAnalytics::disabled(),
+        )
+    }
+
     fn app(runs: Arc<dyn UserCodeMode>) -> axum::Router {
         let surface = Arc::new(CodeModeSurface {
-            native: Arc::new(AsyncToolCollection::new()),
             tools: Arc::new(agent_code_mode::inbound::toolset::user_toolset()),
             context: agent_code_mode::inbound::toolset::UserCodeModeToolContext {
                 service: runs,
@@ -297,7 +398,7 @@ mod code_mode {
         config.stateful_mode = false;
         config.json_response = true;
         let service = StreamableHttpService::new(
-            move || Ok(empty_service().with_code_mode(surface.clone())),
+            move || Ok(catalog_service().with_code_mode(surface.clone())),
             Arc::new(LocalSessionManager::default()),
             config,
         );
@@ -363,8 +464,19 @@ mod code_mode {
 
         let flagged = rpc(app.clone(), FLAGGED, "tools/list", serde_json::json!({})).await;
         assert_eq!(tool_names(&flagged), ["DescribeCodeTools", "ExecuteCode"]);
+        for leaked in DIRECT_TOOLS {
+            assert!(
+                !tool_names(&flagged).iter().any(|name| name == leaked),
+                "{leaked} must not appear on the code-mode catalog"
+            );
+        }
         let unflagged = rpc(app.clone(), UNFLAGGED, "tools/list", serde_json::json!({})).await;
-        assert!(tool_names(&unflagged).is_empty());
+        assert_eq!(tool_names(&unflagged), DIRECT_TOOLS);
+        assert!(
+            !tool_names(&unflagged)
+                .iter()
+                .any(|name| name == "ExecuteCode")
+        );
 
         let initialize = serde_json::json!({
             "protocolVersion": "2025-06-18",
@@ -372,19 +484,56 @@ mod code_mode {
             "clientInfo": {"name": "test", "version": "1"},
         });
         let flagged = rpc(app.clone(), FLAGGED, "initialize", initialize.clone()).await;
-        assert!(
-            flagged["result"]["instructions"]
-                .as_str()
-                .unwrap()
-                .contains("Code mode is on")
-        );
+        let flagged_instructions = flagged["result"]["instructions"].as_str().unwrap();
+        assert!(flagged_instructions.contains("Code mode is on"));
+        assert!(flagged_instructions.contains("ExecuteCode"));
+        assert!(flagged_instructions.contains("DescribeCodeTools"));
+        for leaked in [
+            "NameSearch",
+            "ReadContent",
+            "ContentSearch",
+            "Direct tools remain",
+        ] {
+            assert!(
+                !flagged_instructions.contains(leaked),
+                "code-mode initialize must not advertise {leaked}"
+            );
+        }
         let unflagged = rpc(app, UNFLAGGED, "initialize", initialize).await;
-        assert!(
-            !unflagged["result"]["instructions"]
-                .as_str()
-                .unwrap()
-                .contains("Code mode is on")
-        );
+        let unflagged_instructions = unflagged["result"]["instructions"].as_str().unwrap();
+        assert!(!unflagged_instructions.contains("Code mode is on"));
+        assert!(unflagged_instructions.contains("ContentSearch"));
+        assert!(unflagged_instructions.contains("NameSearch"));
+    }
+
+    #[test]
+    fn code_mode_catalog_is_user_toolset_not_the_reduced_native_set() {
+        let tools = agent_code_mode::inbound::toolset::user_toolset();
+        let listed: Vec<&str> = tools.tools.keys().map(String::as_str).collect();
+        assert_eq!(listed, ["DescribeCodeTools", "ExecuteCode"]);
+
+        let reduced = ai_tools::tools_for_mcp_code_mode();
+        for leaked in [
+            "NameSearch",
+            "ContentSearch",
+            "ListEntities",
+            "EditDocument",
+        ] {
+            assert!(
+                reduced.toolset.tools.contains_key(leaked),
+                "{leaked} remains in the unused reduced native set"
+            );
+            assert!(
+                !listed.contains(&leaked),
+                "{leaked} must not be a public code-mode entrypoint"
+            );
+        }
+        for hidden in ["ReadContent", "ReadChannelMessages", "ListCalendarEvents"] {
+            assert!(
+                !listed.contains(&hidden),
+                "{hidden} must not be a public code-mode entrypoint"
+            );
+        }
     }
 
     #[tokio::test]
@@ -400,7 +549,7 @@ mod code_mode {
         assert!(unflagged.get("error").is_some());
         assert!(runs.0.lock().unwrap().is_empty());
 
-        let flagged = rpc(app, FLAGGED, "tools/call", call).await;
+        let flagged = rpc(app.clone(), FLAGGED, "tools/call", call).await;
         assert_eq!(
             flagged["result"]["structuredContent"]["status"],
             "succeeded"
@@ -411,6 +560,22 @@ mod code_mode {
                 format!("macro|{FLAGGED}"),
                 "export async function main() { return {data: 1}; }".to_owned()
             )]
+        );
+    }
+
+    #[tokio::test]
+    async fn hidden_native_tools_remain_callable_in_code_mode() {
+        let app = app(Arc::new(Runs::default()));
+        let result = rpc(
+            app,
+            FLAGGED,
+            "tools/call",
+            serde_json::json!({"name": "NameSearch", "arguments": {}}),
+        )
+        .await;
+        assert_eq!(
+            result["result"]["structuredContent"],
+            serde_json::json!({"ok": true})
         );
     }
 
