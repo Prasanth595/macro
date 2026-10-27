@@ -47,6 +47,8 @@ pub enum FailureReason {
     GmailApiUnavailable,
     /// A newer label write on the same messages has not finished yet.
     NewerLabelWritePending,
+    /// Every fleet-wide backfill write slot stayed taken; the operation is deferred.
+    BackfillWritesBusy,
     OutdatedHistoryId,
     AttachmentParsingFailed,
     DSSUploadFailed,
