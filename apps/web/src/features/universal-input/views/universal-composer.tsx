@@ -1,7 +1,6 @@
 import { IS_MAC } from '@core/constant/isMac';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { fireAndForget } from '@core/util/fireAndForget';
-import { isEditableInput } from '@core/util/isEditableInput';
 import { Button, Select, Tooltip } from '@ui';
 import {
   createSignal,
@@ -98,19 +97,6 @@ export function UniversalComposer(props: {
   const [typeMenuOpen, setTypeMenuOpen] = createSignal(false);
   const listId = createUniqueId();
   const [attachHotkeys, hotkeyScope] = useHotkeyDOMScope('universal-input');
-  registerHotkey({
-    scopeId: hotkeyScope,
-    hotkey: 'shift+enter',
-    description: 'New line',
-    runWithInputFocused: true,
-    allowBrowserDefault: true,
-    hide: true,
-    keyDownHandler: (event) =>
-      !!event &&
-      !event.isComposing &&
-      event.target instanceof Element &&
-      !!isEditableInput(event.target),
-  });
   const cycleType = (direction: 1 | -1, event?: KeyboardEvent) => {
     if (event?.isComposing) return false;
     s.cycle(direction);

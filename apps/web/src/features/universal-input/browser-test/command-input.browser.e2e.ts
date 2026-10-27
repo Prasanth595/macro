@@ -260,6 +260,13 @@ for (const eligible of [false, true]) {
     await expect(dialog.getByTestId('command-input-logo')).toBeHidden();
     await page.keyboard.type('update');
     await expect(search).toHaveValue('investor\nupdate');
+    await page.keyboard.down('Shift');
+    await page.keyboard.down('Enter');
+    await page.keyboard.up('Shift');
+    await page.keyboard.up('Enter');
+    await expect(search).toHaveValue('investor\nupdate\n');
+    await expect(dialog).toBeVisible();
+    await expect(page.getByTestId('opened-search-result')).toHaveText('');
   });
 }
 
@@ -292,6 +299,14 @@ test('Shift+Enter keeps Universal Input search open while browsing a result', as
     'find how blowholes work',
     'in the ocean',
   ]);
+  await input.press('ArrowDown');
+  await page.keyboard.down('Shift');
+  await page.keyboard.down('Enter');
+  await page.keyboard.up('Shift');
+  await page.keyboard.up('Enter');
+  await expect(input.locator('p')).toHaveCount(3);
+  await expect(dialog).toBeVisible();
+  await expect(page.getByTestId('opened-search-result')).toHaveText('');
 });
 
 test('the type selector uses the shared dropdown and Escape leaves Command K open', async ({

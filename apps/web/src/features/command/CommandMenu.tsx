@@ -599,22 +599,12 @@ function CommandSearchMenu(
     hide: true,
   });
 
-  registerHotkey({
-    hotkey: 'shift+enter',
-    scopeId: hotkeyScope,
-    description: 'New line',
-    runWithInputFocused: true,
-    allowBrowserDefault: true,
-    hide: true,
-    keyDownHandler: (event) =>
-      !!event && !event.isComposing && event.target === searchInput,
-  });
-
   const confirmHotkey = registerHotkey({
     hotkey: 'enter',
     scopeId: hotkeyScope,
     description: 'Select item',
-    keyDownHandler: () => {
+    keyDownHandler: (event) => {
+      if (event?.isComposing || event?.shiftKey) return false;
       const item = selectedItem();
       if (item) {
         handleItemAction(item, false);

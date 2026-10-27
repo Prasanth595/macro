@@ -82,7 +82,7 @@ export function EmbeddedSearchResults(props: {
     hotkey: 'enter',
     description: 'Open search result',
     keyDownHandler: (event) => {
-      if (!accepts(event) || !navigating()) return false;
+      if (!accepts(event) || event?.shiftKey || !navigating()) return false;
       const item = list.selectedItem();
       if (!item) return false;
       props.onOpen(item, false);

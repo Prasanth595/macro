@@ -644,8 +644,9 @@ edited, so a provider failure cannot silently broaden the search.
 Click a result or message snippet to open its actual location, or use **Up/Down**
 and then **Enter**. Keyboard selection scrolls into view while the editor keeps
 focus. **Shift+Enter** always inserts a newline in the Command K main input,
-including before Universal Input activates. Multiline input hides the Macro logo
-and removes its reserved spacing so text uses the full width. **Escape** exits
+including before Universal Input activates and when Shift is released before
+Enter; neither key release opens the selected result. Multiline input hides the
+Macro logo and removes its reserved spacing so text uses the full width. **Escape** exits
 result navigation; a second Escape closes the menu. The content type selector
 uses the shared styled dropdown with a selection checkmark and platform-specific
 shortcut tooltip. Search navigation and type cycling use the app's scoped
