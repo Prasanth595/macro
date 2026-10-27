@@ -16,6 +16,7 @@ export default {
   calls: 'Calls',
   reviews: 'Reviews',
   scheduling: 'Scheduling',
+  external: 'External',
   activity: 'Activity',
   recent: 'Recent',
   settings: 'Settings',
