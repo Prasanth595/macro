@@ -321,8 +321,11 @@ inherited date preset. The draft's due date remains editable. **Unassigned**
 and **No priority** start with that property empty. **No project** starts empty
 outside project boards; project boards always retain the current project.
 **No status** starts with **Not started**, because new tasks require a status.
-Each pane or project scope and column keeps a separate composer draft. Project
-boards hide creation actions when the project is read-only.
+Each pane or project scope and column keeps a separate composer draft. Dated
+column drafts are also scoped to the current local day and timezone, so reopening
+after midnight or a timezone change starts with the new date preset. Undated and
+non-date columns keep their existing draft scope. Normal draft expiration still
+applies. Project boards hide creation actions when the project is read-only.
 
 Click a card's body or title to open the task. Move at least 10 pixels with the
 mouse button held to start dragging to another column; holding still does not

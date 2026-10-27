@@ -239,4 +239,47 @@ describe('board task drafts', () => {
       if (id === 'no_due_date') expect(dueDate.value).toBeNull();
     }
   });
+
+  it('scopes dated drafts to their local day and timezone', () => {
+    const before = createDateBucketBoundaries(
+      new Date('2025-03-09T04:59:59Z'),
+      'America/New_York'
+    );
+    const after = createDateBucketBoundaries(
+      new Date('2025-03-09T05:00:00Z'),
+      'America/New_York'
+    );
+    const later = createDateBucketBoundaries(
+      new Date('2025-03-09T18:00:00Z'),
+      'America/New_York'
+    );
+    const utc = createDateBucketBoundaries(
+      new Date('2025-03-09T18:00:00Z'),
+      'UTC'
+    );
+    for (const { id } of TASK_DUE_DATE_BUCKETS) {
+      if (id === 'no_due_date') continue;
+      const draft = (calendar: typeof before) =>
+        taskBoardComposerContext({
+          grouping: 'due_date',
+          columnId: id,
+          scopeKey: 'project-view',
+          calendar,
+        });
+      expect(draft(after).key).not.toBe(draft(before).key);
+      expect(draft(after).key).toBe(draft(later).key);
+      expect(draft(utc).key).not.toBe(draft(later).key);
+    }
+    for (const grouping of ['due_date', 'status', 'assignee'] as const) {
+      const draft = (calendar: typeof before) =>
+        taskBoardComposerContext({
+          grouping,
+          columnId: grouping === 'due_date' ? 'no_due_date' : '',
+          scopeKey: 'project-view',
+          calendar,
+        });
+      expect(draft(after).key).toBe(draft(before).key);
+      expect(draft(utc).key).toBe(draft(later).key);
+    }
+  });
 });

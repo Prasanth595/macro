@@ -53,6 +53,11 @@ export function taskBoardComposerContext(options: {
     })
     .exhaustive();
 
+  const calendarScope =
+    grouping === 'due_date' && columnId !== 'no_due_date'
+      ? [options.calendar.today, options.calendar.timeZone]
+      : [];
+
   return {
     key: JSON.stringify([
       'tasks-board',
@@ -60,6 +65,7 @@ export function taskBoardComposerContext(options: {
       context?.key,
       grouping,
       columnId,
+      ...calendarScope,
     ]),
     visiblePropertyIds: context?.visiblePropertyIds
       ? [...new Set([...context.visiblePropertyIds, propertyId])]
