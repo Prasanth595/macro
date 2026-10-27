@@ -99,7 +99,7 @@ views. Mutation dialogs receive a refresh callback, not both query sources.
 Compose the list through compound components and reuse styled menu items across
 its context and overflow menus. The mobile picker shows rows without a duplicate
 section heading or general create button. The sidebar and picker empty state use
-a muted bookmark, No saved views yet, and a filled Create view action that starts
+a small muted bookmark beside No saved views yet and a neutral Create view action that starts
 the existing draft flow after closing the picker. Changes from the built-in settings
 expose creation in the filter drawer's overlay banner above the footer and
 existing-view save/reset actions at its footer's right.

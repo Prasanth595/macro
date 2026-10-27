@@ -382,20 +382,22 @@ function TaskSavedViewRows(props: {
           <Show
             when={!creating() && !views().loading() && items()?.length === 0}
           >
-            <div class="flex flex-col items-center gap-3 px-3 py-4 text-center">
+            <div class="flex items-start gap-2 px-3 py-2">
               <BookmarkIcon
                 aria-hidden="true"
-                class="size-8 text-ink-muted opacity-50"
+                class="size-5 shrink-0 text-ink-muted opacity-50"
               />
-              <p class="text-xs text-ink-muted">No saved views yet</p>
-              <Button
-                ref={attachCreateHotkeys}
-                size="sm"
-                variant="cta"
-                onClick={() => run(startSavedView)}
-              >
-                Create view
-              </Button>
+              <div class="flex min-w-0 flex-col items-start gap-1.5">
+                <p class="text-xs text-ink-muted">No saved views yet</p>
+                <Button
+                  ref={attachCreateHotkeys}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => run(startSavedView)}
+                >
+                  Create view
+                </Button>
+              </div>
             </div>
           </Show>
           <Show when={views().error()}>

@@ -25,7 +25,7 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Keep sidebar actions targeted to their own record; Edit combines naming and sharing without saving temporary settings, and Duplicate starts with a prefilled private copy and warns before omitting unsupported settings.
 - Keep saved-view names and menus in the mobile picker; overlay creation above the filter drawer footer on a drawer-colored backing without blocking the last scrollable controls, and put Save changes at the footer's right edge, opposite Clear all.
 - Place the saved-view picker after Filters and before built-in mobile tabs; omit duplicate headers and general create controls, but offer Create view in the empty state.
-- Keep the shared sidebar and picker empty state compact: a muted bookmark, No saved views yet, and a filled Create view action using the existing draft flow; isolate its keyboard scope from task-list selection shortcuts.
+- Keep the shared sidebar and picker empty state compact: a small muted bookmark beside No saved views yet and a neutral Create view action using the existing draft flow; isolate its keyboard scope from task-list selection shortcuts.
 - Keep mobile pills in a flex wrapper inside the header so their shadow margins cannot collapse the header and overlap task content.
 - Show one local New view draft row after creation starts; prefill its save dialog with New view, replace the row on confirmed save, and remove it on cancellation or navigation without adding fake cached records.
 - Close the selected-view menu before opening a dialog, discard deferred actions after account or selection changes, and close dialogs after account, saved-view, or built-in-tab navigation.
