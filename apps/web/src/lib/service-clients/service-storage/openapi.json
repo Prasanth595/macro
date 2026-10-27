@@ -16143,28 +16143,6 @@
         }
       }
     },
-    "/meta/linked/groups": {
-      "get": {
-        "tags": ["whatsapp_linked::inbound::router"],
-        "summary": "Groups the caller's account has joined.",
-        "operationId": "linked_groups",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/LinkedGroupInfo"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/meta/linked/groups/adopt": {
       "post": {
         "tags": ["whatsapp_linked::inbound::router"],
@@ -16331,7 +16309,7 @@
       },
       "delete": {
         "tags": ["whatsapp_linked::inbound::router"],
-        "summary": "Stop syncing the group, locally.",
+        "summary": "Stop syncing the group, locally. Owner only, in their own session.",
         "operationId": "linked_detach",
         "parameters": [
           {
@@ -16466,7 +16444,7 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Page size, 1 through 100.",
+            "description": "Page size, up to [`PAGE_LIMIT`]; [`DEFAULT_PAGE`] when absent.",
             "required": false,
             "schema": {
               "type": ["integer", "null"],
@@ -16528,6 +16506,45 @@
                   "items": {
                     "$ref": "#/components/schemas/LinkedMessageAttachments"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/linked/whatsapp-groups/{group_id}/messages/{message_id}": {
+      "get": {
+        "tags": ["whatsapp_linked::inbound::router"],
+        "summary": "One message of the timeline, as the timeline shows it.",
+        "operationId": "whatsapp_group_message",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppGroupMessage"
                 }
               }
             }
@@ -19821,9 +19838,9 @@
       "AdoptedGroup": {
         "type": "object",
         "description": "Adoption response.",
-        "required": ["group_id"],
+        "required": ["groupId"],
         "properties": {
-          "group_id": {
+          "groupId": {
             "type": "string",
             "format": "uuid",
             "description": "Shareable entity identifier."
@@ -22994,6 +23011,21 @@
           },
           {
             "type": "object",
+            "description": "A span of time; its end may not come before its start.",
+            "required": ["value", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["date_range"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/DateRange",
+                "description": "A span of time; its end may not come before its start."
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Complete http or https URLs; at most one for a single-valued column.",
             "required": ["value", "type"],
             "properties": {
@@ -24622,6 +24654,17 @@
               "type": {
                 "type": "string",
                 "enum": ["date"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A span from one date-time to another.",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["date_range"]
               }
             }
           },
@@ -26750,6 +26793,7 @@
         "enum": [
           "BOOLEAN",
           "DATE",
+          "DATE_RANGE",
           "NUMBER",
           "STRING",
           "SELECT_NUMBER",
@@ -27113,6 +27157,35 @@
         "type": "string",
         "description": "How a date cell compares to a date-time.",
         "enum": ["before", "after", "onOrBefore", "onOrAfter"]
+      },
+      "DateRange": {
+        "type": "object",
+        "description": "A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.",
+        "required": ["start", "end"],
+        "properties": {
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Where it ends; never before the start."
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Where it starts."
+          }
+        }
+      },
+      "DateRangeOperator": {
+        "type": "string",
+        "description": "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day.",
+        "enum": [
+          "contains",
+          "doesNotContain",
+          "endsBefore",
+          "endsOnOrAfter",
+          "startsAfter",
+          "startsOnOrBefore"
+        ]
       },
       "DeleteEntityMentionResponse": {
         "type": "object",
@@ -30026,6 +30099,26 @@
                 "type": "string",
                 "format": "date-time",
                 "description": "The date-time compared against."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A date-range column.",
+            "required": ["operator", "value", "kind"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["dateRange"]
+              },
+              "operator": {
+                "$ref": "#/components/schemas/DateRangeOperator",
+                "description": "How the cell's range stands to the day."
+              },
+              "value": {
+                "type": "string",
+                "format": "date-time",
+                "description": "The start of the day compared against."
               }
             }
           },
@@ -33310,9 +33403,9 @@
       "LinkedAccount": {
         "type": "object",
         "description": "One person's account, never owned by a workspace.",
-        "required": ["id", "user_id", "state", "authorization_generation"],
+        "required": ["id", "userId", "state", "authorizationGeneration"],
         "properties": {
-          "authorization_generation": {
+          "authorizationGeneration": {
             "type": "integer",
             "format": "int64",
             "description": "Explicit consent generation; reconnecting a socket never changes it."
@@ -33322,7 +33415,7 @@
             "format": "uuid",
             "description": "Stable account identity."
           },
-          "identity_jid": {
+          "identityJid": {
             "type": ["string", "null"],
             "description": "WhatsApp-verified identity, absent until the first pairing succeeds."
           },
@@ -33330,7 +33423,7 @@
             "$ref": "#/components/schemas/LinkedAccountState",
             "description": "Lifecycle."
           },
-          "user_id": {
+          "userId": {
             "type": "string",
             "description": "Authenticated owner."
           }
@@ -33361,31 +33454,31 @@
       "LinkedAdoptGroup": {
         "type": "object",
         "description": "Explicit adoption request; the account is selected server-side. The\ngroup's name always follows WhatsApp.",
-        "required": ["group_jid"],
+        "required": ["groupJid"],
         "properties": {
-          "group_jid": {
+          "groupJid": {
             "type": "string",
-            "description": "Group the requester's account has joined."
+            "description": "A group the requester's account has joined, or a direct chat from\ntheir chat list (the other person's JID, as the list names it)."
           }
         }
       },
       "LinkedAttachment": {
         "type": "object",
         "description": "One attachment of a linked message.",
-        "required": ["ordinal", "state", "file_name", "mime", "size"],
+        "required": ["ordinal", "state", "fileName", "mime", "size"],
         "properties": {
-          "document_id": {
+          "documentId": {
             "type": ["string", "null"],
             "format": "uuid",
             "description": "The private document, once ready."
           },
-          "duration_seconds": {
+          "durationSeconds": {
             "type": ["integer", "null"],
             "format": "int32",
             "description": "Length of audio or video in whole seconds, when declared.",
             "minimum": 0
           },
-          "file_name": {
+          "fileName": {
             "type": "string",
             "description": "Display filename."
           },
@@ -33458,40 +33551,52 @@
       "LinkedBackfillState": {
         "type": "string",
         "description": "Where importing a group's earlier messages stands.",
-        "enum": ["pending", "running", "waiting_for_phone", "done", "partial"]
+        "enum": [
+          "waiting_for_message",
+          "pending",
+          "running",
+          "waiting_for_phone",
+          "done",
+          "partial"
+        ]
+      },
+      "LinkedCannotAdd": {
+        "type": "string",
+        "description": "Why a chat can't be added to Macro; the app words it from the code.",
+        "enum": ["not_in_group", "community", "own_chat", "not_in_chat_list"]
       },
       "LinkedCapabilities": {
         "type": "object",
         "description": "Operations implemented for linked groups, independent of current permission.",
         "required": [
-          "text_limit_bytes",
+          "textLimitBytes",
           "mutations",
-          "mutation_window_seconds",
-          "max_attachments",
-          "attachment_limit_bytes",
-          "attachment_types"
+          "mutationWindowSeconds",
+          "maxAttachments",
+          "attachmentLimitBytes",
+          "attachmentTypes"
         ],
         "properties": {
-          "attachment_limit_bytes": {
+          "attachmentLimitBytes": {
             "type": "integer",
             "format": "int32",
             "description": "Largest attachment in bytes.",
             "minimum": 0
           },
-          "attachment_types": {
+          "attachmentTypes": {
             "type": "array",
             "items": {
               "type": "string"
             },
             "description": "Supported attachment MIME types."
           },
-          "max_attachments": {
+          "maxAttachments": {
             "type": "integer",
             "format": "int32",
             "description": "Attachments per send.",
             "minimum": 0
           },
-          "mutation_window_seconds": {
+          "mutationWindowSeconds": {
             "type": "integer",
             "format": "int32",
             "description": "Edits and deletes are offered this long after sending.",
@@ -33504,7 +33609,7 @@
             },
             "description": "Supported message operations."
           },
-          "text_limit_bytes": {
+          "textLimitBytes": {
             "type": "integer",
             "format": "int32",
             "description": "Maximum UTF-8 bytes per text send.",
@@ -33526,8 +33631,26 @@
             "description": "\"Add to Macro\" works now."
           },
           "cannotAddReason": {
-            "type": ["string", "null"],
-            "description": "Why it can't be added, when it is neither added, shared nor addable."
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedCannotAdd",
+                "description": "Why it can't be added, when it is neither added, shared nor addable."
+              }
+            ]
+          },
+          "community": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedCommunityReference",
+                "description": "The community a group belongs to (a community's group or its\nannouncement group); `null` otherwise."
+              }
+            ]
           },
           "group": {
             "oneOf": [
@@ -33593,6 +33716,25 @@
           }
         }
       },
+      "LinkedCommunityReference": {
+        "type": "object",
+        "description": "The WhatsApp community a group belongs to.",
+        "required": ["id", "name", "announcements"],
+        "properties": {
+          "announcements": {
+            "type": "boolean",
+            "description": "This group is the community's announcement group."
+          },
+          "id": {
+            "type": "string",
+            "description": "The community's WhatsApp JID."
+          },
+          "name": {
+            "type": "string",
+            "description": "The community's name."
+          }
+        }
+      },
       "LinkedConnect": {
         "type": "object",
         "description": "Explicit pairing intent; replacement is a separate deliberate action.",
@@ -33606,23 +33748,14 @@
       "LinkedDeliveryState": {
         "type": "string",
         "description": "Observed send state. `unknown` means the request may have reached WhatsApp;\nit is never sent again automatically.",
-        "enum": [
-          "pending",
-          "sending",
-          "unknown",
-          "accepted",
-          "sent",
-          "delivered",
-          "read",
-          "failed"
-        ]
+        "enum": ["pending", "sending", "unknown", "accepted", "failed"]
       },
       "LinkedDisconnect": {
         "type": "object",
         "description": "Result of disconnecting an account.",
-        "required": ["remote_unlink_requested"],
+        "required": ["remoteUnlinkRequested"],
         "properties": {
-          "remote_unlink_requested": {
+          "remoteUnlinkRequested": {
             "type": "boolean",
             "description": "The session service was asked to log the device out of WhatsApp. It\nunlinks asynchronously; WhatsApp's Linked devices list is authoritative."
           }
@@ -33631,9 +33764,9 @@
       "LinkedDisconnectRequest": {
         "type": "object",
         "description": "The consent generation the owner deliberately disconnects.",
-        "required": ["authorization_generation"],
+        "required": ["authorizationGeneration"],
         "properties": {
-          "authorization_generation": {
+          "authorizationGeneration": {
             "type": "integer",
             "format": "int64",
             "description": "Fences retries against a later reconnect or replacement."
@@ -33659,75 +33792,6 @@
           }
         }
       },
-      "LinkedGroupInfo": {
-        "type": "object",
-        "description": "One full metadata read of a group, never an incomplete membership delta.",
-        "required": [
-          "jid",
-          "name",
-          "participants",
-          "announce",
-          "disappearing",
-          "community",
-          "observedAt"
-        ],
-        "properties": {
-          "announce": {
-            "type": "boolean",
-            "description": "Only admins may post."
-          },
-          "community": {
-            "type": "boolean",
-            "description": "Community announcement or parent group, outside the supported surface."
-          },
-          "disappearing": {
-            "type": "boolean",
-            "description": "Disappearing messages are on; content is not retained."
-          },
-          "group": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/LinkedGroupReference",
-                "description": "The caller's own Macro group for this remote group, once they added\nit. Only set by the groups listing."
-              }
-            ]
-          },
-          "jid": {
-            "type": "string",
-            "description": "Remote group JID."
-          },
-          "name": {
-            "type": "string",
-            "description": "Current subject."
-          },
-          "observedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the session service read this metadata."
-          },
-          "participants": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LinkedParticipant"
-            },
-            "description": "Full roster."
-          },
-          "shared": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/LinkedSharedGroupReference",
-                "description": "Someone else's Macro group for this remote group that was shared with\nthe caller, when the caller has not added their own. Only set by the\ngroups listing."
-              }
-            ]
-          }
-        }
-      },
       "LinkedGroupReference": {
         "type": "object",
         "description": "A group entity bound to a remote group.",
@@ -33744,25 +33808,6 @@
           }
         }
       },
-      "LinkedIdentity": {
-        "type": "object",
-        "description": "Verified sender aliases, supplied only by protocol metadata.",
-        "required": ["jid"],
-        "properties": {
-          "alternateJid": {
-            "type": ["string", "null"],
-            "description": "Verified alternate identity, never inferred from a name or phone typed by a user."
-          },
-          "displayName": {
-            "type": ["string", "null"],
-            "description": "Untrusted display name."
-          },
-          "jid": {
-            "type": "string",
-            "description": "Phone-number or LID account JID."
-          }
-        }
-      },
       "LinkedMediaKind": {
         "type": "string",
         "description": "Attachment categories WhatsApp distinguishes.",
@@ -33776,16 +33821,16 @@
       "LinkedMessageAttachments": {
         "type": "object",
         "description": "The attachments of one linked group message.",
-        "required": ["message_id", "linked_attachments"],
+        "required": ["messageId", "linkedAttachments"],
         "properties": {
-          "linked_attachments": {
+          "linkedAttachments": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LinkedAttachment"
             },
             "description": "Its attachments in order; deleted ones are omitted."
           },
-          "message_id": {
+          "messageId": {
             "type": "string",
             "format": "uuid",
             "description": "Group message."
@@ -33832,14 +33877,14 @@
       "LinkedPairing": {
         "type": "object",
         "description": "Owner-bound pairing transaction, without its QR or pairing code.",
-        "required": ["id", "account_id", "state", "expires_at"],
+        "required": ["id", "accountId", "state", "expiresAt"],
         "properties": {
-          "account_id": {
+          "accountId": {
             "type": "string",
             "format": "uuid",
             "description": "Account being connected."
           },
-          "expires_at": {
+          "expiresAt": {
             "type": "string",
             "format": "date-time",
             "description": "Database-assigned deadline."
@@ -33867,25 +33912,6 @@
           "cancelled",
           "failed"
         ]
-      },
-      "LinkedParticipant": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/LinkedIdentity",
-            "description": "Identity evidence."
-          },
-          {
-            "type": "object",
-            "required": ["admin"],
-            "properties": {
-              "admin": {
-                "type": "boolean",
-                "description": "Group admin; only admins post in announcement groups."
-              }
-            }
-          }
-        ],
-        "description": "Current remote participant; Macro access is a separate grant."
       },
       "LinkedReplyBlock": {
         "type": "string",
@@ -33926,7 +33952,7 @@
           {
             "type": "object",
             "description": "One attachment staged through the attachments route.",
-            "required": ["upload_id", "type"],
+            "required": ["uploadId", "type"],
             "properties": {
               "caption": {
                 "type": ["string", "null"],
@@ -33936,7 +33962,7 @@
                 "type": "string",
                 "enum": ["media"]
               },
-              "upload_id": {
+              "uploadId": {
                 "type": "string",
                 "format": "uuid",
                 "description": "The staged upload, which becomes the message's private document."
@@ -33946,9 +33972,9 @@
           {
             "type": "object",
             "description": "An operation on an existing message in this group.",
-            "required": ["message_id", "operation", "type"],
+            "required": ["messageId", "operation", "type"],
             "properties": {
-              "message_id": {
+              "messageId": {
                 "type": "string",
                 "format": "uuid",
                 "description": "Existing group message, resolved to its WhatsApp source by the server."
@@ -33975,23 +34001,23 @@
         "description": "Durable result of a deliberate send.",
         "required": [
           "id",
-          "user_id",
-          "group_id",
+          "userId",
+          "groupId",
           "payload",
           "state",
-          "created_at"
+          "createdAt"
         ],
         "properties": {
-          "created_at": {
+          "createdAt": {
             "type": "string",
             "format": "date-time",
             "description": "Intent creation time."
           },
-          "error_code": {
+          "errorCode": {
             "type": ["string", "null"],
             "description": "Sanitized failure code."
           },
-          "group_id": {
+          "groupId": {
             "type": "string",
             "format": "uuid",
             "description": "Group entity."
@@ -34001,7 +34027,7 @@
             "format": "uuid",
             "description": "Stable intent id."
           },
-          "message_id": {
+          "messageId": {
             "type": ["string", "null"],
             "format": "uuid",
             "description": "Group message, once WhatsApp accepted it."
@@ -34014,7 +34040,7 @@
             "$ref": "#/components/schemas/LinkedDeliveryState",
             "description": "Current state."
           },
-          "user_id": {
+          "userId": {
             "type": "string",
             "description": "Person who submitted it."
           }
@@ -34023,9 +34049,9 @@
       "LinkedSendReply": {
         "type": "object",
         "description": "Explicit send action from a person. Only deliberate sends reach WhatsApp.",
-        "required": ["idempotency_key", "message"],
+        "required": ["idempotencyKey", "message"],
         "properties": {
-          "idempotency_key": {
+          "idempotencyKey": {
             "type": "string",
             "format": "uuid",
             "description": "Stable client intent key. A changed payload with this key is a conflict."
@@ -34034,7 +34060,7 @@
             "$ref": "#/components/schemas/LinkedReplyContent",
             "description": "Content."
           },
-          "reply_to": {
+          "replyTo": {
             "type": ["string", "null"],
             "format": "uuid",
             "description": "Group message being quoted, within this group."
@@ -34044,7 +34070,7 @@
       "LinkedSharedGroupReference": {
         "type": "object",
         "description": "Another person's group entity the caller can view.",
-        "required": ["id", "name", "owner_id"],
+        "required": ["id", "name", "ownerId"],
         "properties": {
           "id": {
             "type": "string",
@@ -34055,7 +34081,7 @@
             "type": "string",
             "description": "Display name, following WhatsApp."
           },
-          "owner_id": {
+          "ownerId": {
             "type": "string",
             "description": "Macro user who added the group and shared it."
           }
@@ -34076,7 +34102,7 @@
       "LinkedUploadedAttachment": {
         "type": "object",
         "description": "A staged attachment, sent only by a later deliberate send.",
-        "required": ["upload_id", "filename", "kind"],
+        "required": ["uploadId", "filename", "kind"],
         "properties": {
           "filename": {
             "type": "string",
@@ -34086,7 +34112,7 @@
             "$ref": "#/components/schemas/LinkedMediaKind",
             "description": "Category."
           },
-          "upload_id": {
+          "uploadId": {
             "type": "string",
             "format": "uuid",
             "description": "Use as `upload_id` in a media send; also the future document id."
@@ -34266,9 +34292,9 @@
       "MarkRead": {
         "type": "object",
         "description": "Mark messages through this message read.",
-        "required": ["message_id"],
+        "required": ["messageId"],
         "properties": {
-          "message_id": {
+          "messageId": {
             "type": "string",
             "format": "uuid",
             "description": "Message in the addressed group."
@@ -37481,6 +37507,21 @@
           },
           {
             "type": "object",
+            "description": "Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}",
+            "required": ["value", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["DateRange"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/DateRange",
+                "description": "Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}"
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Select option(s) - always an array (check is_multi_select to determine if single or multi)\nSingle-select: {\"type\": \"SelectOption\", \"value\": [\"uuid\"]} (length 0 or 1)\nMulti-select: {\"type\": \"SelectOption\", \"value\": [\"uuid1\", \"uuid2\", ...]} (length 0+)",
             "required": ["value", "type"],
             "properties": {
@@ -37867,9 +37908,48 @@
                 "description": "The column a card is titled by. Left out, a board keeps the\ntitle it has, and a new board takes the table's first column."
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Bars on a calendar, one per row, spanning its date-range cell.",
+            "required": ["range", "groupBy", "colorBy", "kind"],
+            "properties": {
+              "barFields": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "The columns a bar shows after its title, in order."
+              },
+              "colorBy": {
+                "type": ["string", "null"],
+                "format": "uuid",
+                "description": "The select or tag column whose options color the bars, if any."
+              },
+              "groupBy": {
+                "type": ["string", "null"],
+                "format": "uuid",
+                "description": "The single-select or single-person column grouping the bars, if\nany."
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["timeline"]
+              },
+              "range": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The date-range column whose cells are the bars."
+              },
+              "title": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The column a bar is labelled by. Left out, a timeline keeps the\ntitle it has, and a new timeline takes the table's first column."
+              }
+            }
           }
         ],
-        "description": "A layout as an op asks for it: a board may leave its card title out."
+        "description": "A layout as an op asks for it: a board or timeline may leave its title\nout."
       },
       "ResolveRequest": {
         "type": "object",
@@ -38870,6 +38950,20 @@
               "value": {
                 "type": "string",
                 "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Date range value",
+            "required": ["value", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["date_range"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/DateRange"
               }
             }
           },
@@ -41364,6 +41458,21 @@
           },
           {
             "type": "object",
+            "description": "A span from one date-time to another.",
+            "required": ["value", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["dateRange"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/DateRange",
+                "description": "A span from one date-time to another."
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "The selected option ids; one for single-select columns.",
             "required": ["value", "type"],
             "properties": {
@@ -41523,7 +41632,16 @@
       "SqlOutcomeKind": {
         "type": "string",
         "description": "The value kind of a result column.",
-        "enum": ["text", "number", "boolean", "date", "select", "entity", "row"]
+        "enum": [
+          "text",
+          "number",
+          "boolean",
+          "date",
+          "dateRange",
+          "select",
+          "entity",
+          "row"
+        ]
       },
       "SqlSelectOption": {
         "type": "object",
@@ -44216,6 +44334,45 @@
                 "description": "The column a card is titled by, of any type. Removing it titles\nthe cards by the table's first remaining column."
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Bars on a calendar, one per row, spanning its date-range cell. Rows\nwith an empty range are listed apart as undated.",
+            "required": ["range", "title", "groupBy", "colorBy", "kind"],
+            "properties": {
+              "barFields": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "The columns a bar shows after its title, in order."
+              },
+              "colorBy": {
+                "type": ["string", "null"],
+                "format": "uuid",
+                "description": "The select or tag column whose options color the bars, if any."
+              },
+              "groupBy": {
+                "type": ["string", "null"],
+                "format": "uuid",
+                "description": "The single-select or single-person column whose values group the\nbars, if any; moving a bar to another group sets this column."
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["timeline"]
+              },
+              "range": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The date-range column whose cells are the bars."
+              },
+              "title": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The column a bar is labelled by, of any type. Removing it labels\nthe bars by the table's first remaining column."
+              }
+            }
           }
         ],
         "description": "How a view draws its rows."
@@ -44684,11 +44841,17 @@
           },
           {
             "type": "object",
-            "required": ["share_permission", "access_level", "limits"],
+            "required": ["sharePermission", "accessLevel", "limits"],
             "properties": {
-              "access_level": {
+              "accessLevel": {
                 "$ref": "#/components/schemas/AccessLevel",
                 "description": "Caller's effective permission."
+              },
+              "disappearingSeconds": {
+                "type": ["integer", "null"],
+                "format": "int32",
+                "description": "WhatsApp's disappearing-messages timer in seconds while it is on;\nMacro keeps the messages anyway. `null` when off or unknown.",
+                "minimum": 0
               },
               "limits": {
                 "$ref": "#/components/schemas/LinkedCapabilities",
@@ -44700,16 +44863,16 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/LinkedGroupInfo",
+                    "$ref": "#/components/schemas/WhatsAppRoster",
                     "description": "Latest remote metadata, absent when no observer is connected."
                   }
                 ]
               },
-              "sending_identity": {
+              "sendingIdentity": {
                 "type": ["string", "null"],
                 "description": "Caller's own phone identity, never another account's identity."
               },
-              "share_permission": {
+              "sharePermission": {
                 "$ref": "#/components/schemas/SharePermissionV2",
                 "description": "Owner-controlled standard sharing configuration."
               }
@@ -44725,13 +44888,14 @@
           "id",
           "sender",
           "body",
-          "sent_at",
-          "received_at",
+          "sentAt",
+          "receivedAt",
           "deleted",
           "reactions",
           "attachments",
           "kind",
           "forwarded",
+          "viewOnce",
           "mentions"
         ],
         "properties": {
@@ -44750,7 +44914,7 @@
             "type": "boolean",
             "description": "Deleted for everyone."
           },
-          "delivery_state": {
+          "deliveryState": {
             "oneOf": [
               {
                 "type": "null"
@@ -44761,7 +44925,7 @@
               }
             ]
           },
-          "edited_at": {
+          "editedAt": {
             "type": ["string", "null"],
             "format": "date-time",
             "description": "Last edit timestamp."
@@ -44793,12 +44957,12 @@
             },
             "description": "Reactions grouped by emoji."
           },
-          "received_at": {
+          "receivedAt": {
             "type": "string",
             "format": "date-time",
             "description": "Timestamp first received by Macro."
           },
-          "reply_to": {
+          "replyTo": {
             "type": ["string", "null"],
             "format": "uuid",
             "description": "Message quoted by this one."
@@ -44818,10 +44982,14 @@
             "$ref": "#/components/schemas/WhatsAppGroupSender",
             "description": "Sender."
           },
-          "sent_at": {
+          "sentAt": {
             "type": "string",
             "format": "date-time",
             "description": "Timestamp assigned by WhatsApp."
+          },
+          "viewOnce": {
+            "type": "boolean",
+            "description": "Sent as view-once in WhatsApp; Macro shows it like any media."
           }
         }
       },
@@ -44837,7 +45005,7 @@
             },
             "description": "Messages in descending sent_at, id order."
           },
-          "next_cursor": {
+          "nextCursor": {
             "type": ["string", "null"],
             "format": "uuid",
             "description": "Cursor for older messages."
@@ -44867,18 +45035,18 @@
       "WhatsAppGroupSender": {
         "type": "object",
         "description": "Message sender from protocol-verified identity evidence.",
-        "required": ["person_id", "name"],
+        "required": ["personId", "name"],
         "properties": {
           "name": {
             "type": "string",
             "description": "Display name, never authentication evidence."
           },
-          "person_id": {
+          "personId": {
             "type": "string",
             "format": "uuid",
             "description": "External person identity."
           },
-          "user_id": {
+          "userId": {
             "type": ["string", "null"],
             "description": "Verified Macro user association, if present."
           }
@@ -44887,7 +45055,7 @@
       "WhatsAppGroupSummary": {
         "type": "object",
         "description": "Adopted group visible through ordinary entity sharing.",
-        "required": ["id", "name", "user_id", "unread_count", "can_send"],
+        "required": ["id", "name", "kind", "userId", "unreadCount", "canSend"],
         "properties": {
           "backfill": {
             "oneOf": [
@@ -44896,29 +45064,44 @@
               },
               {
                 "$ref": "#/components/schemas/LinkedBackfill",
-                "description": "Importing earlier messages after the group was added; `null` for\ngroups added before this existed."
+                "description": "Importing earlier messages after the chat was added; `null` when\nthere is nothing to import."
               }
             ]
           },
-          "can_send": {
+          "canSend": {
             "type": "boolean",
             "description": "Caller may currently send from their own account."
+          },
+          "community": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedCommunityReference",
+                "description": "The WhatsApp community this group belongs to, if any."
+              }
+            ]
           },
           "id": {
             "type": "string",
             "format": "uuid",
             "description": "Entity identifier."
           },
-          "last_message_at": {
+          "kind": {
+            "$ref": "#/components/schemas/LinkedChatKind",
+            "description": "A group, or a direct chat with one person (only its owner sends)."
+          },
+          "lastMessageAt": {
             "type": ["string", "null"],
             "format": "date-time",
             "description": "Latest message timestamp."
           },
           "name": {
             "type": "string",
-            "description": "Display name."
+            "description": "Display name: the group's, or a direct chat's other person."
           },
-          "send_reason": {
+          "sendReason": {
             "oneOf": [
               {
                 "type": "null"
@@ -44929,12 +45112,12 @@
               }
             ]
           },
-          "unread_count": {
+          "unreadCount": {
             "type": "integer",
             "format": "int64",
-            "description": "Unread live messages for this viewer."
+            "description": "Unread live messages for this viewer, counted up to\n[`UNREAD_COUNT_CAP`]."
           },
-          "user_id": {
+          "userId": {
             "type": "string",
             "description": "Actual entity owner."
           }
@@ -45000,6 +45183,29 @@
         "type": "string",
         "description": "What a timeline entry is.",
         "enum": ["message", "system"]
+      },
+      "WhatsAppParticipant": {
+        "type": "object",
+        "description": "Someone in a WhatsApp chat; Macro access is a separate grant.",
+        "required": ["jid", "admin"],
+        "properties": {
+          "admin": {
+            "type": "boolean",
+            "description": "Group admin."
+          },
+          "alternateJid": {
+            "type": ["string", "null"],
+            "description": "The other address WhatsApp verified for them."
+          },
+          "displayName": {
+            "type": ["string", "null"],
+            "description": "Their WhatsApp name, untrusted."
+          },
+          "jid": {
+            "type": "string",
+            "description": "Phone-number or LID JID."
+          }
+        }
       },
       "WhatsAppPersonRef": {
         "type": "object",
@@ -45172,6 +45378,33 @@
         ],
         "description": "Structured content of a message besides its body."
       },
+      "WhatsAppRoster": {
+        "type": "object",
+        "description": "A chat's WhatsApp metadata as the caller's account last read it.",
+        "required": ["name", "participants", "announce", "observedAt"],
+        "properties": {
+          "announce": {
+            "type": "boolean",
+            "description": "Only admins may post."
+          },
+          "name": {
+            "type": "string",
+            "description": "WhatsApp subject."
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this was read from WhatsApp."
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WhatsAppParticipant"
+            },
+            "description": "Everyone in the chat."
+          }
+        }
+      },
       "WhatsAppSystemAction": {
         "type": "string",
         "description": "Kinds of system lines.",
@@ -45238,7 +45471,7 @@
       },
       "Widget": {
         "type": "string",
-        "description": "How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, entity and row\npickers) take none.",
+        "description": "How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, date ranges,\nentity and row pickers) take none.",
         "enum": [
           "short",
           "paragraph",

@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { ScopedPortal } from '@core/component/ScopedPortal';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { EntityData } from '@entity';
@@ -31,8 +32,10 @@ export const EntitySelectionToolbarModal = (
               <CloseIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
             <span class="text-ink font-normal flex-1 whitespace-nowrap">
-              {props.selectedCount ?? props.multiSelectEntities?.length ?? 0}{' '}
-              selected
+              {t('entityActions.selectedCount', {
+                count:
+                  props.selectedCount ?? props.multiSelectEntities?.length ?? 0,
+              })}
             </span>
             <Show when={props.onAction}>
               <Button
@@ -40,7 +43,7 @@ export const EntitySelectionToolbarModal = (
                 variant="outline"
                 class="p-1 pl-2 bg-surface"
               >
-                <span>Actions</span>
+                <span>{t('entityActions.actions')}</span>
                 <Hotkey token={TOKENS.global.commandMenu} theme="subtle" />
               </Button>
             </Show>
@@ -50,7 +53,7 @@ export const EntitySelectionToolbarModal = (
               variant="outline"
               class="p-1 pl-2 bg-surface"
             >
-              <span>Clear</span>
+              <span>{t('entityActions.clear')}</span>
               <Hotkey shortcut="escape" theme="subtle" />
             </Button>
           </div>

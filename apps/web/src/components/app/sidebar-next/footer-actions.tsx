@@ -1,4 +1,5 @@
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
+import { t } from '@app/lib/i18n';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { SidebarOpenInSplitMenu } from '@components/app/app-sidebar/sidebar';
 import { UserIcon } from '@core/component/UserIcon';
@@ -55,14 +56,14 @@ const MobileAppButton = () => {
   return (
     <Show when={isTabAvailable('Mobile App')}>
       <Button
-        aria-label="Get the mobile app"
+        aria-label={t('nav.getMobileApp')}
         variant="ghost"
         size="icon-md"
         class={cn(
           'size-10 cursor-default rounded-xl',
           isActive() && 'bg-hover text-ink'
         )}
-        tooltip={{ content: 'Get the mobile app', placement: 'right' }}
+        tooltip={{ content: t('nav.getMobileApp'), placement: 'right' }}
         draggable={false}
         aria-current={isActive() ? 'page' : undefined}
         data-active={isActive() ? '' : undefined}
@@ -131,7 +132,7 @@ export const FooterActions = (props: {
         triggerClass="size-10"
       >
         <Button
-          aria-label="Settings"
+          aria-label={t('nav.settings')}
           variant="ghost"
           size="icon-md"
           class={cn(
@@ -139,10 +140,12 @@ export const FooterActions = (props: {
             isSettingsActive() && 'bg-hover text-ink'
           )}
           aria-description={
-            accountName() ? `Signed in as ${accountName()}` : undefined
+            accountName()
+              ? t('nav.signedInAs', { name: accountName() ?? '' })
+              : undefined
           }
           tooltip={{
-            content: 'Settings',
+            content: t('nav.settings'),
             placement: 'right',
             hotkey: TOKENS.global.toggleSettings,
           }}

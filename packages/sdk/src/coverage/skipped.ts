@@ -83,6 +83,8 @@ export const authExcluded = [
   // Introductory offers belong to the app's subscription checkout flow.
   'getTrialEligibility',
   'getUserInvites',
+  // The interface language is an app setting, not SDK surface.
+  'getUserLanguage',
   'getUserLinkExists',
   'getUserName',
   'getUserNames',
@@ -118,6 +120,7 @@ export const authExcluded = [
   'putCursorApiKey',
   'putCursorDefaultModel',
   'putProfilePicture',
+  'putUserLanguage',
   'putUserName',
   'redeemGtmInviteLink',
   'refresh',
@@ -364,8 +367,6 @@ export const storageExcluded = [
   'linkedDisconnect',
   'linkedPairing',
   'linkedPasskey',
-  // The roster group listing is superseded by the chat list (linkedChats).
-  'linkedGroups',
   // Live meeting admission and participant previews are app session flows.
   'meetingGuestJoin',
   // Browser setup reserves an empty RTC room before creating a meeting.

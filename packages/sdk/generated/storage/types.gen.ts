@@ -199,7 +199,7 @@ export type AdoptedGroup = {
     /**
      * Shareable entity identifier.
      */
-    group_id: string;
+    groupId: string;
 };
 
 /**
@@ -2443,6 +2443,12 @@ export type CellValue = {
      */
     value: string;
 } | {
+    type: 'date_range';
+    /**
+     * A span of time; its end may not come before its start.
+     */
+    value: DateRange;
+} | {
     type: 'link';
     /**
      * Complete http or https URLs; at most one for a single-valued column.
@@ -3480,6 +3486,8 @@ export type ColumnKind = {
     type: 'boolean';
 } | {
     type: 'date';
+} | {
+    type: 'date_range';
 } | {
     type: 'link';
 } | {
@@ -5028,7 +5036,7 @@ export type CustomSpeakerAssignment = {
 /**
  * Data type for property values, determining storage and validation.
  */
-export type DataType = 'BOOLEAN' | 'DATE' | 'NUMBER' | 'STRING' | 'SELECT_NUMBER' | 'SELECT_STRING' | 'TAG' | 'ENTITY' | 'LINK';
+export type DataType = 'BOOLEAN' | 'DATE' | 'DATE_RANGE' | 'NUMBER' | 'STRING' | 'SELECT_NUMBER' | 'SELECT_STRING' | 'TAG' | 'ENTITY' | 'LINK';
 
 /**
  * A database: a named collection of tables, owned and shared as one entity.
@@ -5275,6 +5283,27 @@ export type DatabaseWebhookResponse = {
  * How a date cell compares to a date-time.
  */
 export type DateOperator = 'before' | 'after' | 'onOrBefore' | 'onOrAfter';
+
+/**
+ * A span of time from `start` to `end`, both included. A write whose end
+ * comes before its start is refused.
+ */
+export type DateRange = {
+    /**
+     * Where it ends; never before the start.
+     */
+    end: string;
+    /**
+     * Where it starts.
+     */
+    start: string;
+};
+
+/**
+ * How a date-range cell stands to a day: the whole day starting at the
+ * test's date-time, so a range from 1 PM to 5 PM contains its day.
+ */
+export type DateRangeOperator = 'contains' | 'doesNotContain' | 'endsBefore' | 'endsOnOrAfter' | 'startsAfter' | 'startsOnOrBefore';
 
 /**
  * Response body for `DELETE /channels/mentions/{mention_id}`.
@@ -6768,6 +6797,16 @@ export type FilterTest = {
     operator: DateOperator;
     /**
      * The date-time compared against.
+     */
+    value: string;
+} | {
+    kind: 'dateRange';
+    /**
+     * How the cell's range stands to the day.
+     */
+    operator: DateRangeOperator;
+    /**
+     * The start of the day compared against.
      */
     value: string;
 } | {
@@ -8949,7 +8988,7 @@ export type LinkedAccount = {
     /**
      * Explicit consent generation; reconnecting a socket never changes it.
      */
-    authorization_generation: number;
+    authorizationGeneration: number;
     /**
      * Stable account identity.
      */
@@ -8957,7 +8996,7 @@ export type LinkedAccount = {
     /**
      * WhatsApp-verified identity, absent until the first pairing succeeds.
      */
-    identity_jid?: string | null;
+    identityJid?: string | null;
     /**
      * Lifecycle.
      */
@@ -8965,7 +9004,7 @@ export type LinkedAccount = {
     /**
      * Authenticated owner.
      */
-    user_id: string;
+    userId: string;
 };
 
 /**
@@ -8987,9 +9026,10 @@ export type LinkedAccountView = {
  */
 export type LinkedAdoptGroup = {
     /**
-     * Group the requester's account has joined.
+     * A group the requester's account has joined, or a direct chat from
+     * their chat list (the other person's JID, as the list names it).
      */
-    group_jid: string;
+    groupJid: string;
 };
 
 /**
@@ -8999,15 +9039,15 @@ export type LinkedAttachment = {
     /**
      * The private document, once ready.
      */
-    document_id?: string | null;
+    documentId?: string | null;
     /**
      * Length of audio or video in whole seconds, when declared.
      */
-    duration_seconds?: number | null;
+    durationSeconds?: number | null;
     /**
      * Display filename.
      */
-    file_name: string;
+    fileName: string;
     /**
      * Pixel height, when declared.
      */
@@ -9057,7 +9097,12 @@ export type LinkedBackfill = {
 /**
  * Where importing a group's earlier messages stands.
  */
-export type LinkedBackfillState = 'pending' | 'running' | 'waiting_for_phone' | 'done' | 'partial';
+export type LinkedBackfillState = 'waiting_for_message' | 'pending' | 'running' | 'waiting_for_phone' | 'done' | 'partial';
+
+/**
+ * Why a chat can't be added to Macro; the app words it from the code.
+ */
+export type LinkedCannotAdd = 'not_in_group' | 'community' | 'own_chat' | 'not_in_chat_list';
 
 /**
  * Operations implemented for linked groups, independent of current permission.
@@ -9066,19 +9111,19 @@ export type LinkedCapabilities = {
     /**
      * Largest attachment in bytes.
      */
-    attachment_limit_bytes: number;
+    attachmentLimitBytes: number;
     /**
      * Supported attachment MIME types.
      */
-    attachment_types: Array<string>;
+    attachmentTypes: Array<string>;
     /**
      * Attachments per send.
      */
-    max_attachments: number;
+    maxAttachments: number;
     /**
      * Edits and deletes are offered this long after sending.
      */
-    mutation_window_seconds: number;
+    mutationWindowSeconds: number;
     /**
      * Supported message operations.
      */
@@ -9086,7 +9131,7 @@ export type LinkedCapabilities = {
     /**
      * Maximum UTF-8 bytes per text send.
      */
-    text_limit_bytes: number;
+    textLimitBytes: number;
 };
 
 /**
@@ -9101,10 +9146,8 @@ export type LinkedChat = {
      * "Add to Macro" works now.
      */
     canAdd: boolean;
-    /**
-     * Why it can't be added, when it is neither added, shared nor addable.
-     */
-    cannotAddReason?: string | null;
+    cannotAddReason?: null | LinkedCannotAdd;
+    community?: null | LinkedCommunityReference;
     group?: null | LinkedGroupReference;
     /**
      * WhatsApp chat JID: a group, or the other person's phone-number JID
@@ -9148,6 +9191,24 @@ export type LinkedChats = {
 };
 
 /**
+ * The WhatsApp community a group belongs to.
+ */
+export type LinkedCommunityReference = {
+    /**
+     * This group is the community's announcement group.
+     */
+    announcements: boolean;
+    /**
+     * The community's WhatsApp JID.
+     */
+    id: string;
+    /**
+     * The community's name.
+     */
+    name: string;
+};
+
+/**
  * Explicit pairing intent; replacement is a separate deliberate action.
  */
 export type LinkedConnect = {
@@ -9161,7 +9222,7 @@ export type LinkedConnect = {
  * Observed send state. `unknown` means the request may have reached WhatsApp;
  * it is never sent again automatically.
  */
-export type LinkedDeliveryState = 'pending' | 'sending' | 'unknown' | 'accepted' | 'sent' | 'delivered' | 'read' | 'failed';
+export type LinkedDeliveryState = 'pending' | 'sending' | 'unknown' | 'accepted' | 'failed';
 
 /**
  * Result of disconnecting an account.
@@ -9171,7 +9232,7 @@ export type LinkedDisconnect = {
      * The session service was asked to log the device out of WhatsApp. It
      * unlinks asynchronously; WhatsApp's Linked devices list is authoritative.
      */
-    remote_unlink_requested: boolean;
+    remoteUnlinkRequested: boolean;
 };
 
 /**
@@ -9181,7 +9242,7 @@ export type LinkedDisconnectRequest = {
     /**
      * Fences retries against a later reconnect or replacement.
      */
-    authorization_generation: number;
+    authorizationGeneration: number;
 };
 
 /**
@@ -9203,42 +9264,6 @@ export type LinkedFeatures = {
 };
 
 /**
- * One full metadata read of a group, never an incomplete membership delta.
- */
-export type LinkedGroupInfo = {
-    /**
-     * Only admins may post.
-     */
-    announce: boolean;
-    /**
-     * Community announcement or parent group, outside the supported surface.
-     */
-    community: boolean;
-    /**
-     * Disappearing messages are on; content is not retained.
-     */
-    disappearing: boolean;
-    group?: null | LinkedGroupReference;
-    /**
-     * Remote group JID.
-     */
-    jid: string;
-    /**
-     * Current subject.
-     */
-    name: string;
-    /**
-     * When the session service read this metadata.
-     */
-    observedAt: string;
-    /**
-     * Full roster.
-     */
-    participants: Array<LinkedParticipant>;
-    shared?: null | LinkedSharedGroupReference;
-};
-
-/**
  * A group entity bound to a remote group.
  */
 export type LinkedGroupReference = {
@@ -9250,24 +9275,6 @@ export type LinkedGroupReference = {
      * Display name, following WhatsApp.
      */
     name: string;
-};
-
-/**
- * Verified sender aliases, supplied only by protocol metadata.
- */
-export type LinkedIdentity = {
-    /**
-     * Verified alternate identity, never inferred from a name or phone typed by a user.
-     */
-    alternateJid?: string | null;
-    /**
-     * Untrusted display name.
-     */
-    displayName?: string | null;
-    /**
-     * Phone-number or LID account JID.
-     */
-    jid: string;
 };
 
 /**
@@ -9287,11 +9294,11 @@ export type LinkedMessageAttachments = {
     /**
      * Its attachments in order; deleted ones are omitted.
      */
-    linked_attachments: Array<LinkedAttachment>;
+    linkedAttachments: Array<LinkedAttachment>;
     /**
      * Group message.
      */
-    message_id: string;
+    messageId: string;
 };
 
 /**
@@ -9340,11 +9347,11 @@ export type LinkedPairing = {
     /**
      * Account being connected.
      */
-    account_id: string;
+    accountId: string;
     /**
      * Database-assigned deadline.
      */
-    expires_at: string;
+    expiresAt: string;
     /**
      * One-use transaction id.
      */
@@ -9359,16 +9366,6 @@ export type LinkedPairing = {
  * Pairing transaction state.
  */
 export type LinkedPairingState = 'waiting' | 'qr' | 'passkey' | 'success' | 'expired' | 'cancelled' | 'failed';
-
-/**
- * Current remote participant; Macro access is a separate grant.
- */
-export type LinkedParticipant = LinkedIdentity & {
-    /**
-     * Group admin; only admins post in announcement groups.
-     */
-    admin: boolean;
-};
 
 /**
  * Why the viewer cannot send now.
@@ -9399,12 +9396,12 @@ export type LinkedReplyContent = {
     /**
      * The staged upload, which becomes the message's private document.
      */
-    upload_id: string;
+    uploadId: string;
 } | {
     /**
      * Existing group message, resolved to its WhatsApp source by the server.
      */
-    message_id: string;
+    messageId: string;
     /**
      * Explicit operation.
      */
@@ -9423,15 +9420,15 @@ export type LinkedSendProgress = {
     /**
      * Intent creation time.
      */
-    created_at: string;
+    createdAt: string;
     /**
      * Sanitized failure code.
      */
-    error_code?: string | null;
+    errorCode?: string | null;
     /**
      * Group entity.
      */
-    group_id: string;
+    groupId: string;
     /**
      * Stable intent id.
      */
@@ -9439,7 +9436,7 @@ export type LinkedSendProgress = {
     /**
      * Group message, once WhatsApp accepted it.
      */
-    message_id?: string | null;
+    messageId?: string | null;
     /**
      * The original request, so a failed draft can be recovered.
      */
@@ -9451,7 +9448,7 @@ export type LinkedSendProgress = {
     /**
      * Person who submitted it.
      */
-    user_id: string;
+    userId: string;
 };
 
 /**
@@ -9461,7 +9458,7 @@ export type LinkedSendReply = {
     /**
      * Stable client intent key. A changed payload with this key is a conflict.
      */
-    idempotency_key: string;
+    idempotencyKey: string;
     /**
      * Content.
      */
@@ -9469,7 +9466,7 @@ export type LinkedSendReply = {
     /**
      * Group message being quoted, within this group.
      */
-    reply_to?: string | null;
+    replyTo?: string | null;
 };
 
 /**
@@ -9487,7 +9484,7 @@ export type LinkedSharedGroupReference = {
     /**
      * Macro user who added the group and shared it.
      */
-    owner_id: string;
+    ownerId: string;
 };
 
 /**
@@ -9515,7 +9512,7 @@ export type LinkedUploadedAttachment = {
     /**
      * Use as `upload_id` in a media send; also the future document id.
      */
-    upload_id: string;
+    uploadId: string;
 };
 
 /**
@@ -9638,7 +9635,7 @@ export type MarkRead = {
     /**
      * Message in the addressed group.
      */
-    message_id: string;
+    messageId: string;
 };
 
 /**
@@ -11488,6 +11485,13 @@ export type PropertyValue = {
      */
     value: string;
 } | {
+    type: 'DateRange';
+    /**
+     * Date range value
+     * Serializes as: {"type": "DateRange", "value": {"start": "2025-01-01T00:00:00Z", "end": "2025-01-31T00:00:00Z"}}
+     */
+    value: DateRange;
+} | {
     type: 'SelectOption';
     /**
      * Select option(s) - always an array (check is_multi_select to determine if single or multi)
@@ -11713,7 +11717,8 @@ export type RequestStatus = 'pending' | 'granted' | 'denied' | 'cancelled';
 export type RequestedHarnessScope = 'private' | 'team';
 
 /**
- * A layout as an op asks for it: a board may leave its card title out.
+ * A layout as an op asks for it: a board or timeline may leave its title
+ * out.
  */
 export type RequestedLayout = {
     /**
@@ -11744,6 +11749,30 @@ export type RequestedLayout = {
     /**
      * The column a card is titled by. Left out, a board keeps the
      * title it has, and a new board takes the table's first column.
+     */
+    title?: string;
+} | {
+    /**
+     * The columns a bar shows after its title, in order.
+     */
+    barFields?: Array<string>;
+    /**
+     * The select or tag column whose options color the bars, if any.
+     */
+    colorBy: string | null;
+    /**
+     * The single-select or single-person column grouping the bars, if
+     * any.
+     */
+    groupBy: string | null;
+    kind: 'timeline';
+    /**
+     * The date-range column whose cells are the bars.
+     */
+    range: string;
+    /**
+     * The column a bar is labelled by. Left out, a timeline keeps the
+     * title it has, and a new timeline takes the table's first column.
      */
     title?: string;
 };
@@ -12395,6 +12424,9 @@ export type SetPropertyValue = {
 } | {
     type: 'date';
     value: string;
+} | {
+    type: 'date_range';
+    value: DateRange;
 } | {
     type: 'number';
     value: number;
@@ -14004,6 +14036,12 @@ export type SqlCell = {
      */
     value: string;
 } | {
+    type: 'dateRange';
+    /**
+     * A span from one date-time to another.
+     */
+    value: DateRange;
+} | {
     type: 'options';
     /**
      * The selected option ids; one for single-select columns.
@@ -14079,7 +14117,7 @@ export type SqlOutcome = {
 /**
  * The value kind of a result column.
  */
-export type SqlOutcomeKind = 'text' | 'number' | 'boolean' | 'date' | 'select' | 'entity' | 'row';
+export type SqlOutcomeKind = 'text' | 'number' | 'boolean' | 'date' | 'dateRange' | 'select' | 'entity' | 'row';
 
 /**
  * One option of a select column.
@@ -15835,6 +15873,30 @@ export type ViewLayout = {
      * the cards by the table's first remaining column.
      */
     title: string;
+} | {
+    /**
+     * The columns a bar shows after its title, in order.
+     */
+    barFields?: Array<string>;
+    /**
+     * The select or tag column whose options color the bars, if any.
+     */
+    colorBy: string | null;
+    /**
+     * The single-select or single-person column whose values group the
+     * bars, if any; moving a bar to another group sets this column.
+     */
+    groupBy: string | null;
+    kind: 'timeline';
+    /**
+     * The date-range column whose cells are the bars.
+     */
+    range: string;
+    /**
+     * The column a bar is labelled by, of any type. Removing it labels
+     * the bars by the table's first remaining column.
+     */
+    title: string;
 };
 
 export type ViewPatch = {
@@ -16173,20 +16235,25 @@ export type WhatsAppGroupDetail = WhatsAppGroupSummary & {
     /**
      * Caller's effective permission.
      */
-    access_level: AccessLevel;
+    accessLevel: AccessLevel;
+    /**
+     * WhatsApp's disappearing-messages timer in seconds while it is on;
+     * Macro keeps the messages anyway. `null` when off or unknown.
+     */
+    disappearingSeconds?: number | null;
     /**
      * Size and mutation limits.
      */
     limits: LinkedCapabilities;
-    roster?: null | LinkedGroupInfo;
+    roster?: null | WhatsAppRoster;
     /**
      * Caller's own phone identity, never another account's identity.
      */
-    sending_identity?: string | null;
+    sendingIdentity?: string | null;
     /**
      * Owner-controlled standard sharing configuration.
      */
-    share_permission: SharePermissionV2;
+    sharePermission: SharePermissionV2;
 };
 
 /**
@@ -16205,11 +16272,11 @@ export type WhatsAppGroupMessage = {
      * Deleted for everyone.
      */
     deleted: boolean;
-    delivery_state?: null | LinkedDeliveryState;
+    deliveryState?: null | LinkedDeliveryState;
     /**
      * Last edit timestamp.
      */
-    edited_at?: string | null;
+    editedAt?: string | null;
     /**
      * Forwarded from another chat.
      */
@@ -16233,11 +16300,11 @@ export type WhatsAppGroupMessage = {
     /**
      * Timestamp first received by Macro.
      */
-    received_at: string;
+    receivedAt: string;
     /**
      * Message quoted by this one.
      */
-    reply_to?: string | null;
+    replyTo?: string | null;
     rich?: null | WhatsAppRichContent;
     /**
      * Sender.
@@ -16246,7 +16313,11 @@ export type WhatsAppGroupMessage = {
     /**
      * Timestamp assigned by WhatsApp.
      */
-    sent_at: string;
+    sentAt: string;
+    /**
+     * Sent as view-once in WhatsApp; Macro shows it like any media.
+     */
+    viewOnce: boolean;
 };
 
 /**
@@ -16260,7 +16331,7 @@ export type WhatsAppGroupMessages = {
     /**
      * Cursor for older messages.
      */
-    next_cursor?: string | null;
+    nextCursor?: string | null;
 };
 
 /**
@@ -16292,11 +16363,11 @@ export type WhatsAppGroupSender = {
     /**
      * External person identity.
      */
-    person_id: string;
+    personId: string;
     /**
      * Verified Macro user association, if present.
      */
-    user_id?: string | null;
+    userId?: string | null;
 };
 
 /**
@@ -16307,28 +16378,34 @@ export type WhatsAppGroupSummary = {
     /**
      * Caller may currently send from their own account.
      */
-    can_send: boolean;
+    canSend: boolean;
+    community?: null | LinkedCommunityReference;
     /**
      * Entity identifier.
      */
     id: string;
     /**
+     * A group, or a direct chat with one person (only its owner sends).
+     */
+    kind: LinkedChatKind;
+    /**
      * Latest message timestamp.
      */
-    last_message_at?: string | null;
+    lastMessageAt?: string | null;
     /**
-     * Display name.
+     * Display name: the group's, or a direct chat's other person.
      */
     name: string;
-    send_reason?: null | LinkedReplyBlock;
+    sendReason?: null | LinkedReplyBlock;
     /**
-     * Unread live messages for this viewer.
+     * Unread live messages for this viewer, counted up to
+     * [`UNREAD_COUNT_CAP`].
      */
-    unread_count: number;
+    unreadCount: number;
     /**
      * Actual entity owner.
      */
-    user_id: string;
+    userId: string;
 };
 
 /**
@@ -16380,6 +16457,28 @@ export type WhatsAppMention = WhatsAppPersonRef & {
  * What a timeline entry is.
  */
 export type WhatsAppMessageKind = 'message' | 'system';
+
+/**
+ * Someone in a WhatsApp chat; Macro access is a separate grant.
+ */
+export type WhatsAppParticipant = {
+    /**
+     * Group admin.
+     */
+    admin: boolean;
+    /**
+     * The other address WhatsApp verified for them.
+     */
+    alternateJid?: string | null;
+    /**
+     * Their WhatsApp name, untrusted.
+     */
+    displayName?: string | null;
+    /**
+     * Phone-number or LID JID.
+     */
+    jid: string;
+};
 
 /**
  * A person named in a message: a Macro user when verified, else their
@@ -16456,6 +16555,28 @@ export type WhatsAppRichContent = (WhatsAppPoll & {
 });
 
 /**
+ * A chat's WhatsApp metadata as the caller's account last read it.
+ */
+export type WhatsAppRoster = {
+    /**
+     * Only admins may post.
+     */
+    announce: boolean;
+    /**
+     * WhatsApp subject.
+     */
+    name: string;
+    /**
+     * When this was read from WhatsApp.
+     */
+    observedAt: string;
+    /**
+     * Everyone in the chat.
+     */
+    participants: Array<WhatsAppParticipant>;
+};
+
+/**
  * Kinds of system lines.
  */
 export type WhatsAppSystemAction = 'group_created' | 'participants_added' | 'participants_removed' | 'participants_left' | 'participants_joined' | 'participants_promoted' | 'participants_demoted' | 'subject_changed' | 'icon_changed' | 'description_changed' | 'disappearing_changed' | 'message_pinned' | 'message_unpinned' | 'call';
@@ -16483,8 +16604,8 @@ export type WhatsAppSystemLine = {
 
 /**
  * How a question is asked. Each column kind takes a few, the first its
- * default; kinds asked one way only (numbers, checkboxes, entity and row
- * pickers) take none.
+ * default; kinds asked one way only (numbers, checkboxes, date ranges,
+ * entity and row pickers) take none.
  */
 export type Widget = 'short' | 'paragraph' | 'datetime' | 'date' | 'url' | 'file' | 'choice' | 'dropdown' | 'checkboxes';
 
@@ -23183,19 +23304,6 @@ export type LinkedDisconnectResponses = {
 
 export type LinkedDisconnectResponse = LinkedDisconnectResponses[keyof LinkedDisconnectResponses];
 
-export type LinkedGroupsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/meta/linked/groups';
-};
-
-export type LinkedGroupsResponses = {
-    200: Array<LinkedGroupInfo>;
-};
-
-export type LinkedGroupsResponse = LinkedGroupsResponses[keyof LinkedGroupsResponses];
-
 export type LinkedAdoptData = {
     body: LinkedAdoptGroup;
     path?: never;
@@ -23340,7 +23448,7 @@ export type WhatsappGroupMessagesData = {
          */
         before?: string | null;
         /**
-         * Page size, 1 through 100.
+         * Page size, up to [`PAGE_LIMIT`]; [`DEFAULT_PAGE`] when absent.
          */
         limit?: number | null;
     };
@@ -23367,6 +23475,22 @@ export type LinkedMessageAttachmentsResponses = {
 };
 
 export type LinkedMessageAttachmentsResponse = LinkedMessageAttachmentsResponses[keyof LinkedMessageAttachmentsResponses];
+
+export type WhatsappGroupMessageData = {
+    body?: never;
+    path: {
+        group_id: string;
+        message_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/messages/{message_id}';
+};
+
+export type WhatsappGroupMessageResponses = {
+    200: WhatsAppGroupMessage;
+};
+
+export type WhatsappGroupMessageResponse = WhatsappGroupMessageResponses[keyof WhatsappGroupMessageResponses];
 
 export type WhatsappGroupPermissionsData = {
     body?: never;

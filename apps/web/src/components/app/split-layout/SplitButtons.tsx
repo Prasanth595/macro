@@ -1,5 +1,5 @@
 import { LIST_VIEW_ID } from '@app/constants/list-views';
-
+import { t } from '@app/lib/i18n';
 import ArrowLeft from '@icon/system/regular/arrow-left.svg';
 import ArrowRight from '@icon/system/regular/arrow-right.svg';
 import SplitIcon from '@icon/system/regular/square-half.svg';
@@ -13,8 +13,8 @@ export function SplitBackButton() {
   if (!context) return '';
   return (
     <Button
-      aria-label="Go Back"
-      tooltip="Go Back"
+      aria-label={t('splitMenu.goBack')}
+      tooltip={t('splitMenu.goBack')}
       variant="ghost"
       size="icon-md"
       disabled={!context.handle.canGoBack()}
@@ -30,8 +30,8 @@ export function SplitForwardButton() {
   if (!context) return '';
   return (
     <Button
-      aria-label="Go Forward"
-      tooltip="Go Forward"
+      aria-label={t('splitMenu.goForward')}
+      tooltip={t('splitMenu.goForward')}
       variant="ghost"
       size="icon-md"
       disabled={!context.handle.canGoForward()}
@@ -47,8 +47,8 @@ export function SplitCreateButton() {
   if (!context) return '';
   return (
     <Button
-      aria-label="Create new split"
-      tooltip="Create new split"
+      aria-label={t('splitMenu.createNewSplit')}
+      tooltip={t('splitMenu.createNewSplit')}
       variant="ghost"
       size="icon-md"
       onClick={() => {
@@ -71,8 +71,8 @@ export function SplitCloseButton() {
   if (!context) return '';
   return (
     <Button
-      aria-label="Close"
-      tooltip="Close"
+      aria-label={t('splitMenu.close')}
+      tooltip={t('splitMenu.close')}
       variant="ghost"
       size="icon-sm"
       onClick={context.handle.close}

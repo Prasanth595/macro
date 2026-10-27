@@ -7,6 +7,7 @@ import type { DriveState } from '@app/features/drive-view/core/types';
 import { useSoup } from '@app/features/next-soup/soup-context';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { projectRouteId } from '@app/features/projects/core/route';
+import { t } from '@app/lib/i18n';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { type BlockName, NonDocumentBlockTypes } from '@core/block';
@@ -127,8 +128,8 @@ function SplitBackButton() {
   return (
     <Button
       variant="ghost"
-      aria-label="Go Back"
-      tooltip={{ content: 'Go Back', hotkey: TOKENS.split.go.back }}
+      aria-label={t('splitMenu.goBack')}
+      tooltip={{ content: t('splitMenu.goBack'), hotkey: TOKENS.split.go.back }}
       size="icon-sm"
       class="p-1 touch:active:bg-transparent"
       disabled={
@@ -165,12 +166,14 @@ function _SplitSpotlightButton() {
       <Button
         variant="ghost"
         aria-label={
-          context.handle.isSpotLight() ? 'Minimize Split' : 'Spotlight Split'
+          context.handle.isSpotLight()
+            ? t('splitMenu.minimizeSplit')
+            : t('splitMenu.spotlightSplit')
         }
         tooltip={{
           content: context.handle.isSpotLight()
-            ? 'Minimize Split'
-            : 'Spotlight Split',
+            ? t('splitMenu.minimizeSplit')
+            : t('splitMenu.spotlightSplit'),
           hotkey: TOKENS.window.spotlight.toggle,
         }}
         class="p-1 hidden"
@@ -194,7 +197,9 @@ function SplitCloseButton() {
   const label = createMemo(() => {
     const isOnlySplit = !shouldShowSplitCloseButton(layout.manager);
     const isNotUnifiedList = !isListViewID(context.handle.content().id);
-    return isOnlySplit && isNotUnifiedList ? 'Return to list' : 'Close';
+    return isOnlySplit && isNotUnifiedList
+      ? t('splitMenu.returnToList')
+      : t('splitMenu.close');
   });
 
   return (
@@ -350,12 +355,12 @@ export function ListNavigationButtons(props: {
   const iconSize = () =>
     isTouchDevice() || props.size === 'md' ? 'icon-md' : 'icon-sm';
   return (
-    <HeaderActionGroup label="Item navigation" size={props.size}>
+    <HeaderActionGroup label={t('splitMenu.itemNavigation')} size={props.size}>
       <div class={cn('flex items-center touch:gap-0.5', props.class)}>
         <ButtonGroup.Button
-          aria-label="Previous item"
+          aria-label={t('splitMenu.previousItem')}
           tooltip={{
-            content: 'Previous item',
+            content: t('splitMenu.previousItem'),
             hotkey: TOKENS.entity.step.start,
           }}
           variant="ghost"
@@ -367,8 +372,8 @@ export function ListNavigationButtons(props: {
           <CaretUp class="size-4" />
         </ButtonGroup.Button>
         <ButtonGroup.Button
-          aria-label="Next item"
-          tooltip={{ content: 'Next item', hotkey: TOKENS.entity.step.end }}
+          aria-label={t('splitMenu.nextItem')}
+          tooltip={{ content: t('splitMenu.nextItem'), hotkey: TOKENS.entity.step.end }}
           variant="ghost"
           size={iconSize()}
           disabled={!props.navigation.canNext()}
@@ -467,7 +472,7 @@ export function SplitHeader(props: {
                 >
                   <div class="max-w-[min(28rem,calc(100%-3rem))] min-w-0 bg-surface border border-edge rounded-full shadow-lg shadow-drop-shadow px-4 py-2 flex items-center gap-2 font-sans text-xs text-ink">
                     <span class="shrink-0 text-ink-muted">
-                      Open in this split
+                      {t('splitMenu.openInThisSplit')}
                     </span>
                   </div>
                 </div>

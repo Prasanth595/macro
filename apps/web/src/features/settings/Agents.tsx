@@ -1343,6 +1343,7 @@ function AgentEditorPage(props: {
               <AgentFormSection
                 title="Advanced"
                 description={advancedSummary()}
+                expanded={advancedOpen()}
                 actions={
                   <Button
                     type="button"
@@ -1550,6 +1551,7 @@ function AgentFormSection(props: {
   title: string;
   description: string;
   actions?: JSX.Element;
+  expanded?: boolean;
   children: JSX.Element;
 }) {
   return (
@@ -1557,6 +1559,7 @@ function AgentFormSection(props: {
       title={props.title}
       description={props.description}
       actions={props.actions}
+      expanded={props.expanded}
     >
       <div class="pt-2">{props.children}</div>
     </SettingsSection>

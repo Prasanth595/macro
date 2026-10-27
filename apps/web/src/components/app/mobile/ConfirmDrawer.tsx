@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import CloseIcon from '@icon/system/regular/x.svg';
 import { ActionDialogShell } from '@ui/components/ActionDialogShell';
@@ -50,7 +51,7 @@ export function ConfirmDrawer(props: ConfirmDialogProps) {
                   <Button
                     variant="ghost"
                     size="icon-lg"
-                    aria-label="Close confirmation"
+                    aria-label={t('mobile.closeConfirmation')}
                     class="bg-ink/6"
                     disabled={props.pending}
                     onClick={close}
@@ -74,7 +75,7 @@ export function ConfirmDrawer(props: ConfirmDialogProps) {
                     disabled={props.pending}
                     onClick={close}
                   >
-                    {props.cancelLabel ?? 'Cancel'}
+                    {props.cancelLabel ?? t('mobile.cancel')}
                   </Button>
                   <Button
                     variant={confirmVariant()}
@@ -86,7 +87,7 @@ export function ConfirmDrawer(props: ConfirmDialogProps) {
                     <Show when={props.pending}>
                       <SpinnerIcon class="size-4 animate-spin" />
                     </Show>
-                    {props.confirmLabel ?? 'Confirm'}
+                    {props.confirmLabel ?? t('mobile.confirm')}
                   </Button>
                 </ActionDialogShell.Footer>
               </>
@@ -126,7 +127,7 @@ export function ConfirmDrawer(props: ConfirmDialogProps) {
                 <Show when={props.pending}>
                   <SpinnerIcon class="size-4 animate-spin" />
                 </Show>
-                {props.confirmLabel ?? 'Confirm'}
+                {props.confirmLabel ?? t('mobile.confirm')}
               </Button>
             </div>
           </Show>

@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { ScopedPortal } from '@core/component/ScopedPortal';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -21,7 +22,7 @@ function DrawerInner(props: ParentProps<{ id: string }>) {
       hotkey: 'escape',
       condition: drawerControl.isOpen,
       scopeId: splitPanel.splitHotkeyScope,
-      description: 'Close References Drawer',
+      description: () => t('splitMenu.closeReferencesDrawer'),
       keyDownHandler: (e) => {
         e?.preventDefault();
         drawerControl.close();
@@ -138,8 +139,8 @@ export function SplitDrawer(
               </Show>
               <div class="grow" />
               <Button
-                aria-label="Close"
-                tooltip="Close"
+                aria-label={t('splitMenu.close')}
+                tooltip={t('splitMenu.close')}
                 variant="ghost"
                 size="icon-sm"
                 onClick={drawerControl.close}

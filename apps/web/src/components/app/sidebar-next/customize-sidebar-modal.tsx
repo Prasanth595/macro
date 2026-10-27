@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import CaretDownIcon from '@icon/system/regular/caret-down.svg';
 import CaretUpIcon from '@icon/system/regular/caret-up.svg';
@@ -119,8 +120,8 @@ function CustomizeNavRow(props: {
           fallback={
             <div class="flex shrink-0 flex-col">
               <Button
-                aria-label={`Move ${props.item.label} up`}
-                tooltip={`Move ${props.item.label} up`}
+                aria-label={t('nav.moveItemUp', { label: props.item.label })}
+                tooltip={t('nav.moveItemUp', { label: props.item.label })}
                 variant="ghost"
                 size="icon-sm"
                 class="size-6"
@@ -130,8 +131,8 @@ function CustomizeNavRow(props: {
                 <CaretUpIcon class="size-3" />
               </Button>
               <Button
-                aria-label={`Move ${props.item.label} down`}
-                tooltip={`Move ${props.item.label} down`}
+                aria-label={t('nav.moveItemDown', { label: props.item.label })}
+                tooltip={t('nav.moveItemDown', { label: props.item.label })}
                 variant="ghost"
                 size="icon-sm"
                 class="size-6"
@@ -143,10 +144,10 @@ function CustomizeNavRow(props: {
             </div>
           }
         >
-          <Tooltip label="Drag to reorder">
+          <Tooltip label={t('nav.dragToReorder')}>
             <Button
               {...(sortable?.dragActivators ?? {})}
-              aria-label={`Reorder ${props.item.label}`}
+              aria-label={t('nav.reorderItem', { label: props.item.label })}
               variant="ghost"
               size="icon-sm"
               class="size-7 cursor-grab touch-none active:cursor-grabbing"
@@ -222,14 +223,13 @@ export function CustomizeSidebarModal(props: {
             <CloseIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Dialog.CloseButton>
           <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
-            Customize sidebar
+            {t('nav.customizeSidebar')}
           </Dialog.Title>
         </Panel.Header>
 
         <Panel.Body scroll class="p-2">
           <Dialog.Description class="px-2 pb-2 text-sm text-ink-muted">
-            Choose which apps appear in the sidebar and drag to reorder them.
-            Home always stays first.
+            {t('nav.customizeSidebarDescription')}
           </Dialog.Description>
 
           <CustomizeNavList items={items()} onDragEnd={onDragEnd}>

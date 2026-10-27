@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import DownloadIcon from '@icon/system/regular/download-simple.svg';
 import { Popover } from '@kobalte/core/popover';
 import { Button } from '@ui';
@@ -54,8 +55,8 @@ export function UpdateButton(props: { update: () => AppUpdate }) {
       gutter={8}
     >
       <Popover.Trigger
-        aria-label="Update available"
-        tooltip="Update available"
+        aria-label={t('nav.updateAvailable')}
+        tooltip={t('nav.updateAvailable')}
         as={Button}
         variant="ghost"
         size="icon-md"
