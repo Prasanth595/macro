@@ -1,5 +1,5 @@
 import type { WhatsAppGroupMessage } from '../../../generated/storage/types.gen';
-import { MacroNotFoundError } from '../../utils';
+import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { Document } from '../documents/document';
 import { MacroEntity } from '../entity';
@@ -9,7 +9,8 @@ import type { WhatsAppGroup } from './group';
 export class WhatsAppMessage extends MacroEntity<WhatsAppGroupMessage> {
   private constructor(
     client: MacroClient,
-    private readonly group: WhatsAppGroup,
+    /** The chat this message is in. */
+    readonly group: WhatsAppGroup,
     id: string,
     seed?: WhatsAppGroupMessage,
   ) {
@@ -34,16 +35,12 @@ export class WhatsAppMessage extends MacroEntity<WhatsAppGroupMessage> {
     return new WhatsAppMessage(client, group, record.id, record);
   }
 
-  /** Group identity for checking reply/mutation scope. */
-  get groupId(): string {
-    return this.group.id;
-  }
-
   protected async fetch(): Promise<WhatsAppGroupMessage> {
-    for await (const message of this.group.messages({ limit: 100 })) {
-      if (message.id === this.id) return message.detail.get();
-    }
-    throw new MacroNotFoundError('WhatsApp message is not available');
+    return unwrap(
+      await this.client.storage.whatsappGroupMessage({
+        path: { group_id: this.group.id, message_id: this.id },
+      }),
+    );
   }
 
   /** Plain WhatsApp text. */
@@ -51,18 +48,28 @@ export class WhatsAppMessage extends MacroEntity<WhatsAppGroupMessage> {
   /** Protocol-verified sender association and display name. */
   readonly sender = this.field('sender');
   /** WhatsApp timestamp. */
-  readonly sentAt = this.field('sent_at');
+  readonly sentAt = this.field('sentAt');
   /** Last edit time. */
-  readonly editedAt = this.field('edited_at');
+  readonly editedAt = this.field('editedAt');
   /** Deleted for everyone. */
   readonly deleted = this.field('deleted');
   /** Grouped emoji counts and caller's own reaction. */
   readonly reactions = this.field('reactions');
   /** Caller-owned send's delivery state, when present. */
-  readonly deliveryState = this.field('delivery_state');
+  readonly deliveryState = this.field('deliveryState');
+  /** `message`, or `system` for something that happened in the group (see `rich`). */
+  readonly kind = this.field('kind');
+  /** Forwarded from another chat. */
+  readonly forwarded = this.field('forwarded');
+  /** Sent as view-once in WhatsApp; Macro keeps and shows it like any media. */
+  readonly viewOnce = this.field('viewOnce');
+  /** People the body @-mentions: `@<token>` in the body is this person. */
+  readonly mentions = this.field('mentions');
+  /** Poll (with tallies), location, contact cards, event or system line. */
+  readonly rich = this.field('rich');
   /** Quoted message in this group. */
   readonly replyTo: () => Promise<WhatsAppMessage | undefined> =
-    this.mappedField('reply_to', (id) =>
+    this.mappedField('replyTo', (id) =>
       id ? WhatsAppMessage.byId(this.client, this.group, id) : undefined,
     );
   /** Attachment state and imported document handles. */
@@ -70,11 +77,15 @@ export class WhatsAppMessage extends MacroEntity<WhatsAppGroupMessage> {
     records.map((record) => ({
       ordinal: record.ordinal,
       state: record.state,
-      fileName: record.file_name,
+      fileName: record.fileName,
       mime: record.mime,
       size: record.size,
-      document: record.document_id
-        ? Document.byId(this.client, record.document_id)
+      width: record.width ?? undefined,
+      height: record.height ?? undefined,
+      durationSeconds: record.durationSeconds ?? undefined,
+      presentation: record.presentation ?? undefined,
+      document: record.documentId
+        ? Document.byId(this.client, record.documentId)
         : undefined,
     })),
   );

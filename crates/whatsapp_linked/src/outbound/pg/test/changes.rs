@@ -59,7 +59,15 @@ async fn rosters_signal_only_real_changes_and_rename_the_owners_group(pool: PgPo
             group_id: binding.id
         }
     );
-    assert!(linked.groups(ALICE).await.unwrap().is_empty());
+    assert!(
+        linked
+            .chats(&person(ALICE))
+            .await
+            .unwrap()
+            .chats
+            .iter()
+            .all(|chat| !chat.can_add)
+    );
     let detail = linked
         .group_detail(&receipt::<MessageView>(ALICE, binding.id))
         .await
@@ -86,7 +94,10 @@ async fn messages_and_send_outcomes_signal_their_group(pool: PgPool) {
             &receipt::<MessageWrite>(ALICE, binding.id),
             &SendReply {
                 idempotency_key: Uuid::now_v7(),
-                message: ReplyContent::Text { text: "hi".into() },
+                message: ReplyContent::Text {
+                    text: "hi".into(),
+                    mentions: vec![],
+                },
                 reply_to: None,
             },
             SendAuthority::Human,
@@ -123,6 +134,7 @@ async fn a_retried_send_returns_the_original_whatever_happened_since(pool: PgPoo
         idempotency_key: Uuid::now_v7(),
         message: ReplyContent::Text {
             text: "once".into(),
+            mentions: vec![],
         },
         reply_to: None,
     };
@@ -152,6 +164,7 @@ async fn a_retried_send_returns_the_original_whatever_happened_since(pool: PgPoo
     let changed = SendReply {
         message: ReplyContent::Text {
             text: "twice".into(),
+            mentions: vec![],
         },
         ..request
     };
@@ -178,7 +191,7 @@ async fn change_audiences_come_from_the_store(pool: PgPool) {
         .await
         .unwrap();
     let message = linked
-        .messages(&receipt::<MessageView>(ALICE, binding.id), None, 1)
+        .messages(&receipt::<MessageView>(ALICE, binding.id), None, Some(1))
         .await
         .unwrap()
         .messages[0]

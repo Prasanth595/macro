@@ -13,6 +13,7 @@ import type {
 
 export const group: GroupDetail = {
   id: '019a061e-0000-7000-8000-000000000001',
+  kind: 'group',
   name: 'Design Crit',
   ownerId: 'macro|me@example.test',
   accessLevel: 'owner',
@@ -25,7 +26,6 @@ export const group: GroupDetail = {
     textBytes: 65536,
     attachmentBytes: 33554432,
     attachmentTypes: ['image/png', 'application/pdf', 'audio/ogg'],
-    maxAttachments: 1,
     editSeconds: 900,
     mutations: ['reaction', 'edit', 'delete'],
   },
@@ -33,7 +33,10 @@ export const group: GroupDetail = {
 export const messages: GroupMessage[] = [
   {
     id: 'message-1',
+    kind: 'message',
     sender: { name: 'Ana Ruiz' },
+    mentions: [],
+    forwarded: false,
     body: 'The *updated* designs are ready for review.',
     sentAt: '2026-10-21T10:00:00Z',
     edited: false,
@@ -43,7 +46,10 @@ export const messages: GroupMessage[] = [
   },
   {
     id: 'message-2',
+    kind: 'message',
     sender: { name: 'Me', userId: 'macro|me@example.test' },
+    mentions: [],
+    forwarded: false,
     body: 'Looking now. Thanks, Ana!',
     sentAt: new Date().toISOString(),
     edited: false,
@@ -72,7 +78,7 @@ export function createFakeGroup(
     timeline: read(timeline),
     hasOlder: () => false,
     loadingOlder: () => false,
-    loadOlder: vi.fn(async () => undefined),
+    loadOlder: vi.fn(async () => true),
     send: vi.fn(
       async (
         _request: GroupSend,

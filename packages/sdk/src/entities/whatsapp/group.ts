@@ -9,13 +9,20 @@ import type { MacroClient } from '../../utils/client';
 import { Document } from '../documents/document';
 import { FavoritableEntity } from '../entity';
 import { User } from '../users/user';
+import { communityOf } from './chat';
 import { WhatsAppMessage } from './message';
+import { WhatsAppParticipant } from './participant';
 import { WhatsAppSend } from './send';
 import { WhatsAppUpload } from './upload';
 
 /** Deliberate content from the credential owner's own WhatsApp account. */
 export type WhatsAppReply =
-  | { type: 'text'; text: string }
+  | {
+      type: 'text';
+      text: string;
+      /** Participants mentioned (from `participants()`); the text names each as `@<mentionToken>`. */
+      mentions?: WhatsAppParticipant[];
+    }
   | { type: 'media'; upload: WhatsAppUpload; caption?: string }
   | {
       type: 'mutation';
@@ -24,7 +31,7 @@ export type WhatsAppReply =
       text?: string;
     };
 
-/** Independently shareable adopted WhatsApp group entity. */
+/** Independently shareable added WhatsApp chat: a group or a direct chat. */
 export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
   /** Canonical sharing and favorites kind. */
   readonly entityType = 'whatsapp_group' as const;
@@ -40,24 +47,38 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
     );
   }
 
-  /** Display name. */
+  /** Display name: the group's, or a direct chat's other person. */
   readonly name = this.field('name');
+  /** `group`, or `direct` for a one-to-one chat (only its owner sends). */
+  readonly kind = this.field('kind');
   /** Whether the caller can send from their own connected account. */
-  readonly canSend = this.field('can_send');
+  readonly canSend = this.field('canSend');
   /** Reason sending is blocked. */
-  readonly sendReason = this.field('send_reason');
+  readonly sendReason = this.field('sendReason');
   /** Caller's own verified sending identity. */
-  readonly sendingIdentity = this.field('sending_identity');
+  readonly sendingIdentity = this.field('sendingIdentity');
   /** Per-user unread count. */
-  readonly unreadCount = this.field('unread_count');
+  readonly unreadCount = this.field('unreadCount');
   /** Importing earlier messages from the owner's phone after adding, if any. */
   readonly backfill = this.field('backfill');
   /** Supported sizes and mutation window. */
   readonly limits = this.field('limits');
-  /** Current remote roster, when available. */
+  /** Current remote roster (name, participants, announce), when available. */
   readonly roster = this.field('roster');
+  /** Everyone in the chat, from its roster; empty when no roster is known. */
+  readonly participants = this.mappedField('roster', (roster) =>
+    (roster?.participants ?? []).map((record) =>
+      WhatsAppParticipant.from(this, record),
+    ),
+  );
+  /** WhatsApp's disappearing-messages timer in seconds while on; Macro keeps the messages. */
+  readonly disappearingSeconds = this.field('disappearingSeconds');
+  /** The WhatsApp community this group belongs to, if any: the community's own chat, its name, and whether this is its announcement group. */
+  readonly community = this.mappedField('community', (record) =>
+    record ? communityOf(this.client, record) : undefined,
+  );
   /** Actual owner, independent of WhatsApp membership. */
-  readonly owner = this.mappedField('user_id', (id) =>
+  readonly owner = this.mappedField('userId', (id) =>
     User.byId(this.client, id),
   );
 
@@ -76,18 +97,18 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
         items: page.messages.map((message) =>
           WhatsAppMessage.from(this.client, this, message),
         ),
-        nextCursor: page.next_cursor,
+        nextCursor: page.nextCursor,
       };
     });
   }
 
   /** Advance the caller's own read cursor. */
   async markRead(message: WhatsAppMessage): Promise<void> {
-    this.assertGroup(message.groupId);
+    this.assertGroup(message.group);
     await this.mutate((client) =>
       client.storage.whatsappGroupRead({
         path: { group_id: this.id },
-        body: { message_id: message.id },
+        body: { messageId: message.id },
       }),
     );
   }
@@ -139,23 +160,31 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
     content: WhatsAppReply,
     options: { idempotencyKey: string; replyTo?: WhatsAppMessage },
   ): Promise<WhatsAppSend> {
-    if (options.replyTo) this.assertGroup(options.replyTo.groupId);
+    if (options.replyTo) this.assertGroup(options.replyTo.group);
     const message = match(content)
       .returnType<LinkedReplyContent>()
-      .with({ type: 'text' }, (value) => value)
+      .with({ type: 'text' }, (value) => {
+        const mentions = value.mentions ?? [];
+        for (const participant of mentions) this.assertGroup(participant.group);
+        return {
+          type: 'text',
+          text: value.text,
+          mentions: mentions.map((participant) => participant.id),
+        };
+      })
       .with({ type: 'media' }, (value) => {
-        this.assertGroup(value.upload.groupId);
+        this.assertGroup(value.upload.group);
         return {
           type: 'media',
-          upload_id: value.upload.id,
+          uploadId: value.upload.id,
           caption: value.caption,
         };
       })
       .with({ type: 'mutation' }, (value) => {
-        this.assertGroup(value.message.groupId);
+        this.assertGroup(value.message.group);
         return {
           type: 'mutation',
-          message_id: value.message.id,
+          messageId: value.message.id,
           operation: value.operation,
           text: value.text,
         };
@@ -165,9 +194,9 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
       client.storage.linkedReply({
         path: { group_id: this.id },
         body: {
-          idempotency_key: options.idempotencyKey,
+          idempotencyKey: options.idempotencyKey,
           message,
-          reply_to: options.replyTo?.id,
+          replyTo: options.replyTo?.id,
         },
       }),
     );
@@ -187,10 +216,7 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
   async delivery(
     sends: Array<WhatsAppSend | WhatsAppMessage>,
   ): Promise<WhatsAppSend[]> {
-    for (const send of sends)
-      this.assertGroup(
-        send instanceof WhatsAppSend ? send.group.id : send.groupId,
-      );
+    for (const send of sends) this.assertGroup(send.group);
     return unwrap(
       await this.client.storage.linkedDelivery({
         path: { group_id: this.id },
@@ -201,22 +227,22 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
 
   /** Read attachment states for selected messages. */
   async messageAttachments(messages: WhatsAppMessage[]) {
-    for (const message of messages) this.assertGroup(message.groupId);
+    for (const message of messages) this.assertGroup(message.group);
     return unwrap(
       await this.client.storage.linkedMessageAttachments({
         path: { group_id: this.id },
         body: messages.map((message) => message.id),
       }),
     ).map((record) => ({
-      message: WhatsAppMessage.byId(this.client, this, record.message_id),
-      attachments: record.linked_attachments.map((attachment) => ({
+      message: WhatsAppMessage.byId(this.client, this, record.messageId),
+      attachments: record.linkedAttachments.map((attachment) => ({
         ordinal: attachment.ordinal,
         state: attachment.state,
-        fileName: attachment.file_name,
+        fileName: attachment.fileName,
         mime: attachment.mime,
         size: attachment.size,
-        document: attachment.document_id
-          ? Document.byId(this.client, attachment.document_id)
+        document: attachment.documentId
+          ? Document.byId(this.client, attachment.documentId)
           : undefined,
       })),
     }));
@@ -229,8 +255,8 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
     return this;
   }
 
-  private assertGroup(groupId: string): void {
-    if (groupId !== this.id)
+  private assertGroup(group: WhatsAppGroup): void {
+    if (group.id !== this.id)
       throw new Error('WhatsApp reference belongs to another group');
   }
 }

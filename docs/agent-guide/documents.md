@@ -1,5 +1,13 @@
 # Documents
 
+For gateway sync rollout checks, use PostHog flag `sync-via-gateway` (dev and
+production) and recreate document sessions after the client receives the updated
+flag. A reload can initially read PostHog's cached value; open sessions do not
+change transport when the remote value changes. Off or unavailable uses a
+direct sync-service WebSocket per document; on multiplexes document frames over
+the connection gateway. Confirm the hosted `sync_router` is provisioned before
+enabling. Local stacks can override with `VITE_SYNC_VIA_GATEWAY=true` or `false`.
+
 The document header has separate Share, Copy Share Link, and Side Panel buttons.
 They are borderless with a soft rounded background on hover. Share opens the
 sharing dialog; copying a link is a separate action.
@@ -2946,9 +2954,10 @@ updates live and shows each collaborator's caret with their name
   open editors patch agent edits in as they land. `ReadWordDocument` lists
   every paragraph, table cell and content control with its id. `EditWordDocument`
   applies an atomic batch of `replaceText`, `setText`, `formatText`,
-  `insertParagraph`, `setStyle` and `delete` operations to those ids. Both
-  refuse a DOCX nobody has opened in the editor yet: it has no live copy.
-  `EditDocument` still rejects DOCX.
+  `insertParagraph`, `setStyle` and `delete` operations to those ids. A DOCX
+  nobody has opened yet (an upload or a duplicate) gets its live copy from the
+  first tool call, seeded exactly as the editor seeds it, so nobody has to open
+  it first. `EditDocument` still rejects DOCX.
 
 ## Document history
 
@@ -3033,8 +3042,9 @@ each operation; wait for saving to finish and reload to check persistence.
 
 ### Task mention status
 
-Task @mention pills display the same circular completion/status icon as task
-rows. The icon updates in place as preview data changes; unknown status uses
+Task @mention pills and @mention menu rows display the same circular
+completion/status icon as task rows; pills do not repeat it after the title.
+The icon updates in place as preview data changes; unknown status uses
 an empty circle, and subtype-only previews use their completion flag. See
 [tasks](tasks.md#task-status-icons) for states and the browser regression.
 
