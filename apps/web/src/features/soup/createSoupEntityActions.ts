@@ -146,7 +146,9 @@ export function createSoupEntityActions(
   const muteAction = makeMuteAction({
     notificationSource: () => notificationSource,
   });
-  const moveToProjectAction = makeMoveToProjectAction();
+  const moveToProjectAction = makeMoveToProjectAction({
+    userId: () => userId(),
+  });
   const removeFromProjectAction = makeRemoveFromProjectAction();
   const copyLinkAction = makeCopyLinkAction();
   const copyBranchNameAction = makeCopyBranchNameAction();

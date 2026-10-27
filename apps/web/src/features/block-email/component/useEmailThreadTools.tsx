@@ -24,6 +24,7 @@ import {
 } from '@core/component/TopBar/ShareButton';
 import { useShareModal } from '@core/component/TopBar/shareModal';
 import { ENABLE_EMAIL_SHARING } from '@core/constant/featureFlags';
+import { useUserId } from '@core/context/user';
 import { TOKENS } from '@core/hotkey/tokens';
 import { getActiveCommandByToken, runCommand } from '@core/hotkey/utils';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -68,7 +69,9 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
   });
   const soup = useMaybeSoup();
   const linksQuery = useEmailLinksQuery();
-  const moveToProjectAction = makeMoveToProjectAction();
+  const moveToProjectAction = makeMoveToProjectAction({
+    userId: useUserId(),
+  });
 
   const isInvite = () => {
     const row = soup?.items.get(props.id);
@@ -104,9 +107,16 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
   // it said; unknown offers both sender moves, as in Search.
   const senderBucket = () => emailSenderBucket(emailEntity());
 
+  // A thread belongs to the mailbox it came to, so being its owner is being
+  // one of the user's inboxes; the row's ownerId isn't known before it loads.
+  const canMoveToFolder = () => {
+    const entity = emailEntity();
+    return !!entity && moveToProjectAction.canMoveType(entity) && isOwnThread();
+  };
+
   const moveToFolder = () => {
     const entity = emailEntity();
-    if (!entity || !moveToProjectAction.canExecute(entity)) return;
+    if (!entity || !canMoveToFolder()) return;
     fireAndForget(moveToProjectAction.execute([entity]), 'email-thread-tools');
   };
 
@@ -263,7 +273,7 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
       action: moveToFolder,
       condition: () => {
         const entity = emailEntity();
-        return !!entity && moveToProjectAction.canExecute(entity);
+        return !!entity && canMoveToFolder();
       },
     },
     {

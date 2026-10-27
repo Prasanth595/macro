@@ -1138,7 +1138,9 @@ share one right-click menu, and the mobile long-press drawer shows the same
 items. It offers an item only where its action works for the row's type:
 Rename for documents, chats, folders, calls, agent sessions, and channels you
 take part in (not DMs); Duplicate for
-documents, chats, and folders (with GraphQL Soup); Move to folder for documents, chats, folders, and email;
+documents, chats, and folders (with GraphQL Soup); Move to folder for documents, chats, folders, and email you own (a folder is
+one location shared by everyone, and its sharing passes to what it holds, so
+only the owner moves an item; the server enforces the same);
 Delete for email and owned documents, chats, folders, calls, agent sessions, and
 routines. **Download** saves uploaded files (images, video, code, PowerPoint,
 Photoshop, Illustrator, Figma, other uploads) and Word documents as `.docx`;

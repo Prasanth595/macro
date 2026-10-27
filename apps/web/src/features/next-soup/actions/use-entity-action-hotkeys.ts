@@ -108,7 +108,9 @@ export const useEntityActionHotkeys = (
 
   const copyAction = makeCopyAction();
 
-  const moveToProjectAction = makeMoveToProjectAction();
+  const moveToProjectAction = makeMoveToProjectAction({
+    userId: () => userId(),
+  });
 
   const copyLinkAction = makeCopyLinkAction();
 

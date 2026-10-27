@@ -5,16 +5,25 @@ import type { EntityData } from '@entity';
 import { restoreSoupFocus } from '../utils';
 import type { EntityActionListState } from './entity-action-context';
 
-export const makeMoveToProjectAction = () => {
+type MakeMoveToProjectOptions = {
+  userId: () => string | undefined;
+};
+
+/**
+ * Move items into a folder. Only an item's owner may: a folder is one
+ * location shared by everyone, and its sharing passes to what it holds, so
+ * a move changes where the owner finds the item and who can see it.
+ */
+export const makeMoveToProjectAction = (options: MakeMoveToProjectOptions) => {
   // The types the move mutation supports; it rejects any other.
-  const canExecute = (entity: EntityData): boolean => {
-    return (
-      entity.type === 'document' ||
-      entity.type === 'chat' ||
-      entity.type === 'project' ||
-      entity.type === 'email'
-    );
-  };
+  const canMoveType = (entity: EntityData): boolean =>
+    entity.type === 'document' ||
+    entity.type === 'chat' ||
+    entity.type === 'project' ||
+    entity.type === 'email';
+
+  const canExecute = (entity: EntityData): boolean =>
+    canMoveType(entity) && entity.ownerId === options.userId();
 
   const execute = async (entities: EntityData[]) => {
     openBulkEditModal({
@@ -65,5 +74,5 @@ export const makeMoveToProjectAction = () => {
     });
   };
 
-  return { canExecute, execute, executeWithSoup };
+  return { canMoveType, canExecute, execute, executeWithSoup };
 };

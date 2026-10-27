@@ -87,10 +87,12 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
           onClick={() => fireAndForget(mute.execute([entity()]), 'drive-view')}
         />
       </Show>
-      <MenuItem
-        text="Move to folder"
-        onClick={() => editFolder('moveToProject')}
-      />
+      <Show when={entity().ownerId === userId()}>
+        <MenuItem
+          text="Move to folder"
+          onClick={() => editFolder('moveToProject')}
+        />
+      </Show>
       <Show when={duplicate.canExecute(entity())}>
         <MenuItem
           text="Duplicate"
