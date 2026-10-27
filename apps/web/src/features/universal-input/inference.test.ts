@@ -1,3 +1,4 @@
+import { UniversalInputRequestError } from '@service-agent-harness/universal-input-error';
 import { beforeEach, expect, it, vi } from 'vitest';
 import {
   TASK_PRIORITY_OPTIONS,
@@ -35,7 +36,8 @@ it('waits for the task field catalog before invoking extraction', async () => {
     'task',
     7,
     catalog,
-    undefined
+    undefined,
+    expect.objectContaining({ end: expect.any(Function) })
   );
 });
 
@@ -50,7 +52,8 @@ it('extracts email immediately without waiting for unrelated task metadata', asy
     'email',
     2,
     [],
-    undefined
+    undefined,
+    expect.objectContaining({ end: expect.any(Function) })
   );
 });
 
@@ -153,6 +156,39 @@ it('supplies the shared search option catalog and a manually selected type', asy
         options: TASK_PRIORITY_OPTIONS.map((option) => option.label),
       },
     ],
-    'task'
+    'task',
+    expect.objectContaining({ end: expect.any(Function) })
   );
+});
+
+it('does not send extraction after disposal while the catalog is pending', async () => {
+  let ready!: (value: { name: string; options: string[] }[]) => void;
+  const source = createInferenceSource(
+    () =>
+      new Promise((resolve) => {
+        ready = resolve;
+      })
+  );
+  const result = source.extract('Fix mobile notifications', 'task', 1);
+  source.dispose();
+  ready([]);
+  await expect(result).rejects.toMatchObject({ kind: 'unavailable' });
+  expect(extract).not.toHaveBeenCalled();
+});
+
+it('replaces provider errors with a safe category instead of draft-containing details', async () => {
+  extract.mockRejectedValue(new UniversalInputRequestError('RATE_LIMITED'));
+  await expect(
+    createInferenceSource().extract('Email private@example.org', 'email', 1)
+  ).rejects.toMatchObject({ kind: 'rate_limit' });
+  extract.mockRejectedValue(
+    new Error('Failed extracting private@example.org secret body')
+  );
+  const result = createInferenceSource().extract(
+    'Email private@example.org',
+    'email',
+    2
+  );
+  await expect(result).rejects.toMatchObject({ kind: 'unknown' });
+  await expect(result).rejects.not.toThrow('private@example.org');
 });

@@ -1336,3 +1336,8 @@ HTTPS Play listing for `com.macro.workspace.mobile`, allowing a browser when the
 is absent. An opener failure displays an inline error and the dialog stays
 dismissible. A missing listing is handled in the external store/browser: return
 to Macro, dismiss, and retry later. Task 07 verifies the live listing.
+
+Universal Input observability uses one draft trace, timed classification/extraction
+and submission spans, and events for queue wait, predictions, readiness and edits. Inspect `input.outcome`, safe failure
+categories and provider fallback spans in Tempo. Never include draft contents
+or field values in telemetry. Browser tracing requires its existing OTEL flag.

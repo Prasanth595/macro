@@ -2,6 +2,7 @@ import { createRoot } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { searchFiltersSchema } from '../../next-soup/core/search-filters';
 import type { InputCapabilities } from '../context/capabilities';
+import type { InputObservation } from '../context/telemetry';
 import {
   emptyDraft,
   type Intent,
@@ -58,7 +59,60 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it('observes metadata only, skips unchanged edits, and clears the observed type after a classification failure', async () => {
+  const events: InputObservation[] = [];
+  const capabilities = source({ observe: (event) => events.push(event) });
+  const state = mount(capabilities);
+  state.setText('Private source text');
+  await state.submit();
+  expect(events).toContainEqual(
+    expect.objectContaining({ event: 'blocked', reason: 'pending' })
+  );
+  await tick();
+  vi.mocked(capabilities.classify).mockRejectedValueOnce(
+    new Error('Private failure detail')
+  );
+  state.setText('Private source text changed');
+  await tick();
+  expect(events).toContainEqual(
+    expect.objectContaining({ event: 'type', intent: undefined, manual: false })
+  );
+  expect(events).toContainEqual(
+    expect.objectContaining({
+      event: 'prediction',
+      outcome: 'error',
+      failure: 'unknown',
+    })
+  );
+  state.setText('Private source text recovered');
+  await tick();
+  state.edit('title', state.fields().title);
+  expect(events.filter((event) => event.event === 'field')).toHaveLength(0);
+  state.edit('title', 'Private field value');
+  expect(events).toContainEqual(
+    expect.objectContaining({ event: 'field', field: 'title', inferred: true })
+  );
+  expect(JSON.stringify(events)).not.toContain('Private');
+});
+
 describe('universal draft lifecycle', () => {
+  it('does not attribute inferred fields from a cleared draft to the next draft', async () => {
+    const observe = vi.fn();
+    const state = mount(source({ observe }));
+    state.setText('Schedule a meeting');
+    await tick();
+    state.setText('');
+    state.setText('Another meeting');
+    state.choose('calendar');
+    state.edit('title', 'Manually selected title');
+    expect(observe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'field',
+        field: 'title',
+        inferred: false,
+      })
+    );
+  });
   it('saves an unfinished email only on an explicit action without sending it', async () => {
     const capabilities = source({ onSubmitted: vi.fn() });
     const state = mount(capabilities);

@@ -45,6 +45,17 @@ pub enum InputIntent {
 }
 
 impl InputIntent {
+    pub(crate) fn telemetry_name(self) -> &'static str {
+        match self {
+            Self::Ai => "ai",
+            Self::Search => "search",
+            Self::Email => "email",
+            Self::Note => "note",
+            Self::Task => "task",
+            Self::Calendar => "calendar",
+            Self::Message => "message",
+        }
+    }
     /// Only the fields relevant to this destination may be extracted.
     pub fn extraction_fields(self) -> &'static [&'static str] {
         match self {
@@ -215,6 +226,19 @@ pub enum InputError {
     Admission(#[from] AiAdmissionError),
 }
 
+impl InputError {
+    pub(crate) fn telemetry_kind(&self) -> &'static str {
+        match self {
+            Self::InvalidText => "invalid_text",
+            Self::InvalidTimeZone => "invalid_timezone",
+            Self::InvalidProperties => "invalid_properties",
+            Self::Unavailable => "unavailable",
+            Self::Extraction => "invalid_extraction",
+            Self::Admission(_) => "admission",
+        }
+    }
+}
+
 /// The capability needed to suggest fields without tools or writes.
 pub trait FieldExtractor: Send + Sync {
     /// Suggest destination fields without tools or writes, recording attributed usage.
@@ -248,7 +272,7 @@ impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
 
     /// Classify a bounded draft after admission, returning independent intent scores.
     #[tracing::instrument(name = "universal_input.classify", skip_all, err,
-        fields(revision = input.revision, draft_chars = input.text.chars().count()))]
+        fields(revision = input.revision, draft_chars = input.text.chars().count(), input.prompt_version = crate::telemetry::PROMPT_VERSION, input.recipe_version = crate::telemetry::RECIPE_VERSION))]
     pub async fn classify(
         &self,
         user: MacroUserIdStr<'static>,
@@ -291,7 +315,7 @@ impl<C: YesNoClassifier, E: FieldExtractor> UniversalInputService<C, E> {
 
     /// Extract fields after admission and apply source, timezone, and duration rules.
     #[tracing::instrument(name = "universal_input.extract", skip_all, err,
-        fields(intent = ?input.intent, revision = input.revision, draft_chars = input.text.chars().count()))]
+        fields(input.intent = input.intent.telemetry_name(), revision = input.revision, draft_chars = input.text.chars().count(), input.prompt_version = crate::telemetry::PROMPT_VERSION, input.recipe_version = crate::telemetry::RECIPE_VERSION))]
     pub async fn extract(
         &self,
         user: MacroUserIdStr<'static>,

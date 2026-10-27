@@ -2,6 +2,8 @@ import { batch, createSignal, onCleanup } from 'solid-js';
 import { v7 as uuidv7 } from 'uuid';
 import { parseSearchFilters } from '../../next-soup/core/search-filters';
 import type { InputCapabilities } from '../context/capabilities';
+import type { InputPhase } from '../context/telemetry';
+import { InputInferenceError, inputFailure } from '../core/failure';
 import {
   applySuggestions,
   emptyDraft,
@@ -42,6 +44,22 @@ export function createUniversalInput(source: InputCapabilities) {
   let decisionRevision = 0;
   let disposed = false;
   let submissionId = draft().submissionId ?? uuidv7();
+  const suggestedFields = new Map<Intent, Set<Field>>();
+  const observePrediction = (
+    input: { draftId: string; revision: number; intent?: Intent },
+    phase: InputPhase,
+    outcome: 'started' | 'applied' | 'discarded' | 'error',
+    failure?: unknown
+  ) =>
+    source.observe?.({
+      event: 'prediction',
+      draftId: input.draftId,
+      phase,
+      revision: input.revision,
+      intent: input.intent,
+      outcome,
+      ...(failure !== undefined && { failure: inputFailure(failure) }),
+    });
   const fields = () =>
     fieldsSchema.parse(draft().intent ? draft().fields[draft().intent!] : {});
   const pending = () => {
@@ -89,9 +107,17 @@ export function createUniversalInput(source: InputCapabilities) {
     });
   };
   const classificationQueue = createInferenceQueue({
+    observe: (observation) =>
+      source.observe?.({
+        event: 'queue',
+        draftId: submissionId,
+        phase: 'classify',
+        observation,
+      }),
     read: () =>
       !disposed && !sending() && draft().text.trim() && !draft().locked
         ? {
+            draftId: submissionId,
             text: draft().text,
             revision: revision(),
             decision: decisionRevision,
@@ -99,11 +125,15 @@ export function createUniversalInput(source: InputCapabilities) {
         : undefined,
     key: (input) => String(input.revision),
     async run(input) {
+      observePrediction(input, 'classify', 'started');
       try {
         const response = await source.classify(input.text, input.revision);
-        if (!usable(input.decision) || draft().locked) return;
+        if (!usable(input.decision) || draft().locked) {
+          observePrediction(input, 'classify', 'discarded');
+          return;
+        }
         if (response.revision !== input.revision)
-          throw new Error('Could not detect the input type');
+          throw new InputInferenceError('invalid_response');
         const previousIntent = draft().intent;
         const intent = inferIntent(response.scores);
         batch(() => {
@@ -113,10 +143,29 @@ export function createUniversalInput(source: InputCapabilities) {
           setClassificationError('');
           seed();
         });
+        source.observe?.({
+          event: 'type',
+          draftId: input.draftId,
+          previous: previousIntent,
+          intent,
+          manual: false,
+        });
+        observePrediction({ ...input, intent }, 'classify', 'applied');
         // A newly recognized type extracts the newest text on its own queue.
         extractionQueue.enqueue(intent !== previousIntent);
       } catch (failure) {
-        if (!usable(input.decision) || revision() !== input.revision) return;
+        if (!usable(input.decision) || revision() !== input.revision) {
+          observePrediction(input, 'classify', 'discarded', failure);
+          return;
+        }
+        observePrediction(input, 'classify', 'error', failure);
+        source.observe?.({
+          event: 'type',
+          draftId: input.draftId,
+          previous: draft().intent,
+          intent: undefined,
+          manual: false,
+        });
         setDraft((current) => ({ ...current, intent: undefined }));
         setClassifiedRevision(input.revision);
         setClassificationError(
@@ -128,6 +177,13 @@ export function createUniversalInput(source: InputCapabilities) {
     },
   });
   const extractionQueue = createInferenceQueue({
+    observe: (observation) =>
+      source.observe?.({
+        event: 'queue',
+        draftId: submissionId,
+        phase: 'extract',
+        observation,
+      }),
     read: () => {
       const current = draft();
       if (
@@ -139,6 +195,7 @@ export function createUniversalInput(source: InputCapabilities) {
       )
         return;
       return {
+        draftId: submissionId,
         text: current.text,
         intent: current.intent,
         searchType:
@@ -152,6 +209,7 @@ export function createUniversalInput(source: InputCapabilities) {
     },
     key: (input) => `${input.revision}:${input.intent}`,
     async run(input) {
+      observePrediction(input, 'extract', 'started');
       try {
         const response = input.searchType
           ? await source.extract(
@@ -165,13 +223,29 @@ export function createUniversalInput(source: InputCapabilities) {
           !usable(input.decision) ||
           revision() !== input.revision ||
           draft().intent !== input.intent
-        )
+        ) {
+          observePrediction(input, 'extract', 'discarded');
           return;
+        }
         if (
           response.revision !== input.revision ||
           response.intent !== input.intent
         )
-          throw new Error('Could not update the input fields');
+          throw new InputInferenceError('invalid_response');
+        const suggested = new Set<Field>();
+        for (const [key, value] of Object.entries(response.suggestions)) {
+          const field = fieldsSchema
+            .keyof()
+            .safeParse(key === 'properties' ? 'taskProperties' : key);
+          if (
+            field.success &&
+            value != null &&
+            value !== '' &&
+            (!Array.isArray(value) || value.length)
+          )
+            suggested.add(field.data);
+        }
+        suggestedFields.set(input.intent, suggested);
         setDraft((current) => ({
           ...current,
           fields: {
@@ -185,13 +259,17 @@ export function createUniversalInput(source: InputCapabilities) {
         }));
         setExtractionError('');
         setExtracted({ revision: input.revision, intent: input.intent });
+        observePrediction(input, 'extract', 'applied');
       } catch (failure) {
         if (
           !usable(input.decision) ||
           revision() !== input.revision ||
           draft().intent !== input.intent
-        )
+        ) {
+          observePrediction(input, 'extract', 'discarded', failure);
           return;
+        }
+        observePrediction(input, 'extract', 'error', failure);
         setDraft((current) => updateDraftText(current, current.text));
         seed();
         setExtractionError(
@@ -203,12 +281,20 @@ export function createUniversalInput(source: InputCapabilities) {
       }
     },
   });
-  const changed = () => {
+  const changed = (reason: 'text' | 'type' | 'field') => {
     setRevision((value) => value + 1);
     setClassificationError('');
     setExtractionError('');
     setSubmissionError('');
     setResult(undefined);
+    source.observe?.({
+      event: 'changed',
+      draftId: submissionId,
+      revision: revision(),
+      length: draft().text.length,
+      intent: draft().intent,
+      reason,
+    });
     if (draft().text.trim()) {
       seed();
       setDraft((current) => ({ ...current, submissionId }));
@@ -224,20 +310,35 @@ export function createUniversalInput(source: InputCapabilities) {
     if (sending()) return;
     batch(() => {
       if (!text.trim()) {
+        classificationQueue.clear();
+        extractionQueue.clear();
+        source.observe?.({
+          event: 'finished',
+          draftId: submissionId,
+          outcome: 'cleared',
+        });
         decisionRevision++;
         setDraft(emptyDraft());
         setScores([]);
+        suggestedFields.clear();
         submissionId = uuidv7();
       } else setDraft((d) => ({ ...d, text }));
-      changed();
+      changed('text');
     });
   };
   const choose = (intent?: Intent) => {
     if (sending()) return;
     batch(() => {
+      source.observe?.({
+        event: 'type',
+        draftId: submissionId,
+        previous: draft().intent,
+        intent,
+        manual: true,
+      });
       decisionRevision++;
       setDraft((d) => ({ ...d, intent, locked: !!intent }));
-      changed();
+      changed('type');
     });
   };
   const cycle = (direction = 1) => {
@@ -250,6 +351,15 @@ export function createUniversalInput(source: InputCapabilities) {
   const edit = (key: Field, value: string) => {
     const intent = draft().intent;
     if (!intent || sending()) return;
+    if (fields()[key] !== value)
+      source.observe?.({
+        event: 'field',
+        draftId: submissionId,
+        intent,
+        field: key,
+        inferred:
+          !!suggestedFields.get(intent)?.has(key) && fields()[key] !== value,
+      });
     batch(() => {
       decisionRevision++;
       setDraft((d) => ({
@@ -264,7 +374,7 @@ export function createUniversalInput(source: InputCapabilities) {
           [intent]: [...new Set([...d.edited[intent], key])],
         },
       }));
-      changed();
+      changed('field');
     });
   };
   const snapshot = (): Submission | undefined => {
@@ -285,11 +395,30 @@ export function createUniversalInput(source: InputCapabilities) {
     if (!input.text.trim()) return 'Type something to begin';
     return source.validateEmailDraft(input);
   };
+  const observeReady = () => {
+    const intent = draft().intent;
+    if (intent && draft().text.trim() && !pending())
+      source.observe?.({
+        event: 'ready',
+        draftId: submissionId,
+        revision: revision(),
+        intent,
+        valid: !validation(),
+      });
+  };
   const complete = async (
     input: Submission,
     operation: 'submit' | 'save-email-draft',
     perform: (input: Submission) => Promise<SubmissionResult>
   ) => {
+    const draftId = submissionId;
+    source.observe?.({
+      event: 'submission',
+      draftId,
+      operation,
+      intent: input.intent,
+      outcome: 'started',
+    });
     setOperation(operation);
     let completed = false;
     decisionRevision++;
@@ -297,6 +426,13 @@ export function createUniversalInput(source: InputCapabilities) {
     extractionQueue.clear();
     try {
       const saved = await perform(input);
+      source.observe?.({
+        event: 'submission',
+        draftId,
+        operation,
+        intent: input.intent,
+        outcome: 'success',
+      });
       if (disposed) return;
       batch(() => {
         setDraft(emptyDraft());
@@ -304,9 +440,18 @@ export function createUniversalInput(source: InputCapabilities) {
         setSubmissionError('');
         setResult(saved);
       });
+      suggestedFields.clear();
       submissionId = uuidv7();
       completed = true;
     } catch (failure) {
+      source.observe?.({
+        event: 'submission',
+        draftId,
+        operation,
+        intent: input.intent,
+        outcome: 'error',
+        failure: inputFailure(failure),
+      });
       if (!disposed)
         setSubmissionError(
           failure instanceof Error
@@ -316,21 +461,64 @@ export function createUniversalInput(source: InputCapabilities) {
     } finally {
       if (!disposed) {
         setOperation(undefined);
-        if (completed) source.onSubmitted?.();
+        if (completed) {
+          source.observe?.({
+            event: 'finished',
+            draftId,
+            outcome: operation === 'submit' ? 'submitted' : 'saved',
+          });
+          source.onSubmitted?.();
+        }
       }
     }
   };
   const submit = async () => {
     const input = snapshot();
-    if (!input || sending() || pending() || validation()) return;
+    if (!input || sending() || pending() || validation()) {
+      source.observe?.({
+        event: 'blocked',
+        draftId: submissionId,
+        operation: 'submit',
+        reason: !draft().text.trim()
+          ? 'empty'
+          : sending()
+            ? 'sending'
+            : pending()
+              ? 'pending'
+              : 'validation',
+      });
+      return;
+    }
     await complete(input, 'submit', source.submit);
   };
   const saveEmailDraft = async () => {
     const input = snapshot();
-    if (!input || sending() || pending() || emailDraftValidation()) return;
+    if (!input || sending() || pending() || emailDraftValidation()) {
+      source.observe?.({
+        event: 'blocked',
+        draftId: submissionId,
+        operation: 'save-email-draft',
+        reason: !draft().text.trim()
+          ? 'empty'
+          : sending()
+            ? 'sending'
+            : pending()
+              ? 'pending'
+              : 'validation',
+      });
+      return;
+    }
     await complete(input, 'save-email-draft', source.saveEmailDraft);
   };
   if (draft().text.trim()) {
+    source.observe?.({
+      event: 'changed',
+      draftId: submissionId,
+      revision: revision(),
+      length: draft().text.length,
+      reason: 'text',
+      intent: draft().intent,
+    });
     seed();
     classificationQueue.enqueue();
     extractionQueue.enqueue();
@@ -339,9 +527,15 @@ export function createUniversalInput(source: InputCapabilities) {
     disposed = true;
     classificationQueue.dispose();
     extractionQueue.dispose();
+    source.observe?.({
+      event: 'finished',
+      draftId: submissionId,
+      outcome: 'abandoned',
+    });
   });
   return {
     draft,
+    observeReady,
     fields,
     scores,
     pending,

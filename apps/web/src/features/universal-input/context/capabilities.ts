@@ -16,6 +16,7 @@ import type {
   Suggestions,
 } from '../core/input';
 import type { Recipient } from '../core/recipients';
+import type { InputObservation } from './telemetry';
 
 export type MessageRecipient = RecipientSelectorProps<
   'user' | 'channel'
@@ -55,6 +56,7 @@ export interface InputDisplay {
 }
 
 export interface InputCapabilities {
+  observe?(observation: InputObservation): void;
   classify(
     text: string,
     revision: number

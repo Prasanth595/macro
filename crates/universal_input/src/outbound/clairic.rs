@@ -12,6 +12,7 @@ use crate::domain::{
     ExtractInputRequest, FieldExtractor, InputError, InputIntent, InputPropertySuggestion,
     InputSuggestions,
 };
+use crate::telemetry::{ExtractionFailure, extraction_failure};
 
 #[cfg(test)]
 mod test;
@@ -107,6 +108,9 @@ impl ClairicFieldExtractor {
         gen_ai.usage.input_tokens = tracing::field::Empty,
         gen_ai.usage.output_tokens = tracing::field::Empty,
         http.response.status_code = tracing::field::Empty,
+        input.intent = input.intent.telemetry_name(),
+        input.failure = tracing::field::Empty,
+        input.prompt_version = crate::telemetry::PROMPT_VERSION, input.recipe_version = crate::telemetry::RECIPE_VERSION,
     ))]
     async fn invoke(
         &self,
@@ -126,15 +130,23 @@ impl ClairicFieldExtractor {
             .await
             .map_err(|error| {
                 tracing::warn!(timeout = error.is_timeout(), "Clairic request failed");
-                InputError::Extraction
+                extraction_failure(if error.is_timeout() {
+                    ExtractionFailure::Timeout
+                } else {
+                    ExtractionFailure::Transport
+                })
             })?;
         tracing::Span::current().record("http.response.status_code", response.status().as_u16());
         if !response.status().is_success() {
-            return Err(InputError::Extraction);
+            return Err(extraction_failure(ExtractionFailure::HttpStatus));
         }
-        let envelope: CloudflareResponse =
-            response.json().await.map_err(|_| InputError::Extraction)?;
-        let result = envelope.result.ok_or(InputError::Extraction)?;
+        let envelope: CloudflareResponse = response
+            .json()
+            .await
+            .map_err(|_| extraction_failure(ExtractionFailure::InvalidEnvelope))?;
+        let result = envelope
+            .result
+            .ok_or_else(|| extraction_failure(ExtractionFailure::InvalidEnvelope))?;
         // Record provider-reported usage even when answers are missing or truncated.
         self.recorder.record(usage.into_event(
             MODEL.to_owned(),
@@ -147,8 +159,11 @@ impl ClairicFieldExtractor {
         ));
         tracing::Span::current().record("gen_ai.usage.input_tokens", result.usage.input_tokens);
         tracing::Span::current().record("gen_ai.usage.output_tokens", result.usage.output_tokens);
-        if !envelope.success || result.truncated {
-            return Err(InputError::Extraction);
+        if !envelope.success {
+            return Err(extraction_failure(ExtractionFailure::ProviderRejected));
+        }
+        if result.truncated {
+            return Err(extraction_failure(ExtractionFailure::Truncated));
         }
         result.fields(input, &request.fields)
     }
@@ -161,7 +176,7 @@ impl FieldExtractor for ClairicFieldExtractor {
         usage: UsageContext,
     ) -> Result<InputSuggestions, InputError> {
         if input.intent == InputIntent::Search {
-            return Err(InputError::Extraction);
+            return Err(extraction_failure(ExtractionFailure::InvalidField));
         }
         if input.intent == InputIntent::Ai {
             return Ok(InputSuggestions::Ai(crate::domain::AiSuggestions::default()));
@@ -348,7 +363,7 @@ impl Answer {
                 .flatten()
                 .any(|n| !(0.0..=1.0).contains(&n))
         {
-            return Err(InputError::Extraction);
+            return Err(extraction_failure(ExtractionFailure::InvalidField));
         }
         if self.value.is_null() {
             return Ok(if spec.kind == FieldType::List {
@@ -363,7 +378,7 @@ impl Answer {
             || self.p_null.is_some_and(|n| n >= 0.5))
             && !self.value.as_array().is_some_and(Vec::is_empty)
         {
-            return Err(InputError::Extraction);
+            return Err(extraction_failure(ExtractionFailure::Uncertain));
         }
         let valid = match spec.kind {
             FieldType::Text => self
@@ -379,7 +394,7 @@ impl Answer {
             }),
         };
         if !valid {
-            return Err(InputError::Extraction);
+            return Err(extraction_failure(ExtractionFailure::Ungrounded));
         }
         Ok(self.value.clone())
     }
@@ -397,10 +412,10 @@ impl ExtractionResponse {
             let answer: Answer = serde_json::from_value(
                 self.answers
                     .get(name)
-                    .ok_or(InputError::Extraction)?
+                    .ok_or_else(|| extraction_failure(ExtractionFailure::MissingField))?
                     .clone(),
             )
-            .map_err(|_| InputError::Extraction)?;
+            .map_err(|_| extraction_failure(ExtractionFailure::InvalidField))?;
             let value = answer.value(spec, &input.text)?;
             if let Some(index) = name.strip_prefix("property_") {
                 let index: usize = index.parse().map_err(|_| InputError::Extraction)?;
@@ -428,7 +443,7 @@ impl ExtractionResponse {
         {
             // A span ending early could discard later sentences or routing metadata.
             // Let the generative fallback separate those instead of accepting truncation.
-            return Err(InputError::Extraction);
+            return Err(extraction_failure(ExtractionFailure::IncompleteBody));
         }
         if input.intent == InputIntent::Search {
             let spans: Vec<&str> = fields
@@ -449,7 +464,7 @@ impl ExtractionResponse {
                 // Repeated text may fill separate roles only when the draft
                 // supplies enough independent occurrences for every claim.
                 if input.text.matches(span).count() < claimed {
-                    return Err(InputError::Extraction);
+                    return Err(extraction_failure(ExtractionFailure::OverlappingFields));
                 }
             }
         }

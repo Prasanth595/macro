@@ -322,13 +322,17 @@ export function createInputActions(
             submitSurface: host.submitSurface ?? 'other',
           });
           chat.attachments.setAttached([]);
-          host.navigate({
+          const content: Parameters<typeof host.navigate>[0] = {
             type: 'component',
             id: agentsRouteId({
               mode: modeForKind(agent?.kind ?? 'agent'),
               conversation: { type: 'agent_session', id },
             }),
-          });
+          };
+          return {
+            message: 'Started conversation',
+            open: () => host.navigate(content),
+          };
         } else {
           const id = await createInputChat();
           const selectedModel =
@@ -340,9 +344,11 @@ export function createInputActions(
             model: selectedModel,
           });
           chat.attachments.setAttached([]);
-          host.navigate({ type: 'chat', id });
+          return {
+            message: 'Started conversation',
+            open: () => host.navigate({ type: 'chat', id }),
+          };
         }
-        return { message: 'Started conversation' };
       })
       .with('search', async () => {
         const { state } = resolveSearchFilters(

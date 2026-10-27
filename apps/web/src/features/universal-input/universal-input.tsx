@@ -25,6 +25,7 @@ import {
   type UniversalInputController,
 } from './primitives/universal-input';
 import { TaskFields } from './task-fields';
+import { createInputTelemetry } from './telemetry';
 import { SearchDraft } from './views/search-draft';
 import { UniversalComposer } from './views/universal-composer';
 
@@ -36,6 +37,10 @@ function InputContent(props: {
 }) {
   const session = props.session;
   const chat = useChatInputContext();
+  const surface =
+    props.referredFrom === 'search' ? 'mobile-search' : 'command-menu';
+  const telemetry = createInputTelemetry(surface);
+  onCleanup(telemetry.dispose);
   const [state, setState] = createSignal<UniversalInputController>();
   const { getAttachmentFromMention } = useGetChatAttachmentInfo();
   const resolveAppLink = useMacroMentionLinkResolver();
@@ -59,13 +64,20 @@ function InputContent(props: {
       referredFrom: props.referredFrom,
     }
   );
+  const inference = createInferenceSource(
+    actions.taskDefinitions,
+    surface,
+    telemetry.parent
+  );
+  onCleanup(inference.dispose);
   const controller = createUniversalInput({
-    ...createInferenceSource(
-      actions.taskDefinitions,
-      props.referredFrom === 'search' ? 'mobile-search' : 'command-menu'
-    ),
+    ...inference,
     initialDraft: { ...emptyDraft(), text: session.text },
     ...actions,
+    observe: telemetry.observe,
+    submit: (input) => telemetry.run(() => actions.submit(input)),
+    saveEmailDraft: (input) =>
+      telemetry.run(() => actions.saveEmailDraft(input)),
     onSubmitted: () => {
       const open = state()?.result()?.open;
       session.onComplete();
@@ -73,6 +85,7 @@ function InputContent(props: {
     },
   });
   setState(controller);
+  createEffect(controller.observeReady);
   createEffect(() => session.onSendingChange?.(controller.sending()));
   onCleanup(() => session.onSendingChange?.(false));
   createEffect(

@@ -39,6 +39,16 @@ Read-only intent classification and editable field extraction for Command K.
   task options, so unrelated metadata cannot influence another type.
 - Keep all public API documented; the crate denies missing documentation.
 
+## Observability
+
+`src/telemetry.rs` defines bounded failure categories. Provider spans record model,
+token usage, fallback path/reason and build-generated prompt/recipe fingerprints.
+Never add draft text, extracted values, provider bodies or caller-supplied labels
+to traces. Admission and failover remain domain policy; telemetry does not change
+provider selection. The recipe fingerprint covers production Rust source as well
+as prompt templates; it is a build identifier, not runtime configuration.
+See `eval/README.md` for read-only local quality and latency evaluation.
+
 ## Checks
 
 - `cargo test -p universal_input` from the repository root with `SQLX_OFFLINE`

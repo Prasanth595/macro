@@ -271,17 +271,19 @@ describe('destination adapters', () => {
     });
   });
   it('starts legacy AI with the original text and attachments', async () => {
-    await execute(input('ai'));
+    const result = await execute(input('ai'));
     expect(mocks.pending).toHaveBeenCalledWith(
       expect.objectContaining({ content: 'Original **Markdown**' })
     );
+    expect(mocks.replace).not.toHaveBeenCalled();
+    result.open?.();
     expect(mocks.replace).toHaveBeenCalledWith({
       next: { type: 'chat', id: 'chat' },
     });
   });
   it('starts the existing agent session when enabled', async () => {
     mocks.agents = true;
-    await execute(input('ai'));
+    const result = await execute(input('ai'));
     expect(mocks.session).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: 'Original **Markdown**',
@@ -289,6 +291,9 @@ describe('destination adapters', () => {
       })
     );
     expect(mocks.chat).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
+    result.open?.();
+    expect(mocks.replace).toHaveBeenCalledOnce();
   });
   it('opens global search with the extracted query', async () => {
     const result = await execute(

@@ -1,12 +1,17 @@
 import { SERVER_HOSTS } from '@core/constant/servers';
 import { fetchWithToken } from '@core/util/fetchWithToken';
+import { statusError } from '@core/util/safeFetch';
+import type { Span } from '@macro-inc/observability';
 import { z } from 'zod';
 import type { ClassifyInputRequest } from './generated/schemas/classifyInputRequest';
 import type { ExtractInputRequest } from './generated/schemas/extractInputRequest';
 import { InputIntent } from './generated/schemas/inputIntent';
 import type { SearchSuggestions } from './generated/schemas/searchSuggestions';
+import {
+  type InferenceResponseCode,
+  UniversalInputRequestError,
+} from './universal-input-error';
 
-// Wire decoding stays here; the feature adapter maps it into its own vocabulary.
 const intent = z.enum(InputIntent);
 const text = z.string().nullish();
 const classification = z.object({
@@ -153,36 +158,58 @@ const extraction = z.discriminatedUnion('intent', [
 async function request<T>(
   path: string,
   body: object,
-  schema: z.ZodType<T>
+  schema: z.ZodType<T>,
+  parentSpan?: Span
 ): Promise<T> {
-  const response = await fetchWithToken<Record<string, unknown>>(
-    `${SERVER_HOSTS['agent-harness']}/universal_input/${path}`,
-    {
-      method: 'POST',
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15000),
-    }
-  );
+  const signal = AbortSignal.timeout(15000);
+  const response = await fetchWithToken<
+    Record<string, unknown>,
+    InferenceResponseCode
+  >(`${SERVER_HOSTS['agent-harness']}/universal_input/${path}`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    signal,
+    trace: parentSpan ? { parentSpan } : undefined,
+    errorResponseHandler: async (response) => {
+      const code =
+        response.status === 400
+          ? 'INVALID_REQUEST'
+          : response.status === 402
+            ? 'ALLOWANCE_EXHAUSTED'
+            : response.status === 429
+              ? 'RATE_LIMITED'
+              : response.status >= 500
+                ? 'UNAVAILABLE'
+                : undefined;
+      if (code) return { code, message: code };
+      return statusError(response.status);
+    },
+  });
   if (response.isErr())
-    throw new Error(
-      'Automatic suggestions are unavailable. Choose a type and fill in the fields.'
+    throw new UniversalInputRequestError(
+      signal.aborted ? 'TIMEOUT' : (response.error[0]?.code ?? 'UNKNOWN_ERROR')
     );
-  return schema.parse(response.value);
+  const decoded = schema.safeParse(response.value);
+  if (!decoded.success)
+    throw new UniversalInputRequestError('INVALID_RESPONSE');
+  return decoded.data;
 }
 
 export const universalInputClient = {
-  classify: (text: string, revision: number) =>
+  classify: (text: string, revision: number, parentSpan?: Span) =>
     request(
       'classify',
       { text, revision } satisfies ClassifyInputRequest,
-      classification
+      classification,
+      parentSpan
     ),
   extract: (
     text: string,
     selected: z.infer<typeof intent>,
     revision: number,
     properties: { name: string; options: string[] }[] = [],
-    searchType?: ExtractInputRequest['search_type']
+    searchType?: ExtractInputRequest['search_type'],
+    parentSpan?: Span
   ) =>
     request(
       'extract',
@@ -196,6 +223,7 @@ export const universalInputClient = {
         property_definitions:
           selected === 'task' || selected === 'search' ? properties : [],
       } satisfies ExtractInputRequest,
-      extraction
+      extraction,
+      parentSpan
     ),
 };

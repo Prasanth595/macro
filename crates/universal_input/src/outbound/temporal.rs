@@ -112,7 +112,7 @@ fn require_explicit_fields(value: &mut Value) {
 }
 
 impl TemporalExtractor for AgentTemporalExtractor {
-    #[tracing::instrument(name = "universal_input.temporal", skip_all, err, fields(intent = ?input.intent, model = super::EXTRACTION_MODEL))]
+    #[tracing::instrument(name = "universal_input.temporal", skip_all, err, fields(intent = ?input.intent, model = super::EXTRACTION_MODEL, input.prompt_version = crate::telemetry::PROMPT_VERSION, input.recipe_version = crate::telemetry::RECIPE_VERSION))]
     async fn extract_temporal(
         &self,
         input: &ExtractInputRequest,

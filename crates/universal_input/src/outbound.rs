@@ -56,6 +56,11 @@ fn decode_suggestions(intent: InputIntent, fields: Value) -> Result<InputSuggest
 }
 
 impl AgentFieldExtractor {
+    #[tracing::instrument(name = "universal_input.content", skip_all, err, fields(
+        intent = ?input.intent,
+        gen_ai.request.model = EXTRACTION_MODEL,
+        input.prompt_version = crate::telemetry::PROMPT_VERSION, input.recipe_version = crate::telemetry::RECIPE_VERSION,
+    ))]
     async fn complete(
         &self,
         input: &ExtractInputRequest,
