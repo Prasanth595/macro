@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "macro",
+  "version": "0.1.0",
+  "description": "Work in your Macro workspace: brief on companies and deals from Macro CRM, email, channels and calls; work Macro tasks; and reply in the Macro thread that asked.",
+  "author": { "name": "Macro", "url": "https://macro.com" },
+  "homepage": "https://macro.com",
+  "repository": "https://github.com/macro-inc/macro/tree/main/packages/grok-bot-plugin",
+  "license": "AGPL-3.0-only",
+  "keywords": ["macro", "crm", "tasks", "channels", "documents"]
+}
