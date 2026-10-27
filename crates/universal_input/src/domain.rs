@@ -47,7 +47,7 @@ impl InputIntent {
     pub fn extraction_fields(self) -> &'static [&'static str] {
         match self {
             Self::Ai => &[],
-            Self::Search => &["query", "search_scope", "search_from", "search_in"],
+            Self::Search => &["search_scope", "search_from", "search_in", "query"],
             Self::Email => &["subject", "body", "recipients", "cc", "bcc"],
             Self::Note => &["title"],
             Self::Task => &["title", "body", "properties"],
@@ -60,7 +60,11 @@ impl InputIntent {
     pub fn extraction_guidance(self) -> &'static str {
         match self {
             Self::Ai => "Return an empty JSON object.",
-            Self::Search => include_str!("domain/extract_search_prompt.txt"),
+            Self::Search => concat!(
+                include_str!("domain/extract_search_prompt.txt"),
+                "\n",
+                include_str!("domain/extract_search_query_prompt.txt")
+            ),
             Self::Email => include_str!("domain/extract_email_prompt.txt"),
             Self::Note => include_str!("domain/extract_note_prompt.txt"),
             Self::Task => include_str!("domain/extract_task_prompt.txt"),

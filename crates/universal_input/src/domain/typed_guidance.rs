@@ -5,9 +5,7 @@ impl InputIntent {
     /// The meaning of one extracted field; adapters choose its wire representation.
     pub fn typed_field_guidance(self, field: &str) -> Option<&'static str> {
         match (self, field) {
-            (Self::Search, "query") => Some(
-                "The actual search keywords or phrase, excluding the search command, requested content category and supported explicit filters. Null for a filter-only search. Preserve ordinary uses of in/from and dates within the topic; do not turn them into filters.",
-            ),
+            (Self::Search, "query") => Some(include_str!("extract_search_query_prompt.txt")),
             (Self::Search, "search_scope") => Some(
                 "The exact noun phrase naming the requested content category: messages, channels, DMs, documents, files, notes, tasks, emails, calls, folders, agents, AI chats, calendar events or events. Null when no category is specified. Category words inside the search topic are not a scope. Return a span from the draft, not a canonical category name.",
             ),

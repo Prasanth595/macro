@@ -218,6 +218,77 @@ async fn absent_answers_do_not_use_provider_guesses() {
 }
 
 #[tokio::test]
+async fn rejects_search_answers_that_assign_one_source_span_to_competing_fields() {
+    for (draft, query, from, channel) in [
+        (
+            "search channels for messages from user@example.com",
+            Some("messages from user@example.com"),
+            "user@example.com",
+            None,
+        ),
+        (
+            "search messages from user@example.com about budget",
+            Some("budget"),
+            "user@example.com",
+            Some("budget"),
+        ),
+        (
+            "search channels for messages from user@example.com",
+            None,
+            "user@example.com",
+            Some("user@example.com"),
+        ),
+        (
+            "search messages from budget about budget",
+            Some("budget"),
+            "budget",
+            Some("budget"),
+        ),
+    ] {
+        let (_server, extractor, recorder) = provider(response(json!({
+            "query": answer("text", json!(query)),
+            "search_scope": answer("text", json!("messages")),
+            "search_from": answer("list", json!([from])),
+            "search_in": answer("list", json!(channel.into_iter().collect::<Vec<_>>())),
+        })))
+        .await;
+        assert!(matches!(
+            extractor
+                .extract(&input(InputIntent::Search, draft), usage())
+                .await,
+            Err(InputError::Extraction)
+        ));
+        assert_eq!(recorder.0.lock().unwrap().len(), 1);
+    }
+}
+
+#[tokio::test]
+async fn accepts_a_filter_name_independently_repeated_as_search_keywords() {
+    let (_server, extractor, _) = provider(response(json!({
+        "query": answer("text", json!("budget")),
+        "search_scope": answer("text", json!("messages")),
+        "search_from": answer("list", json!([])),
+        "search_in": answer("list", json!(["budget"])),
+    })))
+    .await;
+    let fields = extractor
+        .extract(
+            &input(
+                InputIntent::Search,
+                "search messages in budget about budget",
+            ),
+            usage(),
+        )
+        .await
+        .unwrap();
+    let InputSuggestions::Search(fields) = fields else {
+        panic!("wrong intent");
+    };
+    assert_eq!(fields.query.as_deref(), Some("budget"));
+    assert_eq!(fields.search_in, ["budget"]);
+}
+
+#[tokio::test]
 async fn unusable_answers_fail_but_still_record_provider_usage() {
     for answers in [
         json!({"query": answer("text", json!("invented"))}),

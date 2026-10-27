@@ -630,6 +630,9 @@ people or channels pause search until corrected in the filter pickers. Use
 **Only** to replace an unresolved name with a specific person or channel. The
 pickers include the full channel and DM directory. The model distinguishes
 explicit filters from ordinary “from”/“in” phrases within search keywords.
+Filter-only requests such as “search channels for messages from user@example.com”
+leave **Search for** empty; category and sender wording is consumed by the filters.
+Adding “about budget” searches for only “budget”.
 
 Editing **Search for** or changing the filter chips overrides subsequent
 predictions for those values. Sender-only message scopes and speaker-only call

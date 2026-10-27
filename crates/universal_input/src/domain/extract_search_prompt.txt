@@ -1,3 +1,12 @@
-Extract query, search_scope, search_from and search_in. query contains the actual keywords, without a search command, requested content category or explicit supported filters. Preserve keyword phrases, including ordinary uses of "in" and "from". Do not invent a channel from a preposition inside the search topic.
+Extract search_scope, search_from and search_in first. Then extract query from the remaining topic, excluding the complete wording consumed by those filters. Do not invent a channel from a preposition inside the search topic.
 search_scope is the exact content-category phrase from the draft, such as messages, documents, tasks, emails, calls, folders, agents or calendar events. Null when no category was specified. Do not replace it with an inferred category name or match category words inside the topic.
 search_from contains explicitly requested sender names for messages, speaker names for calls, or creator names for tasks. search_in contains explicitly requested channel names for messages or calls. Keep a single quoted name together even when it contains commas or "and". A date or year is not a channel. Do not turn negated filters into positive filters. For other categories retain unsupported filter wording in query and leave these lists empty. People and channels remain names or supplied addresses, never IDs.
+"channels" in "search channels for messages" is a content category, not a named channel for search_in. "from Person A" still specifies the sender, even when there is no topic after it.
+
+Examples (draft -> complete result):
+search channels for messages from Person A -> {"search_scope":"channels","search_from":["Person A"],"search_in":[],"query":null}
+search channels for messages from user@example.com in #team -> {"search_scope":"channels","search_from":["user@example.com"],"search_in":["#team"],"query":null}
+search channels for messages from Person A about budget -> {"search_scope":"channels","search_from":["Person A"],"search_in":[],"query":"budget"}
+search channels for messages from user@example.com about budget -> {"search_scope":"channels","search_from":["user@example.com"],"search_in":[],"query":"budget"}
+search messages from Person A about growth in 2026 -> {"search_scope":"messages","search_from":["Person A"],"search_in":[],"query":"growth in 2026"}
+search documents about messages from Person A -> {"search_scope":"documents","search_from":[],"search_in":[],"query":"messages from Person A"}

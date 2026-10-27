@@ -1,6 +1,8 @@
 //! Tool-free extraction adapters for Clairic and the shared model router.
 pub mod clairic;
 pub mod temporal;
+#[cfg(test)]
+mod test;
 use crate::domain::{
     ExtractInputRequest, FIELD_EXTRACTION_GUIDANCE, FieldExtractor, InputError, InputIntent,
     InputSuggestions,

@@ -348,6 +348,28 @@ impl ExtractionResponse {
             // Let the generative fallback separate those instead of accepting truncation.
             return Err(InputError::Extraction);
         }
+        if input.intent == InputIntent::Search {
+            let spans: Vec<&str> = fields
+                .get("query")
+                .and_then(Value::as_str)
+                .into_iter()
+                .chain(["search_from", "search_in"].into_iter().flat_map(|key| {
+                    fields[key]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(Value::as_str)
+                }))
+                .collect();
+            for &span in &spans {
+                let claimed: usize = spans.iter().map(|value| value.matches(span).count()).sum();
+                // Repeated text may fill separate roles only when the draft
+                // supplies enough independent occurrences for every claim.
+                if input.text.matches(span).count() < claimed {
+                    return Err(InputError::Extraction);
+                }
+            }
+        }
         super::decode_suggestions(input.intent, Value::Object(fields))
     }
 }
