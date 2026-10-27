@@ -118,6 +118,18 @@ it('only declares no search results after the final page', () => {
   expect(screen.queryByText('No matching items.')).toBeNull();
 });
 
+it('keeps the paging marker mounted when a local filter removes an entire page', () => {
+  const view = render(() => (
+    <RecordItemList
+      source={source({ data: { entities: [] }, hasNextPage: true })}
+      empty="Nothing"
+    />
+  ));
+  screen.getByText('Searching more…');
+  expect(screen.queryByText('Nothing')).toBeNull();
+  expect(view.container.querySelector('.h-px')).not.toBeNull();
+});
+
 it('continues date groups across pages without remounting earlier rows', () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 9, 27, 12));

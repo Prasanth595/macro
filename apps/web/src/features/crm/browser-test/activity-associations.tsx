@@ -1,4 +1,5 @@
 import '@app/index.css';
+import { ViewShell } from '@app/components/view-shell';
 import { CreateContextProvider } from '@app/features/command/context/create-context';
 import { AnalyticsContextProvider } from '@app/lib/analytics/analytics-context';
 import { PosthogProvider } from '@app/lib/analytics/posthog';
@@ -17,12 +18,20 @@ import type { SoupProperty } from '@service-storage/generated/schemas/soupProper
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { Tabs } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
+import { createStore } from 'solid-js/store';
 import { render } from 'solid-js/web';
+import { EMPTY_TAG_FACET_CONTEXT } from '../../soup';
 import { CrmProvider } from '../context/crm-context';
 import type { ItemListSource } from '../context/crm-sources';
+import type { CrmActivityViewState } from '../core/activity-view';
 import { CRM_ACTIVITY_TABS, type CrmActivityTab } from '../core/navigation';
 import { createAppCrmContext } from '../crm-adapter';
+import {
+  buildCrmActivityQuery,
+  crmActivityItemMatches,
+} from '../queries/activity-options';
 import { CrmActivityView } from '../views/activity';
+import { RecordItemList } from '../views/record-item-list';
 
 const createdAt = '2026-10-01T12:00:00Z';
 const common = { ownerId: '', createdAt, updatedAt: createdAt };
@@ -262,10 +271,136 @@ function DateGroupingFixture() {
         />
         <div data-testid="activity-scroll" class="flex h-48 flex-col">
           <Show when={tab()} keyed>
-            {(active) => <CrmActivityView tab={active} />}
+            {(active) => (
+              <div class="min-h-0 flex-1 overflow-y-auto">
+                <RecordItemList
+                  source={crm.createActivity(() => active)}
+                  empty="Nothing"
+                  groupByDate
+                  referencePropertyIds={[
+                    SYSTEM_PROPERTY_IDS.COMPANIES,
+                    SYSTEM_PROPERTY_IDS.CONTACTS,
+                  ]}
+                />
+              </div>
+            )}
           </Show>
         </div>
       </main>
+    </CrmProvider>
+  );
+}
+
+function ActivityControlsFixture() {
+  const crm = createAppCrmContext();
+  const [tab, setTab] = createSignal<CrmActivityTab>('email');
+  const controls = {
+    email: createStore<CrmActivityViewState>({
+      search: '',
+      facets: {},
+      sort: 'updated_at',
+      direction: 'desc',
+      groupBy: 'date',
+    }),
+    notes: createStore<CrmActivityViewState>({
+      search: '',
+      facets: {},
+      sort: 'updated_at',
+      direction: 'desc',
+      groupBy: 'none',
+    }),
+    calls: createStore<CrmActivityViewState>({
+      search: '',
+      facets: {},
+      sort: 'updated_at',
+      direction: 'desc',
+      groupBy: 'none',
+    }),
+  };
+  crm.createActivityState = (active) =>
+    controls[active === 'tasks' ? 'email' : active];
+  const email = items.find((entity) => entity.type === 'email');
+  if (!email) throw new Error('Missing email fixture');
+  const rows: EntityData[] = [
+    {
+      ...email,
+      id: 'unread-email',
+      name: 'Unread message',
+      isRead: false,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      ...email,
+      id: 'read-email',
+      name: 'Read message',
+      updatedAt: new Date(2020, 0, 1).toISOString(),
+    },
+    items[2],
+    items[3],
+  ];
+  crm.createActivity = (active, options) => ({
+    isPending: false,
+    isEnabled: true,
+    isLoading: false,
+    isError: false,
+    isFetchingNextPage: false,
+    isFetchNextPageError: false,
+    hasNextPage: false,
+    get data() {
+      const selected = rows.filter(
+        (entity) =>
+          (active() === 'email'
+            ? entity.type === 'email'
+            : active() === 'notes'
+              ? entity.type === 'document'
+              : entity.type === 'call') &&
+          (!options ||
+            crmActivityItemMatches(
+              entity,
+              active(),
+              options(),
+              EMPTY_TAG_FACET_CONTEXT
+            ))
+      );
+      selected.sort((a, b) =>
+        String(b.updatedAt).localeCompare(String(a.updatedAt))
+      );
+      if (options?.().direction === 'asc') selected.reverse();
+      return { entities: selected };
+    },
+    fetchNextPage: async () => {},
+    refetch: async () => {},
+  });
+  return (
+    <CrmProvider value={crm}>
+      <ViewShell.Root>
+        <ViewShell.Main>
+          <nav class="flex gap-3 p-3">
+            <For each={['email', 'notes', 'calls'] as const}>
+              {(active) => (
+                <button onClick={() => setTab(active)}>{active}</button>
+              )}
+            </For>
+          </nav>
+          <Show when={tab()} keyed>
+            {(active) => <CrmActivityView tab={active} title={active} />}
+          </Show>
+          <output data-testid="activity-query" class="break-all text-xs">
+            {JSON.stringify(
+              buildCrmActivityQuery(
+                tab(),
+                controls[
+                  tab() === 'notes'
+                    ? 'notes'
+                    : tab() === 'calls'
+                      ? 'calls'
+                      : 'email'
+                ][0]
+              )
+            )}
+          </output>
+        </ViewShell.Main>
+      </ViewShell.Root>
     </CrmProvider>
   );
 }
@@ -350,7 +485,21 @@ if (root)
                         new URLSearchParams(location.search).get('mode') ===
                         'dates'
                       }
-                      fallback={<Fixture />}
+                      fallback={
+                        <Show
+                          when={
+                            new URLSearchParams(location.search).get('mode') ===
+                            'controls'
+                          }
+                          fallback={<Fixture />}
+                        >
+                          <CreateContextProvider
+                            focusedPaneId={() => undefined}
+                          >
+                            <ActivityControlsFixture />
+                          </CreateContextProvider>
+                        </Show>
+                      }
                     >
                       <CreateContextProvider focusedPaneId={() => undefined}>
                         <DateGroupingFixture />

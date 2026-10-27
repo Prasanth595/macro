@@ -40,6 +40,8 @@ export function RecordItemList(props: {
   referencePropertyIds?: readonly string[];
   /** Group the existing newest-first list by its last-updated date. */
   groupByDate?: boolean;
+  /** Date field matching the list's server-side ordering. */
+  dateField?: 'updated_at' | 'created_at' | 'viewed_at';
 }) {
   const { openEntity } = useCrmContext().createNavigation();
   // Reading `data` before the first page resolves would suspend the tab.
@@ -58,7 +60,13 @@ export function RecordItemList(props: {
     const now = new Date();
     let previous: string | undefined;
     return filteredItems().map((entity) => {
-      const bucket = dateBucket(entity.updatedAt ?? entity.createdAt, now);
+      const date =
+        props.dateField === 'created_at'
+          ? entity.createdAt
+          : props.dateField === 'viewed_at'
+            ? entity.viewedAt
+            : entity.updatedAt;
+      const bucket = dateBucket(date ?? entity.createdAt, now);
       const label = bucket.key !== previous ? bucket.label : undefined;
       previous = bucket.key;
       return label;
@@ -91,12 +99,12 @@ export function RecordItemList(props: {
           onRetry={() => props.source.refetch()}
         />
       </Match>
-      <Match when={items().length === 0}>
+      <Match when={items().length === 0 && !props.source.hasNextPage}>
         <div class="rounded-lg border border-dashed border-edge-muted p-6 text-center text-sm text-ink-muted">
           {props.empty}
         </div>
       </Match>
-      <Match when={items().length > 0}>
+      <Match when={items().length > 0 || props.source.hasNextPage}>
         <ListEntityMetadataQueryProvider>
           <ListLayoutProvider ref={listRef} narrowLayout={props.narrowLayout}>
             <div ref={setListRef} class="flex flex-col">

@@ -82,9 +82,16 @@ Email still matches visible company domains and contact addresses for feed
 membership, but the row displays only stored properties, not inferred matches.
 No separate CRM association metadata lookup or row footer runs during paging.
 Record-detail lists and activity membership remain unchanged.
-Tasks and Email use the shared relative-date headings, grouped by last update in
-viewer-local time. Grouping keeps the same flat cursor and stable rows as pages
-append; Notes, Calls, and record-detail lists remain ungrouped.
+Sidebar Tasks reuse the production Tasks filters, sort, grouping, and list/board/Gantt
+layouts (subject to the normal feature flags and touch fallback). They use a separate
+CRM persistence scope, and every query, including search and grouped continuation,
+retains the mandatory CRM association. Record-detail Tasks stay unchanged.
+Email reuses the shared read/done/attachment/calendar/tag facets. Notes expose creator
+and tag filters; Calls expose audience and tag filters. These lists have independent
+per-entry search, sort direction, and date/none grouping settings. Date headings follow
+the selected sort field in viewer-local time. Email defaults to last-update date groups;
+Notes and Calls default to no grouping. Local-only filters continue paging through
+empty pages; clearing filters never clears the CRM scope.
 
 Activity extends the existing authorized CRM association path rather than
 splitting the feed into independent client queries. This preserves one sorted

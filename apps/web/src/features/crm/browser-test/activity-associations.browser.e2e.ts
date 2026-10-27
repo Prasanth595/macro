@@ -195,3 +195,119 @@ for (const device of [
     });
   });
 }
+
+for (const hasTouch of [false, true]) {
+  test.describe(
+    hasTouch ? 'phone activity controls' : 'desktop activity controls',
+    () => {
+      test.use({
+        viewport: { width: hasTouch ? 390 : 1280, height: 844 },
+        hasTouch,
+      });
+      test('keeps filters local to each CRM activity and clears only user refinements', async ({
+        page,
+      }) => {
+        await page.goto(
+          '/src/features/crm/browser-test/activity-associations.html?mode=controls'
+        );
+        const rows = page.locator('.entity-root');
+        await expect(rows).toHaveCount(2);
+        await page
+          .getByRole('button', {
+            name: hasTouch ? 'Open email filters' : 'Filter email',
+            exact: true,
+          })
+          .click();
+        if (hasTouch) {
+          await expect(
+            page.getByRole('radio', { name: 'Unread', exact: true })
+          ).toBeVisible();
+          await page
+            .getByRole('radio', { name: 'Unread', exact: true })
+            .click();
+          await page
+            .getByRole('button', { name: 'Close filters', exact: true })
+            .click();
+        } else {
+          await page
+            .getByRole('menuitem', { name: 'Status', exact: true })
+            .hover();
+          await page
+            .getByRole('menuitemradio', { name: 'Unread', exact: true })
+            .click();
+          await page.keyboard.press('Escape');
+          await page.keyboard.press('Escape');
+        }
+        await expect(rows).toHaveCount(1);
+        await expect(rows.first()).toContainText('Unread message');
+        await expect(page.getByTestId('activity-query')).toContainText(
+          '"crma":"activity"'
+        );
+        await page.getByRole('button', { name: 'notes', exact: true }).click();
+        await expect(rows).toHaveCount(1);
+        await expect(rows.first()).toContainText('Discovery notes');
+        await page.getByRole('button', { name: 'email', exact: true }).click();
+        await expect(rows).toHaveCount(1);
+        await expect(rows.first()).toContainText('Unread message');
+        await page
+          .getByRole('button', {
+            name: hasTouch ? 'Open email filters' : 'Filter email',
+            exact: true,
+          })
+          .click();
+        await page
+          .getByRole(hasTouch ? 'button' : 'menuitem', {
+            name: hasTouch ? 'Clear all' : 'Clear filters',
+            exact: true,
+          })
+          .click();
+        if (hasTouch)
+          await page
+            .getByRole('button', { name: 'Close filters', exact: true })
+            .click();
+        else await page.keyboard.press('Escape');
+        await expect(rows).toHaveCount(2);
+        await expect(page.getByTestId('activity-query')).toContainText(
+          '"crma":"activity"'
+        );
+        expect(
+          await page.evaluate(() => document.body.scrollWidth <= innerWidth)
+        ).toBe(true);
+        if (hasTouch) {
+          await page
+            .getByRole('button', { name: 'Open email filters', exact: true })
+            .click();
+          await page
+            .getByRole('radio', { name: 'Oldest first', exact: true })
+            .click();
+          await page.getByRole('radio', { name: 'None', exact: true }).click();
+          await page
+            .getByRole('button', { name: 'Close filters', exact: true })
+            .click();
+        } else {
+          await page
+            .getByRole('button', { name: 'Sort direction', exact: true })
+            .click();
+          await page
+            .getByRole('menuitemradio', { name: 'Oldest first', exact: true })
+            .click();
+          await page
+            .getByRole('button', { name: 'Group by', exact: true })
+            .click();
+          await page
+            .getByRole('menuitemradio', { name: 'None', exact: true })
+            .click();
+        }
+        await expect(rows.first()).toContainText('Read message');
+        await expect(page.getByText('Today', { exact: true })).toHaveCount(0);
+        await expect(page.getByTestId('activity-query')).toContainText(
+          '"sort_direction":"asc"'
+        );
+        await page.screenshot({
+          path: `/tmp/crm-controls-${hasTouch ? 'phone' : 'desktop'}.png`,
+          fullPage: true,
+        });
+      });
+    }
+  );
+}
