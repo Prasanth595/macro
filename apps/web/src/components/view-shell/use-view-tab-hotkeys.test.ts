@@ -57,6 +57,9 @@ it('cycles Tab through sequential ids while number keys keep every tab', () => {
     expect(move).toHaveBeenLastCalledWith('important');
     expect(handler('shift+tab')()).toBe(true);
     expect(move).toHaveBeenLastCalledWith('important');
+    setActive('sent');
+    expect(handler('shift+tab')()).toBe(true);
+    expect(move).toHaveBeenLastCalledWith('noise');
     expect(handler('3')()).toBe(true);
     expect(move).toHaveBeenLastCalledWith('sent');
     dispose();
