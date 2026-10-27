@@ -16,14 +16,14 @@ use crate::{
     },
 };
 
-const GROUP_ID: &str = "0199b1f2-6b3a-7f1a-9c2a-2f0d5c2a8f12";
+const CHAT_ID: &str = "0199b1f2-6b3a-7f1a-9c2a-2f0d5c2a8f12";
 
-type ViewExtractor = WhatsAppGroupAccessLevelExtractor<
+type ViewExtractor = ExternalChatAccessLevelExtractor<
     ViewAccessLevel,
     FakeEntityAccessService,
     FakeAuthorizationService,
 >;
-type OwnerExtractor = WhatsAppGroupAccessLevelExtractor<
+type OwnerExtractor = ExternalChatAccessLevelExtractor<
     OwnerAccessLevel,
     FakeEntityAccessService,
     FakeAuthorizationService,
@@ -53,12 +53,9 @@ async fn owner_handler(extracted: OwnerExtractor) -> String {
 
 fn router(state: TestState) -> Router {
     Router::new()
-        .route("/whatsapp-groups/{group_id}", get(view_handler))
-        .route(
-            "/whatsapp-groups/{group_id}/permissions",
-            get(owner_handler),
-        )
-        .route("/whatsapp-groups", get(view_handler))
+        .route("/external-chats/{chat_id}", get(view_handler))
+        .route("/external-chats/{chat_id}/permissions", get(owner_handler))
+        .route("/external-chats", get(view_handler))
         .with_state(state)
 }
 
@@ -84,7 +81,7 @@ async fn a_signed_in_viewer_gets_a_receipt_at_their_level() {
     let state = TestState::new(Some(AccessLevel::View));
     let response = router(state.clone())
         .oneshot(request(
-            &format!("/whatsapp-groups/{GROUP_ID}"),
+            &format!("/external-chats/{CHAT_ID}"),
             Some("valid"),
         ))
         .await
@@ -93,14 +90,14 @@ async fn a_signed_in_viewer_gets_a_receipt_at_their_level() {
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         response_body(response).await,
-        format!("whatsapp_group:{USER_ID}:view")
+        format!("external_chat:{USER_ID}:view")
     );
     assert_eq!(
         state.entity_access.calls(),
         [AccessCall {
             user_id: Some(USER_ID.to_string()),
-            entity_id: GROUP_ID.to_string(),
-            entity_type: EntityType::WhatsAppGroup,
+            entity_id: CHAT_ID.to_string(),
+            entity_type: EntityType::ExternalChat,
         }]
     );
 }
@@ -110,7 +107,7 @@ async fn a_viewer_does_not_meet_owner() {
     let state = TestState::new(Some(AccessLevel::View));
     let response = router(state)
         .oneshot(request(
-            &format!("/whatsapp-groups/{GROUP_ID}/permissions"),
+            &format!("/external-chats/{CHAT_ID}/permissions"),
             Some("valid"),
         ))
         .await
@@ -124,7 +121,7 @@ async fn the_owner_meets_owner() {
     let state = TestState::new(Some(AccessLevel::Owner));
     let response = router(state)
         .oneshot(request(
-            &format!("/whatsapp-groups/{GROUP_ID}/permissions"),
+            &format!("/external-chats/{CHAT_ID}/permissions"),
             Some("valid"),
         ))
         .await
@@ -133,7 +130,7 @@ async fn the_owner_meets_owner() {
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         response_body(response).await,
-        format!("whatsapp_group:{USER_ID}:owner")
+        format!("external_chat:{USER_ID}:owner")
     );
 }
 
@@ -142,7 +139,7 @@ async fn a_signed_in_stranger_is_rejected() {
     let state = TestState::new(None);
     let response = router(state)
         .oneshot(request(
-            &format!("/whatsapp-groups/{GROUP_ID}"),
+            &format!("/external-chats/{CHAT_ID}"),
             Some("valid"),
         ))
         .await
@@ -155,7 +152,7 @@ async fn a_signed_in_stranger_is_rejected() {
 async fn an_anonymous_request_is_rejected_without_a_lookup() {
     let state = TestState::new(Some(AccessLevel::View));
     let response = router(state.clone())
-        .oneshot(request(&format!("/whatsapp-groups/{GROUP_ID}"), None))
+        .oneshot(request(&format!("/external-chats/{CHAT_ID}"), None))
         .await
         .expect("router should respond");
 
@@ -168,7 +165,7 @@ async fn an_expired_token_is_rejected() {
     let state = TestState::new(Some(AccessLevel::View));
     let response = router(state.clone())
         .oneshot(request(
-            &format!("/whatsapp-groups/{GROUP_ID}"),
+            &format!("/external-chats/{CHAT_ID}"),
             Some("expired"),
         ))
         .await
@@ -183,7 +180,7 @@ async fn a_bot_gets_a_bot_receipt() {
     let state = TestState::new(Some(AccessLevel::View));
     let response = router(state.clone())
         .oneshot(
-            Request::get(format!("/whatsapp-groups/{GROUP_ID}"))
+            Request::get(format!("/external-chats/{CHAT_ID}"))
                 .header(BOT_TOKEN_HEADER, VALID_BOT_TOKEN)
                 .header(BOT_SCOPE_HEADER, BotScope::User.as_str())
                 .body(Body::empty())
@@ -193,7 +190,7 @@ async fn a_bot_gets_a_bot_receipt() {
         .expect("router should respond");
 
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(response_body(response).await, "whatsapp_group:bot:view");
+    assert_eq!(response_body(response).await, "external_chat:bot:view");
     assert_eq!(state.entity_access.bot_calls().len(), 1);
 }
 
@@ -202,7 +199,7 @@ async fn a_bot_without_access_is_rejected() {
     let state = TestState::new(None);
     let response = router(state)
         .oneshot(
-            Request::get(format!("/whatsapp-groups/{GROUP_ID}"))
+            Request::get(format!("/external-chats/{CHAT_ID}"))
                 .header(BOT_TOKEN_HEADER, VALID_BOT_TOKEN)
                 .header(BOT_SCOPE_HEADER, BotScope::User.as_str())
                 .body(Body::empty())
@@ -219,7 +216,7 @@ async fn an_internal_caller_without_a_user_is_trusted_as_owner() {
     let state = TestState::new(None);
     let response = router(state.clone())
         .oneshot(
-            Request::get(format!("/whatsapp-groups/{GROUP_ID}/permissions"))
+            Request::get(format!("/external-chats/{CHAT_ID}/permissions"))
                 .header(INTERNAL_API_KEY_HEADER, INTERNAL_KEY)
                 .body(Body::empty())
                 .expect("request should be valid"),
@@ -230,16 +227,16 @@ async fn an_internal_caller_without_a_user_is_trusted_as_owner() {
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         response_body(response).await,
-        "whatsapp_group:internal:owner"
+        "external_chat:internal:owner"
     );
     assert!(state.entity_access.calls().is_empty());
 }
 
 #[tokio::test]
-async fn a_missing_group_id_is_a_bad_request() {
+async fn a_missing_chat_id_is_a_bad_request() {
     let state = TestState::new(Some(AccessLevel::Owner));
     let response = router(state.clone())
-        .oneshot(request("/whatsapp-groups", Some("valid")))
+        .oneshot(request("/external-chats", Some("valid")))
         .await
         .expect("router should respond");
 

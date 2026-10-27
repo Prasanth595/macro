@@ -1,4 +1,4 @@
-//! WhatsAppGroup access extractor: a whatsapp_group's grants are its own `entity_access`
+//! External chat access extractor: an external chat's grants are its own `entity_access`
 //! rows, with nothing inherited from a project.
 
 use std::marker::PhantomData;
@@ -28,24 +28,24 @@ use crate::domain::{
 };
 
 #[derive(Debug, serde::Deserialize)]
-struct WhatsAppGroupAccessParams {
-    group_id: String,
+struct ExternalChatAccessParams {
+    chat_id: String,
 }
 
 /// Validates that the caller satisfies the required permission for the
-/// whatsapp_group named by a `group_id` path parameter.
+/// external chat named by a `chat_id` path parameter.
 ///
 /// Type parameter `T` specifies the required permission marker.
 /// Type parameter `Svc` is the entity access service implementation.
 /// Type parameter `Auth` is the authorization service implementation.
 #[derive(Debug)]
-pub struct WhatsAppGroupAccessLevelExtractor<T: RequiredPermission, Svc, Auth> {
-    /// The entity access receipt for the whatsapp_group.
+pub struct ExternalChatAccessLevelExtractor<T: RequiredPermission, Svc, Auth> {
+    /// The entity access receipt for the external chat.
     pub entity_access_receipt: EntityAccessReceipt<T>,
     _marker: PhantomData<(T, Svc, Auth)>,
 }
 
-impl<T, S, Svc, Auth> FromRequestParts<S> for WhatsAppGroupAccessLevelExtractor<T, Svc, Auth>
+impl<T, S, Svc, Auth> FromRequestParts<S> for ExternalChatAccessLevelExtractor<T, Svc, Auth>
 where
     T: RequiredPermission,
     Arc<Svc>: FromRef<S>,
@@ -67,20 +67,18 @@ where
             .await
             .map_err(ExtractorError::from)?;
 
-        let Path(WhatsAppGroupAccessParams {
-            group_id: whatsapp_group_id,
-        }) = parts
-            .extract::<Path<WhatsAppGroupAccessParams>>()
+        let Path(ExternalChatAccessParams { chat_id }) = parts
+            .extract::<Path<ExternalChatAccessParams>>()
             .await
-            .map_err(|_| ExtractorError::BadRequest("missing group_id path parameter"))?;
+            .map_err(|_| ExtractorError::BadRequest("missing chat_id path parameter"))?;
 
         if let Some(MacroAuthorization::Bot(authentication)) = authorization.authorization.as_ref()
         {
             let entity_access_receipt = generate_bot_entity_access_receipt::<T>(
                 service.as_ref(),
                 authentication,
-                &whatsapp_group_id,
-                EntityType::WhatsAppGroup,
+                &chat_id,
+                EntityType::ExternalChat,
             )
             .await?;
 
@@ -106,8 +104,8 @@ where
             return Ok(Self {
                 entity_access_receipt: EntityAccessReceipt {
                     entity: Entity {
-                        entity_id: whatsapp_group_id,
-                        entity_type: EntityType::WhatsAppGroup,
+                        entity_id: chat_id,
+                        entity_type: EntityType::ExternalChat,
                     },
                     auth: EntityAccessAuth::Internal,
                     entity_permission: EntityPermission::AccessLevel {
@@ -126,8 +124,8 @@ where
         let permission = service
             .get_entity_permission(
                 Some(&macro_user_id),
-                &whatsapp_group_id,
-                EntityType::WhatsAppGroup,
+                &chat_id,
+                EntityType::ExternalChat,
                 None,
             )
             .await
@@ -140,8 +138,8 @@ where
         Ok(Self {
             entity_access_receipt: EntityAccessReceipt {
                 entity: Entity {
-                    entity_id: whatsapp_group_id,
-                    entity_type: EntityType::WhatsAppGroup,
+                    entity_id: chat_id,
+                    entity_type: EntityType::ExternalChat,
                 },
                 auth: EntityAccessAuth::Authenticated(macro_user_id),
                 entity_permission: permission,

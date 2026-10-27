@@ -1,7 +1,7 @@
 //! Typed GraphQL output models for realtime notification event metadata.
 
-mod whatsapp_group;
-use whatsapp_group::GraphqlWhatsappGroupMessageMetadata;
+mod external_chat;
+use external_chat::GraphqlExternalChatMessageMetadata;
 
 /// Project discussion notification metadata.
 mod initiative_discussion;
@@ -1241,8 +1241,8 @@ impl GraphqlAgentSessionMentionedMetadata {
 /// Typed GraphQL union containing every supported notification event payload.
 #[derive(Union)]
 pub enum GraphqlNotifEvent {
-    /// A new live WhatsApp group message.
-    WhatsappGroupMessage(GraphqlWhatsappGroupMessageMetadata),
+    /// A new live external chat message.
+    ExternalChatMessage(GraphqlExternalChatMessageMetadata),
     /// Shared access workflow.
     EntityAccessGranted(GraphqlEntityAccessGrantedMetadata),
     /// Shared access workflow.
@@ -1310,8 +1310,8 @@ pub enum GraphqlNotifEvent {
 impl From<NotifEvent> for GraphqlNotifEvent {
     fn from(value: NotifEvent) -> Self {
         match value {
-            NotifEvent::WhatsappGroupMessage(metadata) => {
-                Self::WhatsappGroupMessage(GraphqlWhatsappGroupMessageMetadata(metadata))
+            NotifEvent::ExternalChatMessage(metadata) => {
+                Self::ExternalChatMessage(GraphqlExternalChatMessageMetadata(metadata))
             }
             NotifEvent::ChannelMention(metadata) => {
                 Self::ChannelMention(GraphqlChannelMentionMetadata(metadata))
