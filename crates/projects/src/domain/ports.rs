@@ -8,6 +8,7 @@ use std::future::Future;
 use entity_access::domain::models::{
     EditAccessLevel, EntityAccessReceipt, OwnerAccessLevel, ViewAccessLevel,
 };
+use entity_mutation::EntityMutationErrorCode;
 use macro_user_id::user_id::MacroUserIdStr;
 use model::document::ContentType;
 use model::folder::{UploadFolderRequest, UploadFolderResponseData, UploadFolderWithIdsResponse};
@@ -18,6 +19,7 @@ use model::project::{
     BasicProject, PendingProject, Project, ProjectPreview, ProjectPreviewV2,
     ProjectWithUploadRequest,
 };
+use model_entity::Entity;
 use model_owner::{CreationPrincipal, Owner};
 use models_bulk_upload::{
     BulkUploadRequest, BulkUploadRequestDocuments, UploadExtractFolderRequest,
@@ -256,6 +258,40 @@ pub trait ProjectSearchIndexer: Send + Sync + 'static {
         &self,
         documents: Vec<(String, String)>,
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
+}
+
+/// What a folder duplication needs from other domains, acting as the user who
+/// duplicates the folder.
+///
+/// The composition root implements it over `entity_access` and the owning
+/// domains' duplicate and move capabilities, so the projects domain never
+/// depends on the documents or chat crates.
+pub trait ProjectContentCopier: Send + Sync {
+    /// The user's view receipt for `entity`, or `None` when they cannot view
+    /// it or it no longer exists.
+    fn view_receipt(
+        &self,
+        entity: &Entity<'static>,
+    ) -> impl Future<
+        Output = Result<Option<EntityAccessReceipt<ViewAccessLevel>>, EntityMutationErrorCode>,
+    > + Send;
+
+    /// Whether the user may add items to the project.
+    fn can_add_to_project(
+        &self,
+        project_id: &str,
+    ) -> impl Future<Output = Result<bool, EntityMutationErrorCode>> + Send;
+
+    /// Duplicate the document or chat `receipt` covers, as the user, and file
+    /// the copy in `project_id`, returning the copy. `name` is the source's
+    /// name, kept on the copy where its domain allows a chosen name. On
+    /// failure nothing this call created remains.
+    fn copy_into_project(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        name: String,
+        project_id: &str,
+    ) -> impl Future<Output = Result<Entity<'static>, EntityMutationErrorCode>> + Send;
 }
 
 /// Unwired upload-URL port for hosts that expose project operations without
