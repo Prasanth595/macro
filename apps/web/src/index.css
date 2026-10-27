@@ -722,6 +722,8 @@ body.tauri-ios {
   --button-primary-hover: color-mix(in srgb, var(--button-primary-bg) 82%, var(--button-primary-state-mix));
   --button-primary-pressed: color-mix(in srgb, var(--button-primary-bg) 72%, var(--button-primary-state-mix));
   --button-focus: var(--color-edge-focus, var(--color-accent));
+  --button-elevated-top-edge: var(--glass-desktop-top-edge);
+  --button-elevated-inner-edge: var(--glass-desktop-inner-edge);
 
   --button-secondary-bg: oklch(1 0 0 / 8%);
   --button-secondary-hover: oklch(1 0 0 / 12%);
@@ -748,6 +750,9 @@ body.tauri-ios {
   --button-secondary-bg: white;
   --button-secondary-hover: color-mix(in srgb, white, black 4%);
   --button-secondary-pressed: color-mix(in srgb, white, black 8%);
+  /* Gray edge shading remains visible against the white button face. */
+  --button-elevated-top-edge: rgb(0 0 0 / 8%);
+  --button-elevated-inner-edge: rgb(0 0 0 / 4%);
   --button-outline-hover: oklch(0 0 0 / 4%);
   --button-outline-pressed: oklch(0 0 0 / 8%);
   --button-tertiary-hover: oklch(0 0 0 / 4%);
@@ -1006,6 +1011,13 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
   @apply elevation-shadow border-transparent shadow-(--shadow-elevated);
   --elevation-scale: var(--elevated-control-scale);
   --elevation-ambient-shadow: var(--shadow-control);
+}
+
+/* Keep shared elevation geometry; only Button edge colors differ. */
+@utility button-elevated {
+  @apply elevated;
+  --glass-desktop-top-edge: var(--button-elevated-top-edge);
+  --glass-desktop-inner-edge: var(--button-elevated-inner-edge);
 }
 
 /* Strip the glass under a variant (e.g. a container query collapsing a pill
