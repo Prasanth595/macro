@@ -911,6 +911,9 @@ active behind complete local rows. Session replacement and realtime gaps
 invalidate coverage, and ordinary network error/retry behavior remains intact.
 The `graphql_cache.soup_grouped_complete_evaluation` span records the grouping
 field, complete item count, and whether local grouping is supported.
+Complete grouping tracks membership and selected grouping fields, not the cache
+revision. Unrelated writes preserve the grouped result and its downstream row
+projection; task edits still update reactive records and regroup when needed.
 
 #### Grouped projection performance
 

@@ -1,4 +1,5 @@
 import { createUrqlInfiniteQuery, createUrqlQuery } from '@app/lib/urql-solid';
+import { arrayEquals } from '@core/util/compareUtils';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
 import type { OperationResult } from '@urql/core';
@@ -114,10 +115,23 @@ export function createGroupedSoupLiveQuery(
       };
     },
   });
+  // Cache revisions also advance for unrelated queries. Group only when membership
+  // or selected grouping fields change; record patches remain fine-grained stores.
+  const groupingSnapshot = createMemo(complete.data, undefined, {
+    equals: (previous, next) =>
+      previous === next ||
+      Boolean(
+        previous &&
+          next &&
+          previous.keys === next.keys &&
+          previous.records === next.records &&
+          arrayEquals(previous.retainedKeys, next.retainedKeys)
+      ),
+  });
   const localData = createMemo((): GroupSoupQuery | undefined => {
     const initial = input()?.initial;
     const userId = options().collectionUserId;
-    const snapshot = complete.data();
+    const snapshot = groupingSnapshot();
     if (!initial || !userId || !snapshot || complete.status() !== 'ready')
       return;
     const span = Telemetry.span(

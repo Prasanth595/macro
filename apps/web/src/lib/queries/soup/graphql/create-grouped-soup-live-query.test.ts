@@ -760,6 +760,64 @@ describe('coverage-backed complete grouped reads', () => {
 });
 
 describe('complete-cache network revalidation', () => {
+  it('retains complete groups through unrelated cache writes while applying task edits', async () => {
+    const state = setup({ collectionUserId: 'viewer' });
+    state.requests[0].resolve(
+      update(
+        Array.from({ length: 5002 }, (_, index) =>
+          groupedDocument(`task-${index}`)
+        )
+      )
+    );
+    await state.requests[0].promise;
+    const initial = state.query.data();
+    expect(initial?.user.groupSoup.bins[0].items).toHaveLength(5002);
+
+    state.listeners.forEach((listener) => listener(parseCacheRevision('2')));
+    const unchanged = state.requests.at(-1)!;
+    unchanged.resolve({
+      kind: 'live-query',
+      revision: parseCacheRevision('2'),
+      reset: false,
+      upserts: [],
+      patches: [],
+      removed: [],
+      retainedKeys: [],
+      optimistic: false,
+    });
+    await unchanged.promise;
+    expect(state.query.data()).toBe(initial);
+
+    state.listeners.forEach((listener) => listener(parseCacheRevision('3')));
+    const edited = state.requests.at(-1)!;
+    edited.resolve({
+      kind: 'live-query',
+      revision: parseCacheRevision('3'),
+      reset: false,
+      upserts: [],
+      patches: [
+        {
+          recordKey: 'GraphqlSoupDocument:task-0',
+          identity: { pending: false, mutationUuid: null },
+          fields: [
+            { path: ['properties', 0, 'value', 'optionIds'], value: ['done'] },
+          ],
+        },
+      ],
+      removed: [],
+      retainedKeys: [],
+      optimistic: false,
+    });
+    await edited.promise;
+    expect(
+      state.query
+        .data()
+        ?.user.groupSoup.bins.map((bin) => [bin.key, bin.totalCount])
+    ).toEqual([
+      ['done', 1],
+      ['todo', 5001],
+    ]);
+  });
   it('drains background continuations without replacing already complete local rows', async () => {
     const state = setup({ collectionUserId: 'viewer' });
     state.requests[0].resolve(

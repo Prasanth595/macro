@@ -278,6 +278,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   revalidation behind complete local rows; a local result must not suppress
   background continuation pages. Account/cache resets and realtime gaps fence
   coverage, including scans still in progress.
+  Keep complete grouped snapshots stable across revision-only cache updates; unrelated
+  writes must not regroup every task or invalidate the row projection.
   Verify the production WASM/OPFS path with
   `bunx playwright test --config src/lib/graphql-cache/worker/browser-test/playwright.config.ts collection-coverage.browser.e2e.ts`.
   The fixture uses 5,002 synthetic tasks without hosted data or authentication.
