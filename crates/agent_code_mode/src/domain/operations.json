@@ -44,6 +44,7 @@
   "agent-harness.answerAgentSessionToolApproval": "Answer Agent Session Tool Approval",
   "auth.updateAiBillingAutoReload": "Update Ai Billing Auto Reload",
   "auth.createAiCreditCheckout": "Create Ai Credit Checkout",
+  "auth.purchaseAiCredits": "Purchase Ai Credits",
   "auth.updateAiBillingOverage": "Update Ai Billing Overage",
   "auth.getAiBillingPlans": "Get Ai Billing Plans",
   "auth.getAiBillingSummary": "Get Ai Billing Summary",
