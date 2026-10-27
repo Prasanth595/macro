@@ -1,9 +1,13 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
 import {
+  makeCopyEntityIdAction,
   makeCopyLinkAction,
   makeDeleteAction,
   makeFavoriteAction,
+  makeMuteAction,
+  makeShareAction,
 } from '@app/features/next-soup/actions';
+import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { MenuItem, MenuSeparator } from '@core/component/ContextMenu';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
@@ -28,6 +32,12 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
   const favorite = makeFavoriteAction();
 
   const copyLink = makeCopyLinkAction();
+  const copyEntityId = makeCopyEntityIdAction();
+  const share = makeShareAction();
+  const notificationSource = useGlobalNotificationSource();
+  const mute = makeMuteAction({
+    notificationSource: () => notificationSource,
+  });
 
   const deleteFolder = makeDeleteAction({
     userId,
@@ -61,6 +71,20 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
           fireAndForget(favorite.execute([entity()]), 'drive-view')
         }
       />
+      <Show when={mute.canExecute(entity())}>
+        <MenuItem
+          text="Snooze notifications…"
+          onClick={() => mute.snooze([entity()])}
+        />
+        <MenuItem
+          text={
+            mute.isMuted(entity())
+              ? 'Unmute notifications'
+              : 'Mute notifications'
+          }
+          onClick={() => fireAndForget(mute.execute([entity()]), 'drive-view')}
+        />
+      </Show>
       <MenuItem
         text="Move to folder"
         onClick={() => editFolder('moveToProject')}
@@ -70,6 +94,16 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
         onClick={() =>
           fireAndForget(copyLink.execute([entity()]), 'drive-view')
         }
+      />
+      <MenuItem
+        text="Copy ID"
+        onClick={() =>
+          fireAndForget(copyEntityId.executeById(entity().id), 'drive-view')
+        }
+      />
+      <MenuItem
+        text="Share"
+        onClick={() => fireAndForget(share.execute(entity()), 'drive-view')}
       />
       <Show when={deleteFolder.canExecute(entity())}>
         <MenuSeparator />

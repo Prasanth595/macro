@@ -124,8 +124,9 @@ search remains available. Right-click any Drive view, the Drive folder overview,
 or a folder at any depth for **Open in new split**, **Open in current split**, and
 **Open fullscreen** (when multiple splits are open). Opening a location in a new
 split clears search and filters in the destination, leaving the original split
-unchanged. Folder menus also offer Favorite/Unfavorite, Move to folder, Copy Link,
-and owner-only Rename and Delete.
+unchanged. Folder menus also offer Favorite/Unfavorite, Snooze notifications…,
+Mute/Unmute notifications, Move to folder, Copy Link, Copy ID, Share, and
+owner-only Rename and Delete, matching the folder's row menu in the Drive list.
 A folder's Share dialog, when the owner belongs to a team, has Team access
 (None, View, Comment, or Edit) without a Link sharing card or Link tab.
 Favorites use the same open actions and **Remove from favorites** menu as Tasks.
