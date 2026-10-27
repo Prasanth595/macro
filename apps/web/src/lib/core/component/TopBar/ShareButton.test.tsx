@@ -54,6 +54,10 @@ vi.mock('@app/features/access-requests/access-requests', async (original) => ({
     error: () => undefined,
   }),
 }));
+// Inviting people by email is covered with the access request views.
+vi.mock('@app/features/access-requests/views/DirectAccessInvite', () => ({
+  DirectAccessInvite: () => null,
+}));
 vi.mock(
   '@app/features/access-requests/share-request-trigger',
   async (original) => ({
@@ -96,6 +100,8 @@ const mocks = vi.hoisted(() => ({
   updateAgentPermissions: vi.fn(),
   getInitiativePermissions: vi.fn(),
   updateInitiativePermissions: vi.fn(),
+  getWhatsappPermissions: vi.fn(),
+  updateWhatsappPermissions: vi.fn(),
   getDocumentPermissions: vi.fn(),
   getDatabasePermissions: vi.fn(),
   updateDatabasePermissions: vi.fn(),
@@ -223,6 +229,12 @@ vi.mock('@queries/initiative/share-permissions', () => ({
     mocks.getInitiativePermissions(...args),
   updateInitiativeSharePermissions: (...args: unknown[]) =>
     mocks.updateInitiativePermissions(...args),
+}));
+vi.mock('@queries/whatsapp-groups/share-permissions', () => ({
+  fetchWhatsappGroupPermissions: (...args: unknown[]) =>
+    mocks.getWhatsappPermissions(...args),
+  updateWhatsappGroupPermissions: (...args: unknown[]) =>
+    mocks.updateWhatsappPermissions(...args),
 }));
 vi.mock('@core/component/SharePermissions', () => ({
   Permissions: { OWNER: 'owner', CAN_EDIT: 'edit', CAN_VIEW: 'view' },
@@ -1587,6 +1599,42 @@ describe('native project sharing', () => {
     }
   );
 
+  it('lets the owner of a WhatsApp chat revoke a channel its mention shared it with', async () => {
+    mocks.inBlock = false;
+    mocks.getWhatsappPermissions.mockResolvedValue(
+      ok({
+        id: 'whatsapp-permissions',
+        owner: ME,
+        channelSharePermissions: [
+          { channel_id: 'channel-1', access_level: 'view' },
+        ],
+      })
+    );
+    mocks.updateWhatsappPermissions.mockResolvedValue(ok(undefined));
+    render(() => (
+      <ShareModal
+        id="group-1"
+        name="Family"
+        owner={ME}
+        itemType="whatsapp_group"
+        blockAlias="whatsapp_group"
+        userPermissions={Permissions.OWNER}
+        open
+        onOpenChange={vi.fn()}
+      />
+    ));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Set option none' })
+    );
+    await vi.waitFor(() =>
+      expect(mocks.updateWhatsappPermissions).toHaveBeenCalledWith('group-1', {
+        channelSharePermissions: [
+          { operation: 'remove', channelId: 'channel-1' },
+        ],
+      })
+    );
+  });
+
   it('copies the project route instead of a block URL', () => {
     mocks.inBlock = false;
     render(() => (
@@ -1930,8 +1978,9 @@ describe('form share roles', () => {
     );
   });
 
-  it('offers View and Edit on a form, which has no comments, and every level elsewhere', () => {
+  it('offers View and Edit on a form, which has no comments, View on a WhatsApp chat, and every level elsewhere', () => {
     expect(shareLevelsFor('form')).toEqual(['view', 'edit']);
+    expect(shareLevelsFor('whatsapp_group')).toEqual(['view']);
     expect(shareLevelsFor('document')).toBeUndefined();
     render(() => (
       <ShareOptions

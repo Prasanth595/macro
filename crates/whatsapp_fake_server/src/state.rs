@@ -75,6 +75,10 @@ pub(crate) struct Group {
     pub(crate) created: u64,
     /// Members by phone number, in join order.
     pub(crate) members: Vec<String>,
+    /// Members made admins (the creator is always the super admin).
+    pub(crate) admins: Vec<String>,
+    /// The group description, if set.
+    pub(crate) description: Option<String>,
 }
 
 /// A connection that is pairing a new device.
@@ -122,6 +126,9 @@ pub(crate) struct State {
     pub(crate) submitted: Vec<(DeviceAddress, String)>,
     /// Devices whose submitted messages are routed but never acked.
     pub(crate) withheld_acks: std::collections::HashSet<DeviceAddress>,
+    /// Groups whose messages name the sender by LID only, without
+    /// `participant_pn`, as WhatsApp does for some senders.
+    pub(crate) lid_only_groups: std::collections::HashSet<String>,
 }
 
 /// A device JID in the phone-number or LID domain.
@@ -271,10 +278,23 @@ impl State {
                 ];
                 if user.phone == group.creator {
                     attrs.push(("type", text("superadmin")));
+                } else if group.admins.contains(&user.phone) {
+                    attrs.push(("type", text("admin")));
                 }
                 node("participant", attrs, None)
             })
-            .collect();
+            .collect::<Vec<_>>();
+        let description = group.description.iter().map(|description| {
+            node(
+                "description",
+                vec![
+                    ("id", text(format!("{:X}", group.created))),
+                    ("t", text(group.created.to_string())),
+                ],
+                children(vec![node("body", vec![], bytes(description.as_bytes()))]),
+            )
+        });
+        let group_children = participants.into_iter().chain(description).collect();
         let creator_lid = self
             .users
             .get(&group.creator)
@@ -293,7 +313,7 @@ impl State {
                 ("addressing_mode", text("lid")),
                 ("size", text(group.members.len().to_string())),
             ],
-            children(participants),
+            children(group_children),
         )
     }
 
@@ -383,20 +403,19 @@ impl State {
                 if content.is_empty() {
                     continue;
                 }
-                let delivery = node(
-                    "message",
-                    vec![
-                        ("from", jid(&to)),
-                        ("participant", jid(&participant)),
-                        ("participant_pn", jid(&participant_pn)),
-                        ("addressing_mode", text("lid")),
-                        ("id", text(&id)),
-                        ("t", timestamp.clone()),
-                        ("type", text(&message_type)),
-                        ("notify", text(&push_name)),
-                    ],
-                    children(content),
-                );
+                let mut attrs = vec![
+                    ("from", jid(&to)),
+                    ("participant", jid(&participant)),
+                    ("addressing_mode", text("lid")),
+                    ("id", text(&id)),
+                    ("t", timestamp.clone()),
+                    ("type", text(&message_type)),
+                    ("notify", text(&push_name)),
+                ];
+                if !self.lid_only_groups.contains(&to.user) {
+                    attrs.push(("participant_pn", jid(&participant_pn)));
+                }
+                let delivery = node("message", attrs, children(content));
                 self.deliver(&target, delivery);
             }
             return ack;
@@ -405,6 +424,35 @@ impl State {
         let Some(_) = self.phone_of(&to) else {
             return with_error(ack, 404);
         };
+        // A linked device's peer message (requests to its phone): one top-level
+        // `<enc>` for the user's primary device.
+        if attr_string(stanza, "category") == "peer" && direct.is_empty() {
+            let primary = DeviceAddress {
+                phone: sender.phone.clone(),
+                device: 0,
+            };
+            let content: Vec<Node> = stanza
+                .get_children()
+                .iter()
+                .filter(|child| child.tag == "enc")
+                .cloned()
+                .collect();
+            if primary != *sender && !content.is_empty() {
+                let delivery = node(
+                    "message",
+                    vec![
+                        ("from", jid(&self.jid_of(sender, true))),
+                        ("id", text(&id)),
+                        ("t", timestamp.clone()),
+                        ("type", text(&message_type)),
+                        ("category", text("peer")),
+                    ],
+                    children(with_identity(content)),
+                );
+                self.deliver(&primary, delivery);
+            }
+            return ack;
+        }
         for (target_jid, enc) in direct {
             let Some(target) = self.resolve(&target_jid) else {
                 continue;
@@ -421,6 +469,9 @@ impl State {
                 ("type", text(&message_type)),
                 ("notify", text(&push_name)),
             ];
+            if attr_string(stanza, "category") == "peer" {
+                attrs.push(("category", text("peer")));
+            }
             if target.phone == sender.phone {
                 attrs.push(("recipient", jid(&to)));
                 if let Some(pn) = stanza.attrs.get("peer_recipient_pn") {

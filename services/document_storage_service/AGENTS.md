@@ -19,6 +19,12 @@ threads, pins, recents, notifications, folders, activity.
 - `src/server.rs`: composition root, including access-request routes and the
   tracked delivery dispatcher; `src/outbound/access_requests.rs` composes the
   notification/withdrawal/realtime ports. Policy lives in `crates/access_requests`.
+- `src/whatsapp_linked.rs`: mounts `/meta/linked` from `crates/whatsapp_linked`
+  and runs the group notification/import worker (LISTEN `whatsapp_group_effects`,
+  `whatsapp_media_ready`) and the `whatsapp_changed` pusher (bare
+  connection-gateway events to the account owner or a group's viewers);
+  enforces a Redis-shared one-send-request-per-second budget per user;
+  switches `WHATSAPP_LINKED_{PAIRING,ADOPTION,SENDING}_ENABLED` default off.
 - Guest call chat is mounted outside account auth at `/call/guest-chat/{call_id}`;
   `call` verifies the RTC session and `messages` owns the shared discussion.
 - `src/service/entity_mutation.rs`: generic entity-mutation plumbing used

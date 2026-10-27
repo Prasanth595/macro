@@ -89,6 +89,8 @@ unreferenced replicas. These additive tables do not change agent-session claims.
   from resurrecting deleted definitions. Use a fresh disposable database when
   checking replacement branch migrations.
 
+- The unmerged WhatsApp migrations define standalone group/message/reaction/attachment/read storage; domain queries live in `whatsapp_linked`.
+
 ## Related
 
 - Rules: `.agents/rules/rust/db.md`, `.agents/rules/rust/architecture.md` ·
