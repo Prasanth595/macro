@@ -96,3 +96,23 @@ describe('optimistic rows', () => {
     expect(shown[0]).toBe(ada);
   });
 });
+
+describe('date-range cells', () => {
+  it('shows the days a range spans, compactly', () => {
+    // Intl sets the dash between thin spaces.
+    const trip: DatabaseViewColumn = {
+      id: 'trip',
+      name: 'Trip',
+      dataType: 'DATE_RANGE',
+      isMultiSelect: false,
+      options: [],
+      writable: true,
+    };
+    expect(
+      formatCellValue(trip, '2026-03-01T00:00:00.000Z/2026-03-05T00:00:00.000Z')
+    ).toBe('Mar 1\u2009–\u20095, 2026');
+    expect(
+      formatCellValue(trip, '2026-12-30T00:00:00.000Z/2027-01-02T00:00:00.000Z')
+    ).toBe('Dec 30, 2026\u2009–\u2009Jan 2, 2027');
+  });
+});

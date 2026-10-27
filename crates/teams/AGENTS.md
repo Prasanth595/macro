@@ -10,7 +10,8 @@ event contract (schema, sanitization, delivery semantics).
 ## Start here
 
 - `src/domain/team_service.rs`: the main service — creation, invites,
-  membership, role changes, auto-join-domain toggle.
+  membership, role changes, auto-join-domain toggle. Team-wide settings
+  (default link share, interface language) are fields on `PatchTeamRequest`.
 - `src/domain/team_service/invite_link.rs`: the team's shareable invite link
   (`TeamInviteLinkService`) — who may see, create, reset, or turn it off, and
   joining through it via the same direct-join path as domain auto-join.
@@ -23,7 +24,8 @@ event contract (schema, sanitization, delivery semantics).
   deletion side effects (owned-entity transfer, seat release).
 - `src/inbound/axum_router.rs` / `src/inbound/toolset.rs`: HTTP routes and AI
   tool surface.
-- `src/outbound/team_repo.rs`: the Postgres repository.
+- `src/outbound/team_repo.rs`: the Postgres repository; reads use the supplied pool.
+- `src/domain/team_repo.rs`: reuse `get_user_teams` for viewer teams and `get_all_team_members` for team membership, including owners.
 
 ## Scope
 
@@ -54,6 +56,8 @@ event contract (schema, sanitization, delivery semantics).
 - `cargo test -p teams` (`SQLX_OFFLINE` unset).
 - After query changes: `nix develop --command just prepare_db` from the repo root
   inside Nix.
+
+- Registered WhatsApp groups are human-owned; owned-entity cleanup treats their dependency order like other conversations.
 
 ## Related
 

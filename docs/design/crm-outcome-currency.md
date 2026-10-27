@@ -9,9 +9,12 @@ external deal proposal. It creates no project or separate deal entity.
 Every company and contact pipeline has a protected single-select Outcome field:
 Open, Won, Lost. It uses the ordinary table, board, record and Add deal editors,
 filters, grouping, CSV and agent field APIs. Outcome is independent of Stage;
-changing it does not move a row. Stage-specific requirements continue to apply
-to stage transitions through the same pipeline operation boundary. No additional
-closing requirements are introduced here.
+changing it does not move a row. Stage-specific requirements are a separate
+pending change at the same pipeline operation boundary. When integrating that
+change, hold `repo.lock_write`, run `commercial_fields.prepare` before
+`validate_stage_requirements`, then call `apply_storage_ops`. This lets insert
+defaults satisfy required Outcome/currency fields. No additional closing
+requirements are introduced here.
 
 Existing rows start Open, except exact case-insensitive `Closed won` and
 `Closed lost` labels in the Stage field seed Won and Lost once. Stage names, option IDs and

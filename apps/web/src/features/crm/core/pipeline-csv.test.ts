@@ -180,6 +180,14 @@ it('round-trips a monetary amount with its currency and refuses unknown denomina
   const moneyColumns: DatabaseViewColumn[] = [
     ...columns,
     {
+      id: 'period',
+      name: 'Contract period',
+      dataType: 'DATE_RANGE',
+      isMultiSelect: false,
+      writable: true,
+      options: [],
+    },
+    {
       id: 'currency',
       name: 'Revenue currency',
       dataType: 'SELECT_STRING',
@@ -196,7 +204,16 @@ it('round-trips a monetary amount with its currency and refuses unknown denomina
   const csv = encodePipelineCsv({
     ...pipeline,
     columns: moneyColumns,
-    rows: [{ cells: { company: 'acme', revenue: 1234.567, currency: 'EUR' } }],
+    rows: [
+      {
+        cells: {
+          company: 'acme',
+          revenue: 1234.567,
+          currency: 'EUR',
+          period: '2026-11-01T00:00:00Z/2026-11-30T00:00:00Z',
+        },
+      },
+    ],
     record: () => ({ name: 'Acme', key: 'acme.com' }),
   });
   const imported = planPipelineImport(parseDatabaseCsv(csv)._unsafeUnwrap(), {
@@ -211,17 +228,34 @@ it('round-trips a monetary amount with its currency and refuses unknown denomina
     column: 'currency',
     value: { type: 'options', value: [{ label: 'EUR' }] },
   });
+  expect(imported.rows[0].cells).toContainEqual({
+    column: 'period',
+    value: {
+      type: 'date_range',
+      value: {
+        start: '2026-11-01T00:00:00.000Z',
+        end: '2026-11-30T00:00:00.000Z',
+      },
+    },
+  });
   const invalid = parseDatabaseCsv(
-    'Company,Domain,Revenue,Revenue currency\nAcme,acme.com,100,ZZZ\nGlobex,globex.com,200,USD'
+    'Company,Domain,Revenue,Revenue currency,Contract period\nAcme,acme.com,100,ZZZ,\nGlobex,globex.com,200,USD,later/earlier'
   )._unsafeUnwrap();
   const planned = planPipelineImport(invalid, {
     ...pipeline,
     columns: moneyColumns,
   })._unsafeUnwrap();
   expect(planned.invalidSystemRows).toBe(1);
-  expect(planned.invalidCells).toBe(0);
+  expect(planned.invalidCells).toBe(1);
   expect(planned.skipped).toBe(0);
   expect(planned.rows.map((row) => row.record.key)).toEqual(['globex.com']);
+  expect(planned.rows[0].cells).toEqual([
+    { column: 'revenue', value: { type: 'number', value: 200 } },
+    {
+      column: 'currency',
+      value: { type: 'options', value: [{ label: 'USD' }] },
+    },
+  ]);
   expect(
     planPipelineImport(
       { ...invalid, rows: invalid.rows.slice(0, 1) },

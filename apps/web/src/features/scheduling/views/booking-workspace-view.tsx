@@ -4,6 +4,7 @@ import {
   ListHeaderSearch,
 } from '@app/components/view-shell/ListHeader';
 import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
+import { t } from '@app/lib/i18n';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -226,6 +227,21 @@ export function BookingWorkspaceView(props: {
     if (owner() !== current) return;
     await current.action(() => current.createEvent(opener));
   };
+  createEffect(
+    on(
+      () =>
+        [search.createBookingLink, owner(), owner()?.source.profile()] as const,
+      ([requested, current, profile]) => {
+        if (!requested || !current || !profile || !current.scope().canEdit)
+          return;
+        setSearch({ createBookingLink: false, tab: 'links' });
+        fireAndForget(
+          current.action(() => current.createEvent()),
+          'scheduling'
+        );
+      }
+    )
+  );
   const createWithAgent = async () => {
     const current = owner();
     if (
@@ -291,7 +307,7 @@ export function BookingWorkspaceView(props: {
                     aria-current={
                       selectedOwnerId() === scope.id ? 'true' : undefined
                     }
-                    title={scope.teamId ? scope.name : 'Personal'}
+                    title={scope.teamId ? scope.name : t('viewMenus.personal')}
                     disabled={isSaving()}
                     {...pressHandlers(() => selectOwner(scope.id))}
                   >

@@ -5,6 +5,7 @@ use chrono::{TimeZone, Utc};
 use databases::domain::models::{ColumnId, DatabaseId, OptionId, RowId, TableId, TableVersion};
 use entity_access::domain::models::AccessLevel;
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
+use models_databases::DateRange;
 
 use super::*;
 use crate::domain::{
@@ -495,6 +496,10 @@ async fn an_export_writes_people_as_emails_and_reimports() {
             currency: currency.id,
         });
     workflows.overview.fields.push(currency);
+    workflows
+        .overview
+        .fields
+        .push(field("Contract period", FieldKind::DateRange));
     workflows.exported = vec![PipelineEntryView {
         currencies: Default::default(),
         entry_id: RowId::new(),
@@ -514,6 +519,13 @@ async fn an_export_writes_people_as_emails_and_reimports() {
                 "Revenue currency".into(),
                 FieldValue::Labels(vec!["EUR".into()]),
             ),
+            (
+                "Contract period".into(),
+                FieldValue::DateRange(DateRange {
+                    start: Utc.with_ymd_and_hms(2026, 11, 1, 0, 0, 0).unwrap(),
+                    end: Utc.with_ymd_and_hms(2026, 11, 30, 0, 0, 0).unwrap(),
+                }),
+            ),
         ],
     }];
     let pipeline = workflows.overview.pipeline.pipeline.id;
@@ -525,7 +537,7 @@ async fn an_export_writes_people_as_emails_and_reimports() {
     assert_eq!(saved[0].0, "Deals");
     assert_eq!(
         saved[0].1,
-        "Company,Domain,Stage,Owner,Revenue,Proposal,Revenue currency\n'=Acme,acme.com,Lead,jane@macro.com,48000.1234,,EUR\n"
+        "Company,Domain,Stage,Owner,Revenue,Proposal,Revenue currency,Contract period\n'=Acme,acme.com,Lead,jane@macro.com,48000.1234,,EUR,2026-11-01T00:00:00Z/2026-11-30T00:00:00Z\n"
     );
     let table = parse_csv(&saved[0].1).unwrap();
     let rows = record_rows(&table, PipelineRecordType::Company).unwrap();
@@ -545,4 +557,8 @@ async fn an_export_writes_people_as_emails_and_reimports() {
             .set
             .contains(&("Revenue currency".into(), FieldInput::One("EUR".into())))
     );
+    assert!(added[0].set.contains(&(
+        "Contract period".into(),
+        FieldInput::One("2026-11-01T00:00:00Z/2026-11-30T00:00:00Z".into())
+    )));
 }
