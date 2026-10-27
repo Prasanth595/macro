@@ -1,19 +1,8 @@
+use crate::backfill_progress::BackfillJobProgress;
 use crate::util::redis::RedisClient;
 use anyhow::Context;
 use redis::AsyncCommands;
 use uuid::Uuid;
-
-/// Snapshot of a backfill job's thread progress after an increment.
-pub struct BackfillJobProgress {
-    /// Number of threads completed so far, including this increment.
-    pub completed_threads: i32,
-    /// The job's target thread total — the denominator for progress. Reflects
-    /// the Redis counter, which the priority pass may have bumped above the raw
-    /// mailbox size; `completed_threads` is inflated to match, so the ratio holds.
-    pub total_threads: i32,
-    /// Whether every thread in the job has now been processed.
-    pub job_complete: bool,
-}
 
 impl RedisClient {
     fn job_status_key(job_id: Uuid) -> String {
@@ -24,12 +13,9 @@ impl RedisClient {
         format!("bf_thread_status:{}:{}", job_id, thread_id)
     }
 
-    /// Initialize backfill job progress in Redis
-    pub async fn init_backfill_job_progress(
-        &self,
-        job_id: Uuid,
-        total_threads: i32,
-    ) -> anyhow::Result<()> {
+    /// Stores non-numeric counters for a job that counts its progress in
+    /// Postgres, so builds that count in Redis fail to increment them.
+    pub async fn fence_backfill_job_progress(&self, job_id: Uuid) -> anyhow::Result<()> {
         let key = Self::job_status_key(job_id);
 
         let mut redis_connection = self
@@ -38,11 +24,17 @@ impl RedisClient {
             .await
             .context("unable to connect to redis")?;
 
-        redis_connection
-            .hset_multiple::<&str, &str, i32, ()>(
+        redis::pipe()
+            .atomic()
+            .hset_multiple(
                 &key,
-                &[("total_threads", total_threads), ("completed_threads", 0)],
+                &[
+                    ("total_threads", "counted-in-postgres"),
+                    ("completed_threads", "counted-in-postgres"),
+                ],
             )
+            .expire(&key, 24 * 60 * 60)
+            .exec_async(&mut redis_connection)
             .await?;
 
         Ok(())
@@ -161,7 +153,8 @@ impl RedisClient {
         Ok(())
     }
 
-    /// Increment completed messages count and return true if thread is complete, deleting redis entry for thread if so
+    /// Increment completed messages count and return true if thread is complete, deleting redis entry for thread if so.
+    /// Returns false without counting when no entry tracks the thread.
     pub async fn incr_completed_messages(
         &self,
         job_id: Uuid,
@@ -177,15 +170,21 @@ impl RedisClient {
 
         let script = r#"
         local key = KEYS[1]
-        local completed = redis.call('HINCRBY', key, 'completed_messages', 1)
         local total = redis.call('HGET', key, 'total_messages')
+        if not total then
+            return false
+        end
+        local completed = redis.call('HINCRBY', key, 'completed_messages', 1)
         return {completed, total}
     "#;
 
-        let result: Vec<i32> = redis::Script::new(script)
+        let result: Option<Vec<i32>> = redis::Script::new(script)
             .key(&key)
             .invoke_async(&mut redis_connection)
             .await?;
+        let Some(result) = result else {
+            return Ok(false);
+        };
 
         let completed_messages = result[0];
         let total_messages = result[1];

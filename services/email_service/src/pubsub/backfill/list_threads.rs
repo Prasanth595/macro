@@ -146,7 +146,7 @@ pub async fn list_threads(
 
 /// The priority first pass (see [`ListThreadsPayload::priority_pass`]). Does a
 /// single CATEGORY_PERSONAL-filtered listing of up to `PRIORITY_PASS_THREAD_LIMIT`
-/// threads, enqueues a BackfillThread for each, bumps the job's redis total to
+/// threads, enqueues a BackfillThread for each, bumps the job's thread total to
 /// account for the normal sweep re-covering these same threads, then hands off
 /// to the normal sweep. Unlike the normal pass it does not paginate and does
 /// not touch `threads_retrieved_count` (that counter drives the normal sweep's
@@ -187,15 +187,19 @@ async fn list_priority_threads(
         // after this only non-retryable enqueues remain, so a retry can't
         // double-bump.
         if !threads.is_empty() {
-            ctx.redis_client
-                .add_to_total_threads(scope.job_id, threads.len() as i32)
-                .await
-                .map_err(|e| {
-                    ProcessingError::Retryable(DetailedError {
-                        reason: FailureReason::RedisQueryFailed,
-                        source: e.context("Failed to bump total_threads for priority pass"),
-                    })
-                })?;
+            crate::backfill_progress::add_priority_threads(
+                &ctx.db,
+                &ctx.redis_client,
+                scope.job_id,
+                threads.len() as i32,
+            )
+            .await
+            .map_err(|e| {
+                ProcessingError::Retryable(DetailedError {
+                    reason: FailureReason::DatabaseQueryFailed,
+                    source: e.context("Failed to bump total_threads for priority pass"),
+                })
+            })?;
         }
 
         for thread in &threads {
