@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
   activeContent: (): { type: 'component'; id: string } | undefined => undefined,
   activePane: (): PaneId | undefined => undefined,
   navigate: vi.fn(),
-  goToLeaderActive: () => false,
+  goToLeaderActive: (): boolean => false,
 }));
 
 vi.mock('@app/lib/analytics/analytics-context', () => ({
