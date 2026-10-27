@@ -29,7 +29,6 @@ import {
   type ComboboxTriggerMode,
   useComboboxContext,
 } from '@kobalte/core/combobox';
-import { debounce } from '@solid-primitives/scheduled';
 import { Avatar, cn, Layer } from '@ui';
 import * as EmailValidator from 'email-validator';
 import {
@@ -387,8 +386,6 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
     )
   );
 
-  const debouncedHandleChange = debounce(handleChange, 100);
-
   const [isOpen, setIsOpen] = createSignal(false);
   const [suppressOpenUntilInputChange, setSuppressOpenUntilInputChange] =
     createSignal(Boolean(props.focusOnMount));
@@ -648,7 +645,50 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
 
   let contentEl: HTMLElement | undefined;
 
+  // Committing changes the selection, and Kobalte clears the input when it does.
+  const commitSeparatedEmails = (input: string) => {
+    if (!/[,;]\s*$/.test(input)) return false;
+    const emails = input
+      .split(/[,;]/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .filter(
+        (email, index, all) =>
+          all.findIndex(
+            (other) => other.toLowerCase() === email.toLowerCase()
+          ) === index
+      );
+    if (emails.length === 0 || !emails.every((e) => EmailValidator.validate(e)))
+      return false;
+    const known = recipients().raw;
+    const added = emails
+      .filter((email) => !selectedEmails().has(email.toLowerCase()))
+      .map(
+        (email) =>
+          known.find(
+            (option) =>
+              getRecipientOptionEmail(option)?.toLowerCase() ===
+              email.toLowerCase()
+          ) ??
+          recipientEntityMapper('custom')({
+            id: emailToId(email),
+            email,
+            invalid: false,
+          })
+      );
+    if (added.length === 0) return false;
+    handleChange([
+      ...(props.selectedOptions as CombinedRecipientItem[]),
+      ...added,
+    ]);
+    return true;
+  };
+
   const onInputChange = (next: string) => {
+    if (commitSeparatedEmails(next)) {
+      setInputValue('');
+      return;
+    }
     const previous = inputValue();
     setInputValue(next);
     if (next !== previous) {
@@ -688,7 +728,7 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
           visibleOptionKeys().has(getRecipientOptionValue(option))
         }
         value={props.selectedOptions as CombinedRecipientItem[]}
-        onChange={debouncedHandleChange}
+        onChange={handleChange}
         onInputChange={onInputChange}
         shouldFocusWrap
         placeholder={
