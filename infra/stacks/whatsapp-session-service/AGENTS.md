@@ -15,18 +15,15 @@ no service URL. Egress is 443 (WhatsApp, AWS APIs, Datadog) and 5432 (MacroDB).
 
 ## Config (Doppler project `whatsapp-session-service`, `dev` and `prd`)
 
-| Key | Value |
-| --- | --- |
-| `DATABASE_URL` | `${global_databases.<config>.DATABASE_URL}` |
-| `WHATSAPP_SESSION_LOCK_DATABASE_URL` | The same reference: global_databases' URL is the MacroDB **instance** endpoint (`macro-db-<stack>`). Never the RDS Proxy (`macrodb-proxy-<stack>`). |
-| `WHATSAPP_SESSION_KMS_KEY_ID` | `alias/whatsapp-session-service-<stack>` (`sessionKmsKeyAlias` output). |
-| `WHATSAPP_SESSION_MAX_ACCOUNTS` | `500` |
-| `WHATSAPP_SESSION_DRAIN_BATCH` | `20` |
+The only key is `DATABASE_URL` = `${global_databases.<config>.DATABASE_URL}`,
+set with the Doppler CLI. That URL is the MacroDB **instance** endpoint
+(`macro-db-<stack>`), which the advisory-lock connection needs; never the RDS
+Proxy (`macrodb-proxy-<stack>`).
 
-`infra/stacks/doppler-projects/index.ts` declares every key, so nothing is
-set by hand and this stack writes nothing to Doppler (no `doppler:dopplerToken`).
-The KMS alias there must match the one `service.ts` creates. Local values come
-from `xtask_local` (`local_env.rs`).
+The service computes the KMS alias from `ENVIRONMENT`
+(`SessionKmsKey` in its `src/config.rs`): `alias/whatsapp-session-service-<stack>`,
+the name `service.ts` creates. A test there checks the two agree. This stack
+writes nothing to Doppler.
 
 ## Checks
 
@@ -54,7 +51,8 @@ From `infra/`: `bun run check`, `bunx biome check stacks/whatsapp-session-servic
 - Deploys need the `doppler-projects` stack applied first: `DopplerEcsEnvironment`
   reads `/doppler-sync/whatsapp-session-service/<stack>`, which its sync writes.
 - To stop all WhatsApp traffic, set `desired_count: 0` (or scale the ECS
-  service to 0); see the service runbook.
+  service to 0); see the service runbook. Prod ships at 0 until it is turned
+  on deliberately.
 
 ## Related
 
