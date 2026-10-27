@@ -92,6 +92,9 @@ message. Channel names
 prefer the current channel cache, then a matching thread notification's name,
 then **Unknown channel** if neither source has a name. Selecting a
 thread opens that thread in the channel preview; Shift-click opens it in a split.
+A Home URL containing only the channel `threadId` opens that thread's root,
+not the latest message. Reloading or opening the same URL on touch retains the
+target; an explicit reply `messageId` still takes precedence.
 
 Items in the 256px desktop rail use single-line pills with 16px icons: profile photos for
 DMs and model logos for AI chats (Claude sunburst or ChatGPT knot). Other items
