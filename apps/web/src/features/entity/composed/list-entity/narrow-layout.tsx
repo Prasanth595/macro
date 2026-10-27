@@ -116,6 +116,7 @@ export function NarrowLayout(
       <Show
         when={
           props.propertyLeading ||
+          props.referenceProperties ||
           props.scheduleStatus ||
           (!props.hasNotifications &&
             !(isChannelEntity(props.entity) && isSearchEntity(props.entity)))
@@ -125,6 +126,7 @@ export function NarrowLayout(
           placement="timestamp"
           class="flex items-center justify-end gap-1 text-xs text-right text-ink-extra-muted font-light"
         >
+          {props.referenceProperties}
           {props.scheduleStatus}
           {props.propertyLeading}
           <Show when={!props.hasNotifications}>

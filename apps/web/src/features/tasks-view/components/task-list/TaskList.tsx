@@ -92,6 +92,7 @@ const getStatusProperty = (task: TaskEntityWithProperties) => {
 export type TaskListProps = {
   /** The focusable list root, for callers that hand keyboard focus back. */
   ref?: (element: HTMLDivElement) => void;
+  referencePropertyIds?: readonly string[];
 };
 
 export function TaskList(props: TaskListProps) {
@@ -529,6 +530,7 @@ export function TaskList(props: TaskListProps) {
                             }}
                           >
                             <TaskListEntity
+                              referencePropertyIds={props.referencePropertyIds}
                               showProject={projectsEnabled()}
                               calendar={calendar}
                               rowId={entityRow().id}

@@ -24,6 +24,7 @@ import {
   useListLayout,
 } from '@entity/composed/list-entity/shared';
 import type { EntityRowConfig } from '@entity/extractors-notification';
+import { EntityReferenceProperties } from '@entity/extractors-property/entity-reference-properties';
 import { getTaskDueDate, isTaskClosed } from '@entity/utils/task-properties';
 import {
   BULK_DOCUMENT_WAKEUP_FEATURE_FLAG,
@@ -59,6 +60,7 @@ type TaskListEntityProps = Omit<BaseListEntityProps, 'entity'> & {
   showUnrollNotifications?: boolean;
   /** Show the Project column (Projects enabled). */
   showProject?: boolean;
+  referencePropertyIds?: readonly string[];
   /** Called when "filter by tag" is clicked on an entity row tag. */
   onFilterByTag?: (optionId: string) => void;
 };
@@ -141,6 +143,7 @@ export function TaskListEntity(props: TaskListEntityProps) {
     chars: chars(),
     onProjectClick: props.onProjectClick,
     showProject: props.showProject,
+    referencePropertyIds: props.referencePropertyIds,
     onFilterByTag: props.onFilterByTag,
   });
 
@@ -196,6 +199,17 @@ export function TaskListEntity(props: TaskListEntityProps) {
             config={props.entityRowConfig}
           >
             <TaskGridLayout {...layoutProps()} compact />
+            <Show when={props.referencePropertyIds}>
+              {(ids) => (
+                <div class="px-3 pb-1">
+                  <EntityReferenceProperties
+                    entity={props.entity}
+                    propertyIds={ids()}
+                    compact
+                  />
+                </div>
+              )}
+            </Show>
           </MaybeEntityRow>
         </Match>
       </Switch>

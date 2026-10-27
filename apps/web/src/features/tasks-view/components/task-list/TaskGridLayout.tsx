@@ -14,6 +14,7 @@ import {
 import { NarrowLayout } from '@entity/composed/list-entity/narrow-layout';
 import type { LayoutProps } from '@entity/composed/list-entity/shared';
 import { soupPropertyToProperty } from '@entity/extractors-property';
+import { EntityReferenceProperties } from '@entity/extractors-property/entity-reference-properties';
 import { ListPropertyValue } from '@property/component/ListPropertyValue';
 import { Modals } from '@property/component/modal';
 import {
@@ -65,6 +66,7 @@ type TaskGridLayoutProps = Omit<LayoutProps, 'entity'> & {
   onFilterByTag?: (optionId: string) => void;
   compact?: boolean;
   dueDateUrgency?: 'danger' | 'warning';
+  referencePropertyIds?: readonly string[];
 };
 
 export function TaskGridLayout(props: TaskGridLayoutProps) {
@@ -205,11 +207,21 @@ export function TaskGridLayout(props: TaskGridLayoutProps) {
                 <CreatedByBadgeSmall ownerId={props.entity.ownerId} />
               </span>
             </Show>
+            <Show when={props.referencePropertyIds}>
+              {(ids) => (
+                <EntityReferenceProperties
+                  entity={props.entity}
+                  propertyIds={ids()}
+                  compact={false}
+                />
+              )}
+            </Show>
             <EntityRowTags
               entityId={props.entity.id}
               entityType={EntityType.TASK}
               properties={entity().properties}
               onFilterByTag={props.onFilterByTag}
+              class="ml-auto"
             />
           </Entity.Slot>
 
