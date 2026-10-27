@@ -1,12 +1,10 @@
 import { useListInteractions } from '@app/components/list';
 import {
-  makeCopyLinkAction,
   toEntityActionListState,
   useEntityActionHotkeys,
 } from '@app/features/next-soup/actions';
 import { DateGroupHeading } from '@app/features/next-soup/soup-view/date-group-heading';
 import { useInfiniteScrollSentinel } from '@app/lib/primitives/infinite-scroll-sentinel';
-import { globalSplitManager } from '@app/signal/splitLayout';
 import {
   type OpenPrLink,
   PrLinkChips,
@@ -15,7 +13,6 @@ import {
 } from '@block-pr/component/PrLinks';
 import { type PrLinks, priorityTaskName } from '@block-pr/data/pr-links';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
-import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
 import { fireAndForget } from '@core/util/fireAndForget';
 import {
   EntitySelectionToolbar,
@@ -23,9 +20,6 @@ import {
   ListEntity,
   ListLayoutProvider,
 } from '@entity';
-import ArrowSquareOutIcon from '@icon/system/regular/arrow-square-out.svg';
-import SplitIcon from '@icon/system/regular/columns.svg';
-import CopyIcon from '@icon/system/regular/copy.svg';
 import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import type { GithubLinkStatus } from '@queries/auth/github-link';
@@ -52,6 +46,7 @@ import {
   type ReviewsSortId,
   scopeMatchesViewerGithubId,
 } from '../reviews-types';
+import { ReviewContextMenuContent } from './ReviewContextMenu';
 import { ReviewsEmptyState } from './ReviewsEmptyState';
 
 /** What each row links to, loaded alongside the list. */
@@ -78,8 +73,6 @@ export type ReviewsListProps = {
   onOpen: (foreignEntityId: string, newSplit: boolean) => void;
   links: ReviewsListLinks;
 };
-
-const copyLink = makeCopyLinkAction();
 
 function ReviewListElement(props: JSX.HTMLAttributes<HTMLUListElement>) {
   return <ul {...props} aria-label="Pull requests" />;
@@ -144,37 +137,7 @@ function ReviewRow(props: {
           }
         />
       </ContextMenu.Trigger>
-      <ContextMenu.Portal>
-        <ContextMenuContent class="w-56 text-xs text-ink-muted">
-          <MenuItem
-            icon={SplitIcon}
-            text="Open in new split"
-            disabled={!globalSplitManager()?.canAppendSplit()}
-            onClick={() => {
-              if (globalSplitManager()?.canAppendSplit())
-                props.onOpen(props.review.id, true);
-            }}
-          />
-          <MenuItem
-            icon={CopyIcon}
-            text="Copy Link"
-            onClick={() =>
-              fireAndForget(copyLink.execute([props.review]), 'reviews-view')
-            }
-          />
-          <MenuItem
-            icon={ArrowSquareOutIcon}
-            text="Open on GitHub"
-            onClick={() =>
-              window.open(
-                props.review.metadata.url,
-                '_blank',
-                'noopener,noreferrer'
-              )
-            }
-          />
-        </ContextMenuContent>
-      </ContextMenu.Portal>
+      <ReviewContextMenuContent review={props.review} onOpen={props.onOpen} />
     </ContextMenu>
   );
 }
