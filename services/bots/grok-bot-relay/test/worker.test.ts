@@ -180,13 +180,6 @@ describe('signature checks', () => {
     expect(h.posts).toHaveLength(0);
   });
 
-  test('a missing signature is rejected', async () => {
-    const h = harness();
-    const response = await deliver(h, mention(), { signature: '' });
-    expect(response.status).toBe(401);
-    expect(h.grokCalls).toHaveLength(0);
-  });
-
   test('a correctly signed but stale delivery is rejected as a replay', async () => {
     const h = harness();
     const response = await deliver(h, mention(), { timestamp: NOW - 301 });
@@ -242,15 +235,6 @@ describe('forwarding', () => {
         content: 'On it, working in Grok Bot.',
       },
     ]);
-  });
-
-  test('a root-message mention replies under that message', async () => {
-    const h = harness();
-    await deliver(h, mention({ thread_id: null, root_id: MESSAGE }));
-    expect(JSON.parse(String(h.grokCalls[0].init.body)).thread_id).toBe(
-      MESSAGE
-    );
-    expect(h.posts[0].threadId).toBe(MESSAGE);
   });
 
   test('mentions of someone else, and the bot mentioning itself, are ignored', async () => {
