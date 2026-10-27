@@ -34,7 +34,7 @@ pub struct ContentSearch {
     pub match_type: SearchMatchType,
 
     #[schemars(
-        description = "Which types of items to search. Leave empty (the default) to search all types — this is almost always what you want. Only set this when the user's request clearly targets one or more specific types. Examples: ['documents'], ['emails', 'documents'], ['channels'], ['call_records']. Projects and calendar events carry no indexed content, so they never match here — search those by name with NameSearch instead."
+        description = "Which types of items to search. Leave empty (the default) to search all types — this is almost always what you want. Only set this when the user's request clearly targets one or more specific types. Examples: ['documents'], ['emails', 'documents'], ['channels'], ['call_records']. Projects, calendar events, and CRM companies carry no indexed content, so they never match here — search those by name with NameSearch instead."
     )]
     #[serde(default)]
     pub entity_types: Vec<SearchEntityType>,
@@ -160,6 +160,7 @@ impl AsyncTool<SearchToolContext> for ContentSearch {
             match_type: self.match_type.into(),
             filters: content_filters(&self.entity_types, &self.agent_session_ids, base_filters),
             search_on: models_search::SearchOn::Content,
+            // CRM companies have no content index; NameSearch covers them.
             include_crm: false,
             calendar_event_scope: Default::default(),
             collapse: None,
