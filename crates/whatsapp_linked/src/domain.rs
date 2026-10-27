@@ -1,5 +1,7 @@
 /// Session-service event and command types.
 pub mod events;
+/// WhatsApp JIDs.
+pub mod jid;
 /// Account, binding and send models shared with the web app.
 pub mod models;
 /// Polls, locations, contact cards, events and system lines.
@@ -20,6 +22,9 @@ pub mod service;
 /// In-process API for the session service.
 #[cfg(feature = "ports")]
 pub mod session;
+/// Pixel size and length of files sent from Macro.
+#[cfg(feature = "ports")]
+pub mod shape;
 
 #[cfg(feature = "ports")]
 pub mod timeline;

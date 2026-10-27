@@ -38,7 +38,7 @@ pub(super) struct Reservation {
 pub(super) enum Reserve {
     /// Persist through this reservation.
     Reserved(Box<Reservation>),
-    /// Retry later: the target has not arrived or the binding needs an owner.
+    /// Retry later: the target has not arrived.
     Defer,
     /// The sender identity is ambiguous.
     Quarantine,
@@ -69,7 +69,7 @@ pub(super) async fn observed_bindings_in(
 ) -> LinkedResult<Vec<Binding>> {
     sqlx::query_as!(
         bindings::BindingRow,
-        r#"SELECT b.id, b.group_jid, b.user_id, b.state, b.adopted_at
+        r#"SELECT b.id, b.group_jid, b.kind, b.user_id, b.state, b.adopted_at
         FROM whatsapp_group b JOIN whatsapp_group_membership m ON m.binding_id = b.id
         WHERE b.group_jid = $1 AND b.state = 'active'
           AND m.account_id = $2 AND m.generation = $3 AND m.consent_ended_at IS NULL
@@ -106,14 +106,14 @@ pub(super) async fn reserve_in(
     message: &Message,
     accepted_send: Option<Uuid>,
 ) -> LinkedResult<Reserve> {
-    let current = sqlx::query!(
+    let current = sqlx::query_scalar!(
         "SELECT state FROM whatsapp_group WHERE id = $1 FOR UPDATE",
         binding.id
     )
     .fetch_one(&mut **tx)
     .await
     .map_err(failure)?;
-    if current.state != "active" && accepted_send.is_none() {
+    if current != "active" && accepted_send.is_none() {
         return Ok(Reserve::Skip);
     }
     let sender = &message.sender;
@@ -270,8 +270,8 @@ pub(super) async fn reserve_in(
     // revisions carry none of it and keep what is stored.
     sqlx::query!(
         r#"INSERT INTO whatsapp_group_message (id, binding_id, person_id, source_id, origin, source_at, content_revision, deleted_at, revision_content, revised_at,
-            kind, rich, mentions, forwarded)
-        VALUES ($11, $1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $13, $14, $15)
+            kind, rich, mentions, forwarded, view_once)
+        VALUES ($11, $1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $13, $14, $15, $16)
         ON CONFLICT (binding_id, person_id, source_id) DO UPDATE SET
             deleted_at = COALESCE(whatsapp_group_message.deleted_at, excluded.deleted_at),
             revision_content = CASE WHEN excluded.content_revision > whatsapp_group_message.content_revision
@@ -283,7 +283,8 @@ pub(super) async fn reserve_in(
             kind = CASE WHEN $10 THEN whatsapp_group_message.kind ELSE excluded.kind END,
             rich = CASE WHEN $10 THEN whatsapp_group_message.rich ELSE COALESCE(excluded.rich, whatsapp_group_message.rich) END,
             mentions = CASE WHEN $10 OR cardinality(excluded.mentions) = 0 THEN whatsapp_group_message.mentions ELSE excluded.mentions END,
-            forwarded = whatsapp_group_message.forwarded OR excluded.forwarded"#,
+            forwarded = whatsapp_group_message.forwarded OR excluded.forwarded,
+            view_once = whatsapp_group_message.view_once OR excluded.view_once"#,
         binding.id,
         person,
         source,
@@ -298,7 +299,8 @@ pub(super) async fn reserve_in(
         entry_kind,
         rich,
         &message.mentions,
-        message.forwarded
+        message.forwarded,
+        message.view_once
     )
     .execute(&mut **tx)
     .await
@@ -607,7 +609,7 @@ async fn retain_in(
     .await
     .map_err(failure)?;
     if retained >= MAX_RETAINED_EVENTS {
-        return Err(LinkedError::Unavailable.into());
+        return Err(LinkedError::Backlogged.into());
     }
     let payload = serde_json::to_value(event).map_err(failure)?;
     sqlx::query!(
@@ -758,6 +760,7 @@ impl PgLinkedRepository {
                 tracing::warn!(
                     event_id = %event.event_id,
                     code = error.current_context().code(),
+                    error = %error,
                     "WhatsApp event deferred after a persistence failure"
                 );
                 Ok(IngestOutcome::Deferred)
@@ -810,7 +813,7 @@ impl PgLinkedRepository {
         .await
         .map_err(failure)?;
         if retained >= MAX_RETAINED_EVENTS {
-            return Err(LinkedError::Unavailable.into());
+            return Err(LinkedError::Backlogged.into());
         }
         let payload = serde_json::to_value(event).map_err(failure)?;
         sqlx::query!(

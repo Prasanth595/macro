@@ -1,4 +1,5 @@
 import { match } from 'ts-pattern';
+import { type CannotAdd, cannotAddMessage } from './chat';
 
 /** Why adding a group did not happen, in the page's vocabulary. */
 export type AdoptRefusal =
@@ -8,7 +9,13 @@ export type AdoptRefusal =
   | { reason: 'disconnected' }
   | { reason: 'turned-off' }
   | { reason: 'rate-limited' }
+  /** DSS's reason this chat can't be in Macro. */
+  | { reason: 'cannot-add'; why: CannotAdd }
   | { reason: 'unavailable' }
+  /** DSS is behind on this account's WhatsApp work. */
+  | { reason: 'busy' }
+  /** DSS failed in a way retrying may not fix. */
+  | { reason: 'server-error' }
   /** DSS rejected the request; its wording says why. */
   | { reason: 'rejected'; detail: string }
   | { reason: 'signed-out' }
@@ -22,21 +29,31 @@ export function adoptFailureMessage(failure: AdoptRefusal): string {
     .with(
       { reason: 'not-allowed' },
       () =>
-        "Your WhatsApp isn't allowed to add this group. Check that you're still a member."
+        "Your WhatsApp isn't allowed to add this chat. Check that you're still in it."
     )
-    .with({ reason: 'gone' }, () => 'This group is no longer on your WhatsApp.')
-    .with({ reason: 'already-added' }, () => 'This group is already in Macro.')
+    .with({ reason: 'gone' }, () => 'This chat is no longer on your WhatsApp.')
+    .with({ reason: 'already-added' }, () => 'This chat is already in Macro.')
     .with(
       { reason: 'disconnected' },
-      () => 'Your WhatsApp is disconnected. Reconnect it, then add the group.'
+      () => 'Your WhatsApp is disconnected. Reconnect it, then add the chat.'
     )
     .with(
       { reason: 'turned-off' },
-      () => 'Adding WhatsApp groups is turned off.'
+      () => 'Adding WhatsApp chats is turned off.'
     )
     .with(
       { reason: 'rate-limited' },
       () => 'Too many requests at once. Wait a second, then add it again.'
+    )
+    .with({ reason: 'cannot-add' }, ({ why }) => `${cannotAddMessage(why)}.`)
+    .with(
+      { reason: 'busy' },
+      () => 'Macro is catching up with your WhatsApp. Try again in a moment.'
+    )
+    .with(
+      { reason: 'server-error' },
+      () =>
+        'Macro hit an error adding this chat. If it keeps happening, tell us.'
     )
     .with(
       { reason: 'unavailable' },
@@ -44,11 +61,11 @@ export function adoptFailureMessage(failure: AdoptRefusal): string {
     )
     .with(
       { reason: 'rejected' },
-      ({ detail }) => `WhatsApp didn't accept this group: ${detail}.`
+      ({ detail }) => `WhatsApp didn't accept this chat: ${detail}.`
     )
     .with(
       { reason: 'signed-out' },
-      () => 'Your Macro session expired. Sign in again to add this group.'
+      () => 'Your Macro session expired. Sign in again to add this chat.'
     )
     .with(
       { reason: 'unreachable' },

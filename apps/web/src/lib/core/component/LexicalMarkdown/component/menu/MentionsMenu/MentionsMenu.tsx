@@ -264,7 +264,8 @@ function MentionsMenuInner(props: MentionsMenuProps) {
         enabled: () => !props.sources || props.sources.includes('emails'),
       });
 
-  // A WhatsApp group mentioned in a channel is shared with its members.
+  // A WhatsApp chat mentioned in a channel is shared with its members; only
+  // its owner can do that, so only the viewer's own chats are offered.
   const whatsappGroupsEnabled = () =>
     !hasCustomEntities() &&
     props.block === 'channel' &&
@@ -280,7 +281,11 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       return [];
     const term = searchTerm().trim().toLocaleLowerCase();
     return whatsappGroupsQuery.data
-      .filter((group) => group.name.toLocaleLowerCase().includes(term))
+      .filter(
+        (group) =>
+          group.ownerId === userId() &&
+          group.name.toLocaleLowerCase().includes(term)
+      )
       .map((group) => ({
         kind: 'whatsappGroup',
         id: group.id,
@@ -299,7 +304,9 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     );
   });
 
+  // Every composer mounts this menu closed; fetch only once it opens.
   const bookingLinksEnabled = () =>
+    props.menu.isOpen() &&
     !hasCustomEntities() &&
     (!props.sources || props.sources.includes('bookingLinks'));
   const { bookingLinks } = useBookingLinkMention({
@@ -484,7 +491,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       },
       {
         id: 'whatsappGroups',
-        label: 'WhatsApp groups',
+        label: 'WhatsApp chats',
         getData: whatsappGroups,
         getFullCount: () => whatsappGroups().length,
       },

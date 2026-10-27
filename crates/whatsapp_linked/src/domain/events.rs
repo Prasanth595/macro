@@ -77,13 +77,16 @@ pub enum PairingUpdate {
         /// Verified phone-number JID of the linked account.
         identity_jid: String,
     },
+    /// WhatsApp's QR session ran out of codes before any was scanned.
+    Expired,
     /// Pairing failed.
     Failed,
 }
 
 /// Kind of a normalized group message.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::IntoStaticStr)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum MessageKind {
     /// Text, possibly quoting `target`.
     Text,
@@ -108,24 +111,7 @@ pub enum MessageKind {
 impl MessageKind {
     /// Snake-case name, as serialized.
     pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Text => "text",
-            Self::Reaction => "reaction",
-            Self::Edit => "edit",
-            Self::Delete => "delete",
-            Self::Unsupported => "unsupported",
-            Self::Rich => "rich",
-            Self::System => "system",
-            Self::PollVote => "poll_vote",
-        }
-    }
-
-    /// A new timeline entry rather than a change to an existing one.
-    pub fn is_entry(self) -> bool {
-        matches!(
-            self,
-            Self::Text | Self::Unsupported | Self::Rich | Self::System
-        )
+        self.into()
     }
 }
 
@@ -197,6 +183,9 @@ pub struct Message {
     /// Forwarded from another chat.
     #[serde(default)]
     pub forwarded: bool,
+    /// Sent as view-once; kept and shown like any media.
+    #[serde(default)]
+    pub view_once: bool,
     /// Structured content of rich, system and poll-vote messages.
     #[serde(default)]
     pub rich: Option<RichContent>,
@@ -251,8 +240,13 @@ pub enum InboundKind {
 pub struct InboundEvent {
     /// Stable id for deferral and quarantine.
     pub event_id: Uuid,
-    /// Group JID.
+    /// Chat JID: the group, or a direct chat's other person (by phone number
+    /// when known).
     pub group_jid: String,
+    /// A direct chat's other address for the same person (LID for a phone
+    /// number, or the reverse), so either addressing reaches the added chat.
+    #[serde(default)]
+    pub chat_alternate_jid: Option<String>,
     /// Protocol timestamp.
     pub source_at: DateTime<Utc>,
     /// When the replica observed it.
@@ -318,7 +312,20 @@ pub enum OutgoingContent {
         caption: Option<String>,
         /// Quoted message.
         quote: Option<Target>,
+        /// Pixel size and length, read from the file when it was staged.
+        shape: MediaShape,
     },
+}
+
+/// Pixel size and length of an attachment, where known.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaShape {
+    /// Width in pixels (images and videos).
+    pub width: Option<u32>,
+    /// Height in pixels.
+    pub height: Option<u32>,
+    /// Length in whole seconds (audio and video).
+    pub duration_seconds: Option<u32>,
 }
 
 /// One attachment of one source message.
@@ -386,6 +393,9 @@ pub struct ClaimedSend {
     pub group_sequence: i64,
     /// Content.
     pub content: OutgoingContent,
+    /// The group's disappearing-messages timer in seconds, as the sending
+    /// account last saw it; the message carries it like a phone's would.
+    pub disappearing_seconds: Option<u32>,
     /// W3C trace context of the request that recorded the send.
     pub traceparent: Option<String>,
 }
