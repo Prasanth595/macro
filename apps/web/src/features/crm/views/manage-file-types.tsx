@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { catchToResult } from '@core/util/result';
 import { Button, Dialog, Input, Panel } from '@ui';
@@ -11,16 +12,13 @@ export function ManageFileTypes(props: {
 }) {
   const [name, setName] = createSignal('');
   const [pending, setPending] = createSignal(false);
-  const [error, setError] = createSignal('');
+  const [error, setError] = createSignal(false);
   async function run(action: () => Promise<void>) {
     if (pending()) return;
     setPending(true);
-    setError('');
+    setError(false);
     const result = await catchToResult(action);
-    if (result.isErr())
-      setError(
-        'Could not save file types. Names must be unique. Please retry.'
-      );
+    setError(result.isErr());
     setPending(false);
   }
   return (
@@ -33,11 +31,10 @@ export function ManageFileTypes(props: {
         <Panel.Body>
           <div class="flex flex-col gap-4 p-5">
             <Dialog.Title class="text-base font-semibold">
-              File types
+              {t('crmFiles.fileTypes')}
             </Dialog.Title>
             <Dialog.Description class="text-sm text-ink-muted">
-              Team members can manage these types. Renaming a type updates its
-              label everywhere. Removing a type leaves its files unclassified.
+              {t('crmFiles.manageDescription')}
             </Dialog.Description>
             <For each={props.source.data()?.options}>
               {(option) => (
@@ -53,8 +50,8 @@ export function ManageFileTypes(props: {
             </For>
             <div class="flex items-center gap-2">
               <Input
-                aria-label="New file type"
-                placeholder="New file type"
+                aria-label={t('crmFiles.newFileType')}
+                placeholder={t('crmFiles.newFileType')}
                 value={name()}
                 onInput={(event) => setName(event.currentTarget.value)}
                 disabled={pending()}
@@ -72,12 +69,12 @@ export function ManageFileTypes(props: {
                   )
                 }
               >
-                Add
+                {t('crmFiles.add')}
               </Button>
             </div>
             <Show when={error()}>
               <p role="alert" class="text-sm text-failure">
-                {error()}
+                {t('crmFiles.saveTypesFailed')}
               </p>
             </Show>
             <Button
@@ -85,7 +82,7 @@ export function ManageFileTypes(props: {
               disabled={pending()}
               onClick={props.onClose}
             >
-              Done
+              {t('crmFiles.done')}
             </Button>
           </div>
         </Panel.Body>
@@ -106,7 +103,7 @@ function FileTypeRow(props: {
     <div class="flex flex-col gap-2">
       <div class="flex items-center gap-2">
         <Input
-          aria-label={`Rename ${props.option.name}`}
+          aria-label={t('crmFiles.renameType', { name: props.option.name })}
           value={name()}
           onInput={(event) => setName(event.currentTarget.value)}
           disabled={props.pending}
@@ -122,26 +119,28 @@ function FileTypeRow(props: {
             fireAndForget(props.onRename(name().trim()), 'crm-files')
           }
         >
-          Save
+          {t('crmFiles.save')}
         </Button>
         <Button
           variant="ghost"
           disabled={props.pending}
           onClick={() => setConfirm(true)}
         >
-          Remove
+          {t('crmFiles.remove')}
         </Button>
       </div>
       <Show when={confirm()}>
         <div class="flex flex-wrap items-center gap-2 text-sm">
-          <span>Leave all {props.option.name} files unclassified?</span>
+          <span>
+            {t('crmFiles.confirmRemove', { name: props.option.name })}
+          </span>
           <Button
             variant="outline"
             size="sm"
             disabled={props.pending}
             onClick={() => fireAndForget(props.onRemove(), 'crm-files')}
           >
-            Remove type
+            {t('crmFiles.removeType')}
           </Button>
           <Button
             variant="ghost"
@@ -149,7 +148,7 @@ function FileTypeRow(props: {
             disabled={props.pending}
             onClick={() => setConfirm(false)}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </Show>

@@ -1,0 +1,46 @@
+export default {
+  addFile: 'Add file',
+  attachDescription:
+    'Link a file you can edit. Its access stays the same, and its type is shared across records.',
+  addFileMode: 'Add file mode',
+  existingFile: 'Existing file',
+  newNote: 'New note',
+  fileName: 'File name',
+  findFile: 'Find a file',
+  findFilePlaceholder: 'Find a file…',
+  filesToAttach: 'Files to attach',
+  loadFailed: 'Couldn’t load files.',
+  moreFiles: 'More files',
+  loadingFiles: 'Loading files…',
+  noMatchingFiles: 'No matching files.',
+  editRequired: 'Edit access to the source file is required.',
+  keepType: 'Keep current type',
+  unclassified: 'Unclassified',
+  unavailable: 'Type unavailable',
+  fileType: 'File type',
+  fileTypeFor: 'File type for {{name}}',
+  openCreated: 'Open created file',
+  saving: 'Saving…',
+  retry: 'Retry',
+  createAndAttach: 'Create and attach',
+  attachFile: 'Attach file',
+  sessionChanged:
+    'Your account or team changed. Close this dialog and reopen it in the original team to finish.',
+  partialSaveFailed:
+    'The file was created, but attaching it or saving its type failed. Retry to finish with the same file.',
+  attachFailed:
+    'Could not attach this file or save its type. Check that you can edit the file, then retry.',
+  fileTypes: 'File types',
+  manageDescription:
+    'Team members can manage these types. Renaming a type updates its label everywhere. Removing a type leaves its files unclassified.',
+  saveTypesFailed:
+    'Could not save file types. Names must be unique. Please retry.',
+  newFileType: 'New file type',
+  add: 'Add',
+  done: 'Done',
+  renameType: 'Rename {{name}}',
+  save: 'Save',
+  remove: 'Remove',
+  confirmRemove: 'Leave all {{name}} files unclassified?',
+  removeType: 'Remove type',
+};

@@ -19,7 +19,9 @@ export function createFileAttachment(
   };
   const [createdId, setCreatedId] = createSignal<string>();
   const [pending, setPending] = createSignal(false);
-  const [error, setError] = createSignal('');
+  const [error, setError] = createSignal<
+    'sessionChanged' | 'partialSaveFailed' | 'attachFailed'
+  >();
   async function save(input: {
     name: string;
     documentId?: string;
@@ -27,7 +29,7 @@ export function createFileAttachment(
   }) {
     if (pending()) return false;
     setPending(true);
-    setError('');
+    setError(undefined);
     const result = await catchToResult(() =>
       Telemetry.span('crm.file.save', async (span) => {
         span.setAttr('crm.record.id', record.id);
@@ -50,10 +52,10 @@ export function createFileAttachment(
     if (result.isErr()) {
       setError(
         source.sessionKey() !== session
-          ? 'Your account or team changed. Close this dialog and reopen it in the original team to finish.'
+          ? 'sessionChanged'
           : createdId()
-            ? 'The file was created, but attaching it or saving its type failed. Retry to finish with the same file.'
-            : 'Could not attach this file or save its type. Check that you can edit the file, then retry.'
+            ? 'partialSaveFailed'
+            : 'attachFailed'
       );
       return false;
     }

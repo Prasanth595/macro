@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Button, Dialog, Input, Panel, Tabs } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
@@ -41,15 +42,14 @@ export function AttachFileDialog(props: {
         <Panel.Body>
           <div class="flex flex-col gap-4 p-5">
             <Dialog.Title class="text-base font-semibold">
-              Add file
+              {t('crmFiles.addFile')}
             </Dialog.Title>
             <Dialog.Description class="text-sm text-ink-muted">
-              Link a file you can edit. Its access stays the same, and its type
-              is shared across records.
+              {t('crmFiles.attachDescription')}
             </Dialog.Description>
             <Show when={!editor.createdId()}>
               <Tabs<'attach' | 'create'>
-                aria-label="Add file mode"
+                aria-label={t('crmFiles.addFileMode')}
                 disabled={editor.pending()}
                 value={mode()}
                 onChange={(value) => {
@@ -58,14 +58,22 @@ export function AttachFileDialog(props: {
                   setName('');
                 }}
                 options={[
-                  { value: 'attach', label: 'Existing file' },
-                  { value: 'create', label: 'New note' },
+                  { value: 'attach', label: t('crmFiles.existingFile') },
+                  { value: 'create', label: t('crmFiles.newNote') },
                 ]}
               />
             </Show>
             <Input
-              aria-label={mode() === 'create' ? 'File name' : 'Find a file'}
-              placeholder={mode() === 'create' ? 'File name' : 'Find a file…'}
+              aria-label={
+                mode() === 'create'
+                  ? t('crmFiles.fileName')
+                  : t('crmFiles.findFile')
+              }
+              placeholder={
+                mode() === 'create'
+                  ? t('crmFiles.fileName')
+                  : t('crmFiles.findFilePlaceholder')
+              }
               value={name()}
               onInput={(event) => {
                 setName(event.currentTarget.value);
@@ -75,7 +83,10 @@ export function AttachFileDialog(props: {
               disabled={editor.pending() || !!editor.createdId()}
             />
             <Show when={mode() === 'attach'}>
-              <div class="max-h-60 overflow-auto" aria-label="Files to attach">
+              <div
+                class="max-h-60 overflow-auto"
+                aria-label={t('crmFiles.filesToAttach')}
+              >
                 <For each={candidates.files().slice(0, visibleCount())}>
                   {(file) => (
                     <Button
@@ -91,7 +102,7 @@ export function AttachFileDialog(props: {
                 </For>
                 <Show when={candidates.error()}>
                   <p role="alert" class="p-3 text-sm text-failure">
-                    Couldn’t load files.
+                    {t('crmFiles.loadFailed')}
                   </p>
                 </Show>
                 <Show
@@ -109,20 +120,20 @@ export function AttachFileDialog(props: {
                       else fireAndForget(candidates.loadMore(), 'crm-files');
                     }}
                   >
-                    More files
+                    {t('crmFiles.moreFiles')}
                   </Button>
                 </Show>
                 <Show when={candidates.files().length === 0}>
                   <p class="p-3 text-sm text-ink-muted">
                     {candidates.pending()
-                      ? 'Loading files…'
-                      : 'No matching files.'}
+                      ? t('crmFiles.loadingFiles')
+                      : t('crmFiles.noMatchingFiles')}
                   </p>
                 </Show>
               </div>
               <Show when={selected() && !editable()}>
                 <p class="text-sm text-ink-muted">
-                  Edit access to the source file is required.
+                  {t('crmFiles.editRequired')}
                 </p>
               </Show>
             </Show>
@@ -131,14 +142,18 @@ export function AttachFileDialog(props: {
               value={typeId()}
               onChange={setTypeId}
               emptyLabel={
-                mode() === 'attach' ? 'Keep current type' : 'Unclassified'
+                mode() === 'attach'
+                  ? t('crmFiles.keepType')
+                  : t('crmFiles.unclassified')
               }
               disabled={editor.pending()}
             />
             <Show when={editor.error()}>
-              <p role="alert" class="text-sm text-failure">
-                {editor.error()}
-              </p>
+              {(error) => (
+                <p role="alert" class="text-sm text-failure">
+                  {t(`crmFiles.${error()}`)}
+                </p>
+              )}
             </Show>
             <Show when={editor.createdId()}>
               {(id) => (
@@ -146,7 +161,7 @@ export function AttachFileDialog(props: {
                   variant="ghost"
                   onClick={() => props.onOpenCreated(id())}
                 >
-                  Open created file
+                  {t('crmFiles.openCreated')}
                 </Button>
               )}
             </Show>
@@ -156,19 +171,19 @@ export function AttachFileDialog(props: {
                 disabled={editor.pending()}
                 onClick={props.onClose}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 disabled={editor.pending() || !enabled()}
                 onClick={() => fireAndForget(save(), 'crm-files')}
               >
                 {editor.pending()
-                  ? 'Saving…'
+                  ? t('crmFiles.saving')
                   : editor.createdId()
-                    ? 'Retry'
+                    ? t('crmFiles.retry')
                     : mode() === 'create'
-                      ? 'Create and attach'
-                      : 'Attach file'}
+                      ? t('crmFiles.createAndAttach')
+                      : t('crmFiles.attachFile')}
               </Button>
             </div>
           </div>

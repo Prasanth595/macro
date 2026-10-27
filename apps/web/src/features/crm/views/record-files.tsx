@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { catchToResult } from '@core/util/result';
 import type { EntityData } from '@entity';
@@ -195,9 +196,11 @@ function FileTypeEditor(props: {
       <FileTypeSelect
         options={props.source.data()?.options ?? []}
         value={value() ?? null}
-        emptyLabel={value() === undefined ? 'Type unavailable' : undefined}
+        emptyLabel={
+          value() === undefined ? t('crmFiles.unavailable') : undefined
+        }
         disabled={!editable() || pending() || value() === undefined}
-        label={`File type for ${props.entity.name}`}
+        label={t('crmFiles.fileTypeFor', { name: props.entity.name })}
         onChange={(value) => fireAndForget(save(value), 'crm-files')}
       />
       <Show when={error()}>

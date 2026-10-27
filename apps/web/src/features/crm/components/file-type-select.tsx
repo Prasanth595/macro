@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { Select } from '@ui';
 import { createMemo } from 'solid-js';
 import type { FileTypeOption } from '../core/file-types';
@@ -13,7 +14,7 @@ export function FileTypeSelect(props: {
   label?: string;
 }) {
   const options = createMemo(() => [
-    { id: UNCLASSIFIED, name: props.emptyLabel ?? 'Unclassified' },
+    { id: UNCLASSIFIED, name: props.emptyLabel ?? t('crmFiles.unclassified') },
     ...props.options,
   ]);
   return (
@@ -36,7 +37,7 @@ export function FileTypeSelect(props: {
         </Select.Item>
       )}
     >
-      <Select.Trigger aria-label={props.label ?? 'File type'}>
+      <Select.Trigger aria-label={props.label ?? t('crmFiles.fileType')}>
         <Select.Value<FileTypeOption>>
           {(state) => state.selectedOption().name}
         </Select.Value>
