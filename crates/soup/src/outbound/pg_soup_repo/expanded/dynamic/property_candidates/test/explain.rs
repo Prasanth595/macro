@@ -100,7 +100,7 @@ async fn property_date_query_explain_local(db: PgPool) -> anyhow::Result<()> {
             .fetch_one(&mut *connection)
             .await?;
         let plan: serde_json::Value = row.try_get(0)?;
-        println!("{label}: {plan}");
+        println!("\n{label}: {plan}");
         if label == "initial" {
             let page = select(&db, request).await?;
             assert!(page.groups[0].total_count >= 100_000);

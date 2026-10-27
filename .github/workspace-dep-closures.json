@@ -164,6 +164,7 @@
       "crates/models_databases",
       "crates/models_email",
       "crates/models_entity_access_management",
+      "crates/models_grouping",
       "crates/models_pagination",
       "crates/models_permissions",
       "crates/models_properties",
