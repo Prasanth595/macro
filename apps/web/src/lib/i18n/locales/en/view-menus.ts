@@ -114,4 +114,12 @@ export default {
   only: 'Only',
   startedFrom: 'Started from {{origin}}',
   personal: 'Personal',
+  savedViews: 'Saved views',
+  newSavedView: 'New saved view',
+  savedTaskViews: 'Saved task views',
+  newViewDraft: 'New view, draft',
+  newView: 'New view',
+  draft: 'Draft',
+  sharedWithTeam: '{{name}}, shared with team',
+  viewActions: 'Actions for {{name}}',
 };

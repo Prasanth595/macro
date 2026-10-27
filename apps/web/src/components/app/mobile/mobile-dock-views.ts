@@ -9,15 +9,24 @@ import {
   enableWhatsappLinked,
 } from '@core/constant/featureFlags';
 import BellFillIcon from '@icon/system/fill/bell-fill.svg';
-import CalendarFillIcon from '@icon/system/fill/calendar-fill.svg';
+import BuildingsFillIcon from '@icon/system/fill/buildings-fill.svg';
+import CalendarBlankFillIcon from '@icon/system/fill/calendar-blank-fill.svg';
 import ChatsCircleFillIcon from '@icon/system/fill/chats-circle-fill.svg';
 import EmailFillIcon from '@icon/system/fill/envelope-fill.svg';
-import FilesFillIcon from '@icon/system/fill/files-fill.svg';
+import FolderSimpleFillIcon from '@icon/system/fill/folder-simple-fill.svg';
+import GitPullRequestFillIcon from '@icon/system/fill/git-pull-request-fill.svg';
+import ListChecksFillIcon from '@icon/system/fill/list-checks-fill.svg';
+import PhoneCallFillIcon from '@icon/system/fill/phone-call-fill.svg';
+import AgentFillIcon from '@icon/system/fill/sparkle-fill.svg';
 import BellIcon from '@icon/system/regular/bell.svg';
+import BuildingsIcon from '@icon/system/regular/buildings.svg';
+import CalendarBlankIcon from '@icon/system/regular/calendar-blank.svg';
 import CalendarCheckIcon from '@icon/system/regular/calendar-check.svg';
 import ChatsCircleIcon from '@icon/system/regular/chats-circle.svg';
+import FolderSimpleIcon from '@icon/system/regular/folder-simple.svg';
 import GitPullRequestIcon from '@icon/system/regular/git-pull-request.svg';
 import PlugIcon from '@icon/system/regular/plug.svg';
+import PlugFillIcon from '@phosphor-fill/plug-fill.svg';
 import { createMemo } from 'solid-js';
 import type { MobileDockIcon } from './MobileDockButton';
 import type { MobileNavViewId } from './mobile-nav-views';
@@ -48,8 +57,8 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
     get label() {
       return t('nav.calendar');
     },
-    icon: getIconConfig('calendar').icon,
-    iconActive: CalendarFillIcon,
+    icon: CalendarBlankIcon,
+    iconActive: CalendarBlankFillIcon,
   },
   {
     id: 'mail',
@@ -73,14 +82,15 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
       return t('nav.agents');
     },
     icon: getIconConfig('agent').icon,
+    iconActive: AgentFillIcon,
   },
   {
     id: 'documents',
     get label() {
       return t('nav.files');
     },
-    icon: getIconConfig('files').icon,
-    iconActive: FilesFillIcon,
+    icon: FolderSimpleIcon,
+    iconActive: FolderSimpleFillIcon,
   },
   {
     id: 'tasks',
@@ -88,6 +98,7 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
       return t('nav.tasks');
     },
     icon: getIconConfig('task').icon,
+    iconActive: ListChecksFillIcon,
   },
   {
     id: 'calls',
@@ -95,13 +106,15 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
       return t('nav.calls');
     },
     icon: getIconConfig('call').icon,
+    iconActive: PhoneCallFillIcon,
   },
   {
     id: 'companies',
     get label() {
-      return t('mobile.crm');
+      return t('nav.customers');
     },
-    icon: getIconConfig('company').icon,
+    icon: BuildingsIcon,
+    iconActive: BuildingsFillIcon,
   },
   {
     id: 'reviews',
@@ -109,6 +122,7 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
       return t('nav.reviews');
     },
     icon: GitPullRequestIcon,
+    iconActive: GitPullRequestFillIcon,
   },
   {
     id: 'booking-links',
@@ -123,6 +137,7 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
       return t('nav.external');
     },
     icon: PlugIcon,
+    iconActive: PlugFillIcon,
   },
 ];
 
