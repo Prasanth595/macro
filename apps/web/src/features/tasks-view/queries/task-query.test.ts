@@ -187,7 +187,11 @@ it('negates date presence and keeps due sorting out of scoped text search', () =
   });
   expect(query.body.propf).toEqual({
     '!': {
-      l: { pd: '00000001-0000-0000-0000-000000000004', et: 'TASK', v: 'dp' },
+      l: {
+        pd: '00000001-0000-0000-0000-000000000004',
+        et: 'TASK',
+        v: { dr: {} },
+      },
     },
   });
   expect(query.params.sort_method).toBe('updated_at');

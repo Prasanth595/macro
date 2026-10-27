@@ -387,7 +387,7 @@ async fn grouped_pages_match_bound_id_sets(pool: PgPool) -> anyhow::Result<()> {
             Expr::is_not(any_of(&among_absent(&[IN_D], 2))),
         )
     };
-    let by_status = vec![("", IN_A), (IN_PROGRESS, IN_C)];
+    let by_status = vec![(IN_PROGRESS, IN_C), ("", IN_A)];
     for (label, field, filter, arrays, expected) in [
         // The entity type takes `$10`, the arrays `$11` and `$12`.
         (

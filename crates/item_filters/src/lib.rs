@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
 pub mod ast;
-pub mod sql;
 
 /// Fields that can be searched on in search queries
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, EnumString, Display, PartialEq, Default)]
@@ -679,10 +678,10 @@ pub struct PropertyFilter {
     /// Entity reference IDs to match. Multiple values are OR'd together.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entity_ids: Vec<String>,
-    /// UTC range with inclusive start and exclusive end.
+    /// UTC range for Soup/search: inclusive start, exclusive end; both open matches any date.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub date_range: Option<ast::properties::DateRange>,
-    /// True matches non-null dates; false matches missing or cleared dates.
+    /// Flat Soup/search presence filter: true expands to an open date range, false to its negation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub has_date: Option<bool>,
 }

@@ -4677,10 +4677,6 @@ input GraphqlFilterPropertyMatchValue @oneOf {
 	Match a DATE property in a UTC range.
 	"""
 	dateRange: GraphqlPropertyDateRange
-	"""
-	Match a non-null DATE property (false matches absent, null or cleared).
-	"""
-	hasDate: Boolean
 }
 
 """
@@ -6132,6 +6128,7 @@ type GraphqlProperty {
 
 """
 Transform the selected DATE property into caller-defined ranges.
+Non-DATE values use the missing-value bucket.
 """
 input GraphqlPropertyBucketing {
 	"""
@@ -7043,7 +7040,8 @@ enum GraphqlSimpleSortMethod {
 	"""
 	NOTIFIED_AT
 	"""
-	Sort by the selected numeric property in the requested direction, missing last.
+	Sort by the selected property key, missing last, then newest update and ID.
+	Missing definitions and unsupported types use update-time ordering.
 	Email, channels, calls, companies, and agent sessions never appear.
 	"""
 	PROPERTY
@@ -7242,6 +7240,10 @@ type GraphqlSoupBin {
 	Total number of items in this group across all pages.
 	"""
 	totalCount: Int!
+	"""
+	Stored option order or calendar bucket order, when available.
+	"""
+	displayOrder: Int
 	"""
 	Opaque cursor for the next page in this bin, if one exists.
 	"""

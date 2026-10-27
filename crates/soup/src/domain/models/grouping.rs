@@ -126,7 +126,7 @@ pub fn build_grouped_response(
                 last_cursor_val: None,
                 last_index: 0,
                 label: Some(label),
-                display_order,
+                display_order: grouped_item.display_order.or(display_order),
             }
         });
         entry.item_ids.push(item_id);
@@ -297,8 +297,10 @@ pub struct ItemGroupingInfo<T = (), Bin = String> {
     pub total_group_count: usize,
     /// The item's position within its bin.
     pub index_in_group: usize,
-    /// Signed numeric key read with the item.
+    /// Numeric key read with the item.
     pub sort_key: Option<f64>,
+    /// Stored option rank, when grouping by selectable values.
+    pub display_order: Option<i32>,
     /// Server facts carried through grouped enrichment.
     pub document_server_facts: Option<SoupDocumentServerFacts>,
     /// The Soup item.

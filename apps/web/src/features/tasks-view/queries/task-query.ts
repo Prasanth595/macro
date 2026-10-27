@@ -64,7 +64,7 @@ const propertyScope = (
       l: {
         pd: SYSTEM_PROPERTY_IDS.DUE_DATE,
         et: 'TASK',
-        v: 'dateRange' in dueDate ? { dr: dueDate.dateRange } : 'dp',
+        v: { dr: 'dateRange' in dueDate ? dueDate.dateRange : {} },
       },
     };
     groups.push(

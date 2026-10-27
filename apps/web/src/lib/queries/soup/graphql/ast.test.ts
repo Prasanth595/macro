@@ -592,7 +592,9 @@ it('maps open-ended property date ranges and explicit no-date negation', () => {
   const missing = makeGraphqlSoupInput({
     params: {},
     body: {
-      propf: { '!': { l: { pd: propertyDefinitionId, et: 'TASK', v: 'dp' } } },
+      propf: {
+        '!': { l: { pd: propertyDefinitionId, et: 'TASK', v: { dr: {} } } },
+      },
     },
   });
   expect(missing).toMatchObject({
@@ -603,19 +605,25 @@ it('maps open-ended property date ranges and explicit no-date negation', () => {
             literal: {
               propertyDefinitionId,
               entityType: 'TASK',
-              value: { hasDate: true },
+              value: { dateRange: {} },
             },
           },
         },
       },
     },
   });
-  expect(() =>
+  expect(
     makeGraphqlSoupInput({
       params: {},
       body: { propf: { l: { pd: propertyDefinitionId, v: { dr: {} } } } },
     })
-  ).toThrow('date range requires at least one bound');
+  ).toMatchObject({
+    initial: {
+      filters: {
+        propertiesFilter: { literal: { value: { dateRange: {} } } },
+      },
+    },
+  });
 });
 
 it.each([

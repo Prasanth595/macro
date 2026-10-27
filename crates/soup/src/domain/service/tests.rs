@@ -1,4 +1,3 @@
-mod date_ranges;
 use crate::domain::models::{NotifiedEntity, TouchedEntity};
 use crate::domain::ports::MockSoupRepo;
 use channels::domain::{
@@ -1419,6 +1418,7 @@ async fn grouped_properties_are_populated_by_the_service() {
             Box::pin(async move {
                 Ok(vec![ItemGroupingInfo {
                     sort_key: None,
+                    display_order: None,
                     document_server_facts: None,
                     item: SoupItem::Document(soup_document("grouped-document")),
                     key: "document".to_string(),

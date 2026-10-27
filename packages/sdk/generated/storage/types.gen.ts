@@ -11411,7 +11411,7 @@ export type PropertyFilter = {
      */
     entity_type?: string | null;
     /**
-     * True matches non-null dates; false matches missing or cleared dates.
+     * Flat Soup/search presence filter: true expands to an open date range, false to its negation.
      */
     has_date?: boolean | null;
     /**
@@ -22851,8 +22851,8 @@ export type GetItemsSoupData = {
          */
         limit?: number;
         /**
-         * Sort method. Includes timestamp sorts, relevance sorts, and
-         * property with a selected DATE, NUMBER, BOOLEAN, SELECT or TAG definition.
+         * Sort method. Property ordering supports DATE, NUMBER, BOOLEAN, SELECT and TAG.
+         * Missing definitions, unsupported types, and mismatched values sort as missing.
          * Property sorts omit email, channels, calls, companies, and agent sessions.
          * Defaults to viewed_at.
          */
@@ -22864,12 +22864,9 @@ export type GetItemsSoupData = {
         /**
          * Sort direction. Options are asc, desc. Defaults to desc.
          *
-         * Re-send this with every page: it is not carried in the cursor.
-         *
-         * Applies to the timestamp sort methods only. `asc` combined with
-         * `frecency` is rejected rather than ignored: frecency pages are ordered
-         * by relevance score and the cursor comparison assumes descending, so
-         * there is no ascending frecency order to give.
+         * Timestamp sorts require this parameter again on each page. Property
+         * cursors preserve their direction and always put missing values last.
+         * Ascending frecency, touched-by-me, and notified-at sorts are unsupported.
          */
         sort_direction?: SoupApiSortDirection;
         /**

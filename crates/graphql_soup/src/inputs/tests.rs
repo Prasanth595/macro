@@ -259,6 +259,26 @@ fn invalid_date_range_timestamps_are_rejected() {
 }
 
 #[test]
+fn invalid_date_buckets_are_rejected_during_input_conversion() {
+    let mut empty = date_range_input();
+    empty.bucketing.as_mut().unwrap().ranges.clear();
+    assert!(empty.into_group_by_field().is_err());
+
+    let mut overlapping = date_range_input();
+    overlapping.bucketing.as_mut().unwrap().ranges[1].start =
+        Some("2026-03-07T05:00:00Z".to_owned());
+    assert!(overlapping.into_group_by_field().is_err());
+
+    let mut duplicate_key = date_range_input();
+    duplicate_key
+        .bucketing
+        .as_mut()
+        .unwrap()
+        .missing_value_bucket_key = "before-review".to_owned();
+    assert!(duplicate_key.into_group_by_field().is_err());
+}
+
+#[test]
 fn date_range_grouping_preserves_custom_keys_and_timestamp_sorting() {
     let request = GroupedSoupInput::Initial(Box::new(GroupedSoupInitialInput {
         sort_property_definition_id: None,

@@ -726,7 +726,6 @@ function mapPropertiesLiteral(literal: unknown): GraphqlPropertiesLiteralInput {
     unsupported(`property entity type ${literal.et}`);
   const property = { propertyDefinitionId, ...(entityType && { entityType }) };
   const value = literal.v;
-  if (value === 'dp') return { ...property, value: { hasDate: true } };
   if (!isRecord(value)) unsupported('expected property value matcher object');
 
   if (typeof value.so === 'string') {
@@ -744,11 +743,10 @@ function mapPropertiesLiteral(literal: unknown): GraphqlPropertiesLiteralInput {
       value.dr.end == null
         ? undefined
         : mapString(value.dr.end, 'dateRange.end');
-    if (!start && !end) unsupported('date range requires at least one bound');
     return { ...property, value: { dateRange: { start, end } } };
   }
 
-  unsupported('expected property value so, er, dr, or dp');
+  unsupported('expected property value so, er, or dr');
 }
 
 function mapSortDirection(

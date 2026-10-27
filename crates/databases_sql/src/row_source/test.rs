@@ -204,6 +204,7 @@ impl SoupService for ReplaySoup {
             .into_iter()
             .map(|bin| ItemGroupingInfo {
                 sort_key: None,
+                display_order: None,
                 document_server_facts: None,
                 key: match bin.key {
                     None => String::new(),

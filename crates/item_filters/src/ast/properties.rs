@@ -155,12 +155,9 @@ pub enum PropertyMatchValue {
     /// Match an entity reference by entity_id. Uses the `@>` jsonb operator on `values->'value'`.
     #[serde(rename = "er")]
     EntityRef(EntityRefId),
-    /// Match a DATE property within a UTC interval.
+    /// Match a DATE property within a UTC interval; open bounds match any present date.
     #[serde(rename = "dr")]
     DateRange(DateRange),
-    /// Match a non-null DATE property. Negate this literal for missing dates.
-    #[serde(rename = "dp")]
-    DatePresent,
 }
 
 /// A single property-based filter condition for the AST.
@@ -236,7 +233,10 @@ impl ExpandFrame<PropertiesLiteral> for Vec<PropertyFilter> {
                     let literal = Expr::val(PropertiesLiteral {
                         property_definition_id: prop_def_id,
                         entity_type,
-                        value: PropertyMatchValue::DatePresent,
+                        value: PropertyMatchValue::DateRange(DateRange {
+                            start: None,
+                            end: None,
+                        }),
                     });
                     if has_date {
                         literal

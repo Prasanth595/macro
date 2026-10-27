@@ -7,6 +7,8 @@ import { PROPERTY_OPTION_IDS } from '@property/constants';
 import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
 import { propertySortKey } from '@property/utils/sort';
 import { toPropertyDefinitionDomain } from '@property/utils/transforms';
+import { makeGroupComparator } from '@queries/soup/grouped/api';
+import type { GroupMeta } from '@queries/soup/grouped/types';
 import { describe, expect, it } from 'vitest';
 import { sortTasks } from '../constants';
 import {
@@ -370,6 +372,15 @@ describe('property sorting', () => {
     ]);
     // Multi-select uses the lowest option order, not the highest.
     expect(propertySortKey(high, definition.options)).toBe(0);
+    expect(
+      propertySortKey(
+        high,
+        definition.options?.map((option) => ({
+          ...option,
+          property_definition_id: 'another-definition',
+        }))
+      )
+    ).toBeUndefined();
     const second = boardProperty(
       id,
       { type: 'SelectOption', value: ['custom-second'] },
@@ -389,5 +400,44 @@ describe('property sorting', () => {
         (row) => row.id
       )
     ).toEqual(['a', 'b', 'missing']);
+  });
+
+  it('uses server option display order for groups and leaves missing values last', () => {
+    for (const propertyDefinitionId of [
+      SYSTEM_PROPERTY_IDS.STATUS,
+      SYSTEM_PROPERTY_IDS.PRIORITY,
+    ]) {
+      const groups: GroupMeta[] = [
+        {
+          key: '',
+          label: 'Not Set',
+          displayOrder: null,
+          itemIds: [],
+          totalCount: 0,
+          nextCursor: null,
+        },
+        {
+          key: 'later',
+          label: 'A',
+          displayOrder: 3,
+          itemIds: [],
+          totalCount: 0,
+          nextCursor: null,
+        },
+        {
+          key: 'earlier',
+          label: 'Z',
+          displayOrder: 0,
+          itemIds: [],
+          totalCount: 0,
+          nextCursor: null,
+        },
+      ];
+      expect(
+        groups
+          .sort(makeGroupComparator({ type: 'property', propertyDefinitionId }))
+          .map((group) => group.key)
+      ).toEqual(['earlier', 'later', '']);
+    }
   });
 });

@@ -60,7 +60,11 @@ impl DynamicSort {
     pub fn position(self, key: Option<f64>, timestamp: DateTime<Utc>) -> DynamicSortValue {
         match self {
             Self::Timestamp(_) => DynamicSortValue::Timestamp(timestamp),
-            Self::Property { .. } => DynamicSortValue::Property { key, timestamp },
+            Self::Property { direction, .. } => DynamicSortValue::Property {
+                key: key.map(PropertySortKey::Number),
+                timestamp,
+                direction,
+            },
         }
     }
 }
@@ -69,18 +73,27 @@ impl Sortable for DynamicSort {
     type Value = DynamicSortValue;
 }
 
+/// The key type of a property sort cursor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PropertySortKey {
+    /// A numeric key, including dates as epoch microseconds and option ranks.
+    Number(f64),
+}
+
 /// A timestamp cursor retains its old string encoding; property cursors add a key.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DynamicSortValue {
     /// Position in an ordinary timestamp query.
     Timestamp(DateTime<Utc>),
-    /// Signed numeric property key and its update-time tie breaker.
+    /// Typed property key and its update-time tie breaker.
     Property {
-        /// Null represents SQL negative infinity, so missing values sort last.
-        key: Option<f64>,
+        /// A missing key sorts after every present key.
+        key: Option<PropertySortKey>,
         /// Update timestamp for deterministic ties.
         timestamp: DateTime<Utc>,
+        /// Property sort direction.
+        direction: SoupSortDirection,
     },
 }
 
@@ -93,11 +106,13 @@ impl DynamicSortValue {
         }
     }
 
-    /// Signed numeric key; ordinary timestamp queries use zero.
+    /// Numeric key for the SQL keyset; ordinary timestamp queries use zero.
     pub fn key(&self) -> Option<f64> {
         match self {
             Self::Timestamp(_) => Some(0.0),
-            Self::Property { key, .. } => *key,
+            Self::Property { key, .. } => key.as_ref().map(|key| match key {
+                PropertySortKey::Number(number) => *number,
+            }),
         }
     }
 }
@@ -115,9 +130,41 @@ impl PartialOrd for DynamicSortValue {
 }
 impl Ord for DynamicSortValue {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.key()
-            .unwrap_or(f64::NEG_INFINITY)
-            .total_cmp(&other.key().unwrap_or(f64::NEG_INFINITY))
-            .then_with(|| self.timestamp().cmp(&other.timestamp()))
+        match (self, other) {
+            (
+                Self::Property {
+                    key: left,
+                    direction,
+                    ..
+                },
+                Self::Property {
+                    key: right,
+                    direction: other_direction,
+                    ..
+                },
+            ) => {
+                if direction != other_direction {
+                    return (*direction == SoupSortDirection::Desc)
+                        .cmp(&(*other_direction == SoupSortDirection::Desc));
+                }
+                match (left, right) {
+                    (Some(PropertySortKey::Number(left)), Some(PropertySortKey::Number(right))) => {
+                        let order = left.total_cmp(right);
+                        if *direction == SoupSortDirection::Asc {
+                            order.reverse()
+                        } else {
+                            order
+                        }
+                    }
+                    (Some(_), None) => Ordering::Greater,
+                    (None, Some(_)) => Ordering::Less,
+                    (None, None) => Ordering::Equal,
+                }
+            }
+            (Self::Timestamp(left), Self::Timestamp(right)) => left.cmp(right),
+            (Self::Timestamp(_), Self::Property { .. }) => Ordering::Less,
+            (Self::Property { .. }, Self::Timestamp(_)) => Ordering::Greater,
+        }
+        .then_with(|| self.timestamp().cmp(&other.timestamp()))
     }
 }

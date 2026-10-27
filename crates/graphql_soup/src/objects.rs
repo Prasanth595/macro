@@ -227,6 +227,7 @@ impl<E: SoupEntityEdges> GroupedSoup<E> {
                 .map(|(key, bin)| GraphqlSoupBin {
                     key,
                     total_count: bin.group_total_size(),
+                    display_order: None,
                     next_cursor: bin.next_cursor().map(ToOwned::to_owned),
                     items: bin
                         .into_items()
@@ -246,6 +247,7 @@ impl<E: SoupEntityEdges> GroupedSoup<E> {
                 .map(|group| GraphqlSoupBin {
                     key: group.key,
                     total_count: group.total_count as usize,
+                    display_order: group.display_order,
                     next_cursor: group.next_cursor,
                     items: group
                         .item_ids
@@ -277,6 +279,8 @@ pub struct GraphqlSoupBin<E: SoupEntityEdges> {
     key: String,
     /// Total number of items in this group across all pages.
     total_count: usize,
+    /// Stored option order or calendar bucket order, when available.
+    display_order: Option<i32>,
     /// Opaque cursor for the next page in this bin, if one exists.
     next_cursor: Option<String>,
     /// Items in this bin, ordered by their index within the group.

@@ -29,16 +29,17 @@ fn open_date_ranges_materialize_without_invented_boundaries() {
 
 #[test]
 fn document_missing_dates_preserve_negation() {
-    let ast = materialize_graphql_filter(json!({"documentFilter": {"literal": {"property": {
-        "propertyDefinitionId": "00000001-0000-0000-0000-000000000004",
-        "value": {"hasDate": false}
-    }}}}))
-    .unwrap();
+    let ast =
+        materialize_graphql_filter(json!({"documentFilter": {"not": {"literal": {"property": {
+            "propertyDefinitionId": "00000001-0000-0000-0000-000000000004",
+            "value": {"dateRange": {}}
+        }}}}}))
+        .unwrap();
     assert!(matches!(
         ast.document_filter.as_deref(),
         Some(Expr::Not(inner)) if matches!(inner.as_ref(),
             Expr::Literal(DocumentLiteral::Property(PropertiesLiteral {
-                value: PropertyMatchValue::DatePresent, ..
+                value: PropertyMatchValue::DateRange(item_filters::ast::properties::DateRange { start: None, end: None }), ..
             }))
         )
     ));

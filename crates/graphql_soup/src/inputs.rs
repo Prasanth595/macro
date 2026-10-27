@@ -454,7 +454,8 @@ pub enum GraphqlSimpleSortMethod {
     /// Only entities the caller holds a live notification for, most recently
     /// notified first. Descending `soup` only; not supported by `groupSoup`.
     NotifiedAt,
-    /// Sort by the selected numeric property in the requested direction, missing last.
+    /// Sort by the selected property key, missing last, then newest update and ID.
+    /// Missing definitions and unsupported types use update-time ordering.
     /// Email, channels, calls, companies, and agent sessions never appear.
     Property,
 }

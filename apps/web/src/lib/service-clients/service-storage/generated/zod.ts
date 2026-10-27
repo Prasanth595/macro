@@ -24485,7 +24485,7 @@ export const getItemsSoupQueryParams = zod.object({
     ])
     .optional()
     .describe(
-      'Sort method. Includes timestamp sorts, relevance sorts, and\nproperty with a selected DATE, NUMBER, BOOLEAN, SELECT or TAG definition.\nProperty sorts omit email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at.'
+      'Sort method. Property ordering supports DATE, NUMBER, BOOLEAN, SELECT and TAG.\nMissing definitions, unsupported types, and mismatched values sort as missing.\nProperty sorts omit email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at.'
     ),
   sort_property_definition_id: zod
     .uuid()
@@ -24495,7 +24495,7 @@ export const getItemsSoupQueryParams = zod.object({
     .enum(['asc', 'desc'])
     .optional()
     .describe(
-      'Sort direction. Options are asc, desc. Defaults to desc.\n\nRe-send this with every page: it is not carried in the cursor.\n\nApplies to the timestamp sort methods only. `asc` combined with\n`frecency` is rejected rather than ignored: frecency pages are ordered\nby relevance score and the cursor comparison assumes descending, so\nthere is no ascending frecency order to give.'
+      'Sort direction. Options are asc, desc. Defaults to desc.\n\nTimestamp sorts require this parameter again on each page. Property\ncursors preserve their direction and always put missing values last.\nAscending frecency, touched-by-me, and notified-at sorts are unsupported.'
     ),
   cursor: zod.string().optional().describe('Base64 encoded cursor value.'),
 });
@@ -29099,7 +29099,7 @@ export const postItemsSoupBody = zod
               .boolean()
               .nullish()
               .describe(
-                'True matches non-null dates; false matches missing or cleared dates.'
+                'Flat Soup\/search presence filter: true expands to an open date range, false to its negation.'
               ),
             option_ids: zod
               .array(zod.string())

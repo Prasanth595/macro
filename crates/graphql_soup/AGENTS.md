@@ -20,7 +20,7 @@ viewer pattern), which apply to every type defined here.
   caller-defined half-open UTC `ranges`, and `missingValueBucketKey`; client query
   keys restart pagination when ranges change.
 - Use `PROPERTY`, `sortPropertyDefinitionId`, and `sortDirection` for numeric property sorting through ordinary Soup requests; preserve timestamp cursor decoding.
-- Property sorts and date-range groups omit email, channels, calls, companies, and agent sessions; authorize selected definitions in the Soup domain.
+- Property sorts and date-range groups use source-owned item access gates without a separate property-definition check; validate ranges during input conversion.
 - `NOTIFIED_AT` maps to Soup's notified request, not a simple sort: `soup`
   accepts it descending only and `groupSoup` rejects it. Its continuation
   cursors carry their own sort tag and string identifiers, separate from timestamp and selected-property cursors.

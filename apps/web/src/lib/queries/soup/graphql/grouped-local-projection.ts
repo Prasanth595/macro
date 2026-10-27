@@ -157,6 +157,9 @@ export function projectLocalGroupedSoup(
   now: Date,
   untrustedKeys: ReadonlySet<string> = new Set()
 ): GroupedSoupBin[] {
+  const displayOrders = new Map(
+    baseline.map((bin) => [bin.key, bin.displayOrder])
+  );
   const original = new Map(
     baseline.flatMap((bin) =>
       bin.items.map((item) => [soupItemKey(item), item] as const)
@@ -206,6 +209,7 @@ export function projectLocalGroupedSoup(
   );
   return bins.map((bin) => ({
     key: bin.key,
+    displayOrder: displayOrders.get(bin.key) ?? null,
     totalCount: bin.totalCount,
     nextCursor: bin.nextCursor,
     items: bin.itemIds.flatMap((key) => {

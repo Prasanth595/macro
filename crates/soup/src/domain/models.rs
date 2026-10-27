@@ -1358,9 +1358,6 @@ pub enum SoupErr {
     /// Soup repository query failed.
     #[error(transparent)]
     SoupDbErr(#[from] anyhow::Error),
-    /// Selected property definition is inaccessible or unsuitable for the query.
-    #[error(transparent)]
-    PropertyQuery(#[from] properties::PropertiesErr),
     /// Email preview lookup failed.
     #[error(transparent)]
     EmailErr(#[from] email::domain::models::EmailErr),

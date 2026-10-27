@@ -269,15 +269,7 @@ impl GraphqlFilterPropertiesLiteral {
 
 impl IntoFilterExpr<PropertiesLiteral> for GraphqlFilterPropertiesLiteral {
     fn into_expr(self) -> InputResult<Expr<PropertiesLiteral>> {
-        let missing_date = matches!(self.value, GraphqlFilterPropertyMatchValue::HasDate(false));
-        self.into_literal().map(|literal| {
-            let expr = Expr::val(literal);
-            if missing_date {
-                Expr::is_not(expr)
-            } else {
-                expr
-            }
-        })
+        self.into_literal().map(Expr::val)
     }
 }
 
@@ -292,8 +284,6 @@ enum GraphqlFilterPropertyMatchValue {
     EntityRef(ID),
     /// Match a DATE property in a UTC range.
     DateRange(GraphqlPropertyDateRange),
-    /// Match a non-null DATE property (false matches absent, null or cleared).
-    HasDate(bool),
 }
 
 /// Explicit UTC bounds for a DATE property.
@@ -336,7 +326,6 @@ impl GraphqlFilterPropertyMatchValue {
                         .map(|value| value.with_timezone(&Utc)),
                 })
             }
-            Self::HasDate(_) => PropertyMatchValue::DatePresent,
         })
     }
 }
@@ -803,18 +792,7 @@ impl IntoFilterExpr<DocumentLiteral> for GraphqlDocumentLiteral {
             Self::IsEmailAttachment(value) => DocumentLiteral::IsEmailAttachment(value),
             Self::CreatedAt(date) => DocumentLiteral::CreatedAt(date.into_ast()?),
             Self::UpdatedAt(date) => DocumentLiteral::UpdatedAt(date.into_ast()?),
-            Self::Property(property) => {
-                let missing_date = matches!(
-                    property.value,
-                    GraphqlFilterPropertyMatchValue::HasDate(false)
-                );
-                let expr = Expr::val(DocumentLiteral::Property(property.into_literal()?));
-                return Ok(if missing_date {
-                    Expr::is_not(expr)
-                } else {
-                    expr
-                });
-            }
+            Self::Property(property) => DocumentLiteral::Property(property.into_literal()?),
             Self::EmailAttachmentParticipant(value) => {
                 DocumentLiteral::EmailAttachmentParticipant(value.into_ast()?)
             }

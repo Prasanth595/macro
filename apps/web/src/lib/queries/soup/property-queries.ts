@@ -10,13 +10,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isDateFilter(input: Record<string, unknown>): boolean {
   const value = input.v ?? input.value ?? input;
   return (
-    value === 'dp' ||
-    (isRecord(value) &&
-      (value.dr !== undefined ||
-        value.dateRange !== undefined ||
-        value.date_range !== undefined ||
-        typeof value.hasDate === 'boolean' ||
-        typeof value.has_date === 'boolean'))
+    isRecord(value) &&
+    (value.dr !== undefined ||
+      value.dateRange !== undefined ||
+      value.date_range !== undefined ||
+      typeof value.has_date === 'boolean')
   );
 }
 /** Match request fields, not property IDs occurring in unrelated option filters. */

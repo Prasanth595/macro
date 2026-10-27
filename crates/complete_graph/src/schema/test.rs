@@ -313,6 +313,7 @@ impl SoupService for CountingSoupService {
         Ok(vec![
             soup::domain::models::grouping::ItemGroupingInfo {
                 sort_key: None,
+                display_order: None,
                 document_server_facts: None,
                 key: "document".to_string(),
                 total_group_count: 3,
@@ -321,6 +322,7 @@ impl SoupService for CountingSoupService {
             },
             soup::domain::models::grouping::ItemGroupingInfo {
                 sort_key: None,
+                display_order: None,
                 document_server_facts: None,
                 key: "document".to_string(),
                 total_group_count: 3,

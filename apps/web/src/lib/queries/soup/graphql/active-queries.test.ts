@@ -357,12 +357,14 @@ it('matches selected sort/group definitions and date predicates, not ordinary op
     { groupBy: { type: 'property', propertyDefinitionId: id } },
     { initial: { groupBy: { field: 'PROPERTY', propertyDefinitionId: id } } },
     { params: { group_by: { property: { property_definition_id: id } } } },
-    { propf: { '!': { l: { pd: id, v: 'dp' } } } },
+    { propf: { '!': { l: { pd: id, v: { dr: {} } } } } },
     { propf: { l: { pd: id, v: { dr: { start: '2026-01-01T00:00:00Z' } } } } },
     {
       filters: {
         propertiesFilter: {
-          literal: { propertyDefinitionId: id, value: { hasDate: false } },
+          not: {
+            literal: { propertyDefinitionId: id, value: { dateRange: {} } },
+          },
         },
       },
     },

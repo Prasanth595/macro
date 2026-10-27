@@ -72,16 +72,12 @@ fn grouped_candidate_sort_shape() {
             }
             assert!(candidates.contains("LEFT JOIN document_sub_type dt"));
             assert!(candidates.contains("fa.id IS NULL AND TRUE"));
-            assert!(
-                rest.contains("(sort_key, sort_ts, id::text) < (COALESCE($13::double precision")
-            );
+            assert!(rest.contains("(sort_ts, id::text) < ($4, $5)"));
             assert_eq!(rest.matches("LEFT JOIN \"UserHistory\"").count(), 3);
             assert!(rest.contains("COUNT(*) OVER (PARTITION BY"));
-            assert!(rest.contains("ORDER BY t.sort_key DESC, t.sort_ts DESC, t.id DESC"));
+            assert!(rest.contains("ORDER BY t.sort_ts DESC, t.id DESC"));
             assert!(rest.contains("AND ep.entity_type = $10"));
-            assert!(
-                rest.contains("\"group_key\", \"sort_key\" DESC, \"sort_ts\" DESC, \"id\" DESC")
-            );
+            assert!(rest.contains("\"group_key\", \"sort_ts\" DESC, \"id\" DESC"));
             assert_eq!(sql.ends_with("LIMIT $3"), grouping.group_key.is_some());
             assert_eq!(
                 rest.contains("row_in_group <= 10"),

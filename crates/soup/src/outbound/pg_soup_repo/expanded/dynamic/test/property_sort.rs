@@ -201,6 +201,35 @@ async fn property_sort_flat_and_grouped_pages_preserve_keys_and_missing_values(
                 for direction in [SoupSortDirection::Asc, SoupSortDirection::Desc] {
                     check_pages(&pool, data_type, property_id, direction, 2.0, 1.0).await?;
                 }
+                let option_groups = grouped(
+                    &pool,
+                    Query::Sort(sort(property_id, SoupSortDirection::Asc), documents()),
+                    GroupByField::Property {
+                        property_definition_id: property_id,
+                        entity_type: None,
+                        bucketing: None,
+                    },
+                    None,
+                    10,
+                )
+                .await?;
+                assert_eq!(
+                    option_groups
+                        .iter()
+                        .map(|item| (item.key.as_str(), item.item.id()))
+                        .collect::<Vec<_>>(),
+                    [
+                        (early.to_string(), B),
+                        (middle.to_string(), A),
+                        (late.to_string(), A),
+                        (String::new(), UNSET),
+                        (String::new(), D),
+                        (String::new(), C)
+                    ]
+                    .iter()
+                    .map(|(key, id)| (key.as_str(), *id))
+                    .collect::<Vec<_>>()
+                );
                 continue;
             }
         };
@@ -231,11 +260,6 @@ async fn check_pages(
     } else {
         [B, A, UNSET, D, C]
     };
-    let signed = if direction == SoupSortDirection::Asc {
-        -1.0
-    } else {
-        1.0
-    };
     let selected_sort = sort(property_id, direction);
     let mut cursor = Query::Sort(selected_sort, documents());
     let mut seen = Vec::new();
@@ -247,9 +271,9 @@ async fn check_pages(
         for item in &page {
             let id = item.item.id();
             let key = match id {
-                A => Some(a * signed),
-                B => Some(b * signed),
-                _ => Some(f64::NEG_INFINITY),
+                A => Some(a),
+                B => Some(b),
+                _ => None,
             };
             assert_eq!(item.sort_key, key, "{label} {direction:?} {id}");
             seen.push(id);
@@ -413,5 +437,51 @@ async fn property_date_ranges_keep_full_totals_and_missing_bucket(
         ),
         (D, 3, 2)
     );
+    Ok(())
+}
+
+#[sqlx::test(
+    fixtures(
+        path = "../../../../../../../macro_db_client/fixtures",
+        scripts("mixed_items_expanded")
+    ),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn grouped_property_pages_cross_missing_values_in_both_directions(
+    pool: PgPool,
+) -> anyhow::Result<()> {
+    let property_id = seed_property(
+        &pool,
+        "NUMBER",
+        json!({"type": "Number", "value": 10}),
+        json!({"type": "Number", "value": 20}),
+    )
+    .await?;
+    for (direction, expected) in [
+        (SoupSortDirection::Asc, [A, B, UNSET, D, C]),
+        (SoupSortDirection::Desc, [B, A, UNSET, D, C]),
+    ] {
+        let selected_sort = sort(property_id, direction);
+        let mut cursor = Query::Sort(selected_sort, documents());
+        for (index, id) in expected.into_iter().enumerate() {
+            let page =
+                grouped(&pool, cursor, GroupByField::EntityType, Some("document"), 1).await?;
+            assert_eq!(page.len(), 1);
+            assert_eq!(page[0].item.id(), id);
+            assert_eq!(page[0].index_in_group, index + 1);
+            assert_eq!(page[0].total_group_count, 5);
+            cursor = continuation(
+                id,
+                page[0].sort_key,
+                SoupItem::sort_on(SimpleSortMethod::UpdatedAt)(&page[0].item).last_val,
+                selected_sort,
+            );
+        }
+        assert!(
+            grouped(&pool, cursor, GroupByField::EntityType, Some("document"), 1)
+                .await?
+                .is_empty()
+        );
+    }
     Ok(())
 }

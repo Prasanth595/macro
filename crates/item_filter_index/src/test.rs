@@ -560,7 +560,10 @@ fn crm_associations_use_server_membership() {
 fn date_property_filters_use_server_queries_instead_of_partial_local_matches() {
     use item_filters::ast::properties::DateRange;
     for value in [
-        PropertyMatchValue::DatePresent,
+        PropertyMatchValue::DateRange(DateRange {
+            start: None,
+            end: None,
+        }),
         PropertyMatchValue::DateRange(DateRange {
             start: Some("2026-03-08T05:00:00Z".parse().unwrap()),
             end: None,

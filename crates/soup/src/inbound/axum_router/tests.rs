@@ -2357,3 +2357,36 @@ async fn property_cursor_with_missing_key_is_not_restarted() {
         MockCursorKind::PropertyCursor
     ));
 }
+
+#[tokio::test]
+async fn invalid_date_buckets_are_rejected_before_the_service_runs() {
+    for ranges in [
+        json!([]),
+        json!([
+            {"key": "before", "start": null, "end": "2026-10-21T00:00:00Z"},
+            {"key": "after", "start": "2026-10-20T00:00:00Z", "end": null}
+        ]),
+    ] {
+        let request = authenticated_request()
+            .uri("/soup/ast/grouped")
+            .method(Method::POST)
+            .header("content-type", "application/json")
+            .body(axum::body::Body::from(
+                serde_json::to_vec(&json!({
+                    "mode": "initial",
+                    "group_by": {"property": {
+                        "property_definition_id": Uuid::from_u128(17),
+                        "bucketing": {
+                            "type": "date_ranges",
+                            "ranges": ranges,
+                            "missing_value_bucket_key": "missing"
+                        }
+                    }}
+                }))
+                .unwrap(),
+            ))
+            .unwrap();
+        let (status, _) = send_json(mock_router(), request).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+}

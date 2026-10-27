@@ -1845,12 +1845,15 @@ fn date_property_expansion_preserves_utc_boundaries_and_negates_missing() {
     }) if *lower == Some(start) && *upper == Some(end));
     let missing = make(None, Some(false));
     assert_matches!(missing.properties_filter.as_deref().unwrap(), Expr::Not(inner)
-        if matches!(inner.as_ref(), Expr::Literal(properties::PropertiesLiteral { value: PropertyMatchValue::DatePresent, .. })));
+        if matches!(inner.as_ref(), Expr::Literal(properties::PropertiesLiteral { value: PropertyMatchValue::DateRange(DateRange { start: None, end: None }), .. })));
     let present = make(None, Some(true));
     assert_matches!(
         present.properties_filter.as_deref().unwrap(),
         Expr::Literal(properties::PropertiesLiteral {
-            value: PropertyMatchValue::DatePresent,
+            value: PropertyMatchValue::DateRange(DateRange {
+                start: None,
+                end: None
+            }),
             ..
         })
     );

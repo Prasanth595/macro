@@ -92,8 +92,8 @@ pub struct Params {
     /// Limit the number of items returned. Defaults to 20. Max 500.
     #[serde(default)]
     limit: Option<u16>,
-    /// Sort method. Includes timestamp sorts, relevance sorts, and
-    /// property with a selected DATE, NUMBER, BOOLEAN, SELECT or TAG definition.
+    /// Sort method. Property ordering supports DATE, NUMBER, BOOLEAN, SELECT and TAG.
+    /// Missing definitions, unsupported types, and mismatched values sort as missing.
     /// Property sorts omit email, channels, calls, companies, and agent sessions.
     /// Defaults to viewed_at.
     #[serde(default)]
@@ -103,12 +103,9 @@ pub struct Params {
     sort_property_definition_id: Option<Uuid>,
     /// Sort direction. Options are asc, desc. Defaults to desc.
     ///
-    /// Re-send this with every page: it is not carried in the cursor.
-    ///
-    /// Applies to the timestamp sort methods only. `asc` combined with
-    /// `frecency` is rejected rather than ignored: frecency pages are ordered
-    /// by relevance score and the cursor comparison assumes descending, so
-    /// there is no ascending frecency order to give.
+    /// Timestamp sorts require this parameter again on each page. Property
+    /// cursors preserve their direction and always put missing values last.
+    /// Ascending frecency, touched-by-me, and notified-at sorts are unsupported.
     #[serde(default)]
     sort_direction: Option<SoupApiSortDirection>,
 }
@@ -156,7 +153,8 @@ pub enum SoupApiSort {
     /// notifications surface as channel-thread rows; calls and CRM
     /// companies never appear.
     NotifiedAt,
-    /// Sort by the selected numeric property, missing values last.
+    /// Sort by the selected property's key with missing values last, then newest update and ID.
+    /// Missing definitions and unsupported types use update-time ordering.
     /// Only Soup-owned property-bearing items participate; email, channels, calls,
     /// companies, and agent sessions never appear.
     Property,
@@ -206,7 +204,8 @@ pub enum GroupedSoupSort {
     UpdatedAt,
     /// Sort by viewed and updated activity.
     ViewedUpdated,
-    /// Sort by the selected numeric property, missing values last.
+    /// Sort by the selected property's key with missing values last, then newest update and ID.
+    /// Missing definitions and unsupported types use update-time ordering.
     /// Email, channels, calls, companies, and agent sessions never appear.
     Property,
 }
@@ -394,7 +393,7 @@ pub enum ApiGroupByField {
         /// Optional entity type filter for the property lookup
         #[serde(skip_serializing_if = "Option::is_none")]
         entity_type: Option<ApiPropertyEntityType>,
-        /// Optional caller-defined date partition for the selected property.
+        /// Caller-defined date partition; non-DATE values enter the missing bucket.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         bucketing: Option<PropertyBucketing>,
     },
@@ -722,6 +721,11 @@ where
             group_key: params.group_key,
             per_group_limit: params.limit.map(u32::from),
         };
+        if let Some((_, ranges)) = grouping.field.date_ranges() {
+            ranges.validate().map_err(|error| {
+                SoupHandlerErr::ExpandErr(ExpandErr::ApiAst(format!("{error:?}")))
+            })?;
+        }
         let request = match cursor {
             Some(cursor) => GroupedSortRequest::continue_from(
                 macro_user_id,
@@ -876,9 +880,6 @@ pub enum SoupHandlerErr {
     /// The filter is restricted to a CRM record the caller cannot see.
     #[error("CRM record not found")]
     CrmRecordNotFound,
-    /// The selected property definition is not visible to the caller.
-    #[error("Property definition not found")]
-    PropertyDefinitionNotFound,
     /// Ascending order was requested for a frecency-sorted query.
     #[error("sort_direction=asc is not supported with sort_method=frecency")]
     AscendingFrecencyUnsupported,
@@ -903,12 +904,6 @@ impl From<SoupErr> for SoupHandlerErr {
             SoupErr::CrmTeamRequired => SoupHandlerErr::CrmScopeForbidden,
             SoupErr::CrmAdminRequired => SoupHandlerErr::CrmAdminRequired,
             SoupErr::CrmRecordNotFound => SoupHandlerErr::CrmRecordNotFound,
-            SoupErr::PropertyQuery(
-                properties::PropertiesErr::NotFound | properties::PropertiesErr::PermissionDenied,
-            ) => SoupHandlerErr::PropertyDefinitionNotFound,
-            SoupErr::PropertyQuery(properties::PropertiesErr::Validation(message)) => {
-                SoupHandlerErr::ExpandErr(ExpandErr::ApiAst(message))
-            }
             SoupErr::TouchedUnsupportedFilter(kind) => {
                 SoupHandlerErr::TouchedUnsupportedFilter(kind)
             }
@@ -934,7 +929,6 @@ impl IntoResponse for SoupHandlerErr {
                 StatusCode::FORBIDDEN
             }
             SoupHandlerErr::CrmRecordNotFound => StatusCode::NOT_FOUND,
-            SoupHandlerErr::PropertyDefinitionNotFound => StatusCode::NOT_FOUND,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (

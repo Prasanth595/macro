@@ -77,9 +77,9 @@ rows, initiatives, ...) and get back a single unified, paginated result.
   is expensive — don't widen `unexpanded` to return hydrated data; add a new
   `expanded` path instead.
 - Extend the existing dynamic query for property sorts and date-range groups; do not rebuild its source UNION in a candidate pipeline.
-- Authorize selected definitions through the properties service in the Soup domain; sortable types use numeric keys, and bucketing requires scalar DATE.
-- Order property pages by signed numeric key, update timestamp, and descending ID; keep missing values last and serialize missing cursor keys as null.
-- Group DATE properties with validated caller ranges; bind bounds and map numeric range indices to caller keys in Rust.
+- Keep property definition IDs unchecked like existing filters/grouping; enforce item visibility through the existing source access gates.
+- Order property pages by typed key with explicit ASC/DESC and NULLS LAST, then update timestamp and descending ID; keep timestamp SQL unchanged.
+- Validate caller DATE ranges in REST/GraphQL input conversion; bind bounds and map numeric range indices to caller keys in Rust.
 - Preserve projection-backed hydration and per-group total/has-more metadata through the existing query and property enrichment.
 - Property sorts and date-range groups omit email, channels, calls, companies, and agent sessions; timestamp queries retain their existing sources.
 - Preserve deployed timestamp cursor encodings; client query keys restart pages when ranges or selections change.

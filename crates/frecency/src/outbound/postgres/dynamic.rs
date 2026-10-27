@@ -19,9 +19,6 @@ use std::collections::VecDeque;
 
 use super::FrecencyStorageErr;
 
-#[cfg(test)]
-mod test;
-
 static DOCUMENT_CLAUSE: &str = r#"
     SELECT
         fa.entity_id,
@@ -134,10 +131,7 @@ fn build_task_include_cbm_atm_nc_clause(entity_id_sql: &str) -> String {
     )
 }
 
-fn build_document_filter(
-    ast: Option<&Expr<DocumentLiteral>>,
-    bounds: &mut Vec<chrono::DateTime<chrono::Utc>>,
-) -> String {
+fn build_document_filter(ast: Option<&Expr<DocumentLiteral>>) -> String {
     let Some(expr) = ast else {
         return String::new();
     };
@@ -218,7 +212,7 @@ fn build_document_filter(
             format!(r#"entity_id IN (SELECT id FROM "Document" WHERE "updatedAt" <= '{}'::timestamptz AND "deletedAt" IS NULL)"#, dt.to_rfc3339())
         }
         filter_ast::ExprFrame::Literal(DocumentLiteral::Property(literal)) => {
-            property_literal_predicate(&literal, bounds, 4)
+            property_literal_predicate(&literal)
         }
         filter_ast::ExprFrame::Literal(DocumentLiteral::EmailAttachmentParticipant(email)) => {
             email_attachment_participant_predicate(&email)
@@ -245,38 +239,20 @@ fn sql_string_literal(value: &str) -> String {
 
 /// An EXISTS check that the aggregated document has a property value
 /// matching `literal`.
-fn property_literal_predicate(
-    literal: &PropertiesLiteral,
-    bounds: &mut Vec<chrono::DateTime<chrono::Utc>>,
-    first_slot: usize,
-) -> String {
+fn property_literal_predicate(literal: &PropertiesLiteral) -> String {
     let PropertiesLiteral {
         property_definition_id,
         entity_type,
         value,
     } = literal;
     let value_predicate = match value {
+        PropertyMatchValue::DateRange(_) => return "FALSE".to_owned(),
         PropertyMatchValue::SelectOption(option_id) => {
             format!("ep_prop.values->'value' ? '{option_id}'")
         }
         PropertyMatchValue::EntityRef(entity_id) => format!(
             "ep_prop.values->'value' @> jsonb_build_array(jsonb_build_object('entity_id', '{entity_id}'))"
         ),
-        PropertyMatchValue::DatePresent => {
-            "ep_prop.values->>'type' = 'Date' AND ep_prop.values->>'value' IS NOT NULL".to_owned()
-        }
-        PropertyMatchValue::DateRange(range) => {
-            let value = item_filters::sql::date_value("ep_prop");
-            let mut predicates = vec![format!("{value} IS NOT NULL")];
-            for (bound, operator) in [(range.start, ">="), (range.end, "<")] {
-                if let Some(bound) = bound {
-                    let slot = first_slot + bounds.len();
-                    bounds.push(bound);
-                    predicates.push(format!("{value} {operator} ${slot}::timestamptz"));
-                }
-            }
-            predicates.join(" AND ")
-        }
     };
     let entity_type_clause = match entity_type {
         Some(et) => format!("AND ep_prop.entity_type = '{et}'"),
@@ -457,21 +433,12 @@ fn build_project_filter(ast: Option<&Expr<ProjectLiteral>>) -> String {
     }
 }
 
-fn build_query(
-    filter_ast: &EntityFilterAst,
-) -> (
-    QueryBuilder<'_, Postgres>,
-    Vec<chrono::DateTime<chrono::Utc>>,
-) {
-    let mut bounds = Vec::new();
+fn build_query(filter_ast: &EntityFilterAst) -> QueryBuilder<'_, Postgres> {
     let mut builder = sqlx::QueryBuilder::new("WITH Combined AS (");
 
     // Document clause
     builder.push(DOCUMENT_CLAUSE);
-    builder.push(build_document_filter(
-        filter_ast.document_filter.as_deref(),
-        &mut bounds,
-    ));
+    builder.push(build_document_filter(filter_ast.document_filter.as_deref()));
 
     builder.push(" UNION ALL ");
 
@@ -488,7 +455,7 @@ fn build_query(
     builder.push(") ");
     builder.push(SUFFIX);
 
-    (builder, bounds)
+    builder
 }
 
 #[derive(FromRow)]
@@ -543,16 +510,11 @@ pub async fn dynamic_get_top_entities(
     limit: u32,
     filter: EntityFilterAst,
 ) -> Result<Vec<AggregateFrecency>, FrecencyStorageErr> {
-    let (mut builder, bounds) = build_query(&filter);
-    let mut query = builder
+    let rows = build_query(&filter)
         .build()
         .bind(user_id.as_ref())
         .bind(from_score)
-        .bind(limit as i64);
-    for bound in bounds {
-        query = query.bind(bound);
-    }
-    let rows = query
+        .bind(limit as i64)
         .try_map(|row: PgRow| AggregateRow::from_row(&row)?.into_aggregate_frecency())
         .fetch_all(db)
         .await?;

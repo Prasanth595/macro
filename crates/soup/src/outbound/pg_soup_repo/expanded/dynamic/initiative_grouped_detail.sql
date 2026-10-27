@@ -27,6 +27,7 @@
             NULL::jsonb as "calendar_event",
             NULL::jsonb as "database_row",
             gi.group_key as "group_key",
+            gi.group_order as "group_order",
             gi.group_total_count as "group_total_count",
             gi.row_in_group as "row_in_group"
         FROM GroupedItems gi

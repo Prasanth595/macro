@@ -1,6 +1,7 @@
 use models_grouping::{PropertyBucketing, PropertyDateRange, PropertyDateRanges};
 
 /// Transform the selected DATE property into caller-defined ranges.
+/// Non-DATE values use the missing-value bucket.
 #[derive(async_graphql::InputObject, Clone)]
 pub(super) struct GraphqlPropertyBucketing {
     /// Bucketing transformation.
@@ -60,10 +61,14 @@ impl TryFrom<GraphqlPropertyBucketing> for PropertyBucketing {
                             })
                         })
                         .collect::<async_graphql::Result<Vec<_>>>()?;
-                Ok(Self::DateRanges(PropertyDateRanges {
+                let ranges = PropertyDateRanges {
                     ranges,
                     missing_value_bucket_key: value.missing_value_bucket_key,
-                }))
+                };
+                ranges
+                    .validate()
+                    .map_err(|error| async_graphql::Error::new(format!("{error:?}")))?;
+                Ok(Self::DateRanges(ranges))
             }
         }
     }

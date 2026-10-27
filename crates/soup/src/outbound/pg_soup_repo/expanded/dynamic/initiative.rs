@@ -66,7 +66,7 @@ pub(in crate::outbound::pg_soup_repo) fn build_initiative_filter(
         parameters: &mut DocumentIdArrays,
     ) -> String {
         let bound = parameters.bind_date(*date);
-        let value = item_filters::sql::date_value("ep_due");
+        let value = super::property_date_expression("ep_due");
         format!(
             "EXISTS (SELECT 1 FROM entity_properties ep_due WHERE ep_due.entity_id = i.id::text AND ep_due.entity_type = 'INITIATIVE' AND ep_due.property_definition_id = '{}' AND {value} {operator} {bound})",
             SystemPropertyKey::DUE_DATE_UUID,

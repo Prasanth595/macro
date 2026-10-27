@@ -15177,7 +15177,7 @@
           {
             "name": "sort_method",
             "in": "query",
-            "description": "Sort method. Includes timestamp sorts, relevance sorts, and\nproperty with a selected DATE, NUMBER, BOOLEAN, SELECT or TAG definition.\nProperty sorts omit email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at.",
+            "description": "Sort method. Property ordering supports DATE, NUMBER, BOOLEAN, SELECT and TAG.\nMissing definitions, unsupported types, and mismatched values sort as missing.\nProperty sorts omit email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at.",
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/SoupApiSort"
@@ -15196,7 +15196,7 @@
           {
             "name": "sort_direction",
             "in": "query",
-            "description": "Sort direction. Options are asc, desc. Defaults to desc.\n\nRe-send this with every page: it is not carried in the cursor.\n\nApplies to the timestamp sort methods only. `asc` combined with\n`frecency` is rejected rather than ignored: frecency pages are ordered\nby relevance score and the cursor comparison assumes descending, so\nthere is no ascending frecency order to give.",
+            "description": "Sort direction. Options are asc, desc. Defaults to desc.\n\nTimestamp sorts require this parameter again on each page. Property\ncursors preserve their direction and always put missing values last.\nAscending frecency, touched-by-me, and notified-at sorts are unsupported.",
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/SoupApiSortDirection"
@@ -21077,7 +21077,7 @@
                       },
                       {
                         "$ref": "#/components/schemas/PropertyBucketing",
-                        "description": "Optional caller-defined date partition for the selected property."
+                        "description": "Caller-defined date partition; non-DATE values enter the missing bucket."
                       }
                     ]
                   },
@@ -36135,7 +36135,7 @@
               },
               {
                 "$ref": "#/components/schemas/SoupApiSortDirection",
-                "description": "Sort direction. Options are asc, desc. Defaults to desc.\n\nRe-send this with every page: it is not carried in the cursor.\n\nApplies to the timestamp sort methods only. `asc` combined with\n`frecency` is rejected rather than ignored: frecency pages are ordered\nby relevance score and the cursor comparison assumes descending, so\nthere is no ascending frecency order to give."
+                "description": "Sort direction. Options are asc, desc. Defaults to desc.\n\nTimestamp sorts require this parameter again on each page. Property\ncursors preserve their direction and always put missing values last.\nAscending frecency, touched-by-me, and notified-at sorts are unsupported."
               }
             ]
           },
@@ -36146,7 +36146,7 @@
               },
               {
                 "$ref": "#/components/schemas/SoupApiSort",
-                "description": "Sort method. Includes timestamp sorts, relevance sorts, and\nproperty with a selected DATE, NUMBER, BOOLEAN, SELECT or TAG definition.\nProperty sorts omit email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at."
+                "description": "Sort method. Property ordering supports DATE, NUMBER, BOOLEAN, SELECT and TAG.\nMissing definitions, unsupported types, and mismatched values sort as missing.\nProperty sorts omit email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at."
               }
             ]
           },
@@ -37341,7 +37341,7 @@
               },
               {
                 "$ref": "#/components/schemas/DateRange",
-                "description": "UTC range with inclusive start and exclusive end."
+                "description": "UTC range for Soup/search: inclusive start, exclusive end; both open matches any date."
               }
             ]
           },
@@ -37358,7 +37358,7 @@
           },
           "has_date": {
             "type": ["boolean", "null"],
-            "description": "True matches non-null dates; false matches missing or cleared dates."
+            "description": "Flat Soup/search presence filter: true expands to an open date range, false to its negation."
           },
           "option_ids": {
             "type": "array",

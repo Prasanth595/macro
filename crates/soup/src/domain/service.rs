@@ -1,4 +1,3 @@
-mod property_grouping;
 use crate::domain::{
     models::{
         AdvancedSortParams, EnrichedSoupItem, FrecencyQueryInner, GetCrmCompaniesRequest,
@@ -226,7 +225,6 @@ pub struct SoupImpl<T, U, V, C, K, Crm, F> {
     /// Optional captured branch facts supplied by the owning changes domain.
     agent_branches: Option<Arc<dyn agent_changes::domain::ports::SessionBranchReader>>,
     favorites: Option<Arc<dyn favorites::FavoriteReader>>,
-    property_queries: Option<Arc<dyn properties::PropertyDefinitionReader>>,
 }
 
 impl<T, U, V, C, K, Crm, F> SoupImpl<T, U, V, C, K, Crm, F>
@@ -261,7 +259,6 @@ where
             github_pull_request_service,
             agent_branches: None,
             favorites: None,
-            property_queries: None,
         }
     }
 
@@ -1630,6 +1627,7 @@ where
                         item.total_group_count,
                         item.index_in_group,
                         item.sort_key,
+                        item.display_order,
                         item.document_server_facts,
                     ),
                 )
@@ -1657,13 +1655,21 @@ where
             .map(
                 |(
                     item,
-                    (key, total_group_count, index_in_group, sort_key, document_server_facts),
+                    (
+                        key,
+                        total_group_count,
+                        index_in_group,
+                        sort_key,
+                        display_order,
+                        document_server_facts,
+                    ),
                 )| ItemGroupingInfo {
                     item,
                     key,
                     total_group_count,
                     index_in_group,
                     sort_key,
+                    display_order,
                     document_server_facts,
                 },
             )
@@ -1743,8 +1749,6 @@ where
             return Err(SoupErr::CrmTeamRequired);
         }
 
-        // Borrow before email's builder consumes team_receipt.
-        let team_for_property = team_receipt.clone();
         let crm_contact_request = req.build_crm_contact_request(team_receipt.as_ref())?;
         let mut crm_company_request = req.build_crm_company_request(&team_receipt);
         let foreign_entity_source_ids = req.build_foreign_entity_source_ids(team_receipt.as_ref());
@@ -1779,8 +1783,6 @@ where
         let output: Result<SoupOutput<R, SoupCandidate>, SoupErr> = match req.cursor {
             SoupQuery::Property(cursor) => {
                 let sort = *cursor.sort_method();
-                self.validate_properties(req.user.clone(), team_for_property, sort, None)
-                    .await?;
                 let items = self
                     .soup_storage
                     .expanded_generic_cursor_soup_with_projection(SimpleSortRequest {
@@ -2085,13 +2087,6 @@ where
         mut req: GroupedSortRequest<'_>,
     ) -> Result<impl Iterator<Item = ItemGroupingInfo<SoupPropertiesField>> + Send, SoupErr> {
         let user_id = req.user_id.clone();
-        self.validate_properties(
-            user_id.clone().into_owned(),
-            None,
-            *req.cursor.sort_method(),
-            Some(&req.grouping),
-        )
-        .await?;
         if let Some(entities) = self
             .favorite_entities(&user_id, Some(req.cursor.filter()))
             .await?

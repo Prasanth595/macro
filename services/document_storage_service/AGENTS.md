@@ -65,7 +65,7 @@ threads, pins, recents, notifications, folders, activity.
 
 ## Gotchas
 
-- Attach the properties service to both Soup readers for caller-defined DATE grouping; keep definition authorization in the domain before repository execution.
+- Compose Soup without a separate property-definition reader; REST and GraphQL validate DATE range inputs before calling the service.
 
 - Several behaviors are Cargo-feature-gated (`connection_gateway`,
   `delete_document_worker`, `location_check`, all on by `default`) — a feature

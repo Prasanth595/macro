@@ -5,19 +5,15 @@
 //! SQL, so the conditions are flattened into clauses it can evaluate exactly:
 //! a call matches when every clause has at least one term it satisfies.
 
-use chrono::{DateTime, Utc};
 use filter_ast::Expr;
-use item_filters::ast::{
-    LiteralTree,
-    call::CallLiteral,
-    properties::{DateRange, PropertyMatchValue},
-};
+use item_filters::ast::{LiteralTree, call::CallLiteral, properties::PropertyMatchValue};
 use uuid::Uuid;
 
 #[cfg(test)]
 mod test;
 
-/// Maximum CNF expansion size; larger filters are rejected rather than broadened.
+/// Clauses beyond which a filter is too large to expand; the property
+/// conditions are then dropped with a warning rather than expanded.
 const MAX_CLAUSES: usize = 256;
 
 /// One property condition.
@@ -28,10 +24,6 @@ pub(super) enum PropertyCondition {
     Tag(String),
     /// The call's `definition` property references `entity_id`.
     EntityRef { definition: Uuid, entity_id: String },
-    /// The call's `definition` property holds a non-null Date value.
-    DatePresent { definition: Uuid },
-    /// The call's `definition` property falls within a UTC date interval.
-    DateRange { definition: Uuid, range: DateRange },
 }
 
 /// A condition, or its negation.
@@ -50,11 +42,7 @@ pub(super) struct PropertyClauseParams {
     pub negated: Vec<bool>,
     /// `None` for tags.
     pub definition_ids: Vec<Option<Uuid>>,
-    /// Only tag and entity-reference terms have a string value.
-    pub values: Vec<Option<String>>,
-    pub date_terms: Vec<bool>,
-    pub date_starts: Vec<Option<DateTime<Utc>>>,
-    pub date_ends: Vec<Option<DateTime<Utc>>>,
+    pub values: Vec<String>,
 }
 
 /// A filter's property part. Non-property literals are evaluated by the
@@ -68,17 +56,20 @@ enum Formula {
 }
 
 /// The property conditions of `filter` in conjunctive normal form.
-pub(super) fn property_clauses(
-    filter: &LiteralTree<CallLiteral>,
-) -> Result<Vec<Vec<PropertyTerm>>, sqlx::Error> {
+pub(super) fn property_clauses(filter: &LiteralTree<CallLiteral>) -> Vec<Vec<PropertyTerm>> {
     let Some(expr) = filter else {
-        return Ok(Vec::new());
+        return Vec::new();
     };
-    clauses(&formula(expr, false)).ok_or_else(|| {
-        sqlx::Error::Protocol(format!(
-            "call property filter exceeds {MAX_CLAUSES} clauses"
-        ))
-    })
+    match clauses(&formula(expr, false)) {
+        Some(clauses) => clauses,
+        None => {
+            tracing::warn!(
+                max = MAX_CLAUSES,
+                "call property filter is too large to evaluate; ignoring its property conditions"
+            );
+            Vec::new()
+        }
+    }
 }
 
 /// Flatten clauses into the call query's parameters.
@@ -93,32 +84,15 @@ pub(super) fn clause_params(clauses: &[Vec<PropertyTerm>]) -> PropertyClausePara
                 .clause_indices
                 .push(i32::try_from(index).unwrap_or(i32::MAX));
             params.negated.push(term.negated);
-            let (definition, value, date_term, start, end) = match &term.condition {
-                PropertyCondition::Tag(option_id) => {
-                    (None, Some(option_id.clone()), false, None, None)
-                }
+            let (definition, value) = match &term.condition {
+                PropertyCondition::Tag(option_id) => (None, option_id.clone()),
                 PropertyCondition::EntityRef {
                     definition,
                     entity_id,
-                } => (
-                    Some(*definition),
-                    Some(entity_id.clone()),
-                    false,
-                    None,
-                    None,
-                ),
-                PropertyCondition::DatePresent { definition } => {
-                    (Some(*definition), None, true, None, None)
-                }
-                PropertyCondition::DateRange { definition, range } => {
-                    (Some(*definition), None, true, range.start, range.end)
-                }
+                } => (Some(*definition), entity_id.clone()),
             };
             params.definition_ids.push(definition);
             params.values.push(value);
-            params.date_terms.push(date_term);
-            params.date_starts.push(start);
-            params.date_ends.push(end);
         }
     }
     params
@@ -128,29 +102,20 @@ pub(super) fn clause_params(clauses: &[Vec<PropertyTerm>]) -> PropertyClausePara
 fn formula(expr: &Expr<CallLiteral>, negated: bool) -> Formula {
     match expr {
         Expr::Literal(CallLiteral::Property(literal)) => {
-            if literal.entity_type.is_some_and(|scope| {
-                scope != item_filters::ast::properties::PropertyEntityType::CallRecord
-            }) {
-                return if negated {
-                    Formula::Any
-                } else {
-                    Formula::Never
-                };
-            }
             let condition = match &literal.value {
+                PropertyMatchValue::DateRange(_) => {
+                    return if negated {
+                        Formula::Any
+                    } else {
+                        Formula::Never
+                    };
+                }
                 PropertyMatchValue::SelectOption(option_id) => {
                     PropertyCondition::Tag(option_id.to_string())
                 }
                 PropertyMatchValue::EntityRef(entity_id) => PropertyCondition::EntityRef {
                     definition: literal.property_definition_id,
                     entity_id: entity_id.to_string(),
-                },
-                PropertyMatchValue::DatePresent => PropertyCondition::DatePresent {
-                    definition: literal.property_definition_id,
-                },
-                PropertyMatchValue::DateRange(range) => PropertyCondition::DateRange {
-                    definition: literal.property_definition_id,
-                    range: range.clone(),
                 },
             };
             Formula::Term(PropertyTerm { condition, negated })
@@ -174,8 +139,8 @@ fn and(a: Formula, b: Formula) -> Formula {
 
 fn or(a: Formula, b: Formula) -> Formula {
     match (a, b) {
-        (Formula::Never, other) | (other, Formula::Never) => other,
         (Formula::Any, _) | (_, Formula::Any) => Formula::Any,
+        (Formula::Never, other) | (other, Formula::Never) => other,
         (a, b) => Formula::Or(Box::new(a), Box::new(b)),
     }
 }

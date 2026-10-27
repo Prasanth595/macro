@@ -47,7 +47,11 @@ export function propertySortKey(
     case 'TAG': {
       if (value.type !== 'SelectOption') return;
       const orders = options
-        .filter((option) => value.value.includes(option.id))
+        .filter(
+          (option) =>
+            option.property_definition_id === property.definition.id &&
+            value.value.includes(option.id)
+        )
         .map((option) => option.display_order);
       return orders.length ? Math.min(...orders) : undefined;
     }

@@ -15,8 +15,9 @@ chats, projects, calendar events, initiatives, and database rows. They omit
 email threads, channels, calls, companies, and propertyless agent sessions.
 Ordinary timestamp queries retain their existing sources and behavior.
 
-Date range/presence filters remain shared by Soup, call, email, frecency, and
-OpenSearch. Tasks text search keeps search-result ordering.
+DATE filters are evaluated by Soup and OpenSearch. Call, email, and frecency
+interpret DATE literals as false, preserving outer boolean negation. Tasks
+excludes calls/emails and keeps text search's result ordering.
 
 ## Sort API
 
@@ -25,9 +26,11 @@ and `sort_direction=asc|desc`. GraphQL uses `PROPERTY`,
 `sortPropertyDefinitionId`, and `sortDirection: ASC|DESC`.
 
 The selected ID is a property **definition**, not an entity's assignment ID.
-The properties service checks definition visibility before exposing type errors.
-The Soup domain then rejects types that have no supported numeric sort key.
-Date-range grouping additionally requires a scalar DATE definition.
+Like existing filters and grouping, Soup accepts definition IDs without a separate
+visibility check; each source still enforces item access. Missing definitions,
+unsupported types, and mismatched value variants produce missing keys rather
+than a request error. DATE bucketing on a non-DATE definition puts every item
+in the configured missing bucket.
 
 The older `property_date_earliest` / `property_date_latest` names and GraphQL
 variants are removed before release. Existing timestamp `sort_direction` support
@@ -40,17 +43,17 @@ is retained because that API already exists on main.
 | BOOLEAN | False = 0, true = 1 |
 | SELECT_STRING / SELECT_NUMBER | Selected option's stored `display_order` |
 | Multi-select / TAG | Lowest `display_order` among selected options |
-| STRING / ENTITY / LINK | Unsupported; reject the request |
+| STRING / ENTITY / LINK | Missing key; fall back to update-time ordering |
 
 A missing value, empty selection, or mismatched JSON variant has no key. Option
 labels and numeric option values do not control ordering. Clients choose default
 direction: Status is ascending; Priority is descending (urgent first).
 
-SQL uses a double-precision key, negated for ascending and unchanged for
-descending, with missing keys coalesced to negative infinity. Every query orders
-by `(sort_key DESC, sort_ts DESC, id DESC)`. Property-sort ties use newest update,
-then descending ID. Timestamp sorts use zero for `sort_key` and keep their
-existing timestamp selection.
+SQL uses double-precision keys today, with the type carried alongside the key
+expression. Property pages order by `sort_key ASC|DESC NULLS LAST, sort_ts DESC,
+id DESC`. Direction applies only to the property key; ties use newest update,
+then descending ID. Timestamp queries retain their existing SQL ordering and
+keyset expressions without a `sort_key` term.
 
 ## Grouping input
 
@@ -75,7 +78,7 @@ Property grouping accepts optional date-range bucketing:
 Bounds are UTC RFC3339 strings. Starts are inclusive; ends are exclusive. Null
 means unbounded. Ranges must be ordered, contiguous, non-overlapping, cover all
 dates, and have unique keys distinct from `missingValueBucketKey`. Validate range
-counts and key lengths before executing SQL.
+counts and key lengths in REST/GraphQL input conversion before calling the service.
 
 The grouping SQL returns a range index, which Rust maps to the caller's key.
 Bind bounds rather than interpolating values; caller keys never become SQL.
@@ -83,22 +86,33 @@ Missing or cleared dates use the configured missing-value bucket. Keep the
 existing count and row-number windows, per-group limits, and single-group
 load-more behavior. REST keeps raw UUID pool keys; GraphQL keeps typed entities.
 
+## DATE filters
+
+The AST has one date literal: `{"dr": {"start": ..., "end": ...}}`. Both
+bounds are optional. `{"dr": {}}` matches any present DATE value; wrap the
+literal in `!` (REST AST) or `not` (GraphQL) for missing or cleared dates.
+GraphQL uses `value: {dateRange: {}}` and no `hasDate` variant. The flat
+REST/search `has_date` flag remains for Tasks search, expanding to the same
+open range or its negation.
+
 ## Pagination and authorization
 
-Use the existing position cursor, extended with the numeric property key.
-Serialize a missing key as null because JSON cannot encode negative infinity;
-coalesce that bound back to negative infinity in SQL. The keyset comparison is
-`(sort_key, sort_ts, id) < (cursor_key, cursor_ts, cursor_id)`.
+Use the existing position cursor, extended with a typed property key (`Number`
+today) and its direction. Missing keys serialize as null. For a non-null key,
+compare it with `>` for ascending or `<` for descending, then use descending
+`(sort_ts, id)` ties; include missing keys after present keys. A null cursor key
+continues only through missing keys with the same descending tie-breakers.
 
 Do not add a frozen source list, context version, unused email view, or link IDs.
 The client sends grouping configuration again on continuation requests. Its
 query key includes property, direction, filters, and ranges; a changed query key
 starts fresh pages. Keep deployed timestamp cursor decoding compatible.
 
-Definition visibility/type validation belongs in the Soup domain through the
-properties service. Entity access, lifecycle gates, and complete filters stay in
-the existing source clauses. Preserve projection-backed document facts and
-property enrichment without a second fetch-by-ID pass.
+Property-definition authorization is not added solely for sort or grouping.
+Any future policy must cover filter, group, and sort IDs together. Item access,
+lifecycle gates, and complete filters stay in the existing source clauses.
+Preserve projection-backed document facts and property enrichment without a
+second fetch-by-ID pass.
 
 ## Client behavior
 
@@ -115,9 +129,10 @@ not serialized-key substrings. Assignment deletion without a definition ID
 refreshes all property-dependent queries.
 
 Tasks uses cached property definitions/options for its local numeric comparator,
-with missing values last and the same update/ID tie-breakers as SQL. Status and
-Priority are explicit sort choices. Do not add property sorting or date predicates
-to the WASM reconciliation engine: its baseline is an integer timestamp, and
+with missing values last and the same update/ID tie-breakers as SQL. Group
+metadata uses the same stored option `display_order`; leave assignee labels in
+alphabetical order. Status and Priority are explicit sort choices. Do not add
+property sorting or date predicates to the WASM reconciliation engine:
 property-sorted pages remain server-backed.
 
 ## Alternatives rejected

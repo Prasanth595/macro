@@ -60,7 +60,7 @@ fn property_predicate(
                 entity_attribute(literal.property_definition_id),
                 id.to_string(),
             )?,
-            PropertyMatchValue::DatePresent | PropertyMatchValue::DateRange(_) => {
+            PropertyMatchValue::DateRange(_) => {
                 unreachable!("date property literals are ineligible for the local index");
             }
         })
