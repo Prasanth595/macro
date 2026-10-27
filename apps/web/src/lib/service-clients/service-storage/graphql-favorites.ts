@@ -48,7 +48,7 @@ const FAVORITE_ENTITY_TYPE_TO_GRAPHQL = {
   database: 'DATABASE',
   database_row: 'DATABASE_ROW',
   form: 'FORM',
-  whatsapp_group: 'WHATSAPP_GROUP',
+  external_chat: 'EXTERNAL_CHAT',
 } satisfies Record<FavoriteEntityType, GraphqlEntityType>;
 
 const GRAPHQL_ENTITY_TYPE_TO_FAVORITE = {
@@ -75,7 +75,7 @@ const GRAPHQL_ENTITY_TYPE_TO_FAVORITE = {
   STATIC_FILE: 'static_file',
   TEAM: 'team',
   USER: 'user',
-  WHATSAPP_GROUP: 'whatsapp_group',
+  EXTERNAL_CHAT: 'external_chat',
 } satisfies Record<GraphqlEntityType, FavoriteEntityType>;
 
 /** Convert a REST favorite entity type into its GraphQL equivalent. */
@@ -156,7 +156,7 @@ function favoriteSoupEffects(
     // Forms are not favoritable; the service refuses them.
     form: undefined,
     // Standalone groups have no Soup entity.
-    whatsapp_group: undefined,
+    external_chat: undefined,
   } as const satisfies Record<FavoriteEntityType, string | undefined>;
   const typename = typenames[args.entityType];
   return typename

@@ -2,7 +2,7 @@ import { match } from 'ts-pattern';
 import { type CannotAdd, cannotAddMessage } from './chat';
 
 /** Why adding a group did not happen, in the page's vocabulary. */
-export type AdoptRefusal =
+export type AddRefusal =
   | { reason: 'not-allowed' }
   | { reason: 'gone' }
   | { reason: 'already-added' }
@@ -20,10 +20,10 @@ export type AdoptRefusal =
   | { reason: 'signed-out' }
   | { reason: 'unreachable' };
 
-export type AdoptFailure = { kind: 'adopt-failed' } & AdoptRefusal;
+export type AddFailure = { kind: 'add-failed' } & AddRefusal;
 
 /** Specific words for each refusal; never a catch-all. */
-export function adoptFailureMessage(failure: AdoptRefusal): string {
+export function addFailureMessage(failure: AddRefusal): string {
   return match(failure)
     .with(
       { reason: 'not-allowed' },
