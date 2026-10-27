@@ -66,6 +66,8 @@ import { NewChatPage, type StartConversation } from './NewChatPage';
 type SelectedConversation = {
   conversation: AgentConversationTarget;
   activeConversationId: string;
+  /** The route mode it opened in, kept while a switch to another mode loads. */
+  mode: AgentsMode;
 };
 
 function LoadingComposer() {
@@ -105,6 +107,7 @@ function AgentsWorkspace(props: { route?: AgentsRoute }) {
       ? {
           conversation: props.route.conversation,
           activeConversationId: props.route.conversation.id,
+          mode: props.route.mode,
         }
       : undefined
   );
@@ -112,21 +115,29 @@ function AgentsWorkspace(props: { route?: AgentsRoute }) {
   // transition keeps the current one on screen until then, instead of blanking
   // the pane to a spinner; the sidebar highlights the target meanwhile.
   const [switching, startSwitch] = useTransition();
-  const selectConversation = (conversation: AgentConversationTarget) =>
+  const selectConversation = (conversation: AgentConversationTarget) => {
+    const selectedMode = mode();
     fireAndForget(
       startSwitch(() => {
         setPage('new');
-        setSelected({ conversation, activeConversationId: conversation.id });
+        setSelected({
+          conversation,
+          activeConversationId: conversation.id,
+          mode: selectedMode,
+        });
       }),
       'agents-view'
     );
+  };
   // The list and its conversations share one mount (`mountKey` in the routes),
   // so the selection follows navigation, including Back and Forward.
   createEffect(
     on(
       () => {
         const conversation = props.route?.conversation;
-        return conversation && `${conversation.type}:${conversation.id}`;
+        return (
+          conversation && `${mode()}:${conversation.type}:${conversation.id}`
+        );
       },
       () => {
         const conversation = props.route?.conversation;
@@ -135,13 +146,18 @@ function AgentsWorkspace(props: { route?: AgentsRoute }) {
           return;
         }
         // An adopted session id is the conversation already on screen.
-        if (selected()?.activeConversationId === conversation.id) return;
+        const current = selected();
+        if (
+          current?.activeConversationId === conversation.id &&
+          current.mode === mode()
+        )
+          return;
         selectConversation(conversation);
       },
       { defer: true }
     )
   );
-  const dataMode = () => dataModeFor(selected() ? mode() : workspace.mode());
+  const dataMode = () => dataModeFor(selected()?.mode ?? workspace.mode());
   const [mobileList, setMobileList] = createSignal(!isRoutinesPage());
   const [draft, setDraft] = createSignal('');
   const [search, setSearch] = createSignal('');
@@ -305,7 +321,7 @@ function AgentsWorkspace(props: { route?: AgentsRoute }) {
         current.activeConversationId === sessionId ||
         panel.handle.content().id !==
           agentsRouteId({
-            mode: mode(),
+            mode: current.mode,
             conversation: current.conversation,
           })
       ) {
@@ -314,7 +330,7 @@ function AgentsWorkspace(props: { route?: AgentsRoute }) {
       panel.handle.adoptContentId({
         type: 'component',
         nextId: agentsRouteId({
-          mode: mode(),
+          mode: current.mode,
           conversation: { type: 'agent_session', id: sessionId },
         }),
       });
