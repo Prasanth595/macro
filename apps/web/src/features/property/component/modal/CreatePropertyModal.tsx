@@ -1,13 +1,12 @@
 import { useMaybeBlockId } from '@core/block';
-import { TabsInset } from '@core/component/TabsInset';
 import { useUserId } from '@core/context/user';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import SlidersIcon from '@icon/system/regular/sliders-horizontal.svg';
+import LoadingSpinner from '@icon/system/regular/spinner.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import type { CollectionNode } from '@kobalte/core';
 import { Select } from '@kobalte/core/select';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import CheckIcon from '@phosphor/check.svg';
-import SlidersIcon from '@phosphor/sliders-horizontal.svg';
-import LoadingSpinner from '@phosphor/spinner.svg';
-import XIcon from '@phosphor/x.svg';
 import { useCreatePropertyDefinitionMutation } from '@queries/properties/definitions';
 import { useAddEntityPropertyMutation } from '@queries/properties/entity';
 import { useCurrentTeamQuery } from '@queries/team/teams';
@@ -24,6 +23,7 @@ import {
   Dialog,
   Hotkey,
   Layer,
+  Tabs,
 } from '@ui';
 import {
   type Component,
@@ -666,27 +666,27 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
 
             <Show when={hasTeam()}>
               <EditorRow label="Owner">
-                <TabsInset
-                  depth={0}
-                  list={[
+                <Tabs
+                  aria-label="Owner"
+                  size="sm"
+                  touch="inset"
+                  options={[
                     { value: 'team', label: 'Team' },
                     { value: 'user', label: 'Personal' },
                   ]}
                   value={selectedPropertyScope()}
-                  onChange={(value) => {
-                    if (value === 'user' || value === 'team') {
-                      setPropertyScope(value);
-                    }
-                  }}
+                  onChange={setPropertyScope}
                 />
               </EditorRow>
             </Show>
 
             <Show when={shouldShowMultiSelect()}>
               <EditorRow label="Selection">
-                <TabsInset
-                  depth={0}
-                  list={[
+                <Tabs
+                  aria-label="Selection"
+                  size="sm"
+                  touch="inset"
+                  options={[
                     { value: 'single', label: 'Single' },
                     { value: 'multi', label: 'Multi' },
                   ]}

@@ -128,6 +128,7 @@
 - [NotificationState](type-aliases/NotificationState.md)
 - [NotificationTypeName](type-aliases/NotificationTypeName.md)
 - [PushNotificationData](type-aliases/PushNotificationData.md)
+- [PushNotificationNavigation](type-aliases/PushNotificationNavigation.md)
 - [RealtimeNotifTaggedContentValue](type-aliases/RealtimeNotifTaggedContentValue.md)
 - [ReminderMetadata](type-aliases/ReminderMetadata.md)
 - [RemoveUnsubscribeAllData](type-aliases/RemoveUnsubscribeAllData.md)
@@ -160,3 +161,4 @@
 - [UnsubscribeItemResponse](type-aliases/UnsubscribeItemResponse.md)
 - [UnsubscribeItemResponses](type-aliases/UnsubscribeItemResponses.md)
 - [UserUnsubscribe](type-aliases/UserUnsubscribe.md)
+- [WhatsappGroupMessageMetadata](type-aliases/WhatsappGroupMessageMetadata.md)

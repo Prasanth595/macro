@@ -80,6 +80,10 @@ fn emits_required_keys() {
         "BASE_URL",
         "DATABASE_URL",
         "DATABASE_URL_READONLY",
+        "WHATSAPP_SESSION_LOCK_DATABASE_URL",
+        "WHATSAPP_SESSION_KMS_KEY_ID",
+        "WHATSAPP_SESSION_MAX_ACCOUNTS",
+        "WHATSAPP_SESSION_DRAIN_BATCH",
         "REDIS_URI",
         "OPENSEARCH_URL",
         "LOCAL_AWS_URL",
@@ -100,6 +104,9 @@ fn emits_required_keys() {
         "REDIS_HOST",
         "MACRO_DB_URL",
         "INTERNAL_API_KEY",
+        "PIPEDREAM_CLIENT_ID",
+        "PIPEDREAM_CLIENT_SECRET",
+        "PIPEDREAM_PROJECT_ID",
         "AUTHENTICATION_SERVICE_SECRET_KEY",
         "OPENSEARCH_USERNAME",
         "OPENSEARCH_PASSWORD",
@@ -436,6 +443,22 @@ fn the_agent_harness_uses_local_containers_and_wipes_daytona() {
     );
 }
 
+#[test]
+fn the_whatsapp_session_service_locks_on_the_local_postgres_and_kms() {
+    let env = local_env();
+    assert_eq!(
+        env.get("WHATSAPP_SESSION_LOCK_DATABASE_URL"),
+        env.get("DATABASE_URL")
+    );
+    assert_eq!(
+        env.get("WHATSAPP_SESSION_KMS_KEY_ID").map(String::as_str),
+        Some(resources::WHATSAPP_SESSION_KMS_ALIAS)
+    );
+    // Tests point the client at a fake server; a local stack never does.
+    assert!(!env.contains_key("OVERRIDE_WHATSAPP_WEBSOCKET_URL"));
+    assert!(!env.contains_key("OVERRIDE_WHATSAPP_MEDIA_HOST"));
+}
+
 /// Sandboxes and the harness are both containers, so they reach each other on a
 /// shared Compose network and never over the host's loopback. The network name
 /// has to track the instance, or a named stack's sandboxes join the wrong one.
@@ -666,4 +689,20 @@ fn the_preview_ssh_proxy_host_is_empty_without_a_published_tunnel() {
     );
     // The on-machine endpoint stays first; the tunnel is a fallback, not a swap.
     assert_eq!(env["PREVIEW_SSH_HOST"], "localhost");
+}
+
+#[test]
+fn a_static_stack_presigns_files_for_this_machines_name() {
+    let instance = Instance::derive(Some("image"), None).expect("named instance derives");
+    let env = LocalEnv::for_instance(Mode::Local, &instance, true, Tunnels::default())
+        .unwrap()
+        .to_env();
+    assert_eq!(env["FRONTEND_ORIGIN"], proxy::url(&instance));
+    assert_eq!(
+        env["LOCAL_AWS_PUBLIC_URL"],
+        format!(
+            "{}/local-storage",
+            super::super::frontend::https_origin(&instance).unwrap()
+        )
+    );
 }

@@ -171,10 +171,11 @@ export const enableTasksReviews = defineFlag({
   default: onInDev,
 });
 
-/** Gantt layouts stay hidden until enabled remotely or with a local override. */
+/** Gantt is visible in local previews; deployed apps retain the remote rollout. */
 export const enableGantt = defineFlag({
   key: 'enable-gantt',
   env: 'ENABLE_GANTT',
+  default: LOCAL_ONLY || undefined,
 });
 
 export const ENABLE_PDF_MODIFICATION_DATA_AUTOSAVE = defineFlag({
@@ -204,6 +205,13 @@ export const ENABLE_SCRIPTING = defineFlag({
   env: 'ENABLE_SCRIPTING',
   default: false,
 }).enabled;
+
+// Deployed dev and production defer to PostHog: the router must be provisioned
+// before enabling gateway sync. Local stacks can use the env override.
+export const syncViaGateway = defineFlag({
+  key: 'sync-via-gateway',
+  env: 'SYNC_VIA_GATEWAY',
+});
 
 export const ENABLE_PDF_MULTISPLIT = defineFlag({
   env: 'ENABLE_PDF_MULTISPLIT',
@@ -609,6 +617,15 @@ export const enableCalendarUi = defineFlag({
   default: onInDev,
 });
 
+// Calendar meeting notes and document-side meeting-link management. On in dev;
+// production uses PostHog's internal-user rollout. This is a UI rollout, not
+// an authorization check: saved meeting grants remain enforced by the service.
+export const enableCalendarMeetingNotes = defineFlag({
+  key: 'enable-calendar-meeting-notes',
+  env: 'ENABLE_CALENDAR_MEETING_NOTES',
+  default: onInDev,
+});
+
 // Calendar event search UI: the Search view's Calendar type (and calendar
 // rows) plus the in-calendar keyword search. A sub-feature of the calendar UI
 // — opening a hit needs the calendar block — so it only takes effect where
@@ -691,7 +708,8 @@ export const enableCalendarGuestInvites = defineFlag({
 // action on a shared event's mention card. On in dev only until a real Google
 // import has passed on dev; there is no PostHog flag yet, so it stays off in
 // production. "Download .ics" beside it is not gated. Override with
-// VITE_ENABLE_CALENDAR_ADD_SHARED_EVENT.
+// VITE_ENABLE_CALENDAR_ADD_SHARED_EVENT. The agent's AddSharedCalendarEvent
+// tool reads the server switch ENABLE_CALENDAR_ADD_SHARED_EVENT instead.
 export const enableCalendarAddSharedEvent = defineFlag({
   key: 'enable-calendar-add-shared-event',
   env: 'ENABLE_CALENDAR_ADD_SHARED_EVENT',
@@ -884,4 +902,16 @@ export const enableAiUsageBilling = defineFlag({
 export const enableInAppTours = defineFlag({
   key: 'enable-in-app-tours',
   env: 'ENABLE_IN_APP_TOURS',
+});
+
+/**
+ * Personal WhatsApp linked devices: the External tab, pairing, adding chats
+ * to Macro and sharing them by mention in channels. Off in dev too: dev has no WhatsApp session
+ * service, so the tab would only show errors. Override locally with
+ * VITE_ENABLE_WHATSAPP_LINKED=true. Backend switches gate each operation
+ * independently.
+ */
+export const enableWhatsappLinked = defineFlag({
+  key: 'enable-whatsapp-linked',
+  env: 'ENABLE_WHATSAPP_LINKED',
 });

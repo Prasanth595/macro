@@ -14,6 +14,7 @@ field and mutate.
 - [`UserApiKey`](../../api-keys/api-key/classes/UserApiKey.md)
 - [`Calendar`](../../calendar/calendar/classes/Calendar.md)
 - [`CalendarEvent`](../../calendar/event/classes/CalendarEvent.md)
+- [`CalendarNote`](../../calendar/note/classes/CalendarNote.md)
 - [`CallMessage`](../../calls/message/classes/CallMessage.md)
 - [`ChatMessage`](../../chats/generation/classes/ChatMessage.md)
 - [`CrmComment`](../../crm/comment/classes/CrmComment.md)
@@ -42,6 +43,10 @@ field and mutate.
 - [`AccessRequest`](../../sharing/access/classes/AccessRequest.md)
 - [`Team`](../../teams/team/classes/Team.md)
 - [`Webhook`](../../webhooks/webhook/classes/Webhook.md)
+- [`WhatsAppAccount`](../../whatsapp/account/classes/WhatsAppAccount.md)
+- [`WhatsAppChat`](../../whatsapp/chat/classes/WhatsAppChat.md)
+- [`WhatsAppMessage`](../../whatsapp/message/classes/WhatsAppMessage.md)
+- [`WhatsAppSend`](../../whatsapp/send/classes/WhatsAppSend.md)
 
 ## Type Parameters
 

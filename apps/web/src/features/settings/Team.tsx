@@ -1,10 +1,11 @@
+import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 import { useUserId } from '@core/context/user';
 import { getDisplayName, tryMacroId } from '@core/user';
-import EnvelopeIcon from '@phosphor/envelope.svg';
-import PlusIcon from '@phosphor/plus.svg';
-import SpinnerIcon from '@phosphor/spinner.svg';
-import UsersIcon from '@phosphor/users.svg';
-import XIcon from '@phosphor/x.svg';
+import EnvelopeIcon from '@icon/system/regular/envelope.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
+import UsersIcon from '@icon/system/regular/users.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import {
   useJoinTeamMutation,
   useRejectInvitationMutation,
@@ -649,9 +650,7 @@ export function TeamPage(props: {
   return (
     // Each state renders its own SettingsPage (scrolling, centered column) so
     // Team matches the Account/Appearance layout.
-    <Suspense
-      fallback={<div class="animate-pulse bg-skeleton rounded h-4 w-32 m-6" />}
-    >
+    <Suspense fallback={<ListSkeleton.Bar class="m-6 h-4 w-32" />}>
       <TeamContent>{props.children}</TeamContent>
     </Suspense>
   );

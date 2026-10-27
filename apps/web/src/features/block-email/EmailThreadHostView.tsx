@@ -9,6 +9,7 @@ import {
   EmailThread,
   type EmailThreadProps,
 } from '@app/features/email-thread/email-thread';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { SidePanel } from '@components/app/side-panel';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -25,6 +26,8 @@ export type EmailThreadHostViewContext = {
 
 export type EmailThreadHostViewProps = {
   title: string;
+  /** Host control after the subject's last word, in place of Copy subject. */
+  titleTrailing?: JSX.Element;
   threadId: Accessor<string>;
   source: EmailThreadSource;
   threadTransport: EmailThreadProps['threadTransport'];
@@ -59,6 +62,7 @@ export function EmailThreadHostView(props: EmailThreadHostViewProps) {
   return (
     <EmailThread
       title={props.title}
+      titleTrailing={props.titleTrailing}
       threadId={props.threadId}
       source={props.source}
       threadTransport={props.threadTransport}
@@ -93,7 +97,7 @@ function ThreadActions(props: { title: string; onCreateTask: () => void }) {
   const context = useEmailThreadState();
   return (
     <SidePanel.HeaderActions>
-      <div class="flex shrink-0 items-center gap-1">
+      <HeaderActionGroup label="Actions">
         <Show when={context.thread()?.db_id}>
           {(id) => (
             <AskMacroButton
@@ -104,7 +108,7 @@ function ThreadActions(props: { title: string; onCreateTask: () => void }) {
         <Show when={context.thread()?.db_id}>
           <EmailTaskButton onClick={props.onCreateTask} />
         </Show>
-      </div>
+      </HeaderActionGroup>
     </SidePanel.HeaderActions>
   );
 }

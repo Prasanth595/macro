@@ -36,20 +36,19 @@ hexagonal architecture pattern.
   feature wiring.
 - Add an AI tool action: `src/inbound/toolset.rs` → `src/domain/mutation_service.rs`.
 
-## Gotchas
-
-- Favoriting requires `AnyEntityPermission`, never `ViewAccessLevel`: a channel
-  resolves to `ChannelRole`/`ChannelViewOnly`, which no leveled receipt matches,
-  so a leveled requirement rejects every channel favorite. The receipt exists
-  only when the actor has some access, which is the whole bar for a favorite.
-
 ## Tool contracts
 
 - The AI adapter omits legacy chat targets; only advertise entity types supported by the domain mutation service.
+- Standalone `WhatsAppGroup` entities are favoritable through the generic entity reference.
 
 ## Checks
 
 - `cargo test -p favorites --all-features` (`SQLX_OFFLINE` unset).
+
+## Gotchas
+
+- Authorize adds with `ports::FavoriteView`, not `ViewAccessLevel`: channels
+  resolve to channel roles, which `ViewAccessLevel` never accepts.
 
 ## Related
 
