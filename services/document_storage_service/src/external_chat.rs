@@ -1,8 +1,8 @@
-//! Personal WhatsApp linked devices: composition of the `whatsapp_linked` domain
-//! crate with DSS's entity access, notification and static file clients, the
-//! notification outbox worker, and the `whatsapp_changed` pushes to open pages.
-//! The session service runs the WhatsApp sockets; it reaches DSS only through
-//! MacroDB rows and `NOTIFY`.
+//! External chats (WhatsApp is the one provider): composition of the
+//! `whatsapp_linked` crate with DSS's entity access, notification and static file
+//! clients, the notification outbox worker, and the `external_chat_changed`
+//! pushes to open pages. The session service runs the WhatsApp sockets; it
+//! reaches DSS only through MacroDB rows and `NOTIFY`.
 
 use crate::api::context::{AuthorizationService, EntityAccessService, NotificationIngressType};
 use async_trait::async_trait;
@@ -33,7 +33,7 @@ use whatsapp_linked::{
     signals::{self, Change, ChangeSignal, trace_context},
 };
 
-/// Router state mounted at `/meta/linked`.
+/// Router state mounted at `/external-chats` and `/whatsapp`.
 pub(crate) type State = LinkedRouterState<EntityAccessService, AuthorizationService>;
 
 /// Clients the linked composition needs from DSS.
@@ -107,7 +107,7 @@ async fn publish(
 ) {
     let Some(mut listener) = listen(
         &pool,
-        &[signals::GROUP_EFFECTS, signals::MEDIA_READY],
+        &[signals::CHAT_EFFECTS, signals::MEDIA_READY],
         &cancellation,
     )
     .await
@@ -131,7 +131,7 @@ async fn publish(
                 }
             }
         };
-        let span = tracing::info_span!("whatsapp.linked.drain");
+        let span = tracing::info_span!("external_chat.drain");
         trace_context::adopt(&span, traceparent.as_deref());
         drain(&effects, &media).instrument(span).await;
     }
@@ -215,11 +215,11 @@ async fn drain(effects: &EffectsService, media: &MediaService) {
 }
 
 /// Gateway message type of the bare change pushes; pages re-fetch on receipt.
-const CHANGED_MESSAGE: &str = "whatsapp_changed";
+const CHANGED_MESSAGE: &str = "external_chat_changed";
 
-/// Turns `whatsapp_changed` signals into bare gateway pushes: `{scope: "groups"}`
-/// to an account's owner, `{scope: "group", group_id}` to everyone who can
-/// view a group. No data travels; the page re-fetches.
+/// Turns `external_chat_changed` signals into bare gateway pushes: `{scope: "chats"}`
+/// to an account's owner, `{scope: "chat", chatId}` to everyone who can
+/// view a chat. No data travels; the page re-fetches.
 struct ChangePusher {
     pool: PgPool,
     audience: Arc<PgLinkedRepository>,
@@ -231,23 +231,23 @@ impl ChangePusher {
     /// Users who see this change.
     async fn recipients(&self, change: Change) -> LinkedResult<Vec<String>> {
         match change {
-            Change::Groups { account_id } => Ok(self
+            Change::Chats { account_id } => Ok(self
                 .audience
                 .account_owner(account_id)
                 .await?
                 .into_iter()
                 .collect()),
-            Change::Group { group_id } => {
+            Change::Chat { chat_id } => {
                 let mut viewers: Vec<String> = self
                     .access
-                    .get_users_by_entity(&group_id.to_string(), EntityType::WhatsAppGroup)
+                    .get_users_by_entity(&chat_id.to_string(), EntityType::ExternalChat)
                     .await
                     .map_err(unavailable)?
                     .into_iter()
                     .map(|user| user.to_string())
                     .collect();
                 // Link viewers become known once they read the group.
-                viewers.extend(self.audience.link_viewers(group_id).await?);
+                viewers.extend(self.audience.link_viewers(chat_id).await?);
                 viewers.sort();
                 viewers.dedup();
                 Ok(viewers)
@@ -256,23 +256,23 @@ impl ChangePusher {
     }
 
     #[tracing::instrument(
-        name = "whatsapp.changed.push",
+        name = "external_chat.changed.push",
         skip_all,
         err,
-        fields(scope, group_id, account_id, recipients)
+        fields(scope, chat_id, account_id, recipients)
     )]
     async fn push(&self, change: Change) -> LinkedResult<()> {
         let span = tracing::Span::current();
         let message = match change {
-            Change::Groups { account_id } => {
-                span.record("scope", "groups");
+            Change::Chats { account_id } => {
+                span.record("scope", "chats");
                 span.record("account_id", tracing::field::display(account_id));
-                serde_json::json!({ "scope": "groups" })
+                serde_json::json!({ "scope": "chats" })
             }
-            Change::Group { group_id } => {
-                span.record("scope", "group");
-                span.record("group_id", tracing::field::display(group_id));
-                serde_json::json!({ "scope": "group", "groupId": group_id })
+            Change::Chat { chat_id } => {
+                span.record("scope", "chat");
+                span.record("chat_id", tracing::field::display(chat_id));
+                serde_json::json!({ "scope": "chat", "chatId": chat_id })
             }
         };
         let recipients = self.recipients(change).await?;
@@ -295,7 +295,7 @@ impl ChangePusher {
     }
 }
 
-/// Push every `whatsapp_changed` signal, coalescing a burst into one push per
+/// Push every `external_chat_changed` signal, coalescing a burst into one push per
 /// change. A push that fails is dropped: pages also re-fetch on open.
 async fn push_changes(pusher: ChangePusher, cancellation: CancellationToken) {
     let Some(mut listener) = listen(&pusher.pool, &[signals::CHANGED], &cancellation).await else {
@@ -325,7 +325,7 @@ async fn push_changes(pusher: ChangePusher, cancellation: CancellationToken) {
             if !seen.insert(signal.change) {
                 continue;
             }
-            let span = tracing::info_span!("whatsapp.changed.receive");
+            let span = tracing::info_span!("external_chat.changed.receive");
             trace_context::adopt(&span, signal.traceparent.as_deref());
             let _ = pusher.push(signal.change).instrument(span).await;
         }
@@ -336,7 +336,7 @@ fn unavailable(error: impl std::fmt::Display) -> rootcause::Report<LinkedError> 
     rootcause::report!("{error}").context(LinkedError::Unavailable)
 }
 
-/// Generic notifications for shared WhatsApp group messages. Revisions,
+/// Generic notifications for shared external chat messages. Revisions,
 /// reactions, history and replays never create a second notification.
 struct DssGroupPublisher {
     audience: Arc<PgLinkedRepository>,
@@ -346,10 +346,10 @@ struct DssGroupPublisher {
 #[async_trait]
 impl GroupPublisher for DssGroupPublisher {
     #[tracing::instrument(
-        name = "whatsapp.linked.notify",
+        name = "external_chat.notify",
         skip_all,
         err,
-        fields(group_id = %effect.group_id, message_id = %effect.message_id)
+        fields(chat_id = %effect.chat_id, message_id = %effect.message_id)
     )]
     async fn publish(&self, effect: &GroupEffect) -> LinkedResult<()> {
         if !effect.first_publication || effect.origin == Origin::History {
@@ -357,7 +357,7 @@ impl GroupPublisher for DssGroupPublisher {
         }
         let Some(notice) = self
             .audience
-            .message_notice(effect.group_id, effect.message_id)
+            .message_notice(effect.chat_id, effect.message_id)
             .await?
         else {
             return Ok(());
@@ -367,12 +367,12 @@ impl GroupPublisher for DssGroupPublisher {
         }
         let mut viewers = self
             .access
-            .get_users_by_entity(&effect.group_id.to_string(), EntityType::WhatsAppGroup)
+            .get_users_by_entity(&effect.chat_id.to_string(), EntityType::ExternalChat)
             .await
             .map_err(unavailable)?;
         // Link viewers become known when they read the group. Recheck their
         // current permission so a revoked link never keeps notifying them.
-        for viewer in self.audience.link_viewers(effect.group_id).await? {
+        for viewer in self.audience.link_viewers(effect.chat_id).await? {
             viewers.push(MacroUserIdStr::try_from(viewer).map_err(unavailable)?);
         }
         let recipient_ids = viewers
@@ -384,11 +384,12 @@ impl GroupPublisher for DssGroupPublisher {
             return Ok(());
         }
         let request = SendNotificationRequestBuilder {
-            notification_entity: EntityType::WhatsAppGroup
-                .with_entity_string(effect.group_id.to_string()),
+            notification_entity: EntityType::ExternalChat
+                .with_entity_string(effect.chat_id.to_string()),
             secondary_notification_entity: None,
-            notification: model_notifications::WhatsappGroupMessageMetadata {
-                group_name: notice.group_name,
+            notification: model_notifications::ExternalChatMessageMetadata {
+                provider: notice.provider,
+                chat_name: notice.chat_name,
                 message_id: effect.message_id,
             },
             sender_id: None,
@@ -412,10 +413,10 @@ struct StaticFiles(StaticFileServiceClient);
 #[async_trait]
 impl FileStore for StaticFiles {
     #[tracing::instrument(
-        name = "whatsapp.linked.store_file",
+        name = "external_chat.store_file",
         skip_all,
         err,
-        fields(blob_id = %import.blob_id, group_id = %import.group_id, size = bytes.len(), file_id)
+        fields(blob_id = %import.blob_id, chat_id = %import.chat_id, size = bytes.len(), file_id)
     )]
     async fn store(&self, import: &FileImport, bytes: Vec<u8>) -> LinkedResult<Uuid> {
         let stored = self
@@ -427,7 +428,7 @@ impl FileStore for StaticFiles {
         Uuid::parse_str(&stored.id).map_err(unavailable)
     }
 
-    #[tracing::instrument(name = "whatsapp.linked.delete_file", skip(self), err)]
+    #[tracing::instrument(name = "external_chat.delete_file", skip(self), err)]
     async fn delete(&self, file_id: Uuid) -> LinkedResult<()> {
         match self.0.delete_file(&file_id.to_string()).await {
             Ok(_) => Ok(()),
@@ -450,7 +451,7 @@ struct SendRequestLimiter<R>(R);
 
 #[async_trait]
 impl<R: rate_limit::RateLimitService> SendRateLimiter for SendRequestLimiter<R> {
-    #[tracing::instrument(name = "whatsapp.linked.send_rate_limit", skip_all, err)]
+    #[tracing::instrument(name = "external_chat.send_rate_limit", skip_all, err)]
     async fn check(&self, user: &MacroUserIdStr<'_>) -> LinkedResult<()> {
         let key = rate_limit::RateLimitKey::builder(&"whatsapp-linked-send")
             .append(&user.as_ref())
