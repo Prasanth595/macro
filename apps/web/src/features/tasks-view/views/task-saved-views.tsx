@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { replacePaneSearchParams } from '@app/lib/split-router';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { toast } from '@core/component/Toast/Toast';
@@ -400,7 +401,9 @@ function TaskSavedViewRows(props: {
           </Show>
           <Show when={empty()}>
             <div class="flex flex-col items-start gap-1.5 px-3 py-1 group-data-closed/sidebar-section:invisible">
-              <p class="text-xs text-ink-muted">No saved views yet</p>
+              <p class="text-xs text-ink-muted">
+                {t('viewMenus.noSavedViews')}
+              </p>
               <Button
                 ref={attachCreateHotkeys}
                 size="sm"
@@ -408,7 +411,7 @@ function TaskSavedViewRows(props: {
                 onClick={() => run(startSavedView)}
               >
                 <PlusIcon class="size-3.5" />
-                Create view
+                {t('viewMenus.createSavedView')}
               </Button>
             </div>
           </Show>
