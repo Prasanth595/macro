@@ -482,7 +482,8 @@ none), **Checks failing**, **Conflicts** (GitHub reports the branch conflicting
 with its base; read live for the open PRs on the board), **Ready to merge**
 (every check passed), and **Merged**. Cards show the status icon, priority,
 title, checks, `owner/repo#N`, author, link pills, labels, and agent sessions;
-clicking a card opens the PR. Dragging asks GitHub for the change as you: drop
+clicking a card opens the PR. Right-clicking a card, or Shift+F10 on its focused
+title, opens the list row's context menu. Dragging asks GitHub for the change as you: drop
 on **Merged** (from In review or Ready to merge) to merge after the same
 confirmation as the PR's Merge button; drop on **Draft** to convert any open PR
 to a draft; drop a draft on **In review** to mark it ready for review. Checks

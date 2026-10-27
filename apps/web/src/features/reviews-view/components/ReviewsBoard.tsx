@@ -14,6 +14,7 @@ import { PrStatusIcon } from '@block-pr/component/PrStatus';
 import { priorityTaskName } from '@block-pr/data/pr-links';
 import { pullRequestFailureMessage } from '@block-pr/primitives/create-merge-pull-request-action';
 import { prDisplayName } from '@block-pr/util/prKey';
+import { ContextMenuTrigger } from '@core/component/ContextMenu';
 import { toast } from '@core/component/Toast/Toast';
 import type { GithubPullRequestEntity } from '@entity';
 import { GithubLabelPills } from '@entity/components/GithubLabelPill';
@@ -22,6 +23,7 @@ import {
   GithubPullRequestChecksIndicator,
 } from '@entity/composed/list-entity/foreign';
 import { PrAgentSessionsChip } from '@entity/views/PrAgentSessionsChip';
+import { ContextMenu } from '@kobalte/core/context-menu';
 import { queryClient } from '@queries/client';
 import { soupKeys } from '@queries/soup/keys';
 import { useSetGithubPullRequestDraftMutation } from '@queries/storage/pr-draft';
@@ -38,6 +40,7 @@ import {
   reviewsBoardAction,
   reviewsBoardStage,
 } from '../core/reviews-board';
+import { ReviewContextMenuContent } from './ReviewContextMenu';
 import type { ReviewsListLinks } from './ReviewsList';
 
 /** A stage set by a move, kept until the pull request itself changes. */
@@ -244,11 +247,19 @@ export function ReviewsBoard(props: {
                           props.onOpen(card().id, event.shiftKey)
                         }
                       >
-                        <ReviewsBoardCard
-                          review={review()}
-                          links={props.links}
-                          onOpen={props.onOpen}
-                        />
+                        <ContextMenu>
+                          <ContextMenuTrigger as="div">
+                            <ReviewsBoardCard
+                              review={review()}
+                              links={props.links}
+                              onOpen={props.onOpen}
+                            />
+                          </ContextMenuTrigger>
+                          <ReviewContextMenuContent
+                            review={review()}
+                            onOpen={props.onOpen}
+                          />
+                        </ContextMenu>
                       </TaskBoard.Card>
                     )}
                   </Show>
