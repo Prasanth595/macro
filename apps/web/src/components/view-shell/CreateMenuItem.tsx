@@ -47,8 +47,10 @@ export function CreateMenuItem(
         <span
           id={descriptionId}
           class={cn(
-            'font-[family-name:Inter_Variable,sans-serif] text-xs font-normal text-ink-extra-muted',
-            local.singleLine ? 'min-w-0 truncate' : 'whitespace-normal'
+            'font-[family-name:Inter_Variable,sans-serif] text-xs font-normal',
+            local.singleLine
+              ? 'min-w-0 truncate text-ink-placeholder'
+              : 'whitespace-normal text-ink-extra-muted'
           )}
         >
           {local.description}
