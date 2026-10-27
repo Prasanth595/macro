@@ -4,11 +4,13 @@
 
 Shared infrastructure: manages per-entity WebSocket connections so other
 services can push messages to a specific connected entity without holding
-the socket themselves.
+the socket themselves. It also embeds document sync routing for each socket.
 
 ## Start here
 
 - `src/api/connection.rs`: WebSocket upgrade endpoint and connection lifecycle.
+- `src/service/sync.rs`: per-socket sync router, bounded outbound delivery,
+  cancellation and task joining. Routing core lives in `crates/sync_router`.
 - `src/api/message.rs`: HTTP endpoint other services call to send a message to
   a connected entity.
 - `src/service/connection.rs` + `src/service/dynamodb.rs`: connection registry,
@@ -21,9 +23,9 @@ the socket themselves.
 ## Scope
 
 - Owns: WebSocket connection tracking and message delivery to a connected
-  entity, across instances.
-- Not here: the message/event payloads themselves, or who is authorized to
-  send to whom — callers decide that before calling in.
+  entity, across instances; multiplexed document sync for local sockets.
+- Document state and document-token authorization remain in `sync-service`.
+  Other message/event payloads and send authorization remain with callers.
 
 ## Boundaries
 
@@ -49,7 +51,12 @@ the socket themselves.
 
 - A send can target a connection on a different instance — it always goes
   through the Redis relay in `src/service/redis.rs`, never a direct in-process
-  lookup; don't bypass it when adding a new send path.
+  lookup. Sync replies are the exception: their router is owned by one local
+  socket, so they go directly to that socket's queue.
+- Resolve `SyncServiceUrl` at startup; Docker uses
+  `OVERRIDE_SYNC_SERVICE_URL=http://sync-service:8787`.
+- Complete the gateway rollout before enabling `sync-via-gateway` in PostHog;
+  there is no separate router deployment. See `docs/architecture/sync-gateway.md`.
 
 ## Related
 

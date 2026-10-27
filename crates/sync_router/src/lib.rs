@@ -1,6 +1,6 @@
 #![deny(missing_docs)]
 //! The sync-router: forwards sync-protocol frames between the connection
-//! gateway's Redis fanout and a per-document downstream.
+//! gateway's local sockets and a per-document downstream.
 //!
 //! Chapter 1: the downstream is the existing Cloudflare Durable Object
 //! sync-service, dialed per `(connection, document)` so the DO sees each user
@@ -13,5 +13,4 @@
 //! router core does not change.
 
 pub mod domain;
-pub mod inbound;
 pub mod outbound;

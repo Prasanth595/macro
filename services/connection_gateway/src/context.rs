@@ -18,9 +18,8 @@ pub type AuthorizationService = MacroAuthorizationServiceImpl<MacroAuthJwtValida
 #[derive(Clone, FromRef)]
 pub struct ApiContext {
     pub connection_manager: crate::service::connection::ConnectionManager,
-    /// Boot-unique id of this gateway instance, used to tag fanout
-    /// messages and name this instance's outbound fanout channel.
-    pub fanout_gateway_id: Arc<str>,
+    /// Downstream sync origin, selected once at startup for this environment.
+    pub sync_service_url: url::Url,
     pub frecency_ingestor_service: EventIngestorImpl<FrecencyPgStorage>,
     pub redis_client: Arc<redis::Client>,
     pub redis_connection: MultiplexedConnection,

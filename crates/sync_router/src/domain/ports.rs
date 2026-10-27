@@ -3,9 +3,10 @@
 use crate::domain::models::{ConnectionId, DocId};
 use std::fmt::Debug;
 use tokio::sync::mpsc;
+use tokio_util::sync::{CancellationToken, DropGuard};
 
 /// Delivers an already-serialized `FromRouter` envelope to a client
-/// connection. Implemented over the gateway's Redis outbound channel.
+/// connection. The gateway implements this with the owning socket's queue.
 #[cfg_attr(test, mockall::automock(type Err = anyhow::Error;))]
 pub trait EdgeSink: Send + Sync + 'static {
     /// The error type returned by delivery.
@@ -35,11 +36,26 @@ pub trait DownstreamFactory: Send + Sync + 'static {
     /// (already-serialized `FromPeer`) frames. `epoch` identifies this route
     /// incarnation and must be echoed in the resulting
     /// [`crate::domain::models::Event::DownstreamClosed`].
-    fn open(
-        &self,
-        conn: ConnectionId,
-        doc: DocId,
-        token: String,
-        epoch: u64,
-    ) -> mpsc::Sender<Vec<u8>>;
+    fn open(&self, conn: ConnectionId, doc: DocId, token: String, epoch: u64) -> Downstream;
+}
+
+/// A downstream route whose work is cancelled as soon as the route is removed.
+pub struct Downstream {
+    sender: mpsc::Sender<Vec<u8>>,
+    _cancel_on_drop: DropGuard,
+}
+
+impl Downstream {
+    /// Own the frame queue and cancellation of its downstream pump.
+    pub fn new(sender: mpsc::Sender<Vec<u8>>, cancel: CancellationToken) -> Self {
+        Self {
+            sender,
+            _cancel_on_drop: cancel.drop_guard(),
+        }
+    }
+
+    /// Offer a frame without blocking the router on a slow downstream.
+    pub fn try_send(&self, frame: Vec<u8>) -> Result<(), mpsc::error::TrySendError<Vec<u8>>> {
+        self.sender.try_send(frame)
+    }
 }

@@ -7,7 +7,7 @@
 
 use crate::domain::envelope;
 use crate::domain::models::{ConnectionId, DocId, Event};
-use crate::domain::ports::{DownstreamFactory, EdgeSink};
+use crate::domain::ports::{Downstream, DownstreamFactory, EdgeSink};
 use futures::{SinkExt, StreamExt};
 use opentelemetry::trace::TraceContextExt;
 use std::sync::Arc;
@@ -15,11 +15,13 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{debug, warn};
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tracing::{Instrument, debug, warn};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
+use url::Url;
 
 /// How many client frames may buffer while the dial is in flight (or the
-/// upstream is slow). Overflow drops frames; the sync protocol self-heals.
+/// upstream is slow). Overflow closes the route so the client resynchronizes.
 const DOWNSTREAM_BUFFER: usize = 256;
 
 /// Keep the upstream (and its Durable Object) alive, mirroring the ping the
@@ -28,61 +30,74 @@ const UPSTREAM_PING_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Dials `{base_url}/document/{doc}/connect?token=…&traceparent=…`.
 pub struct DoDownstreamFactory<Sink: EdgeSink> {
-    base_url: String,
+    base_url: Url,
     sink: Arc<Sink>,
     events: mpsc::Sender<Event>,
+    cancel: CancellationToken,
+    tasks: TaskTracker,
 }
 
 impl<Sink: EdgeSink> DoDownstreamFactory<Sink> {
     /// `base_url` is the sync-service origin, e.g. `http://localhost:8787`.
-    pub fn new(base_url: String, sink: Arc<Sink>, events: mpsc::Sender<Event>) -> Self {
+    pub fn new(
+        base_url: Url,
+        sink: Arc<Sink>,
+        events: mpsc::Sender<Event>,
+        cancel: CancellationToken,
+        tasks: TaskTracker,
+    ) -> Self {
         Self {
             base_url,
             sink,
             events,
+            cancel,
+            tasks,
         }
     }
 }
 
 impl<Sink: EdgeSink> DownstreamFactory for DoDownstreamFactory<Sink> {
     #[tracing::instrument(skip(self, token), fields(document.id = doc.as_str()))]
-    fn open(
-        &self,
-        conn: ConnectionId,
-        doc: DocId,
-        token: String,
-        epoch: u64,
-    ) -> mpsc::Sender<Vec<u8>> {
+    fn open(&self, conn: ConnectionId, doc: DocId, token: String, epoch: u64) -> Downstream {
         let (sender, receiver) = mpsc::channel(DOWNSTREAM_BUFFER);
 
-        let ws_base = self
-            .base_url
-            .replacen("http://", "ws://", 1)
-            .replacen("https://", "wss://", 1);
-        let mut url = format!("{ws_base}/document/{}/connect?token={token}", doc.as_str());
-        // The DO reads `traceparent` from the query string (browser websocket
-        // upgrades can't carry headers, so the DO accepts it there; we use the
-        // same mechanism).
+        let mut url = self.base_url.clone();
+        // The composition root validates the base; URL APIs encode document ids
+        // and scoped tokens so neither can change the downstream destination.
+        let scheme = if url.scheme() == "http" { "ws" } else { "wss" };
+        url.set_scheme(scheme)
+            .expect("HTTP sync origin accepts a WebSocket scheme");
+        url.path_segments_mut()
+            .expect("sync origin is a base URL")
+            .pop_if_empty()
+            .extend(["document", doc.as_str(), "connect"]);
+        url.query_pairs_mut().clear().append_pair("token", &token);
         if let Some(traceparent) = current_traceparent() {
-            url.push_str(&format!("&traceparent={traceparent}"));
+            url.query_pairs_mut()
+                .append_pair("traceparent", &traceparent);
         }
 
-        tokio::spawn(pump(
-            url,
-            conn,
-            doc,
-            epoch,
-            receiver,
-            Arc::clone(&self.sink),
-            self.events.clone(),
-        ));
-        sender
+        let cancel = self.cancel.child_token();
+        let pump_cancel = cancel.clone();
+        let sink = Arc::clone(&self.sink);
+        let events = self.events.clone();
+        self.tasks.spawn(
+            async move {
+                tokio::select! {
+                    biased;
+                    _ = pump_cancel.cancelled() => {},
+                    _ = pump(url.to_string(), conn, doc, epoch, receiver, sink, events) => {},
+                }
+            }
+            .in_current_span(),
+        );
+        Downstream::new(sender, cancel)
     }
 }
 
 /// The whole life of one downstream connection: dial, then pump frames both
 /// ways until either side hangs up.
-#[tracing::instrument(skip_all, fields(document.id = doc.as_str(), conn = %conn.conn))]
+#[tracing::instrument(skip_all, fields(document.id = doc.as_str(), conn = %conn.0))]
 async fn pump<Sink: EdgeSink>(
     url: String,
     conn: ConnectionId,
@@ -106,10 +121,10 @@ async fn pump<Sink: EdgeSink>(
         }
     };
 
-    let upstream = match connect_async(&url).await {
-        Ok((upstream, _response)) => upstream,
-        Err(error) => {
-            warn!(error = ?error, "downstream dial failed");
+    let upstream = match tokio::time::timeout(Duration::from_secs(10), connect_async(&url)).await {
+        Ok(Ok((upstream, _response))) => upstream,
+        failure => {
+            warn!(timed_out = failure.is_err(), "downstream dial failed");
             deliver(envelope::subscribe_failed(doc.as_str(), "dial failed")).await;
             events
                 .send(Event::DownstreamClosed { conn, doc, epoch })

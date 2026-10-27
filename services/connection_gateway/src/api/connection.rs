@@ -53,8 +53,10 @@ pub async fn ws_handler(
     let macro_user_id = authorization.authorization.user.macro_user_id.clone();
     let user_context = authorization.authorization.user.user_context.clone();
 
+    let span = tracing::Span::current();
     ws.on_upgrade(move |socket| {
         handle_websocket_connection(socket, ctx, config, macro_user_id, user_context)
+            .instrument(span)
     })
 }
 
@@ -72,13 +74,14 @@ async fn handle_websocket_connection(
 ) {
     let (sink, stream) = socket.split();
     let (sender, receiver) = tokio::sync::mpsc::channel::<OutgoingMessage>(100);
-    let connection_id = uuid::Uuid::new_v4().to_string();
+    let connection_id = uuid::Uuid::now_v7().to_string();
 
     // Create guard that records last online time when websocket connection closes
     let last_online_guard = ctx.last_online_worker.new_guard(macro_user_id.clone());
 
     let sender_connection_id = connection_id.clone();
-    let sender_task = tokio::spawn(forwarder(sink, receiver, sender_connection_id));
+    let mut sender_task =
+        tokio::spawn(forwarder(sink, receiver, sender_connection_id).in_current_span());
 
     if let Err(err) = ctx
         .connection_manager
@@ -103,12 +106,19 @@ async fn handle_websocket_connection(
         connection_id: &connection_id,
     };
 
-    crate::service::fanout::connected(&connection_context, &macro_user_id).await;
-
-    let receiver_task = handle_websocket_stream(connection_context, stream, sender.clone()).fuse();
+    let sync_session = crate::service::sync::SyncSession::new(
+        connection_id.clone(),
+        ctx.sync_service_url.clone(),
+        sender.clone(),
+    );
+    let receiver_task =
+        handle_websocket_stream(connection_context, stream, sender.clone(), &sync_session).fuse();
 
     tokio::select! {
-        res = sender_task => {
+        _ = sync_session.closed() => {
+            tracing::warn!(connection.id = %connection_id, "sync routing stopped; closing socket");
+        }
+        res = &mut sender_task => {
             res.inspect(|_| tracing::debug!("sender task finished"))
                 .inspect_err(|err| {
                     tracing::error!(error=?err, "sender task failed");
@@ -122,8 +132,15 @@ async fn handle_websocket_connection(
         }
     }
 
+    // A blocked write must not keep the socket alive after routing stops.
+    sender_task.abort();
+    if !sender_task.is_finished() {
+        let _ = sender_task.await;
+    }
+    sync_session.shutdown().await;
+
     ctx.connection_manager
-        .remove_connection(&connection_id.clone())
+        .remove_connection(&connection_id)
         .await
         .inspect(|_| tracing::debug!("connections removed"))
         .inspect_err(|e| {
@@ -136,9 +153,6 @@ async fn handle_websocket_connection(
         })
         .ok();
 
-    // After remove_connection, so consumers never see "gone" while the
-    // gateway can still route to the socket.
-    crate::service::fanout::disconnected(&connection_context).await;
     drop(last_online_guard);
 }
 

@@ -5,7 +5,7 @@ use crate::{
         tracking::{EntityConnectionExt, TrackingData},
         websocket::ToWebsocketMessage,
     },
-    service::{fanout, stream_event::handle_stream_events, tracker},
+    service::{stream_event::handle_stream_events, sync::SyncSession, tracker},
 };
 use anyhow::{Context, Result};
 use axum::extract::ws::{Message, WebSocket};
@@ -18,11 +18,13 @@ pub async fn handle_websocket_stream(
     connection_context: ConnectionContext<'_>,
     mut stream: SplitStream<WebSocket>,
     sender: Sender<OutgoingMessage>,
+    sync_session: &SyncSession,
 ) -> Result<()> {
     while let Some(msg) = stream.next().await {
         match msg {
             Ok(msg) => {
-                if let Err(e) = handle_message(connection_context, msg, &sender).await {
+                if let Err(e) = handle_message(connection_context, msg, &sender, sync_session).await
+                {
                     tracing::warn!(error=?e, "error handling message");
                 }
             }
@@ -49,24 +51,10 @@ pub async fn handle_message(
     connection_context: ConnectionContext<'_>,
     message: Message,
     sender: &Sender<OutgoingMessage>,
+    sync_session: &SyncSession,
 ) -> Result<()> {
-    // Every client frame is republished to the fanout channel, unparsed,
-    // before any in-gateway handling. Backend services consume what they care
-    // about (the sync tier reads binary frames); the gateway stays a dumb tap.
-    //
-    // TODO: the in-gateway handling below (entity tracking / frecency,
-    // stream-event subscriptions) should probably migrate to services
-    // consuming this same fanout, keeping the gateway a pure edge.
-    match &message {
-        Message::Text(text) => {
-            fanout::frame(&connection_context, true, text.as_bytes().to_vec()).await;
-        }
-        Message::Binary(payload) => {
-            fanout::frame(&connection_context, false, payload.to_vec()).await;
-            // Binary frames have no in-gateway handling; fanout is it.
-            return Ok(());
-        }
-        _ => {}
+    if let Message::Binary(payload) = message {
+        return sync_session.frame(payload.to_vec()).await;
     }
 
     let text_message = match message {

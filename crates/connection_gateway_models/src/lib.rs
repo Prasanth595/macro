@@ -1,8 +1,6 @@
 #![deny(missing_docs)]
 //! Shared types for the connection gateway service and client.
 
-pub mod fanout;
-
 use model_entity::Entity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

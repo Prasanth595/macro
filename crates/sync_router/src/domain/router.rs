@@ -7,11 +7,12 @@ mod test;
 use crate::domain::{
     envelope::{self, ClientEnvelope},
     models::{ConnectionId, DocId, EdgeEvent, Event},
-    ports::{DownstreamFactory, EdgeSink},
+    ports::{Downstream, DownstreamFactory, EdgeSink},
 };
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, warn};
 
 /// Routes envelope frames between gateway connections and per-document
@@ -29,7 +30,7 @@ pub struct Router<Sink: EdgeSink, Downstreams: DownstreamFactory> {
 /// One live (or dialing) downstream route.
 struct Route {
     epoch: u64,
-    sender: mpsc::Sender<Vec<u8>>,
+    sender: Downstream,
 }
 
 /// Documents one connection may hold open at once. The downstream token is
@@ -50,9 +51,16 @@ impl<Sink: EdgeSink, Downstreams: DownstreamFactory> Router<Sink, Downstreams> {
     }
 
     /// Drive the router from an event stream until it closes.
-    pub async fn run(mut self, mut events: mpsc::Receiver<Event>) {
-        while let Some(event) = events.recv().await {
-            self.handle(event).await;
+    pub async fn run(mut self, mut events: mpsc::Receiver<Event>, cancel: CancellationToken) {
+        loop {
+            tokio::select! {
+                biased;
+                _ = cancel.cancelled() => break,
+                event = events.recv() => match event {
+                    Some(event) => self.handle(event).await,
+                    None => break,
+                },
+            }
         }
     }
 
@@ -69,22 +77,6 @@ impl<Sink: EdgeSink, Downstreams: DownstreamFactory> Router<Sink, Downstreams> {
                 }
             }
             Event::Edge(EdgeEvent::Disconnected { conn }) => self.drop_conn(&conn),
-            Event::Edge(EdgeEvent::GatewayLost { gateway }) => {
-                let conns: Vec<ConnectionId> = self
-                    .by_conn
-                    .keys()
-                    .filter(|conn| conn.gateway == gateway)
-                    .cloned()
-                    .collect();
-                debug!(
-                    gateway = %gateway,
-                    count = conns.len(),
-                    "gateway lost; dropping its connections"
-                );
-                for conn in conns {
-                    self.drop_conn(&conn);
-                }
-            }
             Event::DownstreamClosed { conn, doc, epoch } => {
                 // The pump already told the client; forget the route — but
                 // only if it is still the incarnation that died. A stale
@@ -100,7 +92,7 @@ impl<Sink: EdgeSink, Downstreams: DownstreamFactory> Router<Sink, Downstreams> {
         }
     }
 
-    #[tracing::instrument(skip_all, fields(conn = %conn.conn, gateway = %conn.gateway))]
+    #[tracing::instrument(skip_all, fields(conn = %conn.0))]
     async fn handle_client(&mut self, conn: ConnectionId, frame: ClientEnvelope) {
         match frame {
             ClientEnvelope::RouterSubscribe { doc_id, token } => {
@@ -151,12 +143,16 @@ impl<Sink: EdgeSink, Downstreams: DownstreamFactory> Router<Sink, Downstreams> {
                     );
                     return;
                 };
-                // try_send: a full buffer means a downstream that can't keep
-                // up; drop the frame — the sync protocol self-heals via
-                // catch-up requests. A closed channel means the downstream
-                // died; DownstreamClosed will clean the route up.
+                // Losing a chunk can corrupt the inner framing stream. Tear
+                // down this route so the client reconnects and resynchronizes.
                 if let Err(error) = sender.sender.try_send(payload) {
-                    warn!(doc = doc.as_str(), error = %error, "dropping frame for downstream");
+                    warn!(doc = doc.as_str(), error = %error, "downstream queue unavailable; closing route");
+                    self.forget(&conn, &doc);
+                    self.deliver(
+                        &conn,
+                        envelope::doc_closed(doc.as_str(), "downstream queue unavailable"),
+                    )
+                    .await;
                 }
             }
         }
@@ -166,7 +162,7 @@ impl<Sink: EdgeSink, Downstreams: DownstreamFactory> Router<Sink, Downstreams> {
         let Some(docs) = self.by_conn.remove(conn) else {
             return;
         };
-        debug!(conn = %conn.conn, count = docs.len(), "dropping connection's downstreams");
+        debug!(conn = %conn.0, count = docs.len(), "dropping connection's downstreams");
         for doc in docs {
             self.routes.remove(&(conn.clone(), doc));
         }
@@ -189,7 +185,7 @@ impl<Sink: EdgeSink, Downstreams: DownstreamFactory> Router<Sink, Downstreams> {
             .await
             .map_err(Into::into)
             .inspect_err(|error: &anyhow::Error| {
-                warn!(error = ?error, conn = %conn.conn, "failed to deliver frame to client");
+                warn!(error = ?error, conn = %conn.0, "failed to deliver frame to client");
             })
             .ok();
     }

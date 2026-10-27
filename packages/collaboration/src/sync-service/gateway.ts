@@ -28,7 +28,7 @@ import type { SyncSocket } from './socket';
  * Wire shape: every frame is a Bebop `ToRouter`/`FromRouter` envelope naming
  * the document; the inner payloads are the same `FromPeer`/`FromRemote`
  * messages the direct socket speaks, unchanged. Server side, the
- * connection-gateway fans inbound frames out to the sync-router, which holds
+ * connection-gateway routes inbound frames through its embedded router, which holds
  * one upstream connection per (socket, document).
  *
  * Each document gets a {@link SyncSocket}-compatible virtual socket, so
@@ -98,7 +98,7 @@ export class GatewaySyncTransport {
       this.route(event.data);
     });
     ws.addEventListener(WebsocketEvent.Reconnect, () => {
-      // A new gateway socket is a new fanout connection server-side: every
+      // A new gateway socket owns a new router session server-side: every
       // route was torn down, so every document must re-subscribe.
       for (const virtual of this.docs.values()) virtual.resubscribe();
     });
