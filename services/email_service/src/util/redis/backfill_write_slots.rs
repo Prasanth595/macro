@@ -17,11 +17,12 @@ use uuid::Uuid;
 mod test;
 
 /// Concurrent backfill writes across the fleet. A healthy single-message write
-/// (the contacts upsert plus its transaction) averages about 100 ms, so twelve
-/// slots admit at least roughly 120 messages a second while the database is
-/// healthy, more when a thread's messages share one transaction, and fewer as
-/// the database slows down.
-const CAPACITY: u32 = 12;
+/// (the contacts upsert plus its transaction) averages about 100 ms, so twenty
+/// slots admit at least roughly 200 messages a second while the database is
+/// healthy, above normal busy hours, more when a thread's messages share one
+/// transaction, and fewer as the database slows down. Unbounded, 125 to 250
+/// backfill workers could write at once.
+const CAPACITY: u32 = 20;
 /// Frees the slot of a crashed worker. A held slot renews it every
 /// [`RENEW_EVERY`], so a write that outlasts it keeps its slot.
 const LEASE: Duration = Duration::from_secs(120);
