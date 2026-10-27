@@ -1,9 +1,11 @@
 # Universal Input behavior baseline
 
-`baseline.json` holds 20 input variants and their expected intent and fields.
+`baseline.json` holds 22 input variants and their expected intent and fields.
 It preserves multiline messages and checks the complete requested message body,
 task title/body/priority/deadline, event start/invitees, note body, and search
-category/sender/query. Fields without an expectation are left unconstrained.
+category/sender/query. It also checks email To/Cc/subject/body separation and a
+message addressed to a named channel. Fields without an expectation are left
+unconstrained.
 
 The clock is fixed at **2026-10-27 12:00 UTC**. All three dinner variants expect
 the upcoming Monday, **November 2 at 19:00**. Tomorrow morning is
@@ -25,12 +27,16 @@ python3 crates/universal_input/eval/compare.py \
 Use the selected instance's URL. The runner only calls `classify` and `extract`;
 it never submits drafts, sends messages, or creates content. Inference uses the
 configured model providers. Fixture aliases resolve extracted names to expected
-addresses without looking up or creating actual accounts. Recipient order and
-priority capitalization are ignored. Title expectations list acceptable forms
-with or without a reporter prefix and ignore capitalization/trailing punctuation;
-they still reject a description merged into the title. Message and note bodies
-remain exact after trimming outside whitespace. A null search query is equivalent
-to an empty one.
+addresses without looking up or creating actual accounts. The channel fixture
+represents an available channel the user belongs to; extracted names match its
+full name without regard to case. This runner checks extraction, while
+`apps/web/src/features/universal-input/core/recipients.test.ts` checks resolution
+against the frontend's available recipient options, including a missing channel.
+Recipient order and priority capitalization are ignored. Title expectations list
+acceptable forms with or without a reporter prefix and ignore capitalization/trailing
+punctuation; they still reject a description merged into the title. Message and
+note bodies remain exact after trimming outside whitespace. A null search query
+is equivalent to an empty one.
 
 The runner selects the highest-scoring intent, as the composer does. It does not
 force the expected type when classification is wrong. Failures therefore show

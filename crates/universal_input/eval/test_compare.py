@@ -24,6 +24,21 @@ class BaselineComparisonTests(unittest.TestCase):
         )
         self.assertTrue(fields["guests"]["pass"])
 
+    def test_email_cc_does_not_count_as_a_to_recipient(self):
+        expected = {"recipients": ["julia@macro.com"], "cc": ["teo@macro.com"]}
+        correct = compare_fields(expected, "email", {"recipients": ["Julia"], "cc": ["Teo"]}, SUITE)
+        combined = compare_fields(expected, "email", {"recipients": ["Julia", "Teo"], "cc": []}, SUITE)
+        self.assertTrue(all(field["pass"] for field in correct.values()))
+        self.assertFalse(combined["recipients"]["pass"])
+        self.assertFalse(combined["cc"]["pass"])
+
+    def test_named_channels_match_without_accepting_a_partial_name(self):
+        expected = {"recipients": ["Bug Reports"]}
+        correct = compare_fields(expected, "message", {"recipients": ["bug reports"]}, SUITE)
+        partial = compare_fields(expected, "message", {"recipients": ["bug"]}, SUITE)
+        self.assertTrue(correct["recipients"]["pass"])
+        self.assertFalse(partial["recipients"]["pass"])
+
     def test_null_queries_are_empty_but_filter_wording_is_a_mismatch(self):
         expected = {"search_type": "Channels", "query": ""}
         empty = compare_fields(expected, "search", {"search_scope": "messages", "query": None}, SUITE)

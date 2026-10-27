@@ -5,6 +5,7 @@
     { "email": "julia@macro.com", "aliases": ["julia"] },
     { "email": "teo@macro.com", "aliases": ["teo"] }
   ],
+  "channels": ["Bug Reports"],
   "search_types": {
     "Channels": ["channel", "channels", "message", "messages", "channel message", "channel messages", "dm", "dms"],
     "Tasks": ["task", "tasks"]
@@ -27,6 +28,15 @@
       ]
     },
     {
+      "id": "named-channel-message",
+      "expect": {
+        "intent": "message",
+        "recipients": ["Bug Reports"],
+        "body": "cmd k menu not closing"
+      },
+      "inputs": ["message bug reports, cmd k menu not closing"]
+    },
+    {
       "id": "email-body",
       "expect": {
         "intent": "email",
@@ -35,6 +45,19 @@
       },
       "inputs": [
         "email julia\nCan we reschedule the thing tomorrow? Let the investors know."
+      ]
+    },
+    {
+      "id": "email-cc-and-subject",
+      "expect": {
+        "intent": "email",
+        "recipients": ["julia@macro.com"],
+        "cc": ["teo@macro.com"],
+        "subject": "Investor Meeting",
+        "body": "Let's figure out a good time to get together with the investors. Can you schedule this?"
+      },
+      "inputs": [
+        "email julia, cc teo\nLet's figure out a good time to get together with the investors. Can you schedule this?\nsubject: Investor Meeting"
       ]
     },
     {

@@ -16,12 +16,14 @@ from zoneinfo import ZoneInfo
 
 
 def normalize(field, value, suite):
-    if field in ("recipients", "guests", "search_from"):
+    if field in ("recipients", "cc", "bcc", "guests", "search_from"):
         people = {
             alias.casefold(): person["email"]
             for person in suite["people"]
             for alias in [person["email"], *person["aliases"]]
         }
+        if field == "recipients":
+            people.update({channel.casefold(): channel for channel in suite.get("channels", [])})
         return sorted({people.get(term.strip().casefold(), term.strip()) for term in value or []})
     if field == "query":
         return value or ""
