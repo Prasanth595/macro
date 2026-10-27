@@ -150,6 +150,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 - Share URL recognition with `packages/lexical-core/utils/auto-link.ts`; preserve explicit unlink markers when saving and rendering messages. See `packages/lexical-core/README.md` at the repository root.
 - Empty human DMs use the shared centered conversations graphic and explain email delivery to nonusers; keep this state out of agent DMs, loading/error states, and populated timelines.
+- Main Tasks mounts reusable GraphQL saved views; keep embedded Project/CRM task lists unchanged. Read `src/features/tasks-view/AGENTS.md` for filter, draft, navigation, and browser checks.
 - Enable persisted email/calendar review controls only for the review’s saved acting account; historical reviews fall back to the session owner. Require session edit access on desktop and mobile.
 - Email draft reads compare server generations before choosing cached delivery state over a restored working copy; only a definitive first-submission rejection permits local send recovery without server cancellation.
 - Compose settings pages with `features/settings/primitives.tsx` so section headings,
@@ -232,7 +233,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Compose multiselect filters with `Dropdown.MultiSelectItem` and the shared
   searchable filters; follow [multiselect dropdowns](../../docs/agent-guide/ui-conventions.md#multiselect-dropdowns)
   for checkbox, row, Only, keyboard, and touch behavior.
-- Keep adopted WhatsApp groups in External at `/external/whatsapp/:id` (`/whatsapp-group/:id` redirects) with their own queries; sharing controls viewing and the viewer's own WhatsApp membership controls sending. Never route them through channel context or services.
+- Keep adopted WhatsApp groups in External at `/external/whatsapp/:id` with their own queries; sharing controls viewing and the viewer's own WhatsApp membership controls sending. Never route them through channel context or services.
 - All API/network calls live in service-clients.
 - Open projects through `openProject` (`features/projects/open-project.ts`): it
   retargets an already-open project split to the section or comment in place.

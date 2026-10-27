@@ -4,13 +4,12 @@ use super::*;
 use crate::domain::ports::{GroupRepository, StoredChat, VisibleAdoption};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use macro_user_id::user_id::MacroUserIdStr;
 
 /// The same facts, ignoring when they were read and listing-only fields.
 fn same_facts(stored: &GroupInfo, observed: &GroupInfo) -> bool {
     let normalize = |group: &GroupInfo| GroupInfo {
         observed_at: DateTime::<Utc>::UNIX_EPOCH,
-        group: None,
-        shared: None,
         ..group.clone()
     };
     normalize(stored) == normalize(observed)
@@ -138,6 +137,24 @@ pub(super) async fn store_groups_in(
             changed_groups
                 .extend(left_selected_in(tx, account, &group, observed_at, Some(&locked)).await?);
         }
+        // The owner's account is always in its own direct chats: keep
+        // observing them at the account's current generation.
+        sqlx::query!(
+            r#"INSERT INTO whatsapp_group_membership (binding_id,account_id,generation,consent_at,remote_member,can_post,reconciled,observed_at)
+            SELECT g.id,$1,$2,clock_timestamp(),true,true,true,$4 FROM whatsapp_group g
+            WHERE g.kind = 'direct' AND g.user_id = $3 AND g.state = 'active'
+            ON CONFLICT (binding_id,account_id) DO UPDATE SET generation = excluded.generation, consent_ended_at = NULL,
+              remote_member = true, can_post = true, reconciled = true, observed_at = excluded.observed_at
+            WHERE whatsapp_group_membership.generation <> excluded.generation
+              OR whatsapp_group_membership.consent_ended_at IS NOT NULL"#,
+            account.id,
+            account.generation,
+            account.user_id,
+            observed_at
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(failure)?;
     }
     signal_changes_in(tx, account, list_changed, changed_groups).await
 }
@@ -338,9 +355,10 @@ impl GroupRepository for PgLinkedRepository {
 
     async fn visible_adoptions(
         &self,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         groups: &[String],
     ) -> LinkedResult<Vec<VisibleAdoption>> {
+        let user = user.as_ref();
         sqlx::query_as!(
             VisibleAdoption,
             r#"SELECT b.group_jid, b.id, b.name, b.user_id AS owner_id

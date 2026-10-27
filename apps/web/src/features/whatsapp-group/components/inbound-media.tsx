@@ -2,8 +2,9 @@ import type { MediaItem } from '@channel/Media/media-items';
 import { MediaPreview } from '@channel/Message/MediaPreview';
 import { constrainImageDimensions } from '@macro-inc/lexical-core/utils/media';
 import MicrophoneIcon from '@phosphor/microphone.svg';
-import { For, Match, Show, Switch } from 'solid-js';
+import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
 import { formatDuration } from '../core/rich';
+import { InboundAttachmentPlaceholder } from './inbound-attachment';
 
 /** An imported image, video or voice note with its resolved file URL. */
 export type InboundMediaFile = {
@@ -12,6 +13,10 @@ export type InboundMediaFile = {
   fileName: string;
   /** Undefined while the URL resolves. */
   url: string | undefined;
+  /** The URL couldn't be resolved (the file is gone or not readable). */
+  unavailable?: boolean;
+  /** A local preview shown until `url` loads (files this page sent). */
+  previewUrl?: string;
   /** Declared by WhatsApp; reserves the space before the file loads. */
   width?: number;
   height?: number;
@@ -48,7 +53,7 @@ function Reserved(props: { file: InboundMediaFile; max: number }) {
 }
 
 /** Sticker size, no frame, like WhatsApp. */
-function Sticker(props: { file: InboundMediaFile }) {
+function Sticker(props: { file: InboundMediaFile; onError: () => void }) {
   return (
     <Show
       when={props.file.url}
@@ -63,6 +68,7 @@ function Sticker(props: { file: InboundMediaFile }) {
           height={boxFor(props.file, STICKER_MAX).height}
           class="max-w-full object-contain select-none"
           loading="lazy"
+          onError={() => props.onError()}
         />
       )}
     </Show>
@@ -70,7 +76,7 @@ function Sticker(props: { file: InboundMediaFile }) {
 }
 
 /** A GIF loops silently in place, like Chat's inline GIFs. */
-function Gif(props: { file: InboundMediaFile }) {
+function Gif(props: { file: InboundMediaFile; onError: () => void }) {
   return (
     <Show
       when={props.file.url}
@@ -93,13 +99,14 @@ function Gif(props: { file: InboundMediaFile }) {
           width={boxFor(props.file, MEDIA_MAX).width}
           height={boxFor(props.file, MEDIA_MAX).height}
           class="block h-auto max-w-full rounded-2xl border border-edge bg-surface"
+          onError={() => props.onError()}
         />
       )}
     </Show>
   );
 }
 
-function Audio(props: { file: InboundMediaFile }) {
+function Audio(props: { file: InboundMediaFile; onError: () => void }) {
   const voice = () => props.file.presentation === 'voice_note';
   const label = () =>
     [
@@ -137,6 +144,7 @@ function Audio(props: { file: InboundMediaFile }) {
             src={url()}
             aria-label={label()}
             class="h-10 w-full"
+            onError={() => props.onError()}
           />
         )}
       </Show>
@@ -147,35 +155,53 @@ function Audio(props: { file: InboundMediaFile }) {
 /**
  * WhatsApp media inline, like Chat: images and video in Chat's media grid
  * (click opens the viewer), GIFs looping, stickers small and unframed,
- * audio and voice notes in a player with their length.
+ * audio and voice notes in a player with their length. A file that can't be
+ * fetched shows as unavailable instead of loading forever.
  */
 export function InboundMedia(props: { files: InboundMediaFile[] }) {
+  const [failed, setFailed] = createSignal<ReadonlySet<string>>(new Set());
+  const fail = (id: string) => setFailed((ids) => new Set(ids).add(id));
+  const usable = (file: InboundMediaFile) =>
+    !file.unavailable && !failed().has(file.id);
   const grid = () =>
     props.files.filter(
       (file) =>
+        usable(file) &&
         file.kind !== 'audio' &&
         file.presentation !== 'sticker' &&
         file.presentation !== 'gif'
     );
-  const visual = (): MediaItem[] =>
-    grid().flatMap((file) =>
-      file.url && file.kind !== 'audio'
-        ? [
-            {
-              id: file.id,
-              src: file.url,
-              fullSrc: file.url,
-              kind: file.kind,
-              width: file.width,
-              height: file.height,
-            },
-          ]
-        : []
-    );
+  // Like Chat's `mapMediaItems`: an unchanged file keeps its item, so the
+  // grid doesn't remount (and reload) it.
+  const visual = createMemo(
+    (previous: MediaItem[]) =>
+      grid().flatMap((file): MediaItem[] => {
+        if (!file.url || file.kind === 'audio') return [];
+        const item: MediaItem = {
+          id: file.id,
+          src: file.url,
+          fullSrc: file.url,
+          previewSrc: file.previewUrl,
+          kind: file.kind,
+          width: file.width,
+          height: file.height,
+        };
+        const kept = previous.find((old) => old.id === item.id);
+        return [
+          kept &&
+          (Object.keys(item) as (keyof MediaItem)[]).every(
+            (key) => kept[key] === item[key]
+          )
+            ? kept
+            : item,
+        ];
+      }),
+    []
+  );
   return (
     <div class="mt-1 flex flex-col gap-2" data-whatsapp-inline-media>
       <Show when={visual().length > 0}>
-        <MediaPreview items={visual()} />
+        <MediaPreview items={visual()} onError={fail} />
       </Show>
       <For each={grid().filter((file) => !file.url)}>
         {(file) => <Reserved file={file} max={MEDIA_MAX} />}
@@ -183,14 +209,20 @@ export function InboundMedia(props: { files: InboundMediaFile[] }) {
       <For each={props.files}>
         {(file) => (
           <Switch>
+            <Match when={!usable(file)}>
+              <InboundAttachmentPlaceholder
+                state="unavailable"
+                fileName={file.fileName}
+              />
+            </Match>
             <Match when={file.kind === 'audio'}>
-              <Audio file={file} />
+              <Audio file={file} onError={() => fail(file.id)} />
             </Match>
             <Match when={file.presentation === 'sticker'}>
-              <Sticker file={file} />
+              <Sticker file={file} onError={() => fail(file.id)} />
             </Match>
             <Match when={file.presentation === 'gif'}>
-              <Gif file={file} />
+              <Gif file={file} onError={() => fail(file.id)} />
             </Match>
           </Switch>
         )}

@@ -10,6 +10,7 @@
 group's name always follows WhatsApp.
  */
 export interface LinkedAdoptGroup {
-  /** Group the requester's account has joined. */
-  group_jid: string;
+  /** A group the requester's account has joined, or a direct chat from
+their chat list (the other person's JID, as the list names it). */
+  groupJid: string;
 }

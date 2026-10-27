@@ -1,26 +1,41 @@
 import { match, P } from 'ts-pattern';
 import type { InboundAttachment } from './attachments';
-import type { Mention, RichContent } from './rich';
+import { disappearingLabel, type Mention, type RichContent } from './rich';
 
 /** Feature vocabulary; transport decoding lives in queries/. */
 export type GroupSummary = {
   id: string;
+  /** A group, or a one-to-one chat (named after the other person). */
+  kind: 'group' | 'direct';
   name: string;
+  /** The Macro user who added it; only they share it on. */
+  ownerId: string;
   unreadCount: number;
   /** False for viewers who can only read. */
   canSend: boolean;
+  /** The WhatsApp community the group belongs to. */
+  community?: { id: string; name: string; announcements: boolean };
 };
 /**
  * Importing the chat's earlier messages from the owner's phone after it was
  * added. Absent for groups added before imports existed.
  */
 export type GroupBackfill = {
-  state: 'pending' | 'running' | 'waiting_for_phone' | 'done' | 'partial';
+  /** `waiting_for_message`: nobody has posted since adding; nothing to import from yet. */
+  state:
+    | 'waiting_for_message'
+    | 'pending'
+    | 'running'
+    | 'waiting_for_phone'
+    | 'done'
+    | 'partial';
   /** Messages the phone sent, including ones already shown. */
   imported: number;
 };
 export type GroupDetail = {
   id: string;
+  /** A group, or a one-to-one chat: `name` is the person, no roster. */
+  kind: 'group' | 'direct';
   name: string;
   ownerId: string;
   accessLevel: 'view' | 'comment' | 'edit' | 'owner';
@@ -31,11 +46,14 @@ export type GroupDetail = {
   unreadCount: number;
   members: { id: string; name: string; admin: boolean }[];
   backfill?: GroupBackfill;
+  /** WhatsApp's timer while disappearing messages are on; Macro keeps all. */
+  disappearingSeconds?: number;
+  /** The WhatsApp community the group belongs to. */
+  community?: { name: string; announcements: boolean };
   limits: {
     textBytes: number;
     attachmentBytes: number;
     attachmentTypes: string[];
-    maxAttachments: number;
     editSeconds: number;
     mutations: ('reaction' | 'edit' | 'delete')[];
   };
@@ -73,15 +91,7 @@ export type GroupSend =
 /** A recorded send, as DSS reports its progress. */
 export type SendProgress = {
   id: string;
-  state:
-    | 'pending'
-    | 'sending'
-    | 'unknown'
-    | 'accepted'
-    | 'sent'
-    | 'delivered'
-    | 'read'
-    | 'failed';
+  state: 'pending' | 'sending' | 'unknown' | 'accepted' | 'failed';
   messageId?: string;
   errorCode?: string;
 };
@@ -116,7 +126,17 @@ export function canChangeMessage(
   );
 }
 
-export function composerNote(group: GroupDetail): string {
+export function composerNote(
+  group: GroupDetail,
+  /** Who owns the chat, for "Only Ana can reply in this chat". */
+  ownerName = 'its owner'
+): string {
+  if (
+    !group.canSend &&
+    group.kind === 'direct' &&
+    group.sendReason === 'not_observing'
+  )
+    return `Only ${ownerName} can reply in this chat`;
   if (group.canSend)
     return group.phone
       ? `Sending as ${group.phone}`
@@ -134,7 +154,7 @@ export function composerNote(group: GroupDetail): string {
       'not_allowed_in_group',
       () => "Your WhatsApp can't post in this group"
     )
-    .with('group_unavailable', () => 'This group is no longer syncing')
+    .with('group_unavailable', () => 'This chat is no longer syncing')
     .with('sending_disabled', () => 'Sending to WhatsApp is turned off')
     .otherwise(() => 'Sending to WhatsApp is unavailable right now');
 }
@@ -152,10 +172,7 @@ export function recordedOutcome(
 ): 'waiting' | 'accepted' | { failed: string } {
   return match(progress.state)
     .with(P.union('pending', 'sending'), () => 'waiting' as const)
-    .with(
-      P.union('accepted', 'sent', 'delivered', 'read'),
-      () => 'accepted' as const
-    )
+    .with('accepted', () => 'accepted' as const)
     .with(P.union('failed', 'unknown'), () => ({
       failed: deliveryFailure(progress),
     }))
@@ -202,8 +219,23 @@ export function backfillStatus(
         ? 'Waiting for your phone to import history'
         : "Waiting for the owner's phone to import history"
     )
-    .with(P.union('done', 'partial'), () => undefined)
+    .with(P.union('waiting_for_message', 'done', 'partial'), () => undefined)
     .exhaustive();
+}
+
+/** "Launch · Design", or "Launch · Announcements" for its announcement group. */
+export function groupTitle(group: GroupDetail): string {
+  if (!group.community) return group.name;
+  return `${group.community.name} · ${group.community.announcements ? 'Announcements' : group.name}`;
+}
+
+/** WhatsApp deletes this group's messages after a while; Macro doesn't. */
+export function disappearingNote(group: GroupDetail): string | undefined {
+  if (!group.disappearingSeconds) return undefined;
+  const timer = disappearingLabel(String(group.disappearingSeconds));
+  return timer
+    ? `Disappearing messages are on in WhatsApp (${timer}). Macro keeps them.`
+    : 'Disappearing messages are on in WhatsApp. Macro keeps them.';
 }
 
 /** Shown above the oldest message once the import stopped at its limit. */
