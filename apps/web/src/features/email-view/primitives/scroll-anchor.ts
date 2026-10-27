@@ -11,6 +11,10 @@ const ANCHOR_CANDIDATES = 3;
  */
 const TOUCH_SCROLL_SETTLE_MS = 150;
 
+const rowElements = (scroller: HTMLElement) => [
+  ...scroller.querySelectorAll<HTMLElement>('[role="row"][id]'),
+];
+
 /**
  * Keeps the rows on screen where they are when rows are added or removed
  * above them: new mail arriving, or a thread marked done from elsewhere.
@@ -18,7 +22,7 @@ const TOUCH_SCROLL_SETTLE_MS = 150;
  * offset stays put. At the top of the list nothing is anchored, so new mail
  * shows up there.
  *
- * Rows are found by their DOM `id`, which is their row id.
+ * Rows are found within the scroller by their DOM `id`, which is their row id.
  */
 export function createScrollAnchor(options: {
   scroller: Accessor<HTMLElement | undefined>;
@@ -33,7 +37,7 @@ export function createScrollAnchor(options: {
     if (!scroller || scroller.scrollTop <= 0) return;
     const viewTop = scroller.getBoundingClientRect().top;
     // Virtualized rows are positioned, so DOM order is not screen order.
-    anchors = [...scroller.querySelectorAll<HTMLElement>('[role="row"][id]')]
+    anchors = rowElements(scroller)
       .map((element) => ({
         id: element.id,
         top: element.getBoundingClientRect().top,
@@ -63,9 +67,13 @@ export function createScrollAnchor(options: {
           measure();
           return;
         }
+        // Another split can show the same rows under the same ids.
+        const rows = new Map(
+          rowElements(scroller).map((element) => [element.id, element])
+        );
         for (const anchor of anchors) {
-          const element = scroller.ownerDocument.getElementById(anchor.id);
-          if (!element || !scroller.contains(element)) continue;
+          const element = rows.get(anchor.id);
+          if (!element) continue;
           const moved = element.getBoundingClientRect().top - anchor.top;
           if (Math.abs(moved) >= 1) scroller.scrollTop += moved;
           break;

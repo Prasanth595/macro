@@ -76,6 +76,19 @@ it('keeps the rows on screen still when mail arrives above them', () => {
   expect(dom.scroller.scrollTop).toBe(440 + 88);
 });
 
+it('anchors a second split that shows the same rows', () => {
+  const ids = Array.from({ length: 20 }, (_, index) => `row-${index}`);
+  // The first split, earlier in the document, has the same row ids.
+  list(ids);
+  const { dom, anchor, update } = setup(ids);
+  dom.scrollTo(440);
+  anchor.capture();
+
+  update(['new-mail', ...ids]);
+
+  expect(dom.scroller.scrollTop).toBe(440 + 44);
+});
+
 it('keeps the anchor through the removal of the row it was on', () => {
   const ids = Array.from({ length: 20 }, (_, index) => `row-${index}`);
   const { dom, anchor, update } = setup(ids);
