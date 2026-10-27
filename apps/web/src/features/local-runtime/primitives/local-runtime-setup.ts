@@ -1,4 +1,5 @@
 import type { MacrodDetectedAgent, MacrodStatus } from '@macro/tauri/macrod';
+import { Telemetry } from '@macro-inc/observability';
 import { err, ok, type Result, ResultAsync } from 'neverthrow';
 import { createSignal } from 'solid-js';
 import {
@@ -44,9 +45,17 @@ export function createLocalRuntimeSetup(caps: SetupCapabilities) {
     work: () => Promise<T>
   ): Promise<Result<T, string>> => {
     setState({ kind: 'running', step });
-    const result = await ResultAsync.fromPromise(work(), (error) =>
-      errorMessage(error, FALLBACK_ERRORS[step])
+    // Error messages can carry local paths, so the span records only the
+    // outcome; the user sees the message.
+    const span = Telemetry.span(`local_runtime.setup.${step}`);
+    const result = await span.run(
+      async () =>
+        await ResultAsync.fromPromise(work(), (error) =>
+          errorMessage(error, FALLBACK_ERRORS[step])
+        )
     );
+    span.setAttr('local_runtime.outcome', result.isOk() ? 'success' : 'error');
+    span.end();
     if (result.isErr()) {
       setState({ kind: 'failed', step, message: result.error });
     }
@@ -150,13 +159,26 @@ export function createLocalRuntimeSetup(caps: SetupCapabilities) {
   const run = async (choices: SetupChoices = lastChoices) => {
     if (inProgress()) return;
     lastChoices = choices;
-    const status: Result<MacrodStatus, string> = connected
-      ? ok(connected)
-      : await connect(choices);
-    if (status.isOk()) {
-      connected = status.value;
-      await finish(status.value, choices);
-    }
+    // One trace per attempt, each step a child span.
+    const span = Telemetry.span('local_runtime.setup');
+    span.setAttr('local_runtime.resumed', connected !== undefined);
+    await span.run(async () => {
+      const status: Result<MacrodStatus, string> = connected
+        ? ok(connected)
+        : await connect(choices);
+      if (status.isOk()) {
+        connected = status.value;
+        if (status.value.harnessId) {
+          span.setAttr('harness.id', status.value.harnessId);
+        }
+        if (status.value.agentId) {
+          span.setAttr('local_runtime.agent', status.value.agentId);
+        }
+        await finish(status.value, choices);
+      }
+    });
+    span.setAttr('local_runtime.outcome', state().kind);
+    span.end();
   };
 
   /** Start over from detection, e.g. after changing the options. */
