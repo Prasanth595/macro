@@ -19,8 +19,10 @@ hundreds of milliseconds.
 - **FE-69** Code that mounts with each message row, the composer, or its menus
   does no work its first paint doesn't need: fetch when the user asks (a menu
   opens, a hover, a scroll), not on mount; batch DOM reads before writes, as
-  `ThreadList` measures rows; read layout in `ResizeObserver` callbacks, never
-  from mutation observers or per-row effects.
+  `ThreadList` measures rows; read layout once per frame (an animation frame,
+  as `CustomScrollbar` does, or a `ResizeObserver` callback), never from scroll
+  handlers, mutation observers or per-row effects; take extents the code
+  already knows (a virtualizer's total size) instead of reading the DOM.
 - **FE-70** `just test-channel-browser` (CI's Channel Open Browser Budget) pins
   the requests and script-forced layouts of a channel switch. Update its
   `EXPECTED_REQUESTS` or `FORCED_LAYOUT_BUDGET` only in the change that needs

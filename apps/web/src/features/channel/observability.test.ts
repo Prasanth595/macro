@@ -37,7 +37,11 @@ vi.mock('@app/observability/ui-operation', () => ({
   inputHandledAt: () => input.current,
 }));
 
-import { createChannelOpenTrace, resumeChannelOpenSpan } from './observability';
+import {
+  createChannelOpenTrace,
+  noteChannelPrefetch,
+  resumeChannelOpenSpan,
+} from './observability';
 
 describe('channel open telemetry', () => {
   let now = 100;
@@ -105,6 +109,25 @@ describe('channel open telemetry', () => {
     });
     // Later requests for the channel no longer join a finished open.
     expect(resumeChannelOpenSpan('channel-1')).toBeUndefined();
+  });
+
+  it('reports how far ahead a press prefetched the page, once', () => {
+    now = 20;
+    noteChannelPrefetch('channel-1');
+    now = 100;
+    createChannelOpenTrace('channel-1', 'latest').dispose();
+    createChannelOpenTrace('channel-1', 'latest').dispose();
+
+    expect(spans[0]?.attrs['channel.open.prefetch_lead_ms']).toBe(80);
+    expect(spans[1]?.attrs).not.toHaveProperty('channel.open.prefetch_lead_ms');
+  });
+
+  it('ignores a prefetch that did not lead to this open', () => {
+    noteChannelPrefetch('channel-1');
+    now += 10_000;
+    createChannelOpenTrace('channel-1', 'latest').dispose();
+
+    expect(spans[0]?.attrs).not.toHaveProperty('channel.open.prefetch_lead_ms');
   });
 
   it('reports a surface that unmounts before painting as abandoned', () => {

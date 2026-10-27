@@ -6,7 +6,10 @@
  * mostly main-thread work no request timing shows: rendering rows, measuring
  * them, mounting the composer. The span records each stage's distance from the
  * start, the long animation frames in between, and, when a click or key press
- * mounted the surface, the time from that input to the paint.
+ * mounted the surface, the time from that input to the paint. A rail press
+ * can start the first page before the open; `channel.open.prefetch_lead_ms`
+ * says how far ahead, and that request is its own `channel.timeline.prefetch`
+ * trace.
  *
  * `channel.open.painted_ms` is the number to watch: the `web.channel.open`
  * span metrics in `infra/stacks/monitoring` aggregate it in Datadog. Every
@@ -71,6 +74,18 @@ export type ChannelOpenTrace = {
 
 const openSpans = new Map<string, Span>();
 
+/** A press prefetch older than this did not lead to the open that follows. */
+const PREFETCH_WINDOW_MS = 10_000;
+const prefetchedAt = new Map<string, number>();
+
+/**
+ * A press started `channelId`'s first page before its open. The open reports
+ * how far ahead, so a cache hit from the press is told apart from a revisit.
+ */
+export function noteChannelPrefetch(channelId: string): void {
+  prefetchedAt.set(channelId, performance.now());
+}
+
 /** The open span of `channelId`, so its first requests can join the trace. */
 export function resumeChannelOpenSpan(channelId: string): Span | undefined {
   return openSpans.get(channelId);
@@ -134,6 +149,10 @@ export function createChannelOpenTrace(
   attr('channel.id', channelId);
   set('target', target);
   set('hidden_at_start', document.visibilityState === 'hidden');
+  const prefetched = prefetchedAt.get(channelId);
+  prefetchedAt.delete(channelId);
+  if (prefetched !== undefined && startedAt - prefetched < PREFETCH_WINDOW_MS)
+    set('prefetch_lead_ms', startedAt - prefetched);
   // A second surface for the same channel (another split) takes over request
   // parenting; each span still ends with its own surface.
   openSpans.set(channelId, span);
