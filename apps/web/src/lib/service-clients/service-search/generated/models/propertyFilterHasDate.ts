@@ -6,6 +6,6 @@
  */
 
 /**
- * True matches non-null dates; false matches missing or cleared dates.
+ * Flat Soup/search presence filter: true expands to an open date range, false to its negation.
  */
 export type PropertyFilterHasDate = boolean | null;

@@ -4,6 +4,6 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
-import type { DateRange } from './dateRange';
+import type { PropertyDateFilterRange } from './propertyDateFilterRange';
 
-export type PropertyFilterDateRange = null | DateRange;
+export type PropertyFilterDateRange = null | PropertyDateFilterRange;

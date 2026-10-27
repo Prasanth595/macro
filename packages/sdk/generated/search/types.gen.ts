@@ -869,20 +869,15 @@ export type CrmCompanySearchResponseItem = {
 /**
  * Data type for property values, determining storage and validation.
  */
-export type DataType = 'BOOLEAN' | 'DATE' | 'NUMBER' | 'STRING' | 'SELECT_NUMBER' | 'SELECT_STRING' | 'TAG' | 'ENTITY' | 'LINK';
+export type DataType = 'BOOLEAN' | 'DATE' | 'DATE_RANGE' | 'NUMBER' | 'STRING' | 'SELECT_NUMBER' | 'SELECT_STRING' | 'TAG' | 'ENTITY' | 'LINK';
 
 /**
- * UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.
+ * A span of time from `start` to `end`, both included. The end is never
+ * before the start: a range that would end earlier does not deserialize.
  */
 export type DateRange = {
-    /**
-     * Exclusive UTC upper bound, omitted for an open end.
-     */
-    end?: string | null;
-    /**
-     * Inclusive UTC lower bound, omitted for an open start.
-     */
-    start?: string | null;
+    end: string;
+    start: string;
 };
 
 /**
@@ -1636,6 +1631,20 @@ export type ProjectSearchResult = {
 };
 
 /**
+ * UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.
+ */
+export type PropertyDateFilterRange = {
+    /**
+     * Exclusive UTC upper bound, omitted for an open end.
+     */
+    end?: string | null;
+    /**
+     * Inclusive UTC lower bound, omitted for an open start.
+     */
+    start?: string | null;
+};
+
+/**
  * Property definition model (service representation).
  */
 export type PropertyDefinition = {
@@ -1667,7 +1676,7 @@ export type PropertyDefinition = {
  * Multiple filters are AND'd together.
  */
 export type PropertyFilter = {
-    date_range?: null | DateRange;
+    date_range?: null | PropertyDateFilterRange;
     /**
      * Entity reference IDs to match. Multiple values are OR'd together.
      */
@@ -1678,7 +1687,7 @@ export type PropertyFilter = {
      */
     entity_type?: string | null;
     /**
-     * True matches non-null dates; false matches missing or cleared dates.
+     * Flat Soup/search presence filter: true expands to an open date range, false to its negation.
      */
     has_date?: boolean | null;
     /**
@@ -1741,6 +1750,13 @@ export type PropertyValue = {
      * Serializes as: {"type": "Date", "value": "2025-01-01T00:00:00Z"}
      */
     value: string;
+} | {
+    type: 'DateRange';
+    /**
+     * Date range value
+     * Serializes as: {"type": "DateRange", "value": {"start": "2025-01-01T00:00:00Z", "end": "2025-01-31T00:00:00Z"}}
+     */
+    value: DateRange;
 } | {
     type: 'SelectOption';
     /**

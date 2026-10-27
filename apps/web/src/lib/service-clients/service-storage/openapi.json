@@ -23036,6 +23036,21 @@
           },
           {
             "type": "object",
+            "description": "A span of time; its end may not come before its start.",
+            "required": ["value", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["date_range"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/DateRange",
+                "description": "A span of time; its end may not come before its start."
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Complete http or https URLs; at most one for a single-valued column.",
             "required": ["value", "type"],
             "properties": {
@@ -24664,6 +24679,17 @@
               "type": {
                 "type": "string",
                 "enum": ["date"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A span from one date-time to another.",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["date_range"]
               }
             }
           },
@@ -26792,6 +26818,7 @@
         "enum": [
           "BOOLEAN",
           "DATE",
+          "DATE_RANGE",
           "NUMBER",
           "STRING",
           "SELECT_NUMBER",
@@ -27158,19 +27185,32 @@
       },
       "DateRange": {
         "type": "object",
-        "description": "UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.",
+        "description": "A span of time from `start` to `end`, both included. A write whose end\ncomes before its start is refused.",
+        "required": ["start", "end"],
         "properties": {
           "end": {
-            "type": ["string", "null"],
+            "type": "string",
             "format": "date-time",
-            "description": "Exclusive UTC upper bound, omitted for an open end."
+            "description": "Where it ends; never before the start."
           },
           "start": {
-            "type": ["string", "null"],
+            "type": "string",
             "format": "date-time",
-            "description": "Inclusive UTC lower bound, omitted for an open start."
+            "description": "Where it starts."
           }
         }
+      },
+      "DateRangeOperator": {
+        "type": "string",
+        "description": "How a date-range cell stands to a day: the whole day starting at the\ntest's date-time, so a range from 1 PM to 5 PM contains its day.",
+        "enum": [
+          "contains",
+          "doesNotContain",
+          "endsBefore",
+          "endsOnOrAfter",
+          "startsAfter",
+          "startsOnOrBefore"
+        ]
       },
       "DeleteEntityMentionResponse": {
         "type": "object",
@@ -30084,6 +30124,26 @@
                 "type": "string",
                 "format": "date-time",
                 "description": "The date-time compared against."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A date-range column.",
+            "required": ["operator", "value", "kind"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["dateRange"]
+              },
+              "operator": {
+                "$ref": "#/components/schemas/DateRangeOperator",
+                "description": "How the cell's range stands to the day."
+              },
+              "value": {
+                "type": "string",
+                "format": "date-time",
+                "description": "The start of the day compared against."
               }
             }
           },
@@ -37214,6 +37274,22 @@
         ],
         "description": "Optional transformation of a selected property's stored value into group keys."
       },
+      "PropertyDateFilterRange": {
+        "type": "object",
+        "description": "UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.",
+        "properties": {
+          "end": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Exclusive UTC upper bound, omitted for an open end."
+          },
+          "start": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Inclusive UTC lower bound, omitted for an open start."
+          }
+        }
+      },
       "PropertyDateRange": {
         "type": "object",
         "description": "A half-open UTC interval. An absent start or end extends to infinity.",
@@ -37340,7 +37416,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/DateRange",
+                "$ref": "#/components/schemas/PropertyDateFilterRange",
                 "description": "UTC range for Soup/search: inclusive start, exclusive end; both open matches any date."
               }
             ]
@@ -37586,6 +37662,21 @@
                 "type": "string",
                 "format": "date-time",
                 "description": "Date/timestamp value\nSerializes as: {\"type\": \"Date\", \"value\": \"2025-01-01T00:00:00Z\"}"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}",
+            "required": ["value", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["DateRange"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/DateRange",
+                "description": "Date range value\nSerializes as: {\"type\": \"DateRange\", \"value\": {\"start\": \"2025-01-01T00:00:00Z\", \"end\": \"2025-01-31T00:00:00Z\"}}"
               }
             }
           },
@@ -37977,9 +38068,48 @@
                 "description": "The column a card is titled by. Left out, a board keeps the\ntitle it has, and a new board takes the table's first column."
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Bars on a calendar, one per row, spanning its date-range cell.",
+            "required": ["range", "groupBy", "colorBy", "kind"],
+            "properties": {
+              "barFields": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "The columns a bar shows after its title, in order."
+              },
+              "colorBy": {
+                "type": ["string", "null"],
+                "format": "uuid",
+                "description": "The select or tag column whose options color the bars, if any."
+              },
+              "groupBy": {
+                "type": ["string", "null"],
+                "format": "uuid",
+                "description": "The single-select or single-person column grouping the bars, if\nany."
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["timeline"]
+              },
+              "range": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The date-range column whose cells are the bars."
+              },
+              "title": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The column a bar is labelled by. Left out, a timeline keeps the\ntitle it has, and a new timeline takes the table's first column."
+              }
+            }
           }
         ],
-        "description": "A layout as an op asks for it: a board may leave its card title out."
+        "description": "A layout as an op asks for it: a board or timeline may leave its title\nout."
       },
       "ResolveRequest": {
         "type": "object",
@@ -38980,6 +39110,20 @@
               "value": {
                 "type": "string",
                 "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Date range value",
+            "required": ["value", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["date_range"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/DateRange"
               }
             }
           },
@@ -41475,6 +41619,21 @@
           },
           {
             "type": "object",
+            "description": "A span from one date-time to another.",
+            "required": ["value", "type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["dateRange"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/DateRange",
+                "description": "A span from one date-time to another."
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "The selected option ids; one for single-select columns.",
             "required": ["value", "type"],
             "properties": {
@@ -41634,7 +41793,16 @@
       "SqlOutcomeKind": {
         "type": "string",
         "description": "The value kind of a result column.",
-        "enum": ["text", "number", "boolean", "date", "select", "entity", "row"]
+        "enum": [
+          "text",
+          "number",
+          "boolean",
+          "date",
+          "dateRange",
+          "select",
+          "entity",
+          "row"
+        ]
       },
       "SqlSelectOption": {
         "type": "object",
@@ -44327,6 +44495,45 @@
                 "description": "The column a card is titled by, of any type. Removing it titles\nthe cards by the table's first remaining column."
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Bars on a calendar, one per row, spanning its date-range cell. Rows\nwith an empty range are listed apart as undated.",
+            "required": ["range", "title", "groupBy", "colorBy", "kind"],
+            "properties": {
+              "barFields": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "The columns a bar shows after its title, in order."
+              },
+              "colorBy": {
+                "type": ["string", "null"],
+                "format": "uuid",
+                "description": "The select or tag column whose options color the bars, if any."
+              },
+              "groupBy": {
+                "type": ["string", "null"],
+                "format": "uuid",
+                "description": "The single-select or single-person column whose values group the\nbars, if any; moving a bar to another group sets this column."
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["timeline"]
+              },
+              "range": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The date-range column whose cells are the bars."
+              },
+              "title": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The column a bar is labelled by, of any type. Removing it labels\nthe bars by the table's first remaining column."
+              }
+            }
           }
         ],
         "description": "How a view draws its rows."
@@ -45425,7 +45632,7 @@
       },
       "Widget": {
         "type": "string",
-        "description": "How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, entity and row\npickers) take none.",
+        "description": "How a question is asked. Each column kind takes a few, the first its\ndefault; kinds asked one way only (numbers, checkboxes, date ranges,\nentity and row pickers) take none.",
         "enum": [
           "short",
           "paragraph",

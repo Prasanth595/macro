@@ -1,12 +1,13 @@
 # Type Alias: DateRange
 
-> **DateRange** = \{ `end?`: `string` \| `null`; `start?`: `string` \| `null`; \}
+> **DateRange** = \{ `end`: `string`; `start`: `string`; \}
 
-UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.
+A span of time from `start` to `end`, both included. The end is never
+before the start: a range that would end earlier does not deserialize.
 
 ## Properties
 
-| Property | Type | Description |
-| ------ | ------ | ------ |
-| <a id="property-end"></a> `end?` | `string` \| `null` | Exclusive UTC upper bound, omitted for an open end. |
-| <a id="property-start"></a> `start?` | `string` \| `null` | Inclusive UTC lower bound, omitted for an open start. |
+| Property | Type |
+| ------ | ------ |
+| <a id="property-end"></a> `end` | `string` |
+| <a id="property-start"></a> `start` | `string` |

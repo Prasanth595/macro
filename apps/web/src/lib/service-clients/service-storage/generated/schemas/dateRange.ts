@@ -4,15 +4,14 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
-import type { DateRangeEnd } from './dateRangeEnd';
-import type { DateRangeStart } from './dateRangeStart';
 
 /**
- * UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.
+ * A span of time from `start` to `end`, both included. A write whose end
+comes before its start is refused.
  */
 export interface DateRange {
-  /** Exclusive UTC upper bound, omitted for an open end. */
-  end?: DateRangeEnd;
-  /** Inclusive UTC lower bound, omitted for an open start. */
-  start?: DateRangeStart;
+  /** Where it ends; never before the start. */
+  end: string;
+  /** Where it starts. */
+  start: string;
 }

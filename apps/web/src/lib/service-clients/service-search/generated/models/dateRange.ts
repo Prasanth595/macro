@@ -4,15 +4,12 @@
  * search_service
  * OpenAPI spec version: 0.1.0
  */
-import type { DateRangeEnd } from './dateRangeEnd';
-import type { DateRangeStart } from './dateRangeStart';
 
 /**
- * UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.
+ * A span of time from `start` to `end`, both included. The end is never
+before the start: a range that would end earlier does not deserialize.
  */
 export interface DateRange {
-  /** Exclusive UTC upper bound, omitted for an open end. */
-  end?: DateRangeEnd;
-  /** Inclusive UTC lower bound, omitted for an open start. */
-  start?: DateRangeStart;
+  end: string;
+  start: string;
 }

@@ -23,7 +23,7 @@ export interface PropertyFilter {
   /** The entity type for the property lookup (e.g., "TASK", "DOCUMENT", "PROJECT").
 When None, matches across all entity types. */
   entity_type?: PropertyFilterEntityType;
-  /** True matches non-null dates; false matches missing or cleared dates. */
+  /** Flat Soup/search presence filter: true expands to an open date range, false to its negation. */
   has_date?: PropertyFilterHasDate;
   /** Select option UUIDs to match. Multiple values are OR'd together. */
   option_ids?: string[];

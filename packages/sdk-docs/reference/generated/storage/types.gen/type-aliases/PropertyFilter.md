@@ -1,6 +1,6 @@
 # Type Alias: PropertyFilter
 
-> **PropertyFilter** = \{ `date_range?`: `null` \| [`DateRange`](DateRange.md); `entity_ids?`: `string`[]; `entity_type?`: `string` \| `null`; `has_date?`: `boolean` \| `null`; `option_ids?`: `string`[]; `property_definition_id`: `string`; \}
+> **PropertyFilter** = \{ `date_range?`: `null` \| [`PropertyDateFilterRange`](PropertyDateFilterRange.md); `entity_ids?`: `string`[]; `entity_type?`: `string` \| `null`; `has_date?`: `boolean` \| `null`; `option_ids?`: `string`[]; `property_definition_id`: `string`; \}
 
 A single property-based filter condition.
 
@@ -13,7 +13,7 @@ Multiple filters are AND'd together.
 
 | Property | Type | Description |
 | ------ | ------ | ------ |
-| <a id="property-date_range"></a> `date_range?` | `null` \| [`DateRange`](DateRange.md) | - |
+| <a id="property-date_range"></a> `date_range?` | `null` \| [`PropertyDateFilterRange`](PropertyDateFilterRange.md) | - |
 | <a id="property-entity_ids"></a> `entity_ids?` | `string`[] | Entity reference IDs to match. Multiple values are OR'd together. |
 | <a id="property-entity_type"></a> `entity_type?` | `string` \| `null` | The entity type for the property lookup (e.g., "TASK", "DOCUMENT", "PROJECT"). When None, matches across all entity types. |
 | <a id="property-has_date"></a> `has_date?` | `boolean` \| `null` | Flat Soup/search presence filter: true expands to an open date range, false to its negation. |

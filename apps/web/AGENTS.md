@@ -114,6 +114,15 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 ## Canvas collaboration
 
+Document sync uses the `sync-via-gateway` PostHog flag in both deployed dev and
+production. Off or unknown flag values use direct sync sockets.
+Local stacks with `sync_router` can opt in with `VITE_SYNC_VIA_GATEWAY=true`;
+`false` forces direct sync. The choice is made when a sync source is created
+and stays fixed for its lifetime. PostHog can serve a cached value on reload;
+recreate document sessions after the client receives the updated flag to change
+transport. This is not an immediate kill switch for open sessions. Provision
+the hosted router before enabling.
+
 Saved canvases use the shared Loro runtime; the stored JSON is only the original
 migration seed. Keep whole-file simple-save out of scene editing. Canvas
 initialization, WAL/snapshot recovery and teardown live in
@@ -142,9 +151,15 @@ plugin redirects external popups and breaks the embedded iframe's return path.
 `pipedream-connect.html` is a separate Vite entry, served at
 `/app/pipedream-connect.html`, without a Macro browser login. The Connect token
 and one-time state travel only in its URL fragment, which the page removes on
-load. Its **Return to Macro** link is consumed by the Tauri navigation bridge
+load. When Connect finishes it opens the `macro://` callback itself, keeping
+**Return to Macro** as a fallback link; the Tauri navigation bridge consumes it
 without changing the active route. Backend registration still verifies account
-ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
+ownership. Done, logout, and the ten-minute timeout retire pending callbacks.
+
+Connect can close without reporting success (an OAuth provider severs its
+consent popup's opener) even though Pipedream created the account. Every close
+without success, on web and native, asks `/pipedream/mcp/recover` to register
+the user's newest account for that app from the last fifteen minutes.
 
 ### General
 
@@ -185,7 +200,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   even with retained user data; preserve session state on transient failures.
 - Treat a repeated worker-ready frame as a coordinator restart: retire the old
   engine and re-register in place, preserving durable storage and never replaying
-  uncertain enqueues. See `docs/graphql-normalized-cache-plan.md`.
+  uncertain enqueues. Space failed coordinator registrations with bounded,
+  cancelable waits; a missing startup frame is not proof of untouched storage.
+  See `docs/graphql-normalized-cache-plan.md`.
 - Reject already-routed optimistic enqueues with missing replies as uncertain on
   every owner departure; never forward them through network fallback, because
   their durable queue entries may survive the old engine.
@@ -195,9 +212,14 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   Publish recovery reset outcomes before parking while retaining the read pause.
   Bound foreground resume reads to one second without killing an owner, stealing
   its lock, replaying writes, or treating intentional parking as a failure.
+- Retry still-current query reads once when engine replacement invalidates their
+  snapshot; do not strand urql's in-flight key or revive torn-down or superseded reads.
+  Keep network forwarding deduplicated and cache-only reads off the network.
 - Mobile dock customization shares the navigation island’s measured capacity; persist ordering per user with `mobile-dock-order.ts`, preserve gated destinations, and keep Search and More fixed. Reorder handles drag without a hold delay; the rest of each row scrolls.
 - Share sidebar and mobile dock unread presence through `components/app/use-navigation-unread.ts`; keep badges reactive to read/done changes, guard all query data with `queryReadyGate` so pending preferences or paused queries cannot suspend the shell, and avoid fetching extra pages for counts.
 - Name Home thread rows from their latest scoped notification, including document mentions and reactions; use the thread author only when no notification exists. Document rows whose newest outstanding notification is a comment, and calendar event rows whose newest is a join request, say who did it (`row-notification.ts`).
+- Use `ChannelTitleIcon` for conversation breadcrumbs so DMs retain participant or agent avatars and named channels retain their pictures; suppress avatar actions inside breadcrumb buttons.
+- Normalize thread-only conversation URLs in `channelsSearch` before Home, Chat, or touch views derive their message target.
 - Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
 - Include known Macro users in typed All/People name searches without requiring a DM or CRM contact; resolve a matching person to their existing one-to-one DM while preserving name/email matching.
 - Key mobile name-result history ordering and scroll anchors by the other participant for one-to-one DMs, preserving a person's position when their conversation is created; keep group DMs keyed by channel.

@@ -137,6 +137,8 @@ impl<'de> Deserialize<'de> for EntityRefId {
 /// UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema, schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", schema(as = PropertyDateFilterRange))]
+#[cfg_attr(feature = "schema", schemars(rename = "PropertyDateFilterRange"))]
 pub struct DateRange {
     /// Inclusive UTC lower bound, omitted for an open start.
     #[serde(default, skip_serializing_if = "Option::is_none")]
