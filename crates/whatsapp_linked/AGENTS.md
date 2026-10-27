@@ -3,9 +3,12 @@
 ## What it is
 
 Personal WhatsApp accounts linked as devices: owner-bound pairing, adopting an
-existing group as the adopter's own, independently shared `WhatsAppGroup`
-entity (one per owner and WhatsApp group, named after WhatsApp), ingesting group traffic, and
-deliberate sends from each person's own account. DSS serves the HTTP API
+existing group or direct chat as the adopter's own, independently shared
+`WhatsAppGroup` entity (one per owner and WhatsApp chat, named after WhatsApp),
+ingesting chat traffic, and deliberate sends from each person's own account.
+"Group" in table, column, type and route names means any added chat;
+`Binding.kind` / `whatsapp_group.kind` says group or direct (only the owner
+sends in a direct chat). DSS serves the HTTP API
 (`/meta/linked/*`); the WhatsApp session service calls
 `domain::session::SessionService` in-process. They share no HTTP: only MacroDB
 rows and `NOTIFY` (the `outbound::pg` notify helper).
@@ -21,25 +24,42 @@ rows and `NOTIFY` (the `outbound::pg` notify helper).
   first (`resolve_sender_in`): WhatsApp's from-me flag means the account's own
   identity; a LID-only sender takes its phone number from the account's roster
   pair. Only what is still LID-only is quarantined.
+- `src/domain/rich.rs`: stored structured content (`RichContent`: poll, poll
+  vote, location, contact cards, event, system line) in
+  `whatsapp_group_message.rich`; `kind = 'system'` rows never notify or count
+  as unread. `src/domain/timeline/view.rs` resolves ids in mentions, system
+  lines and votes to names and tallies polls. Poll votes are stored per voter
+  in `whatsapp_group_poll_vote` through the reaction path of `reserve_in`. A
+  re-ingested message fills in `rich`/`mentions`/`forwarded` an earlier copy
+  lacked (re-importing history upgrades old placeholders).
 - `src/outbound/pg/chats.rs`: the account's chat list (`whatsapp_chat`,
   `GET /chats` via `LinkedService::chats`) and importing earlier messages of
   added groups (`backfill_*` columns on `whatsapp_group`; limits
-  `BACKFILL_MESSAGE_LIMIT` / `BACKFILL_MAX_AGE_DAYS` in `models.rs`). History
+  `BACKFILL_MESSAGE_LIMIT` / `BACKFILL_MAX_AGE_DAYS` in `models.rs`). The
+  anchor is the chat's `whatsapp_chat.anchor`, else the newest stored message
+  the account saw; without one the group is `waiting_for_message` until a chat
+  update brings one. History
   messages skip the adoption-time boundary but only reach the account owner's
   own groups (`observed_bindings_in`).
 - `src/outbound/pg/sends.rs`: enqueue, claim, dispatch fence, outcome. A
   repeated intent key returns the stored send before any other check.
-- `src/outbound/pg.rs` `signals`: JSON `NOTIFY` payloads with `traceparent`
-  (`src/outbound/trace_context.rs`). Every write a page shows calls
+- `src/signals.rs`: `NOTIFY` channels and JSON payloads with `traceparent`
+  (`src/signals/trace_context.rs`), public so DSS and the session service
+  never import `outbound`; `src/outbound/pg.rs` sends them inside the
+  writing transaction. Every write a page shows calls
   `notify_change` (`whatsapp_changed`); DSS pushes it to viewers. Roster writes
   signal only real changes (`groups.rs` `same_facts`).
-- Migrations: `crates/macro_db_client/migrations/20261027061310_whatsapp_linked.sql` (the
-  final schema, including the one view rule `whatsapp_group_access_level`,
-  which entity_access also calls) and `20261027061311_validate_entity_whatsapp_group_type.sql`
-  (validates the entity type check in its own transaction).
+- Migrations:
+  `crates/macro_db_client/migrations/20261027061310_whatsapp_linked.sql` (the
+  final schema, including the one view rule `whatsapp_group_access_level`, which
+  entity_access also calls) and
+  `20261027061311_validate_entity_whatsapp_group_type.sql` (validates the entity
+  type check in its own transaction). Deleting a user cascades to their account,
+  chats (with their grants, entity record and sharing settings) and sends;
+  aliases outlive the account that saw them.
 ## Boundaries
 
-- Depends on: `entity_access` (group receipts, authorizer), `entity_access_db_utils`
+- Depends on: `entity_access` (group receipts; owner-only routes take an owner receipt), `entity_access_db_utils`
   (ordinary grants), `entity_registry_db_utils`, and `share_permission_db_utils`.
 - Used by: DSS (`src/whatsapp_linked.rs` composition), the session service.
 
@@ -61,18 +81,21 @@ rows and `NOTIFY` (the `outbound::pg` notify helper).
 - Bot view receipts can read a known shared group, but never borrow an acting user's phone, send records, or unread cursor.
 - View access uses ordinary `entity_access` grants (people, teams, and channels
   through mentions) and link/team sharing, independent of WhatsApp membership;
-  `whatsapp_group_can_view` must resolve the same sources as `entity_access`. Only the adopter receives an owner grant; use the generic
+  `whatsapp_group_can_view` and entity_access both call `whatsapp_group_access_level`; change the rule only there. Only the adopter receives an owner grant; use the generic
   direct-access endpoints to share with people.
 - `src/domain/timeline.rs` and `src/domain/service/timeline.rs` own list/detail,
   timeline, unread and sharing use cases. Group HTTP paths are
   `/meta/linked/whatsapp-groups/{group_id}`. Soup/search are deferred.
-- Store messages/reactions/attachments in `whatsapp_group_message`,
-  `whatsapp_group_reaction`, and `whatsapp_group_attachment`; never native comms tables.
+- Store messages/reactions/attachments/poll votes in `whatsapp_group_message`,
+  `whatsapp_group_reaction`, `whatsapp_group_attachment` and
+  `whatsapp_group_poll_vote`; never native comms tables.
 - Attachment bytes cross Postgres (`whatsapp_media_blob`, ≤ 32 MiB) because the
   session service has no document storage; DSS imports and deletes them.
   `events::Media::locator` is sealed by the session service; never read it.
 - `src/domain/media.rs` + `src/outbound/pg/media.rs`: download claims, import
-  queue. Not implemented: participant-receipt UI.
+  queue. `src/domain/shape.rs` reads a staged upload's pixel size and length
+  (stored on `whatsapp_media_blob`, sent with the message). Not implemented:
+  participant-receipt UI.
 
 ## Related
 

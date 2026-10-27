@@ -19,6 +19,7 @@ files:
   - apps/web/src/features/document-composer/core/**
   - apps/web/src/features/task-composer/core/**
   - apps/web/src/features/universal-input/core/**
+  - apps/web/src/features/saved-views/core/**
   - apps/web/src/features/calendar-notes/core/**
   - apps/web/src/features/access-requests/core/**
   - apps/web/src/features/agent-activity/core/**

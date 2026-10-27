@@ -62,12 +62,15 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   control fill) with `overlay-*` hovers, never raw `ink/5` tints.
 - **FE-67** Overlays share two surfaces: menus, popovers, floating toolbars, and
   editor panels use `menu-surface`; dialogs use `Dialog` (`elevated-surface`).
-  Never give overlay content its own fill, border, or shadow. On a `Surface` or
+  Never give overlay content its own fill, border, or shadow, and never paint a
+  fill on a child that reaches the overlay's edge: it covers the dark-mode bevel
+  (`menu-surface`'s inset edges). On a `Surface` or
   `Panel`, pass `hideBorder` and keep `rounded-xl bg-surface` (core utilities
   outrank `@utility` classes). Enforced for Kobalte `.Content` and
   `bg-menu-glass` by ast-grep `tsx-overlay-canonical-surface`, CI error; the
   reply composer, mobile drawer, call controls, and fullscreen media viewers
   are the documented exceptions.
+- Reuse the same styled items and padded groups for dropdown and context menus; vary only their root, trigger, and content composition.
 - **FE-68** Loading placeholders use the shared shimmer: `ListSkeleton.Bar`
   (a pill; pass size and radius) or `skeleton-shimmer bg-skeleton`. A view's
   skeleton is built from `ViewSkeleton` and mirrors its header (title, view
