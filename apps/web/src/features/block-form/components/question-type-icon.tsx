@@ -1,5 +1,6 @@
 import Calendar from '@icon/system/regular/calendar.svg';
 import CalendarBlank from '@icon/system/regular/calendar-blank.svg';
+import CalendarDots from '@icon/system/regular/calendar-dots.svg';
 import CaretCircleDown from '@icon/system/regular/caret-circle-down.svg';
 import CheckSquare from '@icon/system/regular/check-square.svg';
 import CheckSquareOffset from '@icon/system/regular/check-square-offset.svg';
@@ -15,7 +16,6 @@ import TextAa from '@icon/system/regular/text-aa.svg';
 import TextAlignLeft from '@icon/system/regular/text-align-left.svg';
 import UploadSimple from '@icon/system/regular/upload-simple.svg';
 import User from '@icon/system/regular/user.svg';
-import CalendarDots from '@icon/system/regular/calendar-dots.svg';
 import type { Component, JSX } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import type { QuestionTypeId } from '../core/question-types';

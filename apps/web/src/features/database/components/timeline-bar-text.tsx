@@ -1,4 +1,4 @@
-import DotsIcon from '@phosphor/dots-three.svg';
+import DotsIcon from '@icon/system/regular/dots-three.svg';
 import { TagDot } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
 import type { TimelineBarField } from '../core/timeline-bar';

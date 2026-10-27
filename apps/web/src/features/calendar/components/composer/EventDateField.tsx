@@ -1,7 +1,7 @@
 import { dateLabelFormatter } from '@app/components/date-time-range/time-input';
 import { formatLocalDate, parseLocalDate } from '@core/util/local-date';
+import CalendarBlankIcon from '@icon/system/regular/calendar-blank.svg';
 import { Popover } from '@kobalte/core/popover';
-import CalendarBlankIcon from '@phosphor/calendar-blank.svg';
 import { Calendar } from '@ui/components/Calendar';
 import { Layer } from '@ui/components/Layer';
 import { cn } from '@ui/utils/classname';

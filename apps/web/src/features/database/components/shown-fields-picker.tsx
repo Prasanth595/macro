@@ -1,4 +1,4 @@
-import CaretRightIcon from '@phosphor/caret-right.svg';
+import CaretRightIcon from '@icon/system/regular/caret-right.svg';
 import { Dropdown } from '@ui/components/Dropdown';
 import { For } from 'solid-js';
 import type { DatabaseViewColumn } from '../core/database-view';

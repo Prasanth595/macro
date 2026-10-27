@@ -1,6 +1,6 @@
 import { ScopedPortal } from '@core/component/ScopedPortal';
-import { Popover } from '@kobalte/core/popover';
 import CheckIcon from '@icon/system/regular/check.svg';
+import { Popover } from '@kobalte/core/popover';
 import { Input } from '@ui/components/Input';
 import { Layer } from '@ui/components/Layer';
 import { cn } from '@ui/utils/classname';

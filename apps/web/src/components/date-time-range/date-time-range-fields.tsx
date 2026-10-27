@@ -1,8 +1,8 @@
 import { ScopedPortal } from '@core/component/ScopedPortal';
 import { formatLocalDate, parseLocalDate } from '@core/util/local-date';
-import { Popover } from '@kobalte/core/popover';
 import ArrowRightIcon from '@icon/system/regular/arrow-right.svg';
 import CalendarBlankIcon from '@icon/system/regular/calendar-blank.svg';
+import { Popover } from '@kobalte/core/popover';
 import { buttonClasses } from '@ui/components/Button';
 import { Calendar } from '@ui/components/Calendar';
 import { Layer } from '@ui/components/Layer';

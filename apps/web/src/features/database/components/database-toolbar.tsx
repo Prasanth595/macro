@@ -1,8 +1,8 @@
 import { fireAndForget } from '@core/util/fireAndForget';
+import TimelineIcon from '@icon/system/regular/chart-gantt.svg';
 import KanbanIcon from '@icon/system/regular/kanban.svg';
 import PlusIcon from '@icon/system/regular/plus.svg';
 import TableIcon from '@icon/system/regular/table.svg';
-import TimelineIcon from '@icon/system/regular/chart-gantt.svg';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import type { DatabaseView } from '@service-storage/generated/schemas/databaseView';
 import { Key } from '@solid-primitives/keyed';

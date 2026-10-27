@@ -1,5 +1,5 @@
 import { onElementConnect } from '@core/util/onElementConnect';
-import XIcon from '@phosphor/x.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import { Button } from '@ui/components/Button';
 import {
   createSignal,

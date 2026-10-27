@@ -7,7 +7,7 @@ import {
 import type { GanttGroupMove } from '@app/components/gantt/gantt-group-drag';
 import { ganttPlacedRange } from '@app/components/gantt/gantt-time';
 import { fireAndForget } from '@core/util/fireAndForget';
-import CaretRightIcon from '@phosphor/caret-right.svg';
+import CaretRightIcon from '@icon/system/regular/caret-right.svg';
 import { cn, Layer } from '@ui';
 import { Button } from '@ui/components/Button';
 import {

@@ -1,16 +1,16 @@
 import { useGantt } from '@app/components/gantt/gantt-context';
 import { isMobile } from '@core/mobile/isMobile';
+import ArrowSquareOutIcon from '@icon/system/regular/arrow-square-out.svg';
+import CalendarIcon from '@icon/system/regular/calendar-blank.svg';
+import CalendarPlusIcon from '@icon/system/regular/calendar-plus.svg';
+import CalendarXIcon from '@icon/system/regular/calendar-x.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import CopyIcon from '@icon/system/regular/copy.svg';
+import FolderIcon from '@icon/system/regular/folder-simple.svg';
+import PencilIcon from '@icon/system/regular/pencil-simple.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
+import TrashIcon from '@icon/system/regular/trash.svg';
 import { ContextMenu } from '@kobalte/core/context-menu';
-import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
-import CalendarIcon from '@phosphor/calendar-blank.svg';
-import CalendarPlusIcon from '@phosphor/calendar-plus.svg';
-import CalendarXIcon from '@phosphor/calendar-x.svg';
-import CheckIcon from '@phosphor/check.svg';
-import CopyIcon from '@phosphor/copy.svg';
-import FolderIcon from '@phosphor/folder-simple.svg';
-import PencilIcon from '@phosphor/pencil-simple.svg';
-import PlusIcon from '@phosphor/plus.svg';
-import TrashIcon from '@phosphor/trash.svg';
 import { createSignal, For, type JSX, Match, Show, Switch } from 'solid-js';
 import {
   ContextMenuContent,
