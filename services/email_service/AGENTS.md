@@ -81,6 +81,12 @@ the gateway `/email` prefix.
   would spend the queue's 20 deliveries.
   Inbox sync releases the upload claims of a refused attachment fetch and
   requeues the upsert, because a claimed attachment is never offered again.
+- Backfill message writes hold one of twelve fleet-wide Redis write slots
+  (`util/redis/backfill_write_slots.rs`), however many workers and tasks run,
+  so a large backfill can't queue enough writers on the primary to slow every
+  other query. A write waits up to 10 s for a slot and is then deferred like a
+  rate limit; Redis failing to decide also defers it. Live inbox sync writes
+  take no slot. Keep new bulk backfill writes behind the same slots.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
   Skip the bad address with a WARN that omits it (the parse error echoes it)
   instead of failing the step; see `pubsub::util::build_contact_connections`.
