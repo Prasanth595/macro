@@ -168,7 +168,6 @@ export function Agents(props: {
   const createAgent = async (agent: CreateAgentParams) => {
     try {
       const created = await createAgentMutation.mutateAsync(agent);
-      toast.success('Agent created');
       return created.bot.id;
     } catch {
       toast.failure('Failed to create agent');
@@ -307,6 +306,14 @@ export function Agents(props: {
           pending={createAgentMutation.isPending}
           onClose={closeCreateAgent}
           onSave={createAgent}
+          onMessage={
+            agentDm
+              ? (agentId) => {
+                  closeCreateAgent();
+                  fireAndForget(messageAgent(agentId), 'agent-settings');
+                }
+              : undefined
+          }
         />
       </Show>
       <Show when={!props.createKind && editingAgent()} keyed>
