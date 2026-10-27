@@ -24,7 +24,7 @@ export function useChannelsActivityQuery(
 }
 
 /** Replaces the channel's row in the activity list, or adds it. */
-export function upsertChannelActivity(
+function upsertChannelActivity(
   list: ChannelsActivity[],
   activity: ChannelsActivity
 ): ChannelsActivity[] {
