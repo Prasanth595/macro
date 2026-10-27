@@ -11,6 +11,8 @@ import {
   appRoute,
   channelDetailRoute,
   channelsSplitRoute,
+  externalRoute,
+  externalWhatsappGroupRoute,
   homeSplitRoute,
   legacyContentRoute,
   notFoundRoute,
@@ -33,6 +35,7 @@ const routes: SplitRoutes = {
       ...appRoute,
       children: [
         homeSplitRoute,
+        { ...externalRoute, children: [externalWhatsappGroupRoute] },
         { ...channelsSplitRoute, children: [channelDetailRoute] },
         legacyContentRoute,
         notFoundRoute,
