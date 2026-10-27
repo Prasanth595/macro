@@ -1,7 +1,6 @@
 import { useListInteractions } from '@app/components/list';
 import {
   makeCopyLinkAction,
-  makeFavoriteAction,
   toEntityActionListState,
   useEntityActionHotkeys,
 } from '@app/features/next-soup/actions';
@@ -28,7 +27,6 @@ import ArrowSquareOutIcon from '@icon/system/regular/arrow-square-out.svg';
 import SplitIcon from '@icon/system/regular/columns.svg';
 import CopyIcon from '@icon/system/regular/copy.svg';
 import SpinnerIcon from '@icon/system/regular/spinner.svg';
-import StarIcon from '@icon/system/regular/star.svg';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import type { GithubLinkStatus } from '@queries/auth/github-link';
 import { createElementSize } from '@solid-primitives/resize-observer';
@@ -92,7 +90,6 @@ function ReviewRow(props: {
   authorDisplayName?: string;
   checked: boolean;
   onChecked: (checked: boolean, shiftKey: boolean) => void;
-  favoriteAction: ReturnType<typeof makeFavoriteAction>;
   onOpen: ReviewsListProps['onOpen'];
   links: ReviewsListLinks;
   onActivate: (newSplit: boolean) => void;
@@ -159,20 +156,6 @@ function ReviewRow(props: {
             }}
           />
           <MenuItem
-            icon={StarIcon}
-            text={
-              props.favoriteAction.isFavorited(props.review)
-                ? 'Remove from favorites'
-                : 'Add to favorites'
-            }
-            onClick={() =>
-              fireAndForget(
-                props.favoriteAction.execute([props.review]),
-                'reviews-view'
-              )
-            }
-          />
-          <MenuItem
             icon={CopyIcon}
             text="Copy link"
             onClick={() =>
@@ -198,7 +181,6 @@ function ReviewRow(props: {
 
 export function ReviewsList(props: ReviewsListProps) {
   const panel = useSplitPanelOrThrow();
-  const favoriteAction = makeFavoriteAction();
   const source = props.source;
   const list = props.list;
   const reviews = list.items.all;
@@ -464,7 +446,6 @@ export function ReviewsList(props: ReviewsListProps) {
                                     ? props.viewerName
                                     : undefined
                                 }
-                                favoriteAction={favoriteAction}
                                 onOpen={props.onOpen}
                                 links={props.links}
                                 onChecked={(checked, shiftKey) =>
