@@ -5,9 +5,9 @@ use super::financial::FundingPeriod;
 use super::ledger::SettlementPolicy;
 use super::models::{
     AllowanceDecision, AllowanceStore, AutoReloadThresholds, BillingPeriod, BillingSettings,
-    CreditReloadStatus, Entitlement, OpenPeriodStart, OverageChargeStatus, PeriodAllowance,
-    PeriodLedger, Result, SeatAllowance, SeatGeneration, SeatUsage, SubscriptionScope,
-    UsageSnapshot,
+    CreditPurchase, CreditReloadKind, CreditReloadStatus, Entitlement, OpenPeriodStart,
+    OverageChargeStatus, PeriodAllowance, PeriodLedger, Result, SeatAllowance, SeatGeneration,
+    SeatUsage, SubscriptionScope, UsageSnapshot,
 };
 use super::policy::UsageAllocation;
 use ai_usage::domain::financial::{
@@ -121,6 +121,25 @@ pub struct ResolvedReload {
     pub payer: MacroUserIdStr<'static>,
     /// Amount collected (or not), customer cents.
     pub amount_cents: i64,
+    /// Whether Auto-Reload or a one-time purchase charged it.
+    pub kind: CreditReloadKind,
+}
+
+/// What reserving a one-time card-on-file purchase found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PurchaseReservation {
+    /// A new purchase to collect.
+    New(PendingReload),
+    /// An earlier declined purchase whose invoice is still open, handed back
+    /// (as pending) so buying again pays that invoice instead of charging twice.
+    Retry(PendingReload),
+    /// The purchase would take this month's card charges past the limit.
+    OverLimit {
+        /// What can still be charged this month, customer cents.
+        remaining_cents: i64,
+    },
+    /// An earlier purchase is still with the payment provider.
+    InProgress,
 }
 
 /// What a settlement booked.
@@ -157,8 +176,9 @@ pub trait BillingRepo: Send + Sync + 'static {
         payer: &MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<BillingSettings>> + Send;
 
-    /// Reload commitments charged against a UTC calendar-month cap. Includes
-    /// pending reloads and failed invoices that may still collect; excludes manual purchases.
+    /// Card charges counted against the UTC calendar-month credit limit:
+    /// automatic reloads and one-time purchases, including pending ones and
+    /// failed invoices that may still collect. Checkout purchases are excluded.
     fn credit_reload_committed_cents(
         &self,
         payer: &MacroUserIdStr<'_>,
@@ -356,6 +376,22 @@ pub trait BillingRepo: Send + Sync + 'static {
         chargeable_customer_cents: i64,
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<Option<PendingReload>>> + Send;
+
+    /// Under the payer's row lock, reserve a one-time purchase of
+    /// `amount_cents` asked for by `purchased_by`. Purchases and automatic
+    /// reloads in the UTC calendar month containing `now` that Stripe may
+    /// still collect count against `monthly_limit_cents` (`None` is no limit).
+    /// An earlier purchase that never reached Stripe is marked failed; one
+    /// declined with its invoice still open is retried instead of reserving a
+    /// new one; one still pending with Stripe blocks the purchase.
+    fn reserve_credit_purchase(
+        &self,
+        payer: &MacroUserIdStr<'_>,
+        purchased_by: &MacroUserIdStr<'_>,
+        amount_cents: i64,
+        monthly_limit_cents: Option<i64>,
+        now: DateTime<Utc>,
+    ) -> impl Future<Output = Result<PurchaseReservation>> + Send;
 
     /// Record the result of collecting a reserved reload.
     fn finish_credit_reload(
@@ -610,6 +646,16 @@ pub trait BillingService: Send + Sync + 'static {
         cancel_url: String,
     ) -> impl Future<Output = Result<String>> + Send;
 
+    /// Buy a credit pack now, charged to the payer's card on file. Any paid,
+    /// metered member of the payer's team may buy, within the monthly credit
+    /// limit: the payer's configured limit, or for a member when none is set,
+    /// the plan's default. Credits are booked and usage settled once paid.
+    fn purchase_credits(
+        &self,
+        user: &MacroUserIdStr<'_>,
+        amount_cents: i64,
+    ) -> impl Future<Output = Result<CreditPurchase>> + Send;
+
     /// Book a completed credit purchase (webhook). Idempotent on
     /// `stripe_reference`.
     fn apply_credit_purchase(
@@ -639,8 +685,8 @@ pub trait BillingService: Send + Sync + 'static {
 
     /// Record the outcome of a credit reload invoice (webhook). Unknown
     /// invoices are ignored. A paid invoice books its credits once, even when
-    /// the collector already did, and settles; a failed one pauses automatic
-    /// reloads.
+    /// the collector already did, and settles; a failed automatic reload
+    /// pauses automatic reloads, while a failed purchase changes nothing else.
     fn mark_credit_reload_invoice(
         &self,
         stripe_invoice_id: &str,
