@@ -59,7 +59,7 @@ export function ListHeaderSearch(props: {
             aria-label={props.label}
             tooltip={props.label}
             ref={trigger}
-            variant="outline"
+            variant="secondary"
             size="icon-md"
             aria-expanded="false"
             onClick={focus}
