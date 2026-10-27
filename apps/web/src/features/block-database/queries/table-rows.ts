@@ -194,14 +194,8 @@ export function createDatabaseRowsSource(props: {
       { equals: sameDatabaseSqlStatement }
     );
   const viewStatement = tableStatement(() => ({ view: props.view() }));
-  // The engine computes formulas and arranges complete board lanes after reading rows.
-  const engineView = () =>
-    props.view().layout.kind === 'board' ||
-    viewStatement()?.schema.databases.some((database) =>
-      database.tables.some((table) =>
-        table.columns.some((column) => column.formula)
-      )
-    );
+  // Board lanes are arranged from every row, so boards read through the engine.
+  const engineView = () => props.view().layout.kind === 'board';
   const pagedQuery = (props.viewQuery ?? createDatabaseViewQuery)(() =>
     engineView() ? undefined : viewStatement()
   );
@@ -223,7 +217,7 @@ export function createDatabaseRowsSource(props: {
       version: pagination?.version(),
     };
   };
-  // A formula schema change can switch readers; keep the grid mounted during the handoff.
+  // Switching a view between table and board switches readers; keep the last read meanwhile.
   const completed = createMemo<ReturnType<typeof currentRead>>((previous) =>
     viewStatement() ? (currentRead() ?? previous) : undefined
   );
@@ -239,15 +233,9 @@ export function createDatabaseRowsSource(props: {
     answerFromCache: () => activeQuery().answerFromCache(),
     pagination: pagedQuery.pagination && {
       hasMore: () => shownRead()?.hasMore ?? false,
-      loading: () =>
-        engineView() ? engineQuery.loading() : pagedQuery.pagination!.loading(),
+      loading: () => pagedQuery.pagination!.loading(),
       version: () => shownRead()?.version,
-      loadMore: () => {
-        if (!engineView()) return pagedQuery.pagination!.loadMore();
-        return engineQuery.loading()
-          ? okAsync({ landed: false })
-          : engineQuery.refresh();
-      },
+      loadMore: () => pagedQuery.pagination!.loadMore(),
     },
   };
   // A type change gives a column a new definition. Until the read of it
