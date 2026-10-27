@@ -199,7 +199,7 @@ where
             // The bins' totals answer the count; one item each is enough.
             limit: 1,
             cursor: Query::Sort(
-                SimpleSortMethod::CreatedAt,
+                SimpleSortMethod::CreatedAt.into(),
                 rows_filter(*table, property_filter.as_ref(), None),
             ),
             user_id: self.viewer.clone(),

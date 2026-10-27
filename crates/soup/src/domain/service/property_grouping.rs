@@ -1,46 +1,77 @@
-//! Property-definition authorization for grouped Soup queries.
+//! Visible property definitions and type validation for Soup sorts and grouping.
 
-use std::sync::Arc;
-
-use macro_user_id::user_id::MacroUserIdStr;
-use models_grouping::CandidateQuery;
-use properties::PropertiesService;
-
-use super::SoupImpl;
-use crate::domain::ports::PropertyQueryAuthorizer;
-
-pub(super) struct PropertiesAuthorizer<S>(pub Arc<S>);
-
-impl<S: PropertiesService> PropertyQueryAuthorizer for PropertiesAuthorizer<S> {
-    fn authorize_selection<'a>(
-        &'a self,
-        viewer: MacroUserIdStr<'static>,
-        team: Option<
-            entity_access::domain::models::EntityAccessReceipt<
-                entity_access::domain::models::MemberTeamRole,
-            >,
-        >,
-        selection: CandidateQuery,
-    ) -> std::pin::Pin<
-        Box<
-            dyn Future<
-                    Output = Result<properties::AuthorizedPropertyQuery, properties::PropertiesErr>,
-                > + Send
-                + 'a,
-        >,
-    > {
-        Box::pin(async move {
-            self.0
-                .authorize_property_query(viewer, team.as_ref(), selection)
-                .await
-        })
-    }
-}
+use super::*;
+use crate::domain::models::DynamicSort;
+use models_grouping::GroupingConfig;
+use models_properties::DataType;
 
 impl<T, U, V, C, K, Crm, F> SoupImpl<T, U, V, C, K, Crm, F> {
-    /// Attach the owning properties service without changing source authorization.
-    pub fn with_property_queries<S: PropertiesService>(mut self, service: Arc<S>) -> Self {
-        self.property_queries = Some(Arc::new(PropertiesAuthorizer(service)));
+    /// Attach the owning properties service for definition reads.
+    pub fn with_property_queries<S: properties::PropertiesService>(
+        mut self,
+        service: Arc<S>,
+    ) -> Self {
+        self.property_queries = Some(service);
         self
+    }
+
+    #[tracing::instrument(skip_all, fields(sort = ?sort), err)]
+    pub(super) async fn validate_properties(
+        &self,
+        viewer: MacroUserIdStr<'static>,
+        team: Option<properties::TeamReceipt>,
+        sort: DynamicSort,
+        grouping: Option<&GroupingConfig>,
+    ) -> Result<(), SoupErr> {
+        let mut selected = Vec::new();
+        if let DynamicSort::Property {
+            property_definition_id,
+            ..
+        } = sort
+        {
+            selected.push((property_definition_id, false));
+        }
+        if let Some(grouping) = grouping
+            && let Some((id, ranges)) = grouping.field.date_ranges()
+        {
+            ranges
+                .validate()
+                .map_err(|error| properties::PropertiesErr::Validation(format!("{error:?}")))?;
+            if let Some((_, date)) = selected.iter_mut().find(|(key, _)| *key == id) {
+                *date = true;
+            } else {
+                selected.push((id, true));
+            }
+        }
+        for (id, date) in selected {
+            let reader = self.property_queries.as_ref().ok_or_else(|| {
+                SoupErr::SoupDbErr(anyhow::anyhow!(
+                    "property definition reader is not configured"
+                ))
+            })?;
+            let definition = reader
+                .read_definition(id, viewer.clone(), team.clone())
+                .await?;
+            let supported = if date {
+                definition.data_type == DataType::Date && !definition.is_multi_select
+            } else {
+                matches!(
+                    definition.data_type,
+                    DataType::Date
+                        | DataType::Number
+                        | DataType::Boolean
+                        | DataType::SelectString
+                        | DataType::SelectNumber
+                        | DataType::Tag
+                )
+            };
+            if !supported {
+                return Err(properties::PropertiesErr::Validation(
+                    "Property type does not support this sort or date grouping".into(),
+                )
+                .into());
+            }
+        }
+        Ok(())
     }
 }

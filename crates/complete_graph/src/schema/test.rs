@@ -197,14 +197,6 @@ impl CountingSoupService {
 }
 
 impl SoupService for CountingSoupService {
-    async fn get_property_date_page(
-        &self,
-        _request: soup::domain::models::property_dates::PropertyDateRequest,
-    ) -> Result<soup::domain::models::property_dates::PropertyDatePage, soup::domain::models::SoupErr>
-    {
-        panic!("unexpected property-date query")
-    }
-
     async fn get_user_soup<T>(
         &self,
         _req: soup::domain::models::SoupRequest<T>,
@@ -249,6 +241,7 @@ impl SoupService for CountingSoupService {
                     },
                 );
                 soup::domain::models::SoupProjectionHydration {
+                    sort_key: None,
                     item,
                     document_server_facts,
                 }
@@ -319,12 +312,16 @@ impl SoupService for CountingSoupService {
         self.grouped_calls.fetch_add(1, Ordering::SeqCst);
         Ok(vec![
             soup::domain::models::grouping::ItemGroupingInfo {
+                sort_key: None,
+                document_server_facts: None,
                 key: "document".to_string(),
                 total_group_count: 3,
                 index_in_group: 1,
                 item: grouped_document(Uuid::from_u128(1)),
             },
             soup::domain::models::grouping::ItemGroupingInfo {
+                sort_key: None,
+                document_server_facts: None,
                 key: "document".to_string(),
                 total_group_count: 3,
                 index_in_group: 2,

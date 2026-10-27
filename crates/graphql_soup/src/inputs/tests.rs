@@ -132,6 +132,7 @@ fn rejects_ascending_notified_at() {
 fn rejects_grouped_notified_at() {
     let result = GroupedSoupInput::Initial(Box::new(GroupedSoupInitialInput {
         sort_property_definition_id: None,
+        sort_direction: None,
         group_by: GraphqlGroupByInput {
             field: GraphqlGroupByField::EntityType,
             property_definition_id: None,
@@ -151,6 +152,7 @@ fn rejects_grouped_notified_at() {
 fn maps_initial_grouped_input() {
     let request = GroupedSoupInput::Initial(Box::new(GroupedSoupInitialInput {
         sort_property_definition_id: None,
+        sort_direction: None,
         group_by: GraphqlGroupByInput {
             field: GraphqlGroupByField::EntityType,
             property_definition_id: None,
@@ -168,7 +170,7 @@ fn maps_initial_grouped_input() {
     assert!(request.grouping.group_key.is_none());
     assert!(matches!(
         request.cursor,
-        Query::Sort(SimpleSortMethod::UpdatedAt, _)
+        Query::Sort(DynamicSort::Timestamp(SimpleSortMethod::UpdatedAt), _)
     ));
 }
 
@@ -260,29 +262,16 @@ fn invalid_date_range_timestamps_are_rejected() {
 fn date_range_grouping_preserves_custom_keys_and_timestamp_sorting() {
     let request = GroupedSoupInput::Initial(Box::new(GroupedSoupInitialInput {
         sort_property_definition_id: None,
+        sort_direction: None,
         group_by: date_range_input(),
         limit: Some(25),
         sort_method: Some(GraphqlSimpleSortMethod::UpdatedAt),
         filters: None,
     }))
-    .into_read_request(test_macro_user_id())
+    .into_request(test_macro_user_id())
     .unwrap();
-    let GroupedReadRequest::PropertyDate(context) = request else {
-        panic!("expected property-date grouping");
-    };
-    assert_eq!(context.selection.limit, 25);
-    assert!(matches!(
-        context.selection.timestamp_sort,
-        Some(SimpleSortMethod::UpdatedAt)
-    ));
-    let (property, ranges) = context
-        .selection
-        .grouping
-        .as_ref()
-        .unwrap()
-        .field
-        .date_ranges()
-        .unwrap();
+    assert_eq!(request.limit, 25);
+    let (property, ranges) = request.grouping.field.date_ranges().unwrap();
     assert_eq!(property, Uuid::from_u128(18));
     assert_eq!(ranges.missing_value_bucket_key, "no-review-date");
     assert_eq!(ranges.ranges[1].key, "review-window");
@@ -293,63 +282,46 @@ fn date_range_grouping_preserves_custom_keys_and_timestamp_sorting() {
 }
 
 #[test]
-fn generic_date_sort_keeps_the_selected_definition_through_a_null_cursor() {
-    use models_grouping::{CandidateCursor, CandidateIdentity, CandidateSortValue};
+fn property_sort_keeps_null_position_without_a_query_context() {
     let definition = Uuid::from_u128(18);
-    let input = SoupInput::Initial(Box::new(SoupInitialInput {
+    let request = SoupInput::Initial(Box::new(SoupInitialInput {
         limit: Some(10),
         expand: Some(false),
-        sort_method: Some(GraphqlSimpleSortMethod::PropertyDateLatest),
+        sort_method: Some(GraphqlSimpleSortMethod::Property),
         sort_property_definition_id: Some(ID::from(definition.to_string())),
-        email_view: Some(GraphqlEmailView::All),
-        filters: None,
-        sort_direction: None,
-    }));
-    let SoupReadRequest::PropertyDate { context, soup_type } = input
-        .into_read_request(test_macro_user_id(), vec![])
-        .unwrap()
-    else {
-        panic!("generic sort used legacy routing");
-    };
-    assert_eq!(context.selection.date_property_id, Some(definition));
-    assert!(matches!(soup_type, SoupType::UnExpanded));
-    let cursor = context.next_cursor(
-        CandidateCursor {
-            identity: CandidateIdentity {
-                id: Uuid::from_u128(1).to_string(),
-                entity_type: models_grouping::PropertyEntityType::Channel,
-            },
-            sort_value: CandidateSortValue(None),
-        },
-        None,
-    );
-    let continuation = SoupInput::Continuation(SoupContinuationInput {
-        cursor: cursor.clone(),
-        expand: Some(false),
         email_view: None,
-        sort_direction: None,
-    });
-    let SoupReadRequest::PropertyDate { context, .. } = continuation
-        .into_read_request(test_macro_user_id(), vec![])
-        .unwrap()
-    else {
-        panic!("generic cursor used legacy routing");
+        filters: None,
+        sort_direction: Some(GraphqlSortDirection::Asc),
+    }))
+    .into_request(test_macro_user_id(), vec![])
+    .unwrap();
+    let SoupQuery::Property(query) = request.cursor else {
+        panic!("expected property sort")
     };
-    assert_eq!(context.selection.date_property_id, Some(definition));
-    assert_eq!(context.email_preview_view.to_string(), "all");
-    let changed_view = SoupInput::Continuation(SoupContinuationInput {
+    let sort = *query.sort_method();
+    let cursor = Base64Str::encode_json(CursorWithValAndFilter {
+        id: Uuid::from_u128(1),
+        limit: 10,
+        val: models_pagination::CursorVal {
+            sort_type: sort,
+            last_val: sort.position(None, chrono::DateTime::default()),
+        },
+        filter: EntityFilterAst::default(),
+    })
+    .type_erase();
+    let continued = SoupInput::Continuation(SoupContinuationInput {
         cursor,
         expand: None,
-        email_view: Some(GraphqlEmailView::Inbox),
+        email_view: None,
         sort_direction: None,
-    });
+    })
+    .into_request(test_macro_user_id(), vec![])
+    .unwrap();
+    let SoupQuery::Property(query) = continued.cursor else {
+        panic!("expected property cursor")
+    };
     assert!(
-        changed_view
-            .into_read_request(test_macro_user_id(), vec![])
-            .is_err()
+        matches!(query.sort_method(), DynamicSort::Property { property_definition_id, direction: SoupSortDirection::Asc } if *property_definition_id == definition)
     );
-    assert_eq!(
-        context.selection.cursor.unwrap().identity.entity_type,
-        models_grouping::PropertyEntityType::Channel
-    );
+    assert_eq!(query.vals().1.unwrap().key(), None);
 }

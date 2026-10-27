@@ -3,10 +3,10 @@
 use item_filters::ast::{EntityFilterAst, ExpandErr};
 use macro_user_id::user_id::MacroUserIdStr;
 use models_grouping::GroupingConfig;
-use models_pagination::{Base64Str, CursorWithValAndFilter, Query, SimpleSortMethod};
+use models_pagination::{Base64Str, CursorWithValAndFilter, Query};
 use uuid::Uuid;
 
-use crate::domain::models::SoupErr;
+use crate::domain::models::{DynamicSort, SoupErr};
 
 /// Parameters for timestamp-sorted grouped Soup queries.
 #[derive(Debug)]
@@ -14,7 +14,7 @@ pub struct GroupedSortRequest<'a> {
     /// Maximum number of items in a continuation page.
     pub limit: u16,
     /// Timestamp sort, filters, and optional continuation.
-    pub cursor: Query<Uuid, SimpleSortMethod, EntityFilterAst>,
+    pub cursor: Query<Uuid, DynamicSort, EntityFilterAst>,
     /// Authenticated viewer.
     pub user_id: MacroUserIdStr<'a>,
     /// Group field, optional key, and initial per-group limit.
@@ -26,14 +26,14 @@ impl<'a> GroupedSortRequest<'a> {
     pub fn initial(
         user_id: MacroUserIdStr<'a>,
         limit: u16,
-        sort: SimpleSortMethod,
+        sort: impl Into<DynamicSort>,
         filters: EntityFilterAst,
         grouping: GroupingConfig,
     ) -> Self {
         Self {
             user_id,
             limit,
-            cursor: Query::Sort(sort, filters),
+            cursor: Query::Sort(sort.into(), filters),
             grouping,
         }
     }
@@ -45,7 +45,7 @@ impl<'a> GroupedSortRequest<'a> {
         grouping: GroupingConfig,
         limit: Option<u16>,
     ) -> Result<Self, SoupErr> {
-        let cursor: CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst> =
+        let cursor: CursorWithValAndFilter<Uuid, DynamicSort, EntityFilterAst> =
             Base64Str::new_from_string(encoded)
                 .decode_json()
                 .map_err(|error| SoupErr::AstErr(ExpandErr::ApiAst(error.to_string())))?;

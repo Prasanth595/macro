@@ -1760,16 +1760,10 @@ export type GraphqlSimpleSortMethod =
    */
   | 'NOTIFIED_AT'
   /**
-   * Earliest selected DATE property first, missing values last.
-   * A Soup-owned item or property filter is required.
+   * Sort by the selected numeric property in the requested direction, missing last.
    * Email, channels, calls, companies, and agent sessions never appear.
    */
-  | 'PROPERTY_DATE_EARLIEST'
-  /**
-   * Latest selected DATE property first, missing values last.
-   * Email, channels, calls, companies, and agent sessions never appear.
-   */
-  | 'PROPERTY_DATE_LATEST'
+  | 'PROPERTY'
   /** Sort by update timestamp. */
   | 'UPDATED_AT'
   /** Sort by most recently viewed. */
@@ -1833,9 +1827,11 @@ export type GroupedSoupInitialInput = {
   groupBy: GraphqlGroupByInput;
   /** Maximum number of items to return per bin. Defaults to 20, max 500. */
   limit?: number | null | undefined;
+  /** Direction of property values. Defaults to DESC. */
+  sortDirection?: GraphqlSortDirection | null | undefined;
   /** Sort order within each bin. Defaults to `VIEWED_UPDATED`. */
   sortMethod?: GraphqlSimpleSortMethod | null | undefined;
-  /** DATE property definition selected for property-date sorting. */
+  /** Property definition selected for numeric property sorting. */
   sortPropertyDefinitionId?: string | number | null | undefined;
 };
 
@@ -2160,11 +2156,11 @@ export type SoupInitialInput = {
   /** Direction to order the page in. Defaults to DESC. */
   sortDirection?: GraphqlSortDirection | null | undefined;
   /**
-   * Timestamp or selected DATE-property sort. Defaults to VIEWED_AT.
+   * Timestamp or selected numeric property sort. Defaults to VIEWED_AT.
    * Frecency is not supported by this GraphQL adapter.
    */
   sortMethod?: GraphqlSimpleSortMethod | null | undefined;
-  /** DATE property definition selected for property-date sorting. */
+  /** Property definition selected for numeric property sorting. */
   sortPropertyDefinitionId?: string | number | null | undefined;
 };
 

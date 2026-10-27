@@ -17,10 +17,10 @@ viewer pattern), which apply to every type defined here.
   therefore opens through `emailThread` even though it lives in a teammate's
   inbox.
 - Property grouping accepts optional `groupBy.bucketing` with `type: DATE_RANGES`,
-  caller-defined half-open UTC `ranges`, and `missingValueBucketKey`. Keep the
-  selected property, ranges, keys, and entity scope fixed across continuation pages.
-- Use `PROPERTY_DATE_EARLIEST`/`PROPERTY_DATE_LATEST` with `sortPropertyDefinitionId`; preserve the complete selected-property cursor separately from legacy timestamp cursors.
-- Property-date reads require a Soup-owned item or property filter and omit email, channels, calls, companies, and agent sessions; the versioned cursor freezes the source set.
+  caller-defined half-open UTC `ranges`, and `missingValueBucketKey`; client query
+  keys restart pagination when ranges change.
+- Use `PROPERTY`, `sortPropertyDefinitionId`, and `sortDirection` for numeric property sorting through ordinary Soup requests; preserve timestamp cursor decoding.
+- Property sorts and date-range groups omit email, channels, calls, companies, and agent sessions; authorize selected definitions in the Soup domain.
 - `NOTIFIED_AT` maps to Soup's notified request, not a simple sort: `soup`
   accepts it descending only and `groupSoup` rejects it. Its continuation
   cursors carry their own sort tag and string identifiers, separate from timestamp and selected-property cursors.

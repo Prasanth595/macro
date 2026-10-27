@@ -190,21 +190,26 @@ fn arrays_follow_each_querys_fixed_binds() {
             any_of(&absent(1, count)),
             Expr::is_not(any_of(&absent(2, count))),
         ));
-        let mut flat_ids = DocumentIdArrays::starting_at(9);
-        let flat = build_query(&filter, false, SimpleSortMethod::UpdatedAt, &mut flat_ids)
-            .sql()
-            .to_owned();
+        let mut flat_ids = DocumentIdArrays::starting_at(12);
+        let flat = build_query(
+            &filter,
+            false,
+            SimpleSortMethod::UpdatedAt.into(),
+            &mut flat_ids,
+        )
+        .sql()
+        .to_owned();
         let grouping = GroupingConfig {
             field: status(Some("TASK")),
             group_key: None,
             per_group_limit: None,
         };
-        let mut grouped_ids = DocumentIdArrays::starting_at(12);
+        let mut grouped_ids = DocumentIdArrays::starting_at(14);
         let (grouped, _) = build_grouped_query(
             &filter,
             false,
             &grouping,
-            SimpleSortMethod::UpdatedAt,
+            SimpleSortMethod::UpdatedAt.into(),
             &mut grouped_ids,
         );
         (
@@ -218,10 +223,10 @@ fn arrays_follow_each_querys_fixed_binds() {
     assert_eq!(few, render(5_000));
     let (flat, flat_arrays, grouped, grouped_arrays) = few;
     assert_eq!((flat_arrays, grouped_arrays), (2, 2));
-    assert!(flat.contains("(d.id = ANY($9::text[]) AND (NOT d.id = ANY($10::text[])))"));
-    assert!(!flat.contains("$11"));
+    assert!(flat.contains("(d.id = ANY($12::text[]) AND (NOT d.id = ANY($13::text[])))"));
+    assert!(!flat.contains("$14"));
     assert!(grouped.contains("ep.entity_type = $10::property_entity_type"));
-    assert!(grouped.contains("(d.id = ANY($12::text[]) AND (NOT d.id = ANY($13::text[])))"));
+    assert!(grouped.contains("(d.id = ANY($14::text[]) AND (NOT d.id = ANY($15::text[])))"));
 }
 
 async fn flat_page(
@@ -234,7 +239,7 @@ async fn flat_page(
         ExpandedDynamicCursorArgs {
             user_id: user(),
             limit,
-            cursor,
+            cursor: crate::domain::models::DynamicSort::from_timestamp_query(cursor),
             exclude_frecency: false,
         },
     )
@@ -358,7 +363,7 @@ async fn grouped_page(
         GroupedDynamicCursorArgs {
             user_id: user(),
             limit,
-            cursor,
+            cursor: crate::domain::models::DynamicSort::from_timestamp_query(cursor),
             exclude_frecency: false,
             grouping,
         },
@@ -428,7 +433,7 @@ async fn grouped_pages_match_bound_id_sets(pool: PgPool) -> anyhow::Result<()> {
             &filter,
             false,
             &grouping,
-            SimpleSortMethod::UpdatedAt,
+            SimpleSortMethod::UpdatedAt.into(),
             &mut document_ids,
         );
         assert_eq!(document_ids.into_binds().len(), arrays, "{label}");

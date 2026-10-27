@@ -6924,16 +6924,10 @@ enum GraphqlSimpleSortMethod {
 	"""
 	NOTIFIED_AT
 	"""
-	Earliest selected DATE property first, missing values last.
-	A Soup-owned item or property filter is required.
+	Sort by the selected numeric property in the requested direction, missing last.
 	Email, channels, calls, companies, and agent sessions never appear.
 	"""
-	PROPERTY_DATE_EARLIEST
-	"""
-	Latest selected DATE property first, missing values last.
-	Email, channels, calls, companies, and agent sessions never appear.
-	"""
-	PROPERTY_DATE_LATEST
+	PROPERTY
 }
 
 """
@@ -9492,9 +9486,13 @@ input GroupedSoupInitialInput {
 	"""
 	sortMethod: GraphqlSimpleSortMethod
 	"""
-	DATE property definition selected for property-date sorting.
+	Property definition selected for numeric property sorting.
 	"""
 	sortPropertyDefinitionId: ID
+	"""
+	Direction of property values. Defaults to DESC.
+	"""
+	sortDirection: GraphqlSortDirection
 	"""
 	AST-shaped filters applied to each Soup entity type.
 	"""
@@ -10289,12 +10287,12 @@ input SoupInitialInput {
 	"""
 	expand: Boolean
 	"""
-	Timestamp or selected DATE-property sort. Defaults to VIEWED_AT.
+	Timestamp or selected numeric property sort. Defaults to VIEWED_AT.
 	Frecency is not supported by this GraphQL adapter.
 	"""
 	sortMethod: GraphqlSimpleSortMethod
 	"""
-	DATE property definition selected for property-date sorting.
+	Property definition selected for numeric property sorting.
 	"""
 	sortPropertyDefinitionId: ID
 	"""

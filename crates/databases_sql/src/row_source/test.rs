@@ -144,14 +144,6 @@ fn soup_row(row: &Row) -> SoupItem<SoupPropertiesField> {
 }
 
 impl SoupService for ReplaySoup {
-    async fn get_property_date_page(
-        &self,
-        _request: soup::domain::models::property_dates::PropertyDateRequest,
-    ) -> Result<soup::domain::models::property_dates::PropertyDatePage, soup::domain::models::SoupErr>
-    {
-        panic!("unexpected property-date query")
-    }
-
     async fn get_user_soup_with_properties<T>(
         &self,
         request: SoupRequest<T>,
@@ -211,6 +203,8 @@ impl SoupService for ReplaySoup {
         Ok(bins
             .into_iter()
             .map(|bin| ItemGroupingInfo {
+                sort_key: None,
+                document_server_facts: None,
                 key: match bin.key {
                     None => String::new(),
                     Some(Cell::Options(ids)) => ids[0].to_string(),

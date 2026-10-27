@@ -6,7 +6,7 @@ pub mod query;
 #[cfg(test)]
 mod test;
 
-use super::{EnrichedSoupItem, SoupPropertiesField};
+use super::{DynamicSort, EnrichedSoupItem, SoupDocumentServerFacts, SoupPropertiesField};
 use indexmap::IndexMap;
 use item_filters::ast::EntityFilterAst;
 use models_grouping::{GroupByField, date_bucket_label, date_bucket_order};
@@ -75,21 +75,26 @@ pub struct GroupedResponse<Id = Uuid> {
     pub groups: Vec<GroupMeta<Id>>,
     /// Page-level cursor for loading more items.
     pub page_cursor: Option<String>,
+    /// Authoritative document facts from the same SQL rows.
+    pub document_server_facts: HashMap<Id, SoupDocumentServerFacts>,
 }
 
 /// Build a grouped response from grouped soup items.
 pub fn build_grouped_response(
     items: impl IntoIterator<Item = ItemGroupingInfo<SoupPropertiesField>>,
     group_by: &GroupByField,
-    sort_method: SimpleSortMethod,
+    sort_method: impl Into<DynamicSort>,
     requested_group_key: Option<String>,
     filters: EntityFilterAst,
 ) -> GroupedResponse {
+    let sort_method = sort_method.into();
+    let mut document_server_facts = HashMap::new();
     struct GroupData {
         total_count: u32,
         item_ids: Vec<Uuid>,
         last_item_id: Option<Uuid>,
-        last_cursor_val: Option<CursorVal<SimpleSortMethod>>,
+        last_cursor_val: Option<CursorVal<DynamicSort>>,
+        last_index: usize,
         label: Option<String>,
         display_order: Option<i32>,
     }
@@ -98,12 +103,19 @@ pub fn build_grouped_response(
     let items = items.into_iter();
     let mut items_pool: HashMap<Uuid, EnrichedSoupItem> =
         HashMap::with_capacity(items.size_hint().0);
-    let mut get_cursor_val = SoupItem::sort_on(sort_method);
+    let mut get_cursor_val = SoupItem::sort_on(sort_method.timestamp_method());
 
     for grouped_item in items {
         let key = grouped_item.key.clone();
         let item_id = grouped_item.item.id();
-        let cursor_val = get_cursor_val(&grouped_item.item);
+        if let Some(facts) = grouped_item.document_server_facts {
+            document_server_facts.insert(item_id, facts);
+        }
+        let timestamp = get_cursor_val(&grouped_item.item).last_val;
+        let cursor_val = models_pagination::CursorVal {
+            sort_type: sort_method,
+            last_val: sort_method.position(grouped_item.sort_key, timestamp),
+        };
 
         let entry = group_stats.entry(key.clone()).or_insert_with(|| {
             let (label, display_order) = resolve_group_label_and_order(&key, group_by);
@@ -112,6 +124,7 @@ pub fn build_grouped_response(
                 item_ids: Vec::new(),
                 last_item_id: None,
                 last_cursor_val: None,
+                last_index: 0,
                 label: Some(label),
                 display_order,
             }
@@ -119,6 +132,7 @@ pub fn build_grouped_response(
         entry.item_ids.push(item_id);
         entry.last_item_id = Some(item_id);
         entry.last_cursor_val = Some(cursor_val);
+        entry.last_index = grouped_item.index_in_group;
 
         // First occurrence wins; later duplicates are dropped instead of
         // overwriting an already-populated entry.
@@ -130,21 +144,18 @@ pub fn build_grouped_response(
     let mut groups: Vec<GroupMeta> = group_stats
         .into_iter()
         .map(|(key, data)| {
-            let has_more = (data.item_ids.len() as u32) < data.total_count;
+            let has_more = data.last_index < data.total_count as usize;
             let next_cursor = if has_more {
                 data.last_item_id
                     .zip(data.last_cursor_val)
                     .map(|(id, val)| {
-                        let cursor: CursorWithValAndFilter<
-                            Uuid,
-                            SimpleSortMethod,
-                            EntityFilterAst,
-                        > = CursorWithValAndFilter {
-                            id,
-                            limit: data.item_ids.len(),
-                            val,
-                            filter: filters.clone(),
-                        };
+                        let cursor: CursorWithValAndFilter<Uuid, DynamicSort, EntityFilterAst> =
+                            CursorWithValAndFilter {
+                                id,
+                                limit: data.item_ids.len(),
+                                val,
+                                filter: filters.clone(),
+                            };
                         Base64Str::encode_json(cursor).type_erase()
                     })
             } else {
@@ -178,6 +189,7 @@ pub fn build_grouped_response(
         items: items_pool,
         groups,
         page_cursor,
+        document_server_facts,
     }
 }
 
@@ -285,6 +297,10 @@ pub struct ItemGroupingInfo<T = (), Bin = String> {
     pub total_group_count: usize,
     /// The item's position within its bin.
     pub index_in_group: usize,
+    /// Signed numeric key read with the item.
+    pub sort_key: Option<f64>,
+    /// Server facts carried through grouped enrichment.
+    pub document_server_facts: Option<SoupDocumentServerFacts>,
     /// The Soup item.
     pub item: SoupItem<T>,
 }

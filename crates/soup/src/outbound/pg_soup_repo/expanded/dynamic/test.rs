@@ -14,7 +14,7 @@ fn grouped_access_shape() {
         &filter,
         false,
         &grouping,
-        SimpleSortMethod::ViewedUpdated,
+        SimpleSortMethod::ViewedUpdated.into(),
         &mut DocumentIdArrays::starting_at(12),
     );
     let candidates = builder.sql().split("GroupedItems AS").next().unwrap();
@@ -52,7 +52,7 @@ fn grouped_candidate_sort_shape() {
                 &filter,
                 true,
                 &grouping,
-                sort,
+                sort.into(),
                 &mut DocumentIdArrays::starting_at(12),
             );
             let sql = builder.sql();
@@ -71,13 +71,17 @@ fn grouped_candidate_sort_shape() {
                 )));
             }
             assert!(candidates.contains("LEFT JOIN document_sub_type dt"));
-            assert!(candidates.contains("fa.id IS NULL AND ("));
-            assert!(candidates.contains("(all_items.sort_ts, all_items.id::text) < ($4, $5)"));
+            assert!(candidates.contains("fa.id IS NULL AND TRUE"));
+            assert!(
+                rest.contains("(sort_key, sort_ts, id::text) < (COALESCE($13::double precision")
+            );
             assert_eq!(rest.matches("LEFT JOIN \"UserHistory\"").count(), 3);
             assert!(rest.contains("COUNT(*) OVER (PARTITION BY"));
-            assert!(rest.contains("ORDER BY t.sort_ts DESC, t.id DESC"));
+            assert!(rest.contains("ORDER BY t.sort_key DESC, t.sort_ts DESC, t.id DESC"));
             assert!(rest.contains("AND ep.entity_type = $10"));
-            assert!(rest.contains("\"group_key\", \"sort_ts\" DESC, \"id\" DESC"));
+            assert!(
+                rest.contains("\"group_key\", \"sort_key\" DESC, \"sort_ts\" DESC, \"id\" DESC")
+            );
             assert_eq!(sql.ends_with("LIMIT $3"), grouping.group_key.is_some());
             assert_eq!(
                 rest.contains("row_in_group <= 10"),
@@ -183,7 +187,7 @@ async fn grouped_query_explain_local(pool: PgPool) -> anyhow::Result<()> {
                 &filter,
                 false,
                 &grouping,
-                sort,
+                sort.into(),
                 &mut DocumentIdArrays::starting_at(12),
             );
             // Dynamic AST/grouping SQL cannot use a compile-time macro. Mirror
@@ -224,7 +228,7 @@ fn initiatives_are_opt_in_and_share_the_existing_sql_pagination() {
         !build_query(
             &filter,
             false,
-            SimpleSortMethod::UpdatedAt,
+            SimpleSortMethod::UpdatedAt.into(),
             &mut DocumentIdArrays::starting_at(9),
         )
         .sql()
@@ -237,7 +241,7 @@ fn initiatives_are_opt_in_and_share_the_existing_sql_pagination() {
         !build_query(
             &filter,
             false,
-            SimpleSortMethod::UpdatedAt,
+            SimpleSortMethod::UpdatedAt.into(),
             &mut DocumentIdArrays::starting_at(9),
         )
         .sql()
@@ -247,7 +251,7 @@ fn initiatives_are_opt_in_and_share_the_existing_sql_pagination() {
     let query = build_query(
         &filter,
         false,
-        SimpleSortMethod::UpdatedAt,
+        SimpleSortMethod::UpdatedAt.into(),
         &mut DocumentIdArrays::starting_at(9),
     );
     let (candidates, details) = query.sql().split_once("Combined AS").unwrap();
@@ -265,3 +269,5 @@ fn initiative_name_literals_are_escaped_and_not_like_patterns() {
     assert!(sql.contains("'O''Reilly_%'"));
     assert!(sql.contains("strpos("));
 }
+
+mod property_sort;

@@ -15,7 +15,6 @@ use axum::{
     routing::{get, post},
 };
 use axum_extra::either::Either5;
-mod property_dates;
 use cowlike::CowLike;
 use email::{
     domain::{
@@ -63,7 +62,6 @@ use models_pagination::{
     TouchedByMe, TypeEraseCursor,
 };
 use non_empty::IsEmpty;
-use property_dates::PropertyDateCursor;
 use recursion::CollapsibleExt;
 use rootcause::{Report, report};
 use serde::{Deserialize, Serialize};
@@ -95,13 +93,12 @@ pub struct Params {
     #[serde(default)]
     limit: Option<u16>,
     /// Sort method. Includes timestamp sorts, relevance sorts, and
-    /// property_date_earliest/property_date_latest with a selected DATE definition.
-    /// Property-date reads omit email, channels, calls, companies, and agent sessions.
-    /// A Soup-owned item or property filter is required.
+    /// property with a selected DATE, NUMBER, BOOLEAN, SELECT or TAG definition.
+    /// Property sorts omit email, channels, calls, companies, and agent sessions.
     /// Defaults to viewed_at.
     #[serde(default)]
     sort_method: Option<SoupApiSort>,
-    /// DATE property definition selected for property-date sorting.
+    /// Property definition selected for numeric property sorting.
     #[serde(default)]
     sort_property_definition_id: Option<Uuid>,
     /// Sort direction. Options are asc, desc. Defaults to desc.
@@ -159,20 +156,31 @@ pub enum SoupApiSort {
     /// notifications surface as channel-thread rows; calls and CRM
     /// companies never appear.
     NotifiedAt,
-    /// Sort by the selected DATE property, missing values last.
+    /// Sort by the selected numeric property, missing values last.
     /// Only Soup-owned property-bearing items participate; email, channels, calls,
     /// companies, and agent sessions never appear.
-    PropertyDateEarliest,
-    /// Sort by the selected DATE property descending, missing values last.
-    /// Only Soup-owned property-bearing items participate; email, channels, calls,
-    /// companies, and agent sessions never appear.
-    PropertyDateLatest,
+    Property,
 }
 
 impl SoupApiSort {
     /// Builds an ordinary timestamp or relevance query.
-    fn into_query<R>(self, filters: R) -> Result<SoupQuery<R>, SoupHandlerErr> {
+    fn into_query<R>(
+        self,
+        filters: R,
+        property: Option<Uuid>,
+        direction: SoupSortDirection,
+    ) -> Result<SoupQuery<R>, SoupHandlerErr> {
+        if !matches!(self, Self::Property) && property.is_some() {
+            return Err(SoupHandlerErr::Expand);
+        }
         Ok(match self {
+            Self::Property => SoupQuery::Property(models_pagination::Query::Sort(
+                crate::domain::models::DynamicSort::Property {
+                    property_definition_id: property.ok_or(SoupHandlerErr::Expand)?,
+                    direction,
+                },
+                filters,
+            )),
             Self::ViewedAt => SoupQuery::new_sort_simple(SimpleSortMethod::ViewedAt, filters),
             Self::CreatedAt => SoupQuery::new_sort_simple(SimpleSortMethod::CreatedAt, filters),
             Self::UpdatedAt => SoupQuery::new_sort_simple(SimpleSortMethod::UpdatedAt, filters),
@@ -182,7 +190,6 @@ impl SoupApiSort {
             Self::Frecency => SoupQuery::new_sort_frecency(Frecency, filters),
             Self::TouchedByMe => SoupQuery::new_sort_touched(filters),
             Self::NotifiedAt => SoupQuery::new_sort_notified(filters),
-            _ => return Err(SoupHandlerErr::Expand),
         })
     }
 }
@@ -199,15 +206,28 @@ pub enum GroupedSoupSort {
     UpdatedAt,
     /// Sort by viewed and updated activity.
     ViewedUpdated,
-    /// Sort by the selected DATE property, missing values last.
+    /// Sort by the selected numeric property, missing values last.
     /// Email, channels, calls, companies, and agent sessions never appear.
-    PropertyDateEarliest,
-    /// Sort by the selected DATE property descending, missing values last.
-    /// Email, channels, calls, companies, and agent sessions never appear.
-    PropertyDateLatest,
+    Property,
 }
 
 impl GroupedSoupSort {
+    fn into_sort(
+        self,
+        property: Option<Uuid>,
+        direction: Option<SoupApiSortDirection>,
+    ) -> Result<crate::domain::models::DynamicSort, SoupHandlerErr> {
+        if matches!(self, Self::Property) {
+            return Ok(crate::domain::models::DynamicSort::Property {
+                property_definition_id: property.ok_or(SoupHandlerErr::Expand)?,
+                direction: direction.map(Into::into).unwrap_or_default(),
+            });
+        }
+        if property.is_some() {
+            return Err(SoupHandlerErr::Expand);
+        }
+        self.into_model().map(Into::into)
+    }
     fn into_model(self) -> Result<SimpleSortMethod, SoupHandlerErr> {
         Ok(match self {
             Self::ViewedAt => SimpleSortMethod::ViewedAt,
@@ -230,9 +250,12 @@ pub struct GroupedParams {
     /// Sort method. Defaults to viewed_updated.
     #[serde(default)]
     pub sort_method: Option<GroupedSoupSort>,
-    /// DATE property definition selected for property-date sorting.
+    /// Property definition selected for numeric property sorting.
     #[serde(default)]
     pub sort_property_definition_id: Option<Uuid>,
+    /// Direction of property values. Defaults to descending.
+    #[serde(default)]
+    pub sort_direction: Option<SoupApiSortDirection>,
     /// Limit the number of items returned. Defaults to 20. Max 500.
     #[serde(default)]
     pub limit: Option<u16>,
@@ -246,9 +269,12 @@ pub struct GroupedInitialParams {
     /// Sort method. Defaults to viewed_updated.
     #[serde(default)]
     pub sort_method: Option<GroupedSoupSort>,
-    /// DATE property definition selected for property-date sorting.
+    /// Property definition selected for numeric property sorting.
     #[serde(default)]
     pub sort_property_definition_id: Option<Uuid>,
+    /// Direction of property values. Defaults to descending.
+    #[serde(default)]
+    pub sort_direction: Option<SoupApiSortDirection>,
     /// Limit the number of items returned per group. Defaults to 20. Max 500.
     #[serde(default)]
     pub per_group_limit: Option<u16>,
@@ -264,9 +290,12 @@ pub struct GroupedPageParams {
     /// Sort method. Defaults to viewed_updated.
     #[serde(default)]
     pub sort_method: Option<GroupedSoupSort>,
-    /// DATE property definition selected for property-date sorting.
+    /// Property definition selected for numeric property sorting.
     #[serde(default)]
     pub sort_property_definition_id: Option<Uuid>,
+    /// Direction of property values. Defaults to descending.
+    #[serde(default)]
+    pub sort_direction: Option<SoupApiSortDirection>,
     /// Limit the number of items returned. Defaults to 20. Max 500.
     #[serde(default)]
     pub limit: Option<u16>,
@@ -279,6 +308,7 @@ impl From<GroupedInitialParams> for GroupedParams {
             group_key: None,
             sort_method: params.sort_method,
             sort_property_definition_id: params.sort_property_definition_id,
+            sort_direction: params.sort_direction,
             limit: params.per_group_limit,
         }
     }
@@ -291,6 +321,7 @@ impl From<GroupedPageParams> for GroupedParams {
             group_key: Some(params.group_key),
             sort_method: params.sort_method,
             sort_property_definition_id: params.sort_property_definition_id,
+            sort_direction: params.sort_direction,
             limit: params.limit,
         }
     }
@@ -603,25 +634,6 @@ where
         SoupRequest<R>: IntoSoupReqAst,
         R: Clone + Serialize + Send + crate::domain::models::IntoSoupFilterAst,
     {
-        if params.property_date_sort()?.is_some() || matches!(&cursor, Either5::E5(_)) {
-            let context = match cursor {
-                Either5::E5(cursor) => cursor.0,
-                _ => None,
-            };
-            return self
-                .handle_property_dates(
-                    macro_user_id,
-                    link_ids,
-                    team_receipt_option,
-                    ApiSoupRequestInner {
-                        filters,
-                        params,
-                        email_view,
-                    },
-                    context,
-                )
-                .await;
-        }
         let user_for_favorites = macro_user_id.copied().into_owned();
         let sort_direction: SoupSortDirection =
             params.sort_direction.map(Into::into).unwrap_or_default();
@@ -629,7 +641,7 @@ where
             params
                 .sort_method
                 .unwrap_or(SoupApiSort::ViewedAt)
-                .into_query(filters)
+                .into_query(filters, params.sort_property_definition_id, sort_direction)
         };
 
         let cursor: SoupQuery<R> = match cursor {
@@ -640,7 +652,10 @@ where
             Either5::E1(None) | Either5::E2(None) | Either5::E3(None) | Either5::E4(None) => {
                 create_fallback()?
             }
-            Either5::E5(_) => return Err(SoupHandlerErr::Expand),
+            Either5::E5(Some(cursor)) => {
+                SoupQuery::Property(models_pagination::Query::Cursor(cursor))
+            }
+            Either5::E5(None) => create_fallback()?,
         };
 
         // Frecency pages are ordered by relevance score, touched pages by the
@@ -661,7 +676,7 @@ where
                 SoupQuery::Notified(_) => {
                     return Err(SoupHandlerErr::AscendingNotifiedUnsupported);
                 }
-                SoupQuery::Simple(_) => {}
+                SoupQuery::Simple(_) | SoupQuery::Property(_) => {}
             }
         }
 
@@ -719,7 +734,7 @@ where
                 let sort = params
                     .sort_method
                     .unwrap_or(GroupedSoupSort::ViewedUpdated)
-                    .into_model()?;
+                    .into_sort(params.sort_property_definition_id, params.sort_direction)?;
                 GroupedSortRequest::initial(macro_user_id, limit, sort, filters, grouping)
             }
         };
@@ -1032,7 +1047,7 @@ type SoupCursor<R> = Either5<
     // Same value shape as the touched cursor; its `"notified_at"` sort
     // marker (touched serializes `null`) is what keeps it out of arm 3.
     Option<CursorWithValAndFilter<String, NotifiedAt, R>>,
-    PropertyDateCursor,
+    Option<CursorWithValAndFilter<Uuid, crate::domain::models::DynamicSort, R>>,
 >;
 
 /// Gets the items the user has access to
@@ -1214,7 +1229,7 @@ enum GroupedSoupRequestMode {
 pub async fn post_grouped_soup_ast_handler<T, U, EAS, Auth>(
     State(service): State<SoupRouterState<T, U, EAS, Auth>>,
     authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
-    team: OptionalMacroUserTeamExtractorV2<MemberTeamRole, EAS, Auth>,
+    _team: OptionalMacroUserTeamExtractorV2<MemberTeamRole, EAS, Auth>,
     Query(GroupedSoupCursorParams { cursor }): Query<GroupedSoupCursorParams>,
     Json(request): Json<PostGroupedSoupAstRequest>,
 ) -> Result<Json<GroupedSoupPage>, SoupHandlerErr>
@@ -1243,33 +1258,9 @@ where
         .into_entity_ast()
         .map_err(|_| SoupHandlerErr::Expand)?;
 
-    let use_property_dates = params.property_date_sort()?.is_some()
-        || cursor
-            .as_deref()
-            .map(crate::domain::models::property_dates::PropertyDateContext::try_decode)
-            .transpose()?
-            .flatten()
-            .is_some()
-        || GroupByField::from(params.group_by.clone())
-            .date_ranges()
-            .is_some();
-    let response = if use_property_dates {
-        let links = fetch_caller_link_ids(&service, macro_user_id.as_ref()).await?;
-        service
-            .handle_property_date_groups(
-                macro_user_id,
-                links,
-                team.entity_access_receipt,
-                filters,
-                params,
-                cursor,
-            )
-            .await?
-    } else {
-        service
-            .handle_grouped(macro_user_id, filters, params, cursor)
-            .await?
-    };
+    let response = service
+        .handle_grouped(macro_user_id, filters, params, cursor)
+        .await?;
 
     Ok(Json(match mode {
         GroupedSoupRequestMode::Initial => GroupedSoupPage::Initial(GroupedSoupInitialPage {
@@ -1304,7 +1295,7 @@ pub struct ApiEntityFilterAst {
     /// (wire key `crma`): its Companies or Contacts property names the
     /// record, or it references the record. A company also matches through
     /// its contacts. Unknown or inaccessible records answer 404; requests
-    /// require expanded queries sorted by a timestamp or selected DATE property.
+    /// require expanded queries sorted by a timestamp or selected numeric property.
     #[serde(default, rename = "crma", skip_serializing_if = "Option::is_none")]
     pub crm_association: Option<item_filters::ast::crm_association::CrmAssociation>,
     /// filters applied to canonical calendar events
@@ -1414,6 +1405,9 @@ impl IntoSoupReqAst for SoupRequest<ApiEntityFilterAst> {
         } = self;
 
         let cursor = match cursor {
+            SoupQuery::Property(query) => SoupQuery::Property(
+                query.try_map_filter(ApiEntityFilterAst::into_optional_entity_ast)?,
+            ),
             SoupQuery::Simple(SimpleQueryInner(query)) => SoupQuery::Simple(SimpleQueryInner(
                 query.try_map_filter(ApiEntityFilterAst::into_optional_entity_ast)?,
             )),

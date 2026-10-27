@@ -24465,17 +24465,16 @@ export const getItemsSoupQueryParams = zod.object({
       'frecency',
       'touched_by_me',
       'notified_at',
-      'property_date_earliest',
-      'property_date_latest',
+      'property',
     ])
     .optional()
     .describe(
-      'Sort method. Includes timestamp sorts, relevance sorts, and\nproperty_date_earliest\/property_date_latest with a selected DATE definition.\nProperty-date reads omit email, channels, calls, companies, and agent sessions.\nA Soup-owned item or property filter is required.\nDefaults to viewed_at.'
+      'Sort method. Includes timestamp sorts, relevance sorts, and\nproperty with a selected DATE, NUMBER, BOOLEAN, SELECT or TAG definition.\nProperty sorts omit email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at.'
     ),
   sort_property_definition_id: zod
     .uuid()
     .optional()
-    .describe('DATE property definition selected for property-date sorting.'),
+    .describe('Property definition selected for numeric property sorting.'),
   sort_direction: zod
     .enum(['asc', 'desc'])
     .optional()
@@ -29150,8 +29149,7 @@ export const postItemsSoupBody = zod
                 'frecency',
                 'touched_by_me',
                 'notified_at',
-                'property_date_earliest',
-                'property_date_latest',
+                'property',
               ])
               .describe(
                 'Sort options accepted by non-grouped soup API endpoints.'
@@ -29162,7 +29160,7 @@ export const postItemsSoupBody = zod
           .uuid()
           .nullish()
           .describe(
-            'DATE property definition selected for property-date sorting.'
+            'Property definition selected for numeric property sorting.'
           ),
       })
       .describe('Query parameters shared by soup endpoints.')
@@ -33287,8 +33285,7 @@ export const postItemsSoupAstBody = zod
                 'frecency',
                 'touched_by_me',
                 'notified_at',
-                'property_date_earliest',
-                'property_date_latest',
+                'property',
               ])
               .describe(
                 'Sort options accepted by non-grouped soup API endpoints.'
@@ -33299,7 +33296,7 @@ export const postItemsSoupAstBody = zod
           .uuid()
           .nullish()
           .describe(
-            'DATE property definition selected for property-date sorting.'
+            'Property definition selected for numeric property sorting.'
           ),
       })
       .describe('Query parameters shared by soup endpoints.')
@@ -37517,6 +37514,16 @@ export const postItemsSoupAstGroupedBody = zod
               .describe(
                 'Limit the number of items returned per group. Defaults to 20. Max 500.'
               ),
+            sort_direction: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum(['asc', 'desc'])
+                  .describe(
+                    'Sort direction accepted by non-grouped soup API endpoints.'
+                  ),
+              ])
+              .optional(),
             sort_method: zod
               .union([
                 zod.null(),
@@ -37526,8 +37533,7 @@ export const postItemsSoupAstGroupedBody = zod
                     'created_at',
                     'updated_at',
                     'viewed_updated',
-                    'property_date_earliest',
-                    'property_date_latest',
+                    'property',
                   ])
                   .describe(
                     'Sort method for grouped queries (frecency not supported).'
@@ -37538,7 +37544,7 @@ export const postItemsSoupAstGroupedBody = zod
               .uuid()
               .nullish()
               .describe(
-                'DATE property definition selected for property-date sorting.'
+                'Property definition selected for numeric property sorting.'
               ),
           })
           .describe('Parameters for the initial grouped soup query.')
@@ -37793,6 +37799,16 @@ export const postItemsSoupAstGroupedBody = zod
               .describe(
                 'Limit the number of items returned. Defaults to 20. Max 500.'
               ),
+            sort_direction: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum(['asc', 'desc'])
+                  .describe(
+                    'Sort direction accepted by non-grouped soup API endpoints.'
+                  ),
+              ])
+              .optional(),
             sort_method: zod
               .union([
                 zod.null(),
@@ -37802,8 +37818,7 @@ export const postItemsSoupAstGroupedBody = zod
                     'created_at',
                     'updated_at',
                     'viewed_updated',
-                    'property_date_earliest',
-                    'property_date_latest',
+                    'property',
                   ])
                   .describe(
                     'Sort method for grouped queries (frecency not supported).'
@@ -37814,7 +37829,7 @@ export const postItemsSoupAstGroupedBody = zod
               .uuid()
               .nullish()
               .describe(
-                'DATE property definition selected for property-date sorting.'
+                'Property definition selected for numeric property sorting.'
               ),
           })
           .describe('Parameters for fetching one page within a specific group.')

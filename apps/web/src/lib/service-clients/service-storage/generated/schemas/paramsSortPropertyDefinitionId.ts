@@ -6,6 +6,6 @@
  */
 
 /**
- * DATE property definition selected for property-date sorting.
+ * Property definition selected for numeric property sorting.
  */
 export type ParamsSortPropertyDefinitionId = string | null;

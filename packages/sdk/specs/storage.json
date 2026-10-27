@@ -15175,7 +15175,7 @@
           {
             "name": "sort_method",
             "in": "query",
-            "description": "Sort method. Includes timestamp sorts, relevance sorts, and\nproperty_date_earliest/property_date_latest with a selected DATE definition.\nProperty-date reads omit email, channels, calls, companies, and agent sessions.\nA Soup-owned item or property filter is required.\nDefaults to viewed_at.",
+            "description": "Sort method. Includes timestamp sorts, relevance sorts, and\nproperty with a selected DATE, NUMBER, BOOLEAN, SELECT or TAG definition.\nProperty sorts omit email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at.",
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/SoupApiSort"
@@ -15184,7 +15184,7 @@
           {
             "name": "sort_property_definition_id",
             "in": "query",
-            "description": "DATE property definition selected for property-date sorting.",
+            "description": "Property definition selected for numeric property sorting.",
             "required": false,
             "schema": {
               "type": "string",
@@ -20288,7 +20288,7 @@
               },
               {
                 "$ref": "#/components/schemas/CrmAssociation",
-                "description": "Restrict every entity type to items associated with this CRM record\n(wire key `crma`): its Companies or Contacts property names the\nrecord, or it references the record. A company also matches through\nits contacts. Unknown or inaccessible records answer 404; requests\nrequire expanded queries sorted by a timestamp or selected DATE property."
+                "description": "Restrict every entity type to items associated with this CRM record\n(wire key `crma`): its Companies or Contacts property names the\nrecord, or it references the record. A company also matches through\nits contacts. Unknown or inaccessible records answer 404; requests\nrequire expanded queries sorted by a timestamp or selected numeric property."
               }
             ]
           },
@@ -31303,6 +31303,17 @@
             "description": "Limit the number of items returned per group. Defaults to 20. Max 500.",
             "minimum": 0
           },
+          "sort_direction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SoupApiSortDirection",
+                "description": "Direction of property values. Defaults to descending."
+              }
+            ]
+          },
           "sort_method": {
             "oneOf": [
               {
@@ -31317,7 +31328,7 @@
           "sort_property_definition_id": {
             "type": ["string", "null"],
             "format": "uuid",
-            "description": "DATE property definition selected for property-date sorting."
+            "description": "Property definition selected for numeric property sorting."
           }
         }
       },
@@ -31340,6 +31351,17 @@
             "description": "Limit the number of items returned. Defaults to 20. Max 500.",
             "minimum": 0
           },
+          "sort_direction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SoupApiSortDirection",
+                "description": "Direction of property values. Defaults to descending."
+              }
+            ]
+          },
           "sort_method": {
             "oneOf": [
               {
@@ -31354,7 +31376,7 @@
           "sort_property_definition_id": {
             "type": ["string", "null"],
             "format": "uuid",
-            "description": "DATE property definition selected for property-date sorting."
+            "description": "Property definition selected for numeric property sorting."
           }
         }
       },
@@ -31454,8 +31476,7 @@
           "created_at",
           "updated_at",
           "viewed_updated",
-          "property_date_earliest",
-          "property_date_latest"
+          "property"
         ]
       },
       "GuestChatMessage": {
@@ -34678,14 +34699,14 @@
               },
               {
                 "$ref": "#/components/schemas/SoupApiSort",
-                "description": "Sort method. Includes timestamp sorts, relevance sorts, and\nproperty_date_earliest/property_date_latest with a selected DATE definition.\nProperty-date reads omit email, channels, calls, companies, and agent sessions.\nA Soup-owned item or property filter is required.\nDefaults to viewed_at."
+                "description": "Sort method. Includes timestamp sorts, relevance sorts, and\nproperty with a selected DATE, NUMBER, BOOLEAN, SELECT or TAG definition.\nProperty sorts omit email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at."
               }
             ]
           },
           "sort_property_definition_id": {
             "type": ["string", "null"],
             "format": "uuid",
-            "description": "DATE property definition selected for property-date sorting."
+            "description": "Property definition selected for numeric property sorting."
           }
         }
       },
@@ -38042,8 +38063,7 @@
           "frecency",
           "touched_by_me",
           "notified_at",
-          "property_date_earliest",
-          "property_date_latest"
+          "property"
         ]
       },
       "SoupApiSortDirection": {

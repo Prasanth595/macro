@@ -16,24 +16,6 @@ use models_properties::service::property_definition_with_options::PropertyDefini
 use models_soup::item::SoupItem;
 use serde::Serialize;
 
-/// Authorizes the selected definition before a property-dependent grouped query.
-pub trait PropertyQueryAuthorizer: Send + Sync {
-    /// Authorize every selected property once before source candidate fanout.
-    fn authorize_selection<'a>(
-        &'a self,
-        viewer: MacroUserIdStr<'static>,
-        team: Option<EntityAccessReceipt<MemberTeamRole>>,
-        selection: models_grouping::CandidateQuery,
-    ) -> std::pin::Pin<
-        Box<
-            dyn Future<
-                    Output = Result<properties::AuthorizedPropertyQuery, properties::PropertiesErr>,
-                > + Send
-                + 'a,
-        >,
-    >;
-}
-
 /// Repository abstraction for loading soup items from storage.
 #[cfg_attr(
     test,
@@ -48,11 +30,6 @@ pub trait SoupRepo: Send + Sync + 'static {
     /// Iterator returned by grouped Soup queries.
     type GroupedItems: Iterator<Item = ItemGroupingInfo> + Send;
 
-    /// Select authorized candidates before DATE ordering, grouping, or pagination.
-    fn property_candidate_page(
-        &self,
-        request: super::models::property_candidates::PropertyCandidateRequest,
-    ) -> impl Future<Output = Result<models_grouping::CandidatePage, Self::Err>> + Send;
     /// Fetch expanded soup items for a simple sorted cursor query.
     fn expanded_generic_cursor_soup<'a>(
         &self,
@@ -165,6 +142,8 @@ pub enum SoupOutput<T, Item = SoupItem<()>> {
     Touched(PaginatedCursor<Item, String, TouchedByMe, T>),
     /// Page of a notified-at query.
     Notified(PaginatedCursor<Item, String, NotifiedAt, T>),
+    /// Page sorted by a selected property's numeric key.
+    Property(PaginatedCursor<Item, String, super::models::DynamicSort, T>),
 }
 
 impl<T, Item> SoupOutput<T, Item> {
@@ -175,6 +154,7 @@ impl<T, Item> SoupOutput<T, Item> {
     {
         match self {
             SoupOutput::Simple(page) => SoupOutput::Simple(page.map(f)),
+            SoupOutput::Property(page) => SoupOutput::Property(page.map(f)),
             SoupOutput::Frecency(page) => SoupOutput::Frecency(page.map(f)),
             SoupOutput::Touched(page) => SoupOutput::Touched(page.map(f)),
             SoupOutput::Notified(page) => SoupOutput::Notified(page.map(f)),
@@ -185,6 +165,7 @@ impl<T, Item> SoupOutput<T, Item> {
     pub fn into_items(self) -> Vec<Item> {
         match self {
             SoupOutput::Simple(page) => page.items,
+            SoupOutput::Property(page) => page.items,
             SoupOutput::Frecency(page) => page.items,
             SoupOutput::Touched(page) => page.items,
             SoupOutput::Notified(page) => page.items,
@@ -195,7 +176,10 @@ impl<T, Item> SoupOutput<T, Item> {
     pub fn into_simple(self) -> Option<PaginatedCursor<Item, String, SimpleSortMethod, T>> {
         match self {
             SoupOutput::Simple(page) => Some(page),
-            SoupOutput::Frecency(_) | SoupOutput::Touched(_) | SoupOutput::Notified(_) => None,
+            SoupOutput::Frecency(_)
+            | SoupOutput::Touched(_)
+            | SoupOutput::Notified(_)
+            | SoupOutput::Property(_) => None,
         }
     }
 
@@ -203,7 +187,10 @@ impl<T, Item> SoupOutput<T, Item> {
     pub fn into_frecency(self) -> Option<PaginatedCursor<Item, String, Frecency, T>> {
         match self {
             SoupOutput::Frecency(page) => Some(page),
-            SoupOutput::Simple(_) | SoupOutput::Touched(_) | SoupOutput::Notified(_) => None,
+            SoupOutput::Property(_)
+            | SoupOutput::Simple(_)
+            | SoupOutput::Touched(_)
+            | SoupOutput::Notified(_) => None,
         }
     }
 
@@ -211,7 +198,10 @@ impl<T, Item> SoupOutput<T, Item> {
     pub fn into_touched(self) -> Option<PaginatedCursor<Item, String, TouchedByMe, T>> {
         match self {
             SoupOutput::Touched(page) => Some(page),
-            SoupOutput::Simple(_) | SoupOutput::Frecency(_) | SoupOutput::Notified(_) => None,
+            SoupOutput::Property(_)
+            | SoupOutput::Simple(_)
+            | SoupOutput::Frecency(_)
+            | SoupOutput::Notified(_) => None,
         }
     }
 
@@ -219,7 +209,10 @@ impl<T, Item> SoupOutput<T, Item> {
     pub fn into_notified(self) -> Option<PaginatedCursor<Item, String, NotifiedAt, T>> {
         match self {
             SoupOutput::Notified(page) => Some(page),
-            SoupOutput::Simple(_) | SoupOutput::Frecency(_) | SoupOutput::Touched(_) => None,
+            SoupOutput::Property(_)
+            | SoupOutput::Simple(_)
+            | SoupOutput::Frecency(_)
+            | SoupOutput::Touched(_) => None,
         }
     }
 }
@@ -228,6 +221,7 @@ impl<T, Item> TypeEraseCursor<Item> for SoupOutput<T, Item> {
     fn type_erase(self) -> PaginatedOpaqueCursor<Item> {
         match self {
             SoupOutput::Simple(page) => page.type_erase(),
+            SoupOutput::Property(page) => page.type_erase(),
             SoupOutput::Frecency(page) => page.type_erase(),
             SoupOutput::Touched(page) => page.type_erase(),
             SoupOutput::Notified(page) => page.type_erase(),
@@ -240,12 +234,6 @@ mod test;
 
 /// Service abstraction for executing user-facing soup queries.
 pub trait SoupService: Send + Sync + 'static {
-    /// Read a property-date page across source-owned authorization and filtering.
-    fn get_property_date_page(
-        &self,
-        request: super::models::property_dates::PropertyDateRequest,
-    ) -> impl Future<Output = Result<super::models::property_dates::PropertyDatePage, SoupErr>> + Send;
-
     /// Run a soup query without loading entity properties or frecency.
     ///
     /// `team_receipt` proves the user belongs to a team and may be used by
@@ -280,6 +268,7 @@ pub trait SoupService: Send + Sync + 'static {
                 output.map(|item| SoupProjectionHydration {
                     item,
                     document_server_facts: None,
+                    sort_key: None,
                 })
             })
         }
@@ -325,6 +314,7 @@ pub trait SoupService: Send + Sync + 'static {
                     output.map(|item| SoupProjectionHydration {
                         item,
                         document_server_facts: None,
+                        sort_key: None,
                     })
                 })
         }
@@ -382,13 +372,6 @@ impl<S> SoupService for Arc<S>
 where
     S: SoupService,
 {
-    async fn get_property_date_page(
-        &self,
-        request: super::models::property_dates::PropertyDateRequest,
-    ) -> Result<super::models::property_dates::PropertyDatePage, SoupErr> {
-        (**self).get_property_date_page(request).await
-    }
-
     async fn get_user_soup<T>(
         &self,
         req: SoupRequest<T>,
@@ -505,13 +488,6 @@ fn no_op_soup_err() -> SoupErr {
 }
 
 impl SoupService for NoOpSoupService {
-    async fn get_property_date_page(
-        &self,
-        _request: super::models::property_dates::PropertyDateRequest,
-    ) -> Result<super::models::property_dates::PropertyDatePage, SoupErr> {
-        Err(no_op_soup_err())
-    }
-
     async fn get_user_soup<T>(
         &self,
         _req: SoupRequest<T>,

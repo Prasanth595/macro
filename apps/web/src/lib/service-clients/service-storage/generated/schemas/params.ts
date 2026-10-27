@@ -23,6 +23,6 @@ export interface Params {
   limit?: ParamsLimit;
   sort_direction?: ParamsSortDirection;
   sort_method?: ParamsSortMethod;
-  /** DATE property definition selected for property-date sorting. */
+  /** Property definition selected for numeric property sorting. */
   sort_property_definition_id?: ParamsSortPropertyDefinitionId;
 }

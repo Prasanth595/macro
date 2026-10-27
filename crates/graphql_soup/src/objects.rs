@@ -250,8 +250,19 @@ impl<E: SoupEntityEdges> GroupedSoup<E> {
                     items: group
                         .item_ids
                         .iter()
-                        .filter_map(|id| response.items.get(id))
-                        .map(|item| GraphqlSoupEntity::new(item.item.clone().map_extra(|_| ())))
+                        .filter_map(|id| response.items.get(id).map(|item| (id, item)))
+                        .map(|(id, item)| {
+                            GraphqlSoupEntity::new_from_enriched_with_projection(
+                                SoupProjectionHydration {
+                                    item: item.clone(),
+                                    document_server_facts: response
+                                        .document_server_facts
+                                        .get(id)
+                                        .cloned(),
+                                    sort_key: None,
+                                },
+                            )
+                        })
                         .collect(),
                 })
                 .collect(),

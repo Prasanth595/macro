@@ -8094,9 +8094,10 @@ export type GroupedInitialParams = {
      * Limit the number of items returned per group. Defaults to 20. Max 500.
      */
     per_group_limit?: number | null;
+    sort_direction?: null | SoupApiSortDirection;
     sort_method?: null | GroupedSoupSort;
     /**
-     * DATE property definition selected for property-date sorting.
+     * Property definition selected for numeric property sorting.
      */
     sort_property_definition_id?: string | null;
 };
@@ -8117,9 +8118,10 @@ export type GroupedPageParams = {
      * Limit the number of items returned. Defaults to 20. Max 500.
      */
     limit?: number | null;
+    sort_direction?: null | SoupApiSortDirection;
     sort_method?: null | GroupedSoupSort;
     /**
-     * DATE property definition selected for property-date sorting.
+     * Property definition selected for numeric property sorting.
      */
     sort_property_definition_id?: string | null;
 };
@@ -8171,7 +8173,7 @@ export type GroupedSoupPage = (GroupedSoupInitialPage & {
 /**
  * Sort method for grouped queries (frecency not supported).
  */
-export type GroupedSoupSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated' | 'property_date_earliest' | 'property_date_latest';
+export type GroupedSoupSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated' | 'property';
 
 /**
  * Guest-safe message projection: no account identities, attachments, or entity grants.
@@ -10262,7 +10264,7 @@ export type Params = {
     sort_direction?: null | SoupApiSortDirection;
     sort_method?: null | SoupApiSort;
     /**
-     * DATE property definition selected for property-date sorting.
+     * Property definition selected for numeric property sorting.
      */
     sort_property_definition_id?: string | null;
 };
@@ -12190,7 +12192,7 @@ export type SoupApiItem = SoupItem & {
 /**
  * Sort options accepted by non-grouped soup API endpoints.
  */
-export type SoupApiSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated' | 'frecency' | 'touched_by_me' | 'notified_at' | 'property_date_earliest' | 'property_date_latest';
+export type SoupApiSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated' | 'frecency' | 'touched_by_me' | 'notified_at' | 'property';
 
 /**
  * Sort direction accepted by non-grouped soup API endpoints.
@@ -21841,14 +21843,13 @@ export type GetItemsSoupData = {
         limit?: number;
         /**
          * Sort method. Includes timestamp sorts, relevance sorts, and
-         * property_date_earliest/property_date_latest with a selected DATE definition.
-         * Property-date reads omit email, channels, calls, companies, and agent sessions.
-         * A Soup-owned item or property filter is required.
+         * property with a selected DATE, NUMBER, BOOLEAN, SELECT or TAG definition.
+         * Property sorts omit email, channels, calls, companies, and agent sessions.
          * Defaults to viewed_at.
          */
         sort_method?: SoupApiSort;
         /**
-         * DATE property definition selected for property-date sorting.
+         * Property definition selected for numeric property sorting.
          */
         sort_property_definition_id?: string;
         /**

@@ -6,6 +6,7 @@
  */
 import type { ApiGroupByField } from './apiGroupByField';
 import type { GroupedInitialParamsPerGroupLimit } from './groupedInitialParamsPerGroupLimit';
+import type { GroupedInitialParamsSortDirection } from './groupedInitialParamsSortDirection';
 import type { GroupedInitialParamsSortMethod } from './groupedInitialParamsSortMethod';
 import type { GroupedInitialParamsSortPropertyDefinitionId } from './groupedInitialParamsSortPropertyDefinitionId';
 
@@ -20,7 +21,8 @@ export interface GroupedInitialParams {
    * @minimum 0
    */
   per_group_limit?: GroupedInitialParamsPerGroupLimit;
+  sort_direction?: GroupedInitialParamsSortDirection;
   sort_method?: GroupedInitialParamsSortMethod;
-  /** DATE property definition selected for property-date sorting. */
+  /** Property definition selected for numeric property sorting. */
   sort_property_definition_id?: GroupedInitialParamsSortPropertyDefinitionId;
 }

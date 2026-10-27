@@ -8,12 +8,9 @@ use models_grouping::{GroupByField, GroupingConfig};
 /// Caller-defined property date-range inputs.
 mod date_ranges;
 use date_ranges::GraphqlPropertyBucketing;
-/// Generic property-date request conversion.
-mod property_dates;
 use models_pagination::{Base64Str, CursorWithValAndFilter, NotifiedAt, SimpleSortMethod};
-pub(crate) use property_dates::{GroupedReadRequest, SoupReadRequest};
 use soup::domain::models::{
-    GroupedSortRequest, SoupQuery, SoupRequest, SoupSortDirection, SoupType,
+    DynamicSort, GroupedSortRequest, SoupQuery, SoupRequest, SoupSortDirection, SoupType,
 };
 use uuid::Uuid;
 
@@ -33,10 +30,10 @@ pub struct SoupInitialInput {
     limit: Option<u16>,
     /// Whether to return expanded Soup items. Defaults to true.
     expand: Option<bool>,
-    /// Timestamp or selected DATE-property sort. Defaults to VIEWED_AT.
+    /// Timestamp or selected numeric property sort. Defaults to VIEWED_AT.
     /// Frecency is not supported by this GraphQL adapter.
     sort_method: Option<GraphqlSimpleSortMethod>,
-    /// DATE property definition selected for property-date sorting.
+    /// Property definition selected for numeric property sorting.
     sort_property_definition_id: Option<ID>,
     /// Email preview view used when hydrating email Soup items.
     email_view: Option<GraphqlEmailView>,
@@ -99,8 +96,10 @@ pub struct GroupedSoupInitialInput {
     limit: Option<u16>,
     /// Sort order within each bin. Defaults to `VIEWED_UPDATED`.
     sort_method: Option<GraphqlSimpleSortMethod>,
-    /// DATE property definition selected for property-date sorting.
+    /// Property definition selected for numeric property sorting.
     sort_property_definition_id: Option<ID>,
+    /// Direction of property values. Defaults to DESC.
+    sort_direction: Option<GraphqlSortDirection>,
     /// AST-shaped filters applied to each Soup entity type.
     filters: Option<GraphqlEntityFilterAst>,
 }
@@ -140,10 +139,12 @@ impl GroupedSoupInitialInput {
             .map(GraphqlEntityFilterAst::into_ast)
             .transpose()?
             .unwrap_or_default();
-        let sort_method = self
-            .sort_method
-            .unwrap_or(GraphqlSimpleSortMethod::ViewedUpdated)
-            .into_model()?;
+        let sort_method = selected_sort(
+            self.sort_method
+                .unwrap_or(GraphqlSimpleSortMethod::ViewedUpdated),
+            self.sort_property_definition_id,
+            self.sort_direction,
+        )?;
         let limit = self.limit.unwrap_or(20).clamp(1, 500);
         Ok(GroupedSortRequest::initial(
             macro_user_id,
@@ -284,10 +285,26 @@ impl SoupInitialInput {
             .map(GraphqlEntityFilterAst::into_ast)
             .transpose()?
             .unwrap_or_default();
-        let cursor = self
+        let method = self
             .sort_method
-            .unwrap_or(GraphqlSimpleSortMethod::ViewedAt)
-            .into_query(filter)?;
+            .unwrap_or(GraphqlSimpleSortMethod::ViewedAt);
+        let cursor = if method == GraphqlSimpleSortMethod::Property {
+            SoupQuery::Property(models_pagination::Query::Sort(
+                selected_sort(
+                    method,
+                    self.sort_property_definition_id,
+                    self.sort_direction,
+                )?,
+                filter,
+            ))
+        } else {
+            if self.sort_property_definition_id.is_some() {
+                return Err(async_graphql::Error::new(
+                    "sortPropertyDefinitionId requires PROPERTY",
+                ));
+            }
+            method.into_query(filter)?
+        };
 
         Ok(SoupRequest {
             soup_type: soup_type(self.expand),
@@ -312,6 +329,10 @@ impl SoupContinuationInput {
             .decode_json()
             .map_err(|err| async_graphql::Error::new(format!("invalid cursor: {err}")))?;
         let (limit, cursor) = match cursor {
+            SoupContinuationCursor::Property(cursor) => (
+                cursor.limit,
+                SoupQuery::Property(models_pagination::Query::Cursor(cursor)),
+            ),
             SoupContinuationCursor::Simple(cursor) => {
                 (cursor.limit, SoupQuery::new_cursor_simple(cursor))
             }
@@ -333,7 +354,7 @@ impl SoupContinuationInput {
     }
 }
 
-/// Distinguishes ordinary timestamp cursors from notification cursors.
+/// Decode ordinary timestamp, notification, and property position cursors.
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 enum SoupContinuationCursor {
@@ -341,6 +362,8 @@ enum SoupContinuationCursor {
     Simple(CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>),
     /// A notification continuation, including channel-thread string identifiers.
     Notified(CursorWithValAndFilter<String, NotifiedAt, EntityFilterAst>),
+    /// Selected-property position through the ordinary query.
+    Property(CursorWithValAndFilter<Uuid, DynamicSort, EntityFilterAst>),
 }
 
 /// Convert the optional GraphQL sort direction into the domain representation.
@@ -431,13 +454,9 @@ pub enum GraphqlSimpleSortMethod {
     /// Only entities the caller holds a live notification for, most recently
     /// notified first. Descending `soup` only; not supported by `groupSoup`.
     NotifiedAt,
-    /// Earliest selected DATE property first, missing values last.
-    /// A Soup-owned item or property filter is required.
+    /// Sort by the selected numeric property in the requested direction, missing last.
     /// Email, channels, calls, companies, and agent sessions never appear.
-    PropertyDateEarliest,
-    /// Latest selected DATE property first, missing values last.
-    /// Email, channels, calls, companies, and agent sessions never appear.
-    PropertyDateLatest,
+    Property,
 }
 
 impl GraphqlSimpleSortMethod {
@@ -448,9 +467,9 @@ impl GraphqlSimpleSortMethod {
             Self::CreatedAt => SimpleSortMethod::CreatedAt,
             Self::UpdatedAt => SimpleSortMethod::UpdatedAt,
             Self::ViewedUpdated => SimpleSortMethod::ViewedUpdated,
-            Self::PropertyDateEarliest | Self::PropertyDateLatest => {
+            Self::Property => {
                 return Err(async_graphql::Error::new(
-                    "property-date sort requires sortPropertyDefinitionId",
+                    "property sort requires sortPropertyDefinitionId",
                 ));
             }
             Self::NotifiedAt => {
@@ -472,3 +491,30 @@ impl GraphqlSimpleSortMethod {
 
 #[cfg(test)]
 mod tests;
+
+/// Select a numeric property or preserve the ordinary timestamp sort.
+fn selected_sort(
+    method: GraphqlSimpleSortMethod,
+    property: Option<ID>,
+    direction: Option<GraphqlSortDirection>,
+) -> async_graphql::Result<DynamicSort> {
+    if method == GraphqlSimpleSortMethod::Property {
+        return Ok(DynamicSort::Property {
+            property_definition_id: parse_id(
+                property.ok_or_else(|| {
+                    async_graphql::Error::new("PROPERTY requires sortPropertyDefinitionId")
+                })?,
+                "sortPropertyDefinitionId",
+            )?,
+            direction: direction
+                .map(GraphqlSortDirection::into_model)
+                .unwrap_or_default(),
+        });
+    }
+    if property.is_some() {
+        return Err(async_graphql::Error::new(
+            "sortPropertyDefinitionId requires PROPERTY",
+        ));
+    }
+    method.into_model().map(Into::into)
+}

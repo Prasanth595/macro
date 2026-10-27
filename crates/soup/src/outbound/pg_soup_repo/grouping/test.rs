@@ -121,7 +121,7 @@ async fn property_grouping_uses_canonical_task_entity_type(
             user_id: user_id.copied(),
             limit: 50,
             cursor: Query::Sort(
-                SimpleSortMethod::ViewedUpdated,
+                SimpleSortMethod::ViewedUpdated.into(),
                 EntityFilterAst::mock_empty(),
             ),
             exclude_frecency: false,
@@ -167,7 +167,7 @@ async fn test_grouped_by_entity_type(pool: Pool<Postgres>) -> anyhow::Result<()>
             user_id: user_id.copied(),
             limit: 50,
             cursor: Query::Sort(
-                SimpleSortMethod::ViewedUpdated,
+                SimpleSortMethod::ViewedUpdated.into(),
                 EntityFilterAst::mock_empty(),
             ),
             exclude_frecency: false,
@@ -220,7 +220,7 @@ async fn test_grouped_by_project(pool: Pool<Postgres>) -> anyhow::Result<()> {
             user_id: user_id.copied(),
             limit: 50,
             cursor: Query::Sort(
-                SimpleSortMethod::ViewedUpdated,
+                SimpleSortMethod::ViewedUpdated.into(),
                 EntityFilterAst::mock_empty(),
             ),
             exclude_frecency: false,
@@ -259,7 +259,7 @@ async fn test_grouped_single_group_filter(pool: Pool<Postgres>) -> anyhow::Resul
             user_id: user_id.copied(),
             limit: 50,
             cursor: Query::Sort(
-                SimpleSortMethod::ViewedUpdated,
+                SimpleSortMethod::ViewedUpdated.into(),
                 EntityFilterAst::mock_empty(),
             ),
             exclude_frecency: false,
@@ -286,7 +286,7 @@ async fn test_grouped_single_group_filter(pool: Pool<Postgres>) -> anyhow::Resul
             user_id: user_id.copied(),
             limit: 50,
             cursor: Query::Sort(
-                SimpleSortMethod::ViewedUpdated,
+                SimpleSortMethod::ViewedUpdated.into(),
                 EntityFilterAst::mock_empty(),
             ),
             exclude_frecency: false,
@@ -381,7 +381,7 @@ async fn tagged_calendar_event_participates_in_grouped_property_soup(
             user_id: user_id.copied(),
             limit: 50,
             cursor: Query::Sort(
-                SimpleSortMethod::ViewedUpdated,
+                SimpleSortMethod::ViewedUpdated.into(),
                 EntityFilterAst::mock_empty(),
             ),
             exclude_frecency: false,
@@ -479,7 +479,7 @@ async fn grouped_recency_sort_uses_reminder_delivery_time(
             user_id: user_id.copied(),
             limit: 50,
             cursor: Query::Sort(
-                SimpleSortMethod::ViewedUpdated,
+                SimpleSortMethod::ViewedUpdated.into(),
                 EntityFilterAst::mock_empty(),
             ),
             exclude_frecency: false,
@@ -525,7 +525,7 @@ async fn grouped_soup_runs_when_chat_arm_excluded(pool: Pool<Postgres>) -> anyho
         GroupedDynamicCursorArgs {
             user_id: user_id.copied(),
             limit: 50,
-            cursor: Query::Sort(SimpleSortMethod::ViewedUpdated, filter),
+            cursor: Query::Sort(SimpleSortMethod::ViewedUpdated.into(), filter),
             exclude_frecency: false,
             grouping: GroupingConfig {
                 field: GroupByField::EntityType,
@@ -569,7 +569,7 @@ async fn grouped_soup_runs_when_document_arm_excluded(pool: Pool<Postgres>) -> a
         GroupedDynamicCursorArgs {
             user_id: user_id.copied(),
             limit: 50,
-            cursor: Query::Sort(SimpleSortMethod::ViewedUpdated, filter),
+            cursor: Query::Sort(SimpleSortMethod::ViewedUpdated.into(), filter),
             exclude_frecency: false,
             grouping: GroupingConfig {
                 field: GroupByField::EntityType,
@@ -615,7 +615,7 @@ async fn grouped_soup_runs_when_calendar_arm_excluded(pool: Pool<Postgres>) -> a
         GroupedDynamicCursorArgs {
             user_id: user_id.copied(),
             limit: 50,
-            cursor: Query::Sort(SimpleSortMethod::ViewedUpdated, filter),
+            cursor: Query::Sort(SimpleSortMethod::ViewedUpdated.into(), filter),
             exclude_frecency: false,
             grouping: GroupingConfig {
                 field: GroupByField::EntityType,
@@ -722,7 +722,7 @@ async fn grouped_soup_renders_bind_bearing_calendar_literals(
         GroupedDynamicCursorArgs {
             user_id: user_id.copied(),
             limit: 50,
-            cursor: Query::Sort(SimpleSortMethod::ViewedUpdated, filter),
+            cursor: Query::Sort(SimpleSortMethod::ViewedUpdated.into(), filter),
             exclude_frecency: false,
             grouping: GroupingConfig {
                 field: GroupByField::Date,
@@ -850,7 +850,7 @@ async fn grouped_soup_filters_calendar_events_by_notification_done(
         GroupedDynamicCursorArgs {
             user_id: user_id.copied(),
             limit: 50,
-            cursor: Query::Sort(SimpleSortMethod::ViewedUpdated, filter),
+            cursor: Query::Sort(SimpleSortMethod::ViewedUpdated.into(), filter),
             exclude_frecency: false,
             grouping: GroupingConfig {
                 field: GroupByField::Date,

@@ -44,7 +44,6 @@ use crate::{
 };
 
 /// Date-range grouping, sort routing, and nullable continuation coverage.
-mod date_ranges;
 
 static CURSOR: &str = "eyJpZCI6ImUzNmM5MTJlLTU2M2MtNDIxZS1iMTAzLWE0YjAwY2ZmMzBlZSIsImxpbWl0IjoxMDAsInZhbCI6eyJzb3J0X3R5cGUiOiJ1cGRhdGVkX2F0IiwibGFzdF92YWwiOiIyMDI1LTExLTA3VDE5OjEyOjU5Ljc4MFoifSwiZmlsdGVyIjp7fX0=";
 const USER_ID: &str = "macro|test@example.com";
@@ -61,6 +60,8 @@ enum MockCursorKind {
     TouchedCursor,
     NotifiedSort,
     NotifiedCursor,
+    PropertySort,
+    PropertyCursor,
 }
 
 #[derive(Debug)]
@@ -77,10 +78,15 @@ struct MockSoupCall {
 #[derive(Clone)]
 struct MockSoup {
     called: Arc<std::sync::Mutex<Vec<MockSoupCall>>>,
-    grouped_calls: Arc<std::sync::Mutex<Vec<(models_grouping::GroupingConfig, SimpleSortMethod)>>>,
+    grouped_calls: Arc<
+        std::sync::Mutex<
+            Vec<(
+                models_grouping::GroupingConfig,
+                crate::domain::models::DynamicSort,
+            )>,
+        >,
+    >,
     succeeds: bool,
-    property_date_calls:
-        Arc<std::sync::Mutex<Vec<crate::domain::models::property_dates::PropertyDateContext>>>,
 }
 
 impl MockSoup {
@@ -89,7 +95,6 @@ impl MockSoup {
             called: Arc::new(std::sync::Mutex::new(Vec::new())),
             grouped_calls: Arc::new(std::sync::Mutex::new(Vec::new())),
             succeeds: false,
-            property_date_calls: Arc::default(),
         }
     }
 
@@ -102,27 +107,6 @@ impl MockSoup {
 }
 
 impl SoupService for MockSoup {
-    async fn get_property_date_page(
-        &self,
-        request: crate::domain::models::property_dates::PropertyDateRequest,
-    ) -> Result<
-        crate::domain::models::property_dates::PropertyDatePage,
-        crate::domain::models::SoupErr,
-    > {
-        self.property_date_calls
-            .lock()
-            .unwrap()
-            .push(request.context.clone());
-        if !self.succeeds {
-            return Err(SoupErr::SoupDbErr(anyhow::anyhow!("not implemented")));
-        }
-        Ok(crate::domain::models::property_dates::PropertyDatePage {
-            context: request.context,
-            candidates: Default::default(),
-            items: Default::default(),
-        })
-    }
-
     async fn get_user_soup<T>(
         &self,
         _req: SoupRequest<T>,
@@ -185,6 +169,8 @@ impl SoupService for MockSoup {
         T: Clone + Serialize + Send,
     {
         let cursor_kind = match &req.cursor {
+            SoupQuery::Property(Query::Sort(..)) => MockCursorKind::PropertySort,
+            SoupQuery::Property(Query::Cursor(..)) => MockCursorKind::PropertyCursor,
             SoupQuery::Simple(SimpleQueryInner(Query::Sort(..))) => MockCursorKind::SimpleSort,
             SoupQuery::Simple(SimpleQueryInner(Query::Cursor(..))) => MockCursorKind::SimpleCursor,
             SoupQuery::Frecency(FrecencyQueryInner(Query::Sort(..))) => {
@@ -2298,4 +2284,67 @@ async fn ascending_notified_is_rejected() {
             "message": "sort_direction=asc is not supported with sort_method=notified_at"
         })
     );
+}
+
+#[tokio::test]
+async fn property_sort_uses_the_ordinary_route_in_both_directions() {
+    for direction in ["asc", "desc"] {
+        let soup = MockSoup::succeeding();
+        let calls = soup.called.clone();
+        let router = mock_router_with(
+            soup,
+            MockEmailLinkResult {
+                get_link_result: Arc::new(|| Ok(None)),
+            },
+        );
+        let request = authenticated_request().uri("/soup/ast").method(Method::POST)
+            .header("content-type", "application/json")
+            .body(axum::body::Body::from(serde_json::to_vec(&json!({
+                "sort_method": "property", "sort_property_definition_id": Uuid::from_u128(17), "sort_direction": direction
+            })).unwrap())).unwrap();
+        let (status, _) = send_json(router, request).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(matches!(
+            calls.lock().unwrap()[0].cursor_kind,
+            MockCursorKind::PropertySort
+        ));
+    }
+}
+
+#[tokio::test]
+async fn property_cursor_with_missing_key_is_not_restarted() {
+    let sort = crate::domain::models::DynamicSort::Property {
+        property_definition_id: Uuid::from_u128(17),
+        direction: SoupSortDirection::Asc,
+    };
+    let cursor = models_pagination::Base64Str::encode_json(CursorWithValAndFilter {
+        id: Uuid::from_u128(1),
+        limit: 10,
+        val: CursorVal {
+            sort_type: sort,
+            last_val: sort.position(None, chrono::DateTime::default()),
+        },
+        filter: ApiEntityFilterAst::default(),
+    })
+    .type_erase();
+    let soup = MockSoup::succeeding();
+    let calls = soup.called.clone();
+    let router = mock_router_with(
+        soup,
+        MockEmailLinkResult {
+            get_link_result: Arc::new(|| Ok(None)),
+        },
+    );
+    let request = authenticated_request()
+        .uri(format!("/soup/ast?cursor={cursor}"))
+        .method(Method::POST)
+        .header("content-type", "application/json")
+        .body(axum::body::Body::from("{}"))
+        .unwrap();
+    let (status, _) = send_json(router, request).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(matches!(
+        calls.lock().unwrap()[0].cursor_kind,
+        MockCursorKind::PropertyCursor
+    ));
 }

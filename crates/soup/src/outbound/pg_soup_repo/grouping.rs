@@ -76,13 +76,24 @@ pub fn group_join_clause(field: &GroupByField) -> Option<GroupJoinClause> {
                 ),
                 None => (String::new(), None),
             };
+            let date_ranges = field.date_ranges().is_some();
+            let value = if date_ranges {
+                "NULL::jsonb"
+            } else {
+                "elem.val"
+            };
+            let expansion = if date_ranges {
+                ""
+            } else {
+                "LEFT JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(ep.values->'value') = 'array' THEN ep.values->'value' ELSE '[]'::jsonb END) elem(val) ON TRUE"
+            };
 
             Some(GroupJoinClause {
                 sql: format!(
                     "LEFT JOIN LATERAL (
-                        SELECT ep.values, elem.val AS val
+                        SELECT ep.values, {value} AS val
                         FROM entity_properties ep
-                        LEFT JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(ep.values->'value') = 'array' THEN ep.values->'value' ELSE '[]'::jsonb END) elem(val) ON TRUE
+                        {expansion}
                         WHERE ep.entity_id = t.id::text
                           AND ep.entity_type = t.property_entity_type
                           AND ep.property_definition_id = '{}'

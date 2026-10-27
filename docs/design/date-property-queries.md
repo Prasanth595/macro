@@ -1,35 +1,60 @@
-# Generic date-property queries
+# Property sorting and date-range grouping
 
-Status: Accepted. Implementation updates the task due-date work in PR #8494.
-
-## Implementation status
-
-REST and GraphQL route selected-property date sorting and date-range grouping
-through shared source candidate selection and frozen continuation context.
-The candidate source covers Soup-owned documents/tasks, chats, projects,
-calendar events, initiatives, and database rows. Property-date sorting and date-range
-grouping omit email threads, channels, calls, companies, and propertyless agent
-sessions. Their adapters are archived at `rahul/property-candidates-sources`
-(`4292a28f33`) for a separate change. Ordinary timestamp queries are unchanged.
-Tasks sends the Due Date definition ID through the generic REST and GraphQL contracts.
+Status: Accepted for PR #8494.
 
 ## Decision
 
-Use the existing property model for date filtering, sorting, and grouping across
-property-bearing entity types. A caller selects a property definition and uses
-its ordinary entity filters. Do not introduce a task-only query restriction or
-another storage model. Tasks selects the existing Due Date property; another
-view can select a custom Review Date property on documents.
+Extend Soup's existing dynamic query and position cursor. Do not keep a separate
+candidate query, cross-source merger, hydration pass, or versioned query context.
+The single Soup source does not justify that extra pipeline. The previous
+external-source experiment remains archived on `rahul/property-candidates-sources`
+at `4292a28f33`; it is not a contract for future expansion.
 
-Date filters remain range/presence predicates. Date sorting selects a property
-and direction, keeps missing values last in either direction, and orders ties
-by bytewise ascending ID, then canonical property entity type. Text search retains
-its existing ordering. Each group retains its total and has-more state.
+Property sorting and date-range grouping cover Soup-owned documents/tasks,
+chats, projects, calendar events, initiatives, and database rows. They omit
+email threads, channels, calls, companies, and propertyless agent sessions.
+Ordinary timestamp queries retain their existing sources and behavior.
+
+Date range/presence filters remain shared by Soup, call, email, frecency, and
+OpenSearch. Tasks text search keeps search-result ordering.
+
+## Sort API
+
+REST uses `sort_method=property`, `sort_property_definition_id=<definition UUID>`,
+and `sort_direction=asc|desc`. GraphQL uses `PROPERTY`,
+`sortPropertyDefinitionId`, and `sortDirection: ASC|DESC`.
+
+The selected ID is a property **definition**, not an entity's assignment ID.
+The properties service checks definition visibility before exposing type errors.
+The Soup domain then rejects types that have no supported numeric sort key.
+Date-range grouping additionally requires a scalar DATE definition.
+
+The older `property_date_earliest` / `property_date_latest` names and GraphQL
+variants are removed before release. Existing timestamp `sort_direction` support
+is retained because that API already exists on main.
+
+| Property type | Ascending key |
+| --- | --- |
+| DATE | UTC epoch microseconds |
+| NUMBER | Numeric value |
+| BOOLEAN | False = 0, true = 1 |
+| SELECT_STRING / SELECT_NUMBER | Selected option's stored `display_order` |
+| Multi-select / TAG | Lowest `display_order` among selected options |
+| STRING / ENTITY / LINK | Unsupported; reject the request |
+
+A missing value, empty selection, or mismatched JSON variant has no key. Option
+labels and numeric option values do not control ordering. Clients choose default
+direction: Status is ascending; Priority is descending (urgent first).
+
+SQL uses a double-precision key, negated for ascending and unchanged for
+descending, with missing keys coalesced to negative infinity. Every query orders
+by `(sort_key DESC, sort_ts DESC, id DESC)`. Property-sort ties use newest update,
+then descending ID. Timestamp sorts use zero for `sort_key` and keep their
+existing timestamp selection.
 
 ## Grouping input
 
-Extend property grouping with optional date-range bucketing. The caller sends
-explicit ranges instead of a backend-owned relative-date preset:
+Property grouping accepts optional date-range bucketing:
 
 ```ts
 {
@@ -47,96 +72,63 @@ explicit ranges instead of a backend-owned relative-date preset:
 }
 ```
 
-Bounds are UTC RFC 3339 timestamp strings. Starts are inclusive, ends exclusive,
-and null means unbounded. Ranges must be ordered, non-overlapping, contiguous,
-and cover all dates. Keys must be unique, including `missingValueBucketKey`.
-Limit the number of ranges and key lengths before compiling SQL.
+Bounds are UTC RFC3339 strings. Starts are inclusive; ends are exclusive. Null
+means unbounded. Ranges must be ordered, contiguous, non-overlapping, cover all
+dates, and have unique keys distinct from `missingValueBucketKey`. Validate range
+counts and key lengths before executing SQL.
 
-`missingValueBucketKey` is configurable. It identifies the bucket containing
-entities with no value for the selected property, including cleared values.
-It is not the label, a stored entity field, or a missing bucket definition.
+The grouping SQL returns a range index, which Rust maps to the caller's key.
+Bind bounds rather than interpolating values; caller keys never become SQL.
+Missing or cleared dates use the configured missing-value bucket. Keep the
+existing count and row-number windows, per-group limits, and single-group
+load-more behavior. REST keeps raw UUID pool keys; GraphQL keeps typed entities.
 
-The frontend owns labels and calendar presets. Tasks uses its frozen
-viewer-local calendar to produce Overdue, Today, Tomorrow, Next 7 days
-(D+2 through D+7), Later, and No due date. Other views can supply month,
-quarter, or custom ranges without changing the backend contract. Recompute
-relative ranges at local midnight, timezone changes, and app resume, rather
-than adding fixed 24-hour durations across daylight-saving transitions.
+## Pagination and authorization
 
-## Backend and pagination
+Use the existing position cursor, extended with the numeric property key.
+Serialize a missing key as null because JSON cannot encode negative infinity;
+coalesce that bound back to negative infinity in SQL. The keyset comparison is
+`(sort_key, sort_ts, id) < (cursor_key, cursor_ts, cursor_id)`.
 
-Validate that the selected definition is date-valued. Resolve values using the
-property-definition ID and each result's property entity type. Retain every
-entity family's normal authorization, lifecycle, and query-filter rules.
-Compute membership, counts, and ordering before applying page limits. Bind
-client-supplied keys and bounds; never interpolate them as SQL fragments.
+Do not add a frozen source list, context version, unused email view, or link IDs.
+The client sends grouping configuration again on continuation requests. Its
+query key includes property, direction, filters, and ranges; a changed query key
+starts fresh pages. Keep deployed timestamp cursor decoding compatible.
 
-Each source returns the entity families present in its full, filtered candidate
-set, not just the returned page. Reject overlapping family summaries before
-adding source counts, including exhausted sources. This relies on one source
-per entity family; disjoint subsets of one family need a different merge
-contract. Per-group totals count memberships, not globally distinct entities.
+Definition visibility/type validation belongs in the Soup domain through the
+properties service. Entity access, lifecycle gates, and complete filters stay in
+the existing source clauses. Preserve projection-backed document facts and
+property enrichment without a second fetch-by-ID pass.
 
-Keep the existing grouped response shapes. GraphQL bins contain `key`,
-`totalCount`, `items`, and `nextCursor`; REST uses its normalized item pool
-and group metadata. Item-pool keys and membership IDs use raw entity UUIDs;
-typed identities remain internal to candidate selection and merging. Group keys
-and range order come from the request. Display labels
-and drag-to-reschedule behavior belong to the consuming feature.
+## Client behavior
 
-Version 1 continuation context records the source set (`["soup"]`), selected sort
-property, direction, complete grouping configuration, group key, and filters.
-Reject unknown versions, missing source sets, and conflicting continuation inputs.
-Source additions never expand an existing page sequence. Do not recompute relative
-ranges while continuing a page. Preserve unrelated deployed timestamp cursors.
-Grouped continuations must name one group. Never advance a single cursor over
-concatenated, independently limited groups; that can skip unread members.
+The view owns labels and calendar presets. Tasks builds Overdue, Today,
+Tomorrow, Next 7 days (D+2 through D+7), Later, and No due date from viewer-local
+calendar boundaries. Recompute at midnight, timezone changes, and resume;
+do not add fixed 24-hour durations across daylight-saving transitions.
 
-Date edits and assignment deletion must refresh property-dependent lists and
-search membership, including empty results and unloaded group counts. A local
-update to one entity is not evidence of complete group membership.
+Loaded items move immediately between date buckets using the same half-open
+range rule in TypeScript. Revalidation corrects unloaded rows and authoritative
+counts. Refresh a query when the edited definition is its sort property, its
+group property, or appears in a date predicate. Match those request fields,
+not serialized-key substrings. Assignment deletion without a definition ID
+refreshes all property-dependent queries.
 
-## Query composition boundary
+Tasks uses cached property definitions/options for its local numeric comparator,
+with missing values last and the same update/ID tie-breakers as SQL. Status and
+Priority are explicit sort choices. Do not add property sorting or date predicates
+to the WASM reconciliation engine: its baseline is an integer timestamp, and
+property-sorted pages remain server-backed.
 
-Soup's outbound candidate repository builds one query over its authorized,
-fully filtered source rows. It owns property lookup, grouping, counts, keysets,
-execution, and bounded hydration. No cross-domain `properties::query_support`
-adapter or callback column contract remains.
+## Alternatives rejected
 
-Authorize selected definitions through the properties service before querying.
-`AuthorizedPropertyQuery` binds the immutable query to its viewer. Check visibility
-before revealing a definition's type, require scalar DATE definitions, and return
-NotFound for inaccessible definitions. Mint a fresh capability for each request.
-Entity access policy remains in the existing source gates.
+- A candidate pipeline for one source: duplicates the existing UNION and adds
+  a merger, separate hydration, authorization capability, and cursor context.
+- Task-only deadline handling or backend-relative presets: couples shared APIs
+  to one feature instead of the selected property and caller-provided ranges.
+- String/entity sorting through the numeric key: needs text collation or display
+  names that this query does not provide.
+- Client-only grouping of all results: cannot establish complete counts or
+  membership from a bounded page. Local movement is optimism, not authority.
 
-Candidate identities use the PostgreSQL property entity enum end to end.
-One exhaustive Rust mapping supplies hydration entity types and SQL group keys.
-The shared `item_filters::sql::date_value` expression guards the JSON variant before
-casting; readers keep parsing at query time and bind date bounds.
-Shared candidate DTOs remain in `models_grouping`, with no SQL.
-
-## Per-page cost
-
-The candidate query computes exact statistics over the complete filtered set
-on each page. A local isolated account with 100,000 accessible documents/tasks,
-chats, and projects took approximately 1.2 seconds for an unfiltered initial,
-continuation, or grouped page (PostgreSQL 18, production planner settings).
-Property-date reads therefore require at least one Soup-owned item or property
-filter. Email-only or other excluded-source filters do not satisfy that gate.
-The gate does not promise a fixed latency; callers must still choose useful scope.
-
-Run the ignored `property_date_query_explain_local` test with `--ignored --nocapture`
-to reproduce the synthetic account probe without accessing hosted data.
-
-## Rejected alternatives
-
-- Task-specific deadline grouping: duplicates generic property selection and
-  prevents reuse for other date properties and entity types.
-- Named boundaries such as `today` and `dayEight` in the backend contract:
-  couples the API to one feature's buckets.
-- A backend preset registry: adds a separate configuration system where
-  explicit validated ranges suffice.
-- Client-only grouping of paginated results: produces incomplete groups,
-  incorrect counts, and unstable pagination.
-
-No database migration, indexing field, or new property definition is required.
+No database migration, new property definition, or WASM change is required.

@@ -1,10 +1,9 @@
 #[cfg(feature = "ports")]
 pub(crate) mod contact_listing;
 pub mod grouping;
-/// Bounded cross-source DATE-query candidate merging.
-pub mod property_candidates;
-/// Generic property-date requests, responses, and frozen continuations.
-pub mod property_dates;
+/// Numeric property and timestamp sort positions.
+pub mod sort;
+pub use sort::{DynamicSort, DynamicSortValue};
 
 #[cfg(feature = "ports")]
 mod exclusions;
@@ -67,7 +66,8 @@ use {
 /// Deliberately Soup's own type rather than one borrowed from the paginator:
 /// `Paginator` already exposes `sort_asc`/`sort_desc`, so this only has to name
 /// the choice, and doing it here keeps the shared pagination crate untouched.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SoupSortDirection {
     /// Smallest sort value first — oldest, or soonest for a future timestamp.
     Asc,
@@ -124,6 +124,8 @@ pub(crate) enum SimpleSortQuery {
     ItemsFilter(Query<Uuid, SimpleSortMethod, EntityFilterAst>),
     /// we filter out items based on the input [EntityFilterAst] IN ADDITION to ANY items that DO have a [Frecency] score
     ItemsAndFrecencyFilter(Query<Uuid, SimpleSortMethod, (Frecency, EntityFilterAst)>),
+    /// Property sorting through the same dynamic source query.
+    Property(Query<Uuid, DynamicSort, EntityFilterAst>),
 }
 
 #[cfg(feature = "ports")]
@@ -168,6 +170,7 @@ impl SimpleSortQuery {
             SimpleSortQuery::FilterFrecency(query) => query.sort_method(),
             SimpleSortQuery::ItemsFilter(query) => query.sort_method(),
             SimpleSortQuery::ItemsAndFrecencyFilter(query) => query.sort_method(),
+            SimpleSortQuery::Property(_) => &SimpleSortMethod::UpdatedAt,
         }
     }
 }
@@ -194,6 +197,8 @@ pub enum SoupQuery<T> {
     /// Query filtered and sorted by the user's latest notification per
     /// entity (the inbox's notified-at surface).
     Notified(NotifiedQueryInner<T>),
+    /// Numeric property ordering through the dynamic SQL query.
+    Property(Query<Uuid, DynamicSort, T>),
 }
 
 impl<T> SoupQuery<T> {
@@ -214,6 +219,7 @@ impl<T> SoupQuery<T> {
             SoupQuery::Notified(NotifiedQueryInner(i)) => {
                 SoupQuery::Notified(NotifiedQueryInner(i.map_filter(f)))
             }
+            SoupQuery::Property(query) => SoupQuery::Property(query.map_filter(f)),
         }
     }
 }
@@ -314,6 +320,7 @@ impl<T> SoupQuery<T> {
             SoupQuery::Frecency(FrecencyQueryInner(query)) => query.filter(),
             SoupQuery::Touched(TouchedQueryInner(query)) => query.filter(),
             SoupQuery::Notified(NotifiedQueryInner(query)) => query.filter(),
+            SoupQuery::Property(query) => query.filter(),
         }
     }
 }
@@ -333,6 +340,9 @@ impl SoupQuery<EntityFilters> {
             )),
             SoupQuery::Notified(NotifiedQueryInner(query)) => Ok(SoupQuery::Notified(
                 NotifiedQueryInner(query.try_map_filter(EntityFilterAst::new_from_filters)?),
+            )),
+            SoupQuery::Property(query) => Ok(SoupQuery::Property(
+                query.try_map_filter(EntityFilterAst::new_from_filters)?,
             )),
         }
     }
@@ -494,6 +504,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
             macro_id: self.user.clone(),
             limit: Some(self.limit as u32),
             query: match &self.cursor {
+                SoupQuery::Property(_) => return None,
                 SoupQuery::Simple(SimpleQueryInner(Query::Sort(t, f))) => Some(Query::Sort(
                     *t,
                     with_properties_filter(
@@ -542,6 +553,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
     /// The request's entity filter ast, regardless of cursor position.
     pub(crate) fn entity_ast(&self) -> Option<&EntityFilterAst> {
         match &self.cursor {
+            SoupQuery::Property(query) => query.filter().as_ref(),
             SoupQuery::Simple(SimpleQueryInner(Query::Sort(_, f))) => f.as_ref(),
             SoupQuery::Simple(SimpleQueryInner(Query::Cursor(CursorWithValAndFilter {
                 filter,
@@ -583,6 +595,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
             user_id: self.user.clone(),
             limit: self.limit as u32,
             query: match &self.cursor {
+                SoupQuery::Property(_) => return None,
                 SoupQuery::Simple(SimpleQueryInner(Query::Sort(t, f))) => Some(Query::Sort(
                     *t,
                     with_call_properties_filter(
@@ -645,6 +658,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
             Option<&EntityFilterAst>,
             Option<CrmCompanySoupCursor>,
         ) = match &self.cursor {
+            SoupQuery::Property(_) => return None,
             SoupQuery::Simple(SimpleQueryInner(Query::Sort(t, f))) => (*t, f.as_ref(), None),
             SoupQuery::Simple(SimpleQueryInner(Query::Cursor(CursorWithValAndFilter {
                 id,
@@ -704,6 +718,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
             limit: Some(self.limit as u32),
             include_frecency: false,
             query: match &self.cursor {
+                SoupQuery::Property(_) => return None,
                 SoupQuery::Simple(SimpleQueryInner(Query::Sort(t, f))) => Some(Query::Sort(
                     *t,
                     f.as_ref().and_then(|f| f.channel_filter.clone()),
@@ -743,6 +758,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
             return None;
         }
         let query = match &self.cursor {
+            SoupQuery::Property(_) => return None,
             SoupQuery::Simple(SimpleQueryInner(Query::Sort(t, f))) => Some(Query::Sort(
                 *t,
                 f.as_ref().and_then(|f| f.channel_thread_filter.clone()),
@@ -791,6 +807,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
             return None;
         }
         match &self.cursor {
+            SoupQuery::Property(_) => None,
             SoupQuery::Simple(SimpleQueryInner(Query::Sort(t, f))) => Some(Query::Sort(
                 *t,
                 f.as_ref()
@@ -1270,6 +1287,8 @@ pub struct SoupProjectionHydration<Item = SoupItem<()>> {
     pub item: Item,
     /// Relation-backed document facts unavailable in direct Soup fields.
     pub document_server_facts: Option<SoupDocumentServerFacts>,
+    /// Signed property key produced by the same query; null for missing values.
+    pub sort_key: Option<f64>,
 }
 
 impl<Item> SoupProjectionHydration<Item> {
@@ -1281,6 +1300,7 @@ impl<Item> SoupProjectionHydration<Item> {
         SoupProjectionHydration {
             item: map(self.item),
             document_server_facts: self.document_server_facts,
+            sort_key: self.sort_key,
         }
     }
 }

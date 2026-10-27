@@ -7,7 +7,6 @@ mod test;
 mod database_row;
 mod document_ids;
 mod initiative;
-pub(in crate::outbound::pg_soup_repo) mod property_candidates;
 mod property_filter;
 
 use database_row::{build_database_row_filter, database_row_opted_in, database_row_top_clause};
@@ -52,7 +51,8 @@ use system_properties::{StatusOption, SystemPropertyKey};
 use uuid::Uuid;
 
 use crate::domain::models::{
-    SoupDocumentServerFacts, SoupProjectionHydration, grouping::ItemGroupingInfo,
+    DynamicSort, SoupDocumentServerFacts, SoupProjectionHydration, SoupSortDirection,
+    grouping::ItemGroupingInfo,
 };
 use crate::outbound::pg_soup_repo::grouping::{
     GroupJoinClause, group_join_clause, group_select_expr,
@@ -60,6 +60,90 @@ use crate::outbound::pg_soup_repo::grouping::{
 use crate::outbound::pg_soup_repo::type_err;
 use models_grouping::{GroupByField, GroupingConfig, date_bucket_sql_order};
 
+fn property_sort_join(enabled: bool, parameter: usize) -> String {
+    if !enabled {
+        return String::new();
+    }
+    let date = item_filters::sql::date_value("ep_sort");
+    format!(
+        r#" LEFT JOIN LATERAL (
+        SELECT CASE pd.data_type
+            WHEN 'DATE' THEN EXTRACT(EPOCH FROM {date})::double precision * 1000000
+            WHEN 'NUMBER' THEN CASE WHEN ep_sort.values->>'type' = 'Number' AND jsonb_typeof(ep_sort.values->'value') = 'number' THEN (ep_sort.values->>'value')::double precision END
+            WHEN 'BOOLEAN' THEN CASE WHEN ep_sort.values->>'type' = 'Boolean' AND jsonb_typeof(ep_sort.values->'value') = 'boolean' THEN CASE WHEN (ep_sort.values->>'value')::boolean THEN 1::double precision ELSE 0::double precision END END
+            WHEN 'SELECT_STRING' THEN choices.value
+            WHEN 'SELECT_NUMBER' THEN choices.value
+            WHEN 'TAG' THEN choices.value
+            ELSE NULL
+        END AS key
+        FROM property_definitions pd
+        LEFT JOIN entity_properties ep_sort ON ep_sort.property_definition_id = pd.id
+            AND ep_sort.entity_id = all_items.id::text
+            AND ep_sort.entity_type = all_items.property_entity_type
+        LEFT JOIN LATERAL (
+            SELECT min(po.display_order)::double precision AS value
+            FROM jsonb_array_elements_text(CASE WHEN ep_sort.values->>'type' = 'SelectOption' AND jsonb_typeof(ep_sort.values->'value') = 'array' THEN ep_sort.values->'value' ELSE '[]'::jsonb END) chosen(id)
+            JOIN property_options po ON po.id::text = chosen.id AND po.property_definition_id = pd.id
+        ) choices ON true
+        WHERE pd.id = ${parameter}::uuid
+    ) property_sort ON true "#
+    )
+}
+
+fn sort_key_expression(enabled: bool, direction_parameter: usize) -> String {
+    if enabled {
+        format!(
+            "COALESCE(property_sort.key * ${direction_parameter}::double precision, '-Infinity'::double precision)"
+        )
+    } else {
+        "0::double precision".into()
+    }
+}
+
+fn sort_parameters(sort: DynamicSort) -> (Option<Uuid>, f64) {
+    match sort {
+        DynamicSort::Timestamp(_) => (None, 1.0),
+        DynamicSort::Property {
+            property_definition_id,
+            direction,
+        } => (
+            Some(property_definition_id),
+            if direction == SoupSortDirection::Asc {
+                -1.0
+            } else {
+                1.0
+            },
+        ),
+    }
+}
+
+fn date_range_group_expression(
+    grouping: &GroupingConfig,
+    parameters: &mut DocumentIdArrays,
+) -> Option<String> {
+    let (_, ranges) = grouping.field.date_ranges()?;
+    let date = item_filters::sql::date_value("ep_group");
+    let mut sql = format!("CASE WHEN ({date}) IS NULL THEN '-1'");
+    for (index, range) in ranges.ranges.iter().enumerate() {
+        let start = range
+            .start
+            .map(|bound| format!("({date}) >= {}", parameters.bind_date(bound)));
+        let end = range
+            .end
+            .map(|bound| format!("({date}) < {}", parameters.bind_date(bound)));
+        let bounds = start
+            .into_iter()
+            .chain(end)
+            .collect::<Vec<_>>()
+            .join(" AND ");
+        sql.push_str(&format!(
+            " WHEN {} THEN '{index}'",
+            if bounds.is_empty() { "TRUE" } else { &bounds }
+        ));
+    }
+    sql.push_str(" ELSE '-1' END");
+    Some(sql)
+}
 static PREFIX: &str = r#"
     WITH user_source_ids AS (
         SELECT cp.channel_id::text as source_id FROM comms_channel_participants cp
@@ -230,6 +314,7 @@ static DOCUMENT_DETAIL_CLAUSE: &str = r#"
             ) as "status_option_ids",
             uh."updatedAt"::timestamptz as "viewed_at",
             t.sort_ts as "sort_ts",
+            t.sort_key as "sort_key",
             CASE
                 WHEN dt.sub_type = 'task'
                     AND ep_status.values->'value' ? $6
@@ -239,6 +324,7 @@ static DOCUMENT_DETAIL_CLAUSE: &str = r#"
                 ELSE NULL
             END as "is_completed",
             d."deletedAt"::timestamptz as "deleted_at",
+            NULL::jsonb as "calendar_event",
             NULL::jsonb as "database_row"
         FROM TopItems t
         INNER JOIN "Document" d ON d.id = t.id
@@ -290,8 +376,10 @@ static CHAT_DETAIL_CLAUSE: &str = r#"
             ARRAY[]::uuid[] as "status_option_ids",
             uh."updatedAt"::timestamptz as "viewed_at",
             t.sort_ts as "sort_ts",
+            t.sort_key as "sort_key",
             NULL as "is_completed",
             c."deletedAt"::timestamptz as "deleted_at",
+            NULL::jsonb as "calendar_event",
             NULL::jsonb as "database_row"
         FROM TopItems t
         INNER JOIN "Chat" c ON c.id = t.id
@@ -323,8 +411,10 @@ static PROJECT_DETAIL_CLAUSE: &str = r#"
             ARRAY[]::uuid[] as "status_option_ids",
             uh."updatedAt"::timestamptz as "viewed_at",
             t.sort_ts as "sort_ts",
+            t.sort_key as "sort_key",
             NULL as "is_completed",
             p."deletedAt"::timestamptz as "deleted_at",
+            NULL::jsonb as "calendar_event",
             NULL::jsonb as "database_row"
         FROM TopItems t
         INNER JOIN "Project" p ON p.id = t.id
@@ -339,10 +429,75 @@ static INITIATIVE_DETAIL_CLAUSE: &str = include_str!("dynamic/initiative_detail.
 
 static DATABASE_ROW_DETAIL_CLAUSE: &str = include_str!("dynamic/database_row_detail.sql");
 
+static CALENDAR_EVENT_DETAIL_CLAUSE: &str = r#"
+        SELECT
+            'calendar_event' as "item_type",
+            event.id::text as "id",
+            NULL::text as "document_version_id",
+            event.owner_id as "user_id",
+            event.title as "name",
+            NULL::text as "branched_from_id",
+            NULL::bigint as "branched_from_version_id",
+            NULL::bigint as "document_family_id",
+            NULL::text as "file_type",
+            event.created_at as "created_at",
+            event.updated_at as "updated_at",
+            NULL::text as "project_id",
+            NULL::boolean as "is_persistent",
+            NULL::text as "model",
+            NULL::text as "sha",
+            NULL::document_sub_type_value as "sub_type",
+            false as "is_email_attachment",
+            true as "is_important",
+            ARRAY[]::uuid[] as "status_option_ids",
+            NULL::timestamptz as "viewed_at",
+            t.sort_ts as "sort_ts",
+            t.sort_key as "sort_key",
+            NULL::boolean as "is_completed",
+            NULL::timestamptz as "deleted_at",
+            jsonb_build_object(
+                'id', event.id,
+                'ownerId', event.owner_id,
+                'icalUid', event.ical_uid,
+                'title', event.title,
+                'description', event.description,
+                'location', event.location,
+                'status', event.status,
+                'visibility', event.visibility,
+                'transparency', event.transparency,
+                'time', CASE
+                    WHEN event.starts_at IS NOT NULL THEN jsonb_build_object(
+                        'kind', 'timed',
+                        'startsAt', event.starts_at,
+                        'endsAt', event.ends_at,
+                        'timeZone', event.time_zone
+                    )
+                    ELSE jsonb_build_object(
+                        'kind', 'allDay',
+                        'startDate', event.start_date,
+                        'endDate', event.end_date
+                    )
+                END,
+                'organizerEmail', event.organizer_email,
+                'organizerName', event.organizer_name,
+                'conferenceUrl', event.conference_url,
+                'conferenceProvider', event.conference_provider,
+                'isReadOnly', event.is_read_only,
+                'createdAt', event.created_at,
+                'updatedAt', event.updated_at,
+                'lastReminderFiredAt', event.last_reminder_fired_at,
+                'extra', NULL
+            ) as "calendar_event",
+            NULL::jsonb as "database_row"
+        FROM TopItems t
+        INNER JOIN calendar_events event ON event.id::text = t.id
+        WHERE t.item_type = 'calendar_event'
+"#;
+
 static DETAIL_SUFFIX: &str = r#"
     )
     SELECT * FROM Combined
-    ORDER BY "sort_ts" DESC, "id" DESC
+    ORDER BY "sort_key" DESC, "sort_ts" DESC, "id" DESC
     LIMIT $3
 "#;
 
@@ -366,8 +521,37 @@ static GROUPED_DOCUMENT_DETAIL_CLAUSE: &str = r#"
             NULL::text as "model",
             di.sha as "sha",
             dt.sub_type as "sub_type",
+            EXISTS (
+                SELECT 1
+                FROM document_email de
+                WHERE de.document_id = d.id
+            ) as "is_email_attachment",
+            (
+                dt.sub_type IS DISTINCT FROM 'task'
+                OR EXISTS (
+                    SELECT 1
+                    FROM entity_properties ep_assignees_projection
+                    WHERE ep_assignees_projection.entity_id = d.id
+                        AND ep_assignees_projection.entity_type = 'TASK'
+                        AND ep_assignees_projection.property_definition_id = $8
+                        AND ep_assignees_projection.values->'value' @> jsonb_build_array(
+                            jsonb_build_object('entity_id', $1)
+                        )
+                )
+            ) as "is_important",
+            ARRAY(
+                SELECT status_option_id::uuid
+                FROM jsonb_array_elements_text(
+                    CASE
+                        WHEN jsonb_typeof(ep_status.values->'value') = 'array'
+                        THEN ep_status.values->'value'
+                        ELSE '[]'::jsonb
+                    END
+                ) AS status_option_id
+            ) as "status_option_ids",
             uh."updatedAt"::timestamptz as "viewed_at",
             gi.sort_ts as "sort_ts",
+            gi.sort_key as "sort_key",
             CASE
                 WHEN dt.sub_type = 'task'
                     AND ep_status.values->'value' ? $6
@@ -427,8 +611,12 @@ static GROUPED_CHAT_DETAIL_CLAUSE: &str = r#"
             c.model as "model",
             NULL::text as "sha",
             NULL::document_sub_type_value as "sub_type",
+            false as "is_email_attachment",
+            true as "is_important",
+            ARRAY[]::uuid[] as "status_option_ids",
             uh."updatedAt"::timestamptz as "viewed_at",
             gi.sort_ts as "sort_ts",
+            gi.sort_key as "sort_key",
             NULL::boolean as "is_completed",
             c."deletedAt"::timestamptz as "deleted_at",
             NULL::jsonb as "calendar_event",
@@ -461,8 +649,12 @@ static GROUPED_PROJECT_DETAIL_CLAUSE: &str = r#"
             NULL::text as "model",
             NULL::text as "sha",
             NULL::document_sub_type_value as "sub_type",
+            false as "is_email_attachment",
+            true as "is_important",
+            ARRAY[]::uuid[] as "status_option_ids",
             uh."updatedAt"::timestamptz as "viewed_at",
             gi.sort_ts as "sort_ts",
+            gi.sort_key as "sort_key",
             NULL::boolean as "is_completed",
             p."deletedAt"::timestamptz as "deleted_at",
             NULL::jsonb as "calendar_event",
@@ -503,8 +695,12 @@ static GROUPED_CALENDAR_EVENT_DETAIL_CLAUSE: &str = r#"
             NULL::text as "model",
             NULL::text as "sha",
             NULL::document_sub_type_value as "sub_type",
+            false as "is_email_attachment",
+            true as "is_important",
+            ARRAY[]::uuid[] as "status_option_ids",
             NULL::timestamptz as "viewed_at",
             gi.sort_ts as "sort_ts",
+            gi.sort_key as "sort_key",
             NULL::boolean as "is_completed",
             NULL::timestamptz as "deleted_at",
             jsonb_build_object(
@@ -567,8 +763,12 @@ static GROUPED_EMPTY_COMBINED_CLAUSE: &str = r#"
             NULL::text as "model",
             NULL::text as "sha",
             NULL::document_sub_type_value as "sub_type",
+            false as "is_email_attachment",
+            true as "is_important",
+            ARRAY[]::uuid[] as "status_option_ids",
             NULL::timestamptz as "viewed_at",
             NULL::timestamptz as "sort_ts",
+            0::double precision as "sort_key",
             NULL::boolean as "is_completed",
             NULL::timestamptz as "deleted_at",
             NULL::jsonb as "calendar_event",
@@ -1323,26 +1523,6 @@ pub(in crate::outbound::pg_soup_repo) fn access_semi_join(
     )
 }
 
-fn document_top_clause(sort_method: SimpleSortMethod, needs_sub_type_join: bool) -> String {
-    let sub_type_join = if needs_sub_type_join {
-        r#"                LEFT JOIN document_sub_type dt ON dt.document_id = d.id
-"#
-    } else {
-        ""
-    };
-    format!(
-        r#"
-                SELECT
-                    'document'::text as item_type,
-                    d.id,
-                    {}::timestamptz as sort_ts
-                FROM "Document" d
-{}"#,
-        top_sort_expr("d", sort_method),
-        sub_type_join
-    )
-}
-
 fn document_top_where_clause(sort_method: SimpleSortMethod) -> String {
     let user_history_join = if top_needs_user_history(sort_method) {
         r#"                LEFT JOIN "UserHistory" uh ON uh."itemId" = d.id AND uh."itemType" = 'document' AND uh."userId" = $1
@@ -1358,55 +1538,12 @@ fn document_top_where_clause(sort_method: SimpleSortMethod) -> String {
     )
 }
 
-fn chat_top_clause(sort_method: SimpleSortMethod) -> String {
-    let user_history_join = if top_needs_user_history(sort_method) {
-        r#"                LEFT JOIN "UserHistory" uh ON uh."itemId" = c.id AND uh."itemType" = 'chat' AND uh."userId" = $1
-"#
-    } else {
-        ""
-    };
-    format!(
-        r#"
-                SELECT
-                    'chat'::text as item_type,
-                    c.id,
-                    {}::timestamptz as sort_ts
-                FROM "Chat" c
-{}"#,
-        top_sort_expr("c", sort_method),
-        user_history_join
-    )
-}
-
 fn chat_top_where_clause() -> String {
     format!(
         r#"                WHERE c."deletedAt" IS NULL
                 AND {}
 "#,
         access_semi_join("c.id", "chat")
-    )
-}
-
-fn project_top_clause(sort_method: SimpleSortMethod) -> String {
-    let user_history_join = if top_needs_user_history(sort_method) {
-        r#"                LEFT JOIN "UserHistory" uh
-                    ON uh."itemId" = p.id
-                    AND uh."itemType" = 'project'
-                    AND uh."userId" = $1
-"#
-    } else {
-        ""
-    };
-    format!(
-        r#"
-                SELECT
-                    'project'::text as item_type,
-                    p.id,
-                    {}::timestamptz as sort_ts
-                FROM "Project" p
-{}"#,
-        top_sort_expr("p", sort_method),
-        user_history_join
     )
 }
 
@@ -1422,10 +1559,13 @@ fn project_top_where_clause() -> String {
 fn build_query<'a>(
     filter_ast: &'a EntityFilterAst,
     exclude_frecency: bool,
-    sort_method: SimpleSortMethod,
+    sort: DynamicSort,
     document_ids: &mut DocumentIdArrays,
 ) -> QueryBuilder<'a, Postgres> {
+    let sort_method = sort.timestamp_method();
+    let property_sort = matches!(sort, DynamicSort::Property { .. });
     let mut builder = sqlx::QueryBuilder::new(PREFIX);
+    builder.push("sort_parameters AS (SELECT $9::uuid AS property_id, $10::double precision AS direction, $11::double precision AS cursor_key), ");
 
     let include_initiatives = initiative_opted_in(filter_ast.initiative_filter.as_deref())
         && properties_filter_can_apply_to(
@@ -1527,17 +1667,17 @@ fn build_query<'a>(
 
     // TopItems CTE: lightweight id + sort_ts with filters, cursor, and limit
     builder.push("TopItems AS (");
-    builder.push("SELECT all_items.item_type, all_items.id, all_items.sort_ts FROM (");
+    builder.push("SELECT all_items.item_type, all_items.id, all_items.sort_ts, ");
+    builder.push(sort_key_expression(property_sort, 10));
+    builder.push(" AS sort_key FROM (");
 
     let mut needs_separator = false;
 
     if include_documents {
         push_union_separator(&mut builder, &mut needs_separator);
-        // Document top clause (lightweight). The document_sub_type join is
-        // only needed by filters that reference `dt` (Importance / CBM);
-        // SubType literals render as their own EXISTS probes.
+        // The subtype join selects the canonical DOCUMENT or TASK property namespace.
         let needs_task_property_joins = document_filter_needs_task_property_joins(document_filter);
-        builder.push(document_top_clause(sort_method, needs_task_property_joins));
+        builder.push(grouped_document_top_clause(sort_method));
         if optimized_notification_predicate.is_some() && document_notification.is_some() {
             builder.push(build_notification_join("d", "document"));
         }
@@ -1555,7 +1695,7 @@ fn build_query<'a>(
     if include_chats {
         push_union_separator(&mut builder, &mut needs_separator);
         // Chat top clause (lightweight)
-        builder.push(chat_top_clause(sort_method));
+        builder.push(grouped_chat_top_clause(sort_method));
         if optimized_notification_predicate.is_some() && chat_notification.is_some() {
             builder.push(build_notification_join("c", "chat"));
         }
@@ -1570,7 +1710,7 @@ fn build_query<'a>(
     if include_projects {
         push_union_separator(&mut builder, &mut needs_separator);
         // Project top clause (lightweight)
-        builder.push(project_top_clause(sort_method));
+        builder.push(grouped_project_top_clause(sort_method));
         if optimized_notification_predicate.is_some() && project_notification.is_some() {
             builder.push(build_notification_join("p", "project"));
         }
@@ -1584,7 +1724,7 @@ fn build_query<'a>(
 
     if include_initiatives {
         push_union_separator(&mut builder, &mut needs_separator);
-        builder.push(initiative_top_clause(sort_method, false));
+        builder.push(initiative_top_clause(sort_method, true));
         builder.push(build_initiative_filter(
             filter_ast.initiative_filter.as_deref(),
             document_ids,
@@ -1597,7 +1737,7 @@ fn build_query<'a>(
 
     if include_database_rows {
         push_union_separator(&mut builder, &mut needs_separator);
-        builder.push(database_row_top_clause(sort_method, false));
+        builder.push(database_row_top_clause(sort_method, true));
         builder.push(build_database_row_filter(
             filter_ast.database_row_filter.as_deref(),
         ));
@@ -1607,13 +1747,32 @@ fn build_query<'a>(
         ));
     }
 
+    if property_sort
+        && !calendar_event_filter_is_impossible(filter_ast.calendar_event_filter.as_deref())
+        && properties_filter_can_apply_to(
+            filter_ast.properties_filter.as_deref(),
+            &[PropertyEntityType::CalendarEvent],
+        )
+    {
+        push_union_separator(&mut builder, &mut needs_separator);
+        builder.push(grouped_calendar_event_top_clause(sort_method));
+        builder.push(build_calendar_event_filter(
+            filter_ast.calendar_event_filter.as_deref(),
+        ));
+        builder.push(build_properties_filter(
+            filter_ast.properties_filter.as_deref(),
+            "event.id::text",
+        ));
+    }
+
     if !needs_separator {
         builder.push(
-            "SELECT 'document'::text as item_type, NULL::text as id, NULL::timestamptz as sort_ts WHERE false",
+            "SELECT 'document'::text as item_type, NULL::text as id, NULL::timestamptz as sort_ts, NULL::text as project_id, NULL::property_entity_type as property_entity_type WHERE false",
         );
     }
 
     builder.push(") all_items ");
+    builder.push(property_sort_join(property_sort, 9));
 
     // Frecency exclusion join (only when exclude_frecency is true)
     if exclude_frecency {
@@ -1629,17 +1788,13 @@ fn build_query<'a>(
     }
 
     // Cursor condition
-    builder.push(
-        r#"($4::timestamptz IS NULL)
-            OR
-            (all_items.sort_ts, all_items.id::text) < ($4, $5)"#,
-    );
+    builder.push(format!("($4::timestamptz IS NULL) OR ({}, all_items.sort_ts, all_items.id::text) < (COALESCE($11::double precision, '-Infinity'::double precision), $4, $5)", sort_key_expression(property_sort, 10)));
 
     if exclude_frecency {
         builder.push(")");
     }
 
-    builder.push(" ORDER BY all_items.sort_ts DESC, all_items.id DESC LIMIT $3");
+    builder.push(" ORDER BY sort_key DESC, all_items.sort_ts DESC, all_items.id DESC LIMIT $3");
     builder.push("), ");
 
     // Combined CTE: full detail joins back from TopItems. Keep this in sync
@@ -1668,6 +1823,16 @@ fn build_query<'a>(
         push_union_separator(&mut builder, &mut needs_separator);
         builder.push(DATABASE_ROW_DETAIL_CLAUSE);
     }
+    if property_sort
+        && !calendar_event_filter_is_impossible(filter_ast.calendar_event_filter.as_deref())
+        && properties_filter_can_apply_to(
+            filter_ast.properties_filter.as_deref(),
+            &[PropertyEntityType::CalendarEvent],
+        )
+    {
+        push_union_separator(&mut builder, &mut needs_separator);
+        builder.push(CALENDAR_EVENT_DETAIL_CLAUSE);
+    }
     if !needs_separator {
         builder.push(
             r#"SELECT
@@ -1692,8 +1857,10 @@ fn build_query<'a>(
                 ARRAY[]::uuid[] as "status_option_ids",
                 NULL::timestamptz as "viewed_at",
                 NULL::timestamptz as "sort_ts",
+                0::double precision as "sort_key",
                 NULL::boolean as "is_completed",
                 NULL::timestamptz as "deleted_at",
+                NULL::jsonb as "calendar_event",
                 NULL::jsonb as "database_row"
             WHERE false"#,
         );
@@ -1839,6 +2006,7 @@ impl SoupRow {
         Ok(SoupProjectionHydration {
             item: self.into_soup_item()?,
             document_server_facts,
+            sort_key: None,
         })
     }
 
@@ -1980,7 +2148,7 @@ pub(crate) struct ExpandedDynamicCursorArgs<'a> {
     /// the limit of items we can return
     pub limit: u16,
     /// the Query that we are attempting to perform
-    pub cursor: Query<Uuid, SimpleSortMethod, EntityFilterAst>,
+    pub cursor: Query<Uuid, DynamicSort, EntityFilterAst>,
     /// whether or not the query should explicitly remove items that DO have
     /// frecency records
     pub exclude_frecency: bool,
@@ -1998,15 +2166,18 @@ async fn expanded_dynamic_cursor_soup_hydrated(
         exclude_frecency,
     } = args;
     let query_limit = limit as i64;
-    let sort_method_str = cursor.sort_method().to_string();
-    let (cursor_id, cursor_timestamp) = cursor.vals();
+    let sort_method_str = cursor.sort_method().timestamp_method().to_string();
+    let (property_id, sort_sign) = sort_parameters(*cursor.sort_method());
+    let (cursor_id, cursor_position) = cursor.vals();
+    let cursor_timestamp = cursor_position.map(|position| position.timestamp());
+    let cursor_key = cursor_position.and_then(|position| position.key());
     let cursor_id_str = cursor_id.as_ref().map(|u| u.to_string());
     let status_property_id = SystemPropertyKey::STATUS_UUID;
     let assignees_property_id = SystemPropertyKey::ASSIGNEES_UUID;
     let completed_option_id = StatusOption::COMPLETED_UUID.to_string();
 
-    // Document id arrays follow the eight fixed binds.
-    let mut document_ids = DocumentIdArrays::starting_at(9);
+    // Filter parameters follow the eleven fixed cursor and sort binds.
+    let mut document_ids = DocumentIdArrays::starting_at(12);
     let mut builder = build_query(
         cursor.filter(),
         exclude_frecency,
@@ -2022,7 +2193,10 @@ async fn expanded_dynamic_cursor_soup_hydrated(
         .bind(cursor_id_str)
         .bind(completed_option_id)
         .bind(status_property_id)
-        .bind(assignees_property_id);
+        .bind(assignees_property_id)
+        .bind(property_id)
+        .bind(sort_sign)
+        .bind(cursor_key);
     for value in document_ids.into_binds() {
         query = match value {
             FilterParameter::DocumentIds(ids) => query.bind(ids),
@@ -2037,7 +2211,11 @@ async fn expanded_dynamic_cursor_soup_hydrated(
         // enough to run 10x slower. Planning with the real bind values every
         // time costs ~1ms and keeps the plan stable.
         .persistent(false)
-        .try_map(|row| SoupRow::from_row(&row)?.into_projection_hydration())
+        .try_map(|row| {
+            let mut item = SoupRow::from_row(&row)?.into_projection_hydration()?;
+            item.sort_key = row.try_get("sort_key")?;
+            Ok(item)
+        })
         .fetch_all(db)
         .await?;
 
@@ -2079,7 +2257,7 @@ pub struct GroupedDynamicCursorArgs<'a> {
     /// The limit of items we can return
     pub limit: u16,
     /// The Query that we are attempting to perform
-    pub cursor: Query<Uuid, SimpleSortMethod, EntityFilterAst>,
+    pub cursor: Query<Uuid, DynamicSort, EntityFilterAst>,
     /// Whether or not the query should explicitly remove items that DO have frecency records
     pub exclude_frecency: bool,
     /// Grouping configuration
@@ -2092,6 +2270,7 @@ struct GroupFields {
     group_key: String,
     group_total_count: i64,
     row_in_group: i64,
+    sort_key: Option<f64>,
 }
 
 /// Grouped row: reuses SoupRow for item data, adds group metadata.
@@ -2111,46 +2290,48 @@ const PER_GROUP_LIMIT: i32 = 10;
 fn build_grouped_items_cte(
     builder: &mut QueryBuilder<'_, Postgres>,
     grouping: &GroupingConfig,
+    parameters: &mut DocumentIdArrays,
 ) -> Option<String> {
-    let select_expr = group_select_expr(&grouping.field);
-
+    let date_expression = date_range_group_expression(grouping, parameters);
+    let select_expr =
+        date_expression.unwrap_or_else(|| group_select_expr(&grouping.field).into_owned());
     builder.push("GroupedItems AS (SELECT t.*, (");
     builder.push(&select_expr);
     builder.push(") as group_key, COUNT(*) OVER (PARTITION BY ");
     builder.push(&select_expr);
     builder.push(") as group_total_count, ROW_NUMBER() OVER (PARTITION BY ");
     builder.push(&select_expr);
-    builder.push(" ORDER BY t.sort_ts DESC, t.id DESC) as row_in_group FROM TopItems t ");
-
-    let entity_type_bind = if let Some(GroupJoinClause {
+    builder.push(
+        " ORDER BY t.sort_key DESC, t.sort_ts DESC, t.id DESC) as row_in_group FROM TopItems t ",
+    );
+    let bind = if let Some(GroupJoinClause {
         sql,
         entity_type_bind,
     }) = group_join_clause(&grouping.field)
     {
-        builder.push(&sql);
-        builder.push(" ");
+        builder.push(sql);
         entity_type_bind
     } else {
         None
     };
-
     if grouping.group_key.is_some() {
-        // Single group mode: fetch items for a specific group (for "load more")
-        // Uses $9 parameter for group_key to prevent SQL injection.
-        builder.push("WHERE (");
+        builder.push(" WHERE (");
         builder.push(&select_expr);
         builder.push(") = $9 ");
     }
-
-    builder.push("), ");
-
+    builder.push("), FilteredGroupedItems AS (SELECT * FROM GroupedItems WHERE ($4::timestamptz IS NULL OR (sort_key, sort_ts, id::text) < (COALESCE($13::double precision, '-Infinity'::double precision), $4, $5))");
     if grouping.group_key.is_none() {
-        builder.push("FilteredGroupedItems AS (SELECT * FROM GroupedItems WHERE row_in_group <= ");
-        builder.push(PER_GROUP_LIMIT.to_string());
-        builder.push("), ");
+        builder.push(" AND row_in_group <= ");
+        builder.push(
+            grouping
+                .per_group_limit
+                .unwrap_or(PER_GROUP_LIMIT as u32)
+                .clamp(1, 500)
+                .to_string(),
+        );
     }
-
-    entity_type_bind
+    builder.push("), ");
+    bind
 }
 
 /// Build the grouped query with grouping CTE.
@@ -2160,10 +2341,13 @@ fn build_grouped_query<'a>(
     filter_ast: &'a EntityFilterAst,
     exclude_frecency: bool,
     grouping: &'a GroupingConfig,
-    sort_method: SimpleSortMethod,
+    sort: DynamicSort,
     document_ids: &mut DocumentIdArrays,
 ) -> (QueryBuilder<'a, Postgres>, Option<String>) {
+    let sort_method = sort.timestamp_method();
+    let property_sort = matches!(sort, DynamicSort::Property { .. });
     let mut builder = sqlx::QueryBuilder::new(PREFIX);
+    builder.push("sort_parameters AS (SELECT $11::uuid AS property_id, $12::double precision AS direction, $13::double precision AS cursor_key), ");
 
     // Determine which entity types to include based on filters (same logic as build_query)
     let include_initiatives = initiative_opted_in(filter_ast.initiative_filter.as_deref())
@@ -2201,12 +2385,14 @@ fn build_grouped_query<'a>(
                 &[PropertyEntityType::CalendarEvent],
             );
 
-    // All matching candidates are needed for exact counts; limits apply after grouping.
+    // Full-set windows run before the position filter.
     builder.push("TopItems AS (");
     builder.push(
-        "SELECT all_items.item_type, all_items.id, all_items.sort_ts, all_items.project_id, all_items.property_entity_type FROM (",
+        "SELECT all_items.item_type, all_items.id, all_items.sort_ts, all_items.project_id, all_items.property_entity_type, ",
     );
 
+    builder.push(sort_key_expression(property_sort, 12));
+    builder.push(" AS sort_key FROM (");
     let mut needs_separator = false;
 
     if include_documents {
@@ -2293,6 +2479,7 @@ fn build_grouped_query<'a>(
     }
 
     builder.push(") all_items ");
+    builder.push(property_sort_join(property_sort, 11));
 
     // Frecency exclusion join (only when exclude_frecency is true)
     if exclude_frecency {
@@ -2301,35 +2488,30 @@ fn build_grouped_query<'a>(
                 ON fa.entity_id = all_items.id
                 AND fa.entity_type = all_items.item_type
                 AND fa.user_id = $1
-            WHERE fa.id IS NULL AND ("#,
+            WHERE fa.id IS NULL AND TRUE"#,
         );
     } else {
-        builder.push("WHERE ");
+        builder.push("WHERE TRUE ");
     }
 
-    builder.push(
-        r#"($4::timestamptz IS NULL)
-        OR
-        (all_items.sort_ts, all_items.id::text) < ($4, $5)"#,
-    );
-
-    if exclude_frecency {
-        builder.push(")");
+    if matches!(
+        &grouping.field,
+        GroupByField::Property {
+            entity_type: Some(_),
+            ..
+        }
+    ) {
+        builder.push(" AND all_items.property_entity_type = $10::property_entity_type ");
     }
 
     // Ranking windows and the final SELECT provide their own ordering.
     builder.push("), ");
 
-    // GroupedItems CTE: adds group metadata (and FilteredGroupedItems if not single-group mode)
-    let entity_type_bind = build_grouped_items_cte(&mut builder, grouping);
+    // Rank/count the full group before applying the cursor and page cap.
+    let entity_type_bind = build_grouped_items_cte(&mut builder, grouping, document_ids);
 
-    // Combined CTE: full detail joins from GroupedItems (or FilteredGroupedItems)
-    // When fetching a specific group, use GroupedItems directly; otherwise use FilteredGroupedItems
-    let source_table = if grouping.group_key.is_some() {
-        "GroupedItems"
-    } else {
-        "FilteredGroupedItems"
-    };
+    // Hydrate only the rows selected for each group's page.
+    let source_table = "FilteredGroupedItems";
 
     builder.push("Combined AS (");
 
@@ -2388,10 +2570,14 @@ fn build_grouped_query<'a>(
             builder.push(date_bucket_sql_order("sort_ts"));
         }
         _ => {
-            builder.push("\"group_key\"");
+            if grouping.field.date_ranges().is_some() {
+                builder.push("\"group_key\"::integer");
+            } else {
+                builder.push("\"group_key\"");
+            }
         }
     }
-    builder.push(", \"sort_ts\" DESC, \"id\" DESC");
+    builder.push(", \"sort_key\" DESC, \"sort_ts\" DESC, \"id\" DESC");
 
     // Apply LIMIT only in single-group "load more" mode. In multi-group mode the
     // result is already bounded by the per-group cap inside FilteredGroupedItems
@@ -2419,15 +2605,18 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
     } = args;
 
     let query_limit = limit as i64;
-    let sort_method_str = cursor.sort_method().to_string();
-    let (cursor_id, cursor_timestamp) = cursor.vals();
+    let sort_method_str = cursor.sort_method().timestamp_method().to_string();
+    let (property_id, sort_sign) = sort_parameters(*cursor.sort_method());
+    let (cursor_id, cursor_position) = cursor.vals();
+    let cursor_timestamp = cursor_position.map(|position| position.timestamp());
+    let cursor_key = cursor_position.and_then(|position| position.key());
     let cursor_id_str = cursor_id.as_ref().map(|u| u.to_string());
     let status_property_id = SystemPropertyKey::STATUS_UUID;
     let assignees_property_id = SystemPropertyKey::ASSIGNEES_UUID;
     let completed_option_id = StatusOption::COMPLETED_UUID.to_string();
 
-    // Document id arrays follow the ten fixed binds.
-    let mut document_ids = DocumentIdArrays::starting_at(11);
+    // Filter parameters follow the thirteen fixed cursor, grouping, and sort binds.
+    let mut document_ids = DocumentIdArrays::starting_at(14);
     let (mut query_builder, entity_type_bind) = build_grouped_query(
         cursor.filter(),
         exclude_frecency,
@@ -2436,9 +2625,8 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
         &mut document_ids,
     );
 
-    // Keep the reserved $2 sort slot even though candidates now specialize it away.
-    // $9 and $10 are bound unconditionally (NULL when unused) so the document
-    // id arrays after them keep their slots.
+    // Keep the timestamp sort slot and bind optional grouping/sort slots even
+    // when unused so all filter parameters retain their positions.
     let mut query = query_builder
         .build_query_as::<'_, GroupedSoupRow>()
         .bind(user_id.as_ref())
@@ -2449,9 +2637,23 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
         .bind(completed_option_id)
         .bind(status_property_id)
         .bind(assignees_property_id)
-        .bind(grouping.group_key.clone())
+        .bind(grouping.group_key.as_ref().map(|key| {
+            if let Some((_, ranges)) = grouping.field.date_ranges() {
+                ranges
+                    .ranges
+                    .iter()
+                    .position(|range| &range.key == key)
+                    .map(|index| index.to_string())
+                    .unwrap_or_else(|| "-1".into())
+            } else {
+                key.clone()
+            }
+        }))
         // The entity type of property grouping with an entity type filter.
-        .bind(entity_type_bind);
+        .bind(entity_type_bind)
+        .bind(property_id)
+        .bind(sort_sign)
+        .bind(cursor_key);
     for value in document_ids.into_binds() {
         query = match value {
             FilterParameter::DocumentIds(ids) => query.bind(ids),
@@ -2471,8 +2673,20 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
         .into_iter()
         .map(|row| {
             Ok(ItemGroupingInfo {
+                document_server_facts: row.item.document_server_facts(),
+                sort_key: row.group.sort_key,
                 item: row.item.into_soup_item()?,
-                key: row.group.group_key,
+                key: if let Some((_, ranges)) = grouping.field.date_ranges() {
+                    row.group
+                        .group_key
+                        .parse::<usize>()
+                        .ok()
+                        .and_then(|index| ranges.ranges.get(index))
+                        .map(|range| range.key.clone())
+                        .unwrap_or_else(|| ranges.missing_value_bucket_key.clone())
+                } else {
+                    row.group.group_key
+                },
                 total_group_count: usize::try_from(row.group.group_total_count)
                     .map_err(|error| sqlx::Error::Decode(Box::new(error)))?,
                 index_in_group: usize::try_from(row.group.row_in_group)

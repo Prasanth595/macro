@@ -43,15 +43,6 @@ pub fn team_id_from_receipt(team: Option<&TeamReceipt>) -> Option<Uuid> {
 
 /// Service trait for property operations.
 pub trait PropertiesService: Send + Sync + 'static {
-    /// Validate selected definition visibility and scalar DATE requirements once
-    /// before source fanout. The returned capability binds the immutable query
-    /// to this viewer and must not be cached across requests.
-    fn authorize_property_query(
-        &self,
-        viewer: MacroUserIdStr<'static>,
-        team: Option<&TeamReceipt>,
-        query: models_grouping::CandidateQuery,
-    ) -> impl Future<Output = Result<super::query::AuthorizedPropertyQuery, PropertiesErr>> + Send;
     /// Get all properties attached to an entity, with definitions, values, and
     /// options. Tag properties are restricted to the viewer's own and their
     /// teams' definitions (the viewer being the receipt's authenticated user).
@@ -396,4 +387,33 @@ pub trait PropertiesService: Send + Sync + 'static {
         access: &EditReceipt,
         entity_property_id: Uuid,
     ) -> impl Future<Output = Result<(), PropertiesErr>> + Send;
+}
+
+/// Object-safe read access to one visible property definition.
+pub trait PropertyDefinitionReader: Send + Sync {
+    /// Read through the properties service with its existing visibility checks.
+    fn read_definition(
+        &self,
+        id: Uuid,
+        viewer: MacroUserIdStr<'static>,
+        team: Option<TeamReceipt>,
+    ) -> std::pin::Pin<
+        Box<dyn Future<Output = Result<PropertyDefinition, PropertiesErr>> + Send + '_>,
+    >;
+}
+
+impl<S: PropertiesService> PropertyDefinitionReader for S {
+    fn read_definition(
+        &self,
+        id: Uuid,
+        viewer: MacroUserIdStr<'static>,
+        team: Option<TeamReceipt>,
+    ) -> std::pin::Pin<
+        Box<dyn Future<Output = Result<PropertyDefinition, PropertiesErr>> + Send + '_>,
+    > {
+        Box::pin(async move {
+            self.get_property_definition(id, &viewer, team.as_ref())
+                .await
+        })
+    }
 }

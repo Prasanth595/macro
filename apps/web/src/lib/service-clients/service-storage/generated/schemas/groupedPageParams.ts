@@ -6,6 +6,7 @@
  */
 import type { ApiGroupByField } from './apiGroupByField';
 import type { GroupedPageParamsLimit } from './groupedPageParamsLimit';
+import type { GroupedPageParamsSortDirection } from './groupedPageParamsSortDirection';
 import type { GroupedPageParamsSortMethod } from './groupedPageParamsSortMethod';
 import type { GroupedPageParamsSortPropertyDefinitionId } from './groupedPageParamsSortPropertyDefinitionId';
 
@@ -22,7 +23,8 @@ export interface GroupedPageParams {
    * @minimum 0
    */
   limit?: GroupedPageParamsLimit;
+  sort_direction?: GroupedPageParamsSortDirection;
   sort_method?: GroupedPageParamsSortMethod;
-  /** DATE property definition selected for property-date sorting. */
+  /** Property definition selected for numeric property sorting. */
   sort_property_definition_id?: GroupedPageParamsSortPropertyDefinitionId;
 }

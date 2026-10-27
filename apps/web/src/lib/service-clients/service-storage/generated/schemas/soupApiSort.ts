@@ -19,6 +19,5 @@ export const SoupApiSort = {
   frecency: 'frecency',
   touched_by_me: 'touched_by_me',
   notified_at: 'notified_at',
-  property_date_earliest: 'property_date_earliest',
-  property_date_latest: 'property_date_latest',
+  property: 'property',
 } as const;
