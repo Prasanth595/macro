@@ -239,6 +239,10 @@ offline action followed by reconnect. Also wait for provider/metadata synchroniz
 before Undo, and repeat after reloading: an archived received thread can lose its
 inbox-sorting timestamp but must still be unarchivable. Sent-only threads and
 unsent drafts cannot be unarchived; sent mail addressed back to its sender can.
+Threads without received mail hide Mark Not Done in the header, row, menu, and
+hotkeys. REST Soup rows lack that fact, so their row action stays and then says
+the thread stays done. Older sent-only threads still offer it until their
+metadata is next recomputed, and the server rejects it.
 With GraphQL Soup enabled, bulk Mark Not Done settles per email: a rejected
 sent-only/draft thread stays done, while successful and durably queued siblings
 remain restored. Only accepted
@@ -248,8 +252,9 @@ rejected selections, partial-success counts, and that a queued sibling prevents
 shared-list refetch even when notification restoration fails. GraphQL reversals
 rely on normalized writes and their durable revalidation, not an extra REST Soup
 refetch after rows settle. Verify the open-thread header too: with GraphQL enabled,
-Mark Not Done remains available for an archived thread whose inbox timestamp is
-missing; the server decides whether its received-message history allows restoration.
+Mark Not Done remains available for an archived received thread whose inbox
+timestamp is missing; the server decides whether its received-message history
+allows restoration.
 The REST path retains its timestamp preflight, whole-batch handling, notification
 ordering, and existing cache reconciliation.
 For optimistic mutation interface changes, delay the network response and verify
@@ -809,7 +814,10 @@ identity after settlement without replacing the editor's current text.
 
 With the persistent GraphQL Email cache enabled, a new standalone draft saved
 offline appears immediately in Drafts and the other matching Mail tabs, including
-date-grouped lists. A draft changes a conversation's preview, read state, and sort
+date-grouped lists, but never in Inbox, before or after reconnect. On Gmail and
+Outlook alike, a draft brings its conversation into Inbox only as a reply to
+received mail; draft-only and sent-only conversations stay in Archived. A draft
+changes a conversation's preview, read state, and sort
 time according to that tab; discarding it restores the remaining conversation's
 metadata. `Showing cached mail` still means only synchronized and locally created
 items are available.

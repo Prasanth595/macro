@@ -1909,6 +1909,7 @@ export function mapGraphqlSoupItem(
             providerId: entity.providerId ?? undefined,
             ownerId: entity.ownerId,
             inboxVisible: entity.inboxVisible,
+            hasReceivedMail: entity.hasReceivedMail,
             name: entity.emailName ?? undefined,
             snippet: entity.snippet ?? undefined,
             senderEmail: entity.senderEmail ?? undefined,
