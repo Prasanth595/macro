@@ -5,6 +5,7 @@ import { useUserId } from '@core/context/user';
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
+import PlusIcon from '@icon/system/regular/plus.svg';
 import BookmarkIcon from '@phosphor/bookmark-simple.svg';
 import DotsIcon from '@phosphor/dots-three.svg';
 import InfoIcon from '@phosphor/info.svg';
@@ -287,6 +288,30 @@ function TaskSavedViewMenuItems(props: {
   );
 }
 
+function useTaskSavedViewListState() {
+  const { savedViews, savedViewsList } = useTasksView();
+  const viewerId = useUserId();
+  const creating = () => savedViews?.view().kind === 'new';
+  const items = () => {
+    const records = savedViewsList?.items();
+    const selection = savedViews?.view();
+    // Keep confirmed creations visible without restoring a revoked shared view.
+    if (
+      selection?.kind === 'saved' &&
+      selection.record.ownerId === viewerId() &&
+      !records?.some((record) => record.id === selection.record.id)
+    )
+      return [selection.record, ...(records ?? [])];
+    return records;
+  };
+  return {
+    creating,
+    items,
+    empty: () =>
+      !creating() && !savedViewsList?.loading() && items()?.length === 0,
+  };
+}
+
 export function TaskSavedViewsList() {
   const {
     savedViews,
@@ -295,6 +320,11 @@ export function TaskSavedViewsList() {
     isSidebarSectionOpen,
     setSidebarSectionOpen,
   } = useTasksView();
+  const list = useTaskSavedViewListState();
+  const create = () => {
+    setSidebarSectionOpen('saved-views', true);
+    startSavedView();
+  };
   return (
     <Show when={savedViews && savedViewsList}>
       <SavedViewList.Root
@@ -302,10 +332,11 @@ export function TaskSavedViewsList() {
         onOpenChange={(open) => setSidebarSectionOpen('saved-views', open)}
       >
         <SavedViewList.Header
-          onCreate={() => {
-            setSidebarSectionOpen('saved-views', true);
-            startSavedView();
-          }}
+          onCreate={
+            !isSidebarSectionOpen('saved-views') || !list.empty()
+              ? create
+              : undefined
+          }
         />
         <SavedViewList.Content>
           <TaskSavedViewRows />
@@ -333,19 +364,7 @@ function TaskSavedViewRows(props: {
     const view = savedViews?.view();
     return view?.kind === 'saved' ? view.record.id : undefined;
   };
-  const creating = () => savedViews?.view().kind === 'new';
-  const items = () => {
-    const records = savedViewsList?.items();
-    const selection = savedViews?.view();
-    // Keep confirmed creations visible without restoring a revoked shared view.
-    if (
-      selection?.kind === 'saved' &&
-      selection.record.ownerId === viewerId() &&
-      !records?.some((record) => record.id === selection.record.id)
-    )
-      return [selection.record, ...(records ?? [])];
-    return records;
-  };
+  const { creating, items, empty } = useTaskSavedViewListState();
   const run = (action: () => void) =>
     props.onAction ? props.onAction(action) : action();
   return (
@@ -379,25 +398,18 @@ function TaskSavedViewRows(props: {
               Loading views…
             </p>
           </Show>
-          <Show
-            when={!creating() && !views().loading() && items()?.length === 0}
-          >
-            <div class="flex items-start gap-2 px-3 py-2">
-              <BookmarkIcon
-                aria-hidden="true"
-                class="size-5 shrink-0 text-ink-muted opacity-50"
-              />
-              <div class="flex min-w-0 flex-col items-start gap-1.5">
-                <p class="text-xs text-ink-muted">No saved views yet</p>
-                <Button
-                  ref={attachCreateHotkeys}
-                  size="sm"
-                  variant="outline"
-                  onClick={() => run(startSavedView)}
-                >
-                  Create view
-                </Button>
-              </div>
+          <Show when={empty()}>
+            <div class="flex flex-col items-start gap-1.5 px-3 py-1 group-data-closed/sidebar-section:invisible">
+              <p class="text-xs text-ink-muted">No saved views yet</p>
+              <Button
+                ref={attachCreateHotkeys}
+                size="sm"
+                variant="outline"
+                onClick={() => run(startSavedView)}
+              >
+                <PlusIcon class="size-3.5" />
+                Create view
+              </Button>
             </div>
           </Show>
           <Show when={views().error()}>

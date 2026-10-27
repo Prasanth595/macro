@@ -98,10 +98,12 @@ writing or reloading, reject stale completions, and explicitly select created
 views. Mutation dialogs receive a refresh callback, not both query sources.
 Compose the list through compound components and reuse styled menu items across
 its context and overflow menus. The mobile picker shows rows without a duplicate
-section heading or general create button. The sidebar and picker empty state use
-a small muted bookmark beside No saved views yet and a neutral Create view action that starts
-the existing draft flow after closing the picker. Changes from the built-in settings
-expose creation in the filter drawer's overlay banner above the footer and
+section heading or general create button. The compact sidebar and picker empty
+state show No saved views yet and a neutral Create view action with a plus icon,
+without a separate illustration. Hide the sidebar header's plus while that action
+is visible; retain it while collapsed or populated. The action starts the existing
+draft flow after closing the picker. Changes from the built-in settings expose
+creation in the filter drawer's overlay banner above the footer and
 existing-view save/reset actions at its footer's right.
 Starting a new view from the desktop sidebar expands the section and shows one
 local, selected New view row labeled Draft in the sidebar and mobile picker.

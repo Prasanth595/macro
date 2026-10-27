@@ -27,19 +27,23 @@ function Root(props: {
   );
 }
 
-function Header(props: { onCreate: () => void }) {
+function Header(props: { onCreate?: () => void }) {
   return (
     <CollapsibleSection.Header>
       <CollapsibleSection.Trigger>
         <span class="min-w-0 truncate">Saved views</span>
         <CollapsibleSection.Indicator />
       </CollapsibleSection.Trigger>
-      <CollapsibleSection.Action
-        label="New saved view"
-        onClick={props.onCreate}
-      >
-        <PlusIcon class="size-3.5" />
-      </CollapsibleSection.Action>
+      <Show when={props.onCreate}>
+        {(onCreate) => (
+          <CollapsibleSection.Action
+            label="New saved view"
+            onClick={onCreate()}
+          >
+            <PlusIcon class="size-3.5" />
+          </CollapsibleSection.Action>
+        )}
+      </Show>
     </CollapsibleSection.Header>
   );
 }
