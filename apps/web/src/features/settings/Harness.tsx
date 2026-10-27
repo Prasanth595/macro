@@ -134,7 +134,7 @@ export function Harness(
           backLabel={props.backLabel ?? 'Agents'}
           actions={
             <Button
-              variant={"accent"}
+              variant="accent"
               size="sm"
               onClick={() => setPairingDialog({})}
             >
@@ -230,7 +230,6 @@ export function Harness(
                               type="button"
                               variant="outline"
                               size="sm"
-                              
                               disabled={
                                 cursorApiKey().trim().length === 0 ||
                                 saveCursorApiKey.isPending
@@ -270,7 +269,6 @@ export function Harness(
                           type="button"
                           variant="danger"
                           size="sm"
-                          
                           class="shrink-0"
                           disabled={disconnectCursor.isPending}
                           onClick={handleDisconnectCursor}
@@ -413,7 +411,7 @@ function HarnessRemoveDialog(props: {
           </Button>
           <Button
             type="button"
-            variant={"secondary"}
+            variant="secondary"
             size="sm"
             disabled={props.pending}
             onClick={props.onConfirm}

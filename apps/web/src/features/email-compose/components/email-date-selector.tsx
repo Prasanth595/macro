@@ -111,7 +111,10 @@ export const EmailDateSelector: VoidComponent<EmailDateSelectorProps> = (
             </Show>
           }
           triggerClass={cn(
-            buttonClasses({ variant: 'ghost', size: props.mobile ? 'icon-sm' : "icon-md" }),
+            buttonClasses({
+              variant: 'ghost',
+              size: props.mobile ? 'icon-sm' : 'icon-md',
+            }),
             props.selectedTime &&
               !isCompact() &&
               'min-w-0 max-w-full shrink gap-1 aspect-auto! bg-accent/20 text-accent hover:bg-accent/15! hover:text-accent! not-touch:min-w-[33.75px] not-touch:w-auto! not-touch:px-2'

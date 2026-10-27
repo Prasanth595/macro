@@ -5,9 +5,9 @@ import { Dynamic } from 'solid-js/web';
 import { cn } from '../utils/classname';
 import {
   iconControlSizes,
-  labeledControlFrames,
-  labeledControlContents,
   type LabeledControlSize,
+  labeledControlContents,
+  labeledControlFrames,
 } from '../utils/control-sizes';
 import { Layer } from './Layer';
 import { Tooltip } from './Tooltip';
@@ -229,7 +229,10 @@ function PillOption<T extends string>(props: {
         'data-checked:overlay-active data-checked:text-ink',
         'has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus',
         'data-disabled:pointer-events-none data-disabled:opacity-50',
-        !props.joined && (square() ? iconControlSizes[props.size] : labeledControlFrames[props.size]),
+        !props.joined &&
+          (square()
+            ? iconControlSizes[props.size]
+            : labeledControlFrames[props.size]),
         props.joined && square() && 'aspect-square',
         'touch:min-h-8',
         square() && 'touch:min-w-8',
@@ -331,22 +334,36 @@ function TouchPill<T extends string>(props: TabsProps<T>) {
               'touch:min-h-8',
               size() === 'lg' && 'touch:min-h-11',
               props.iconOnly && option.icon !== undefined && 'touch:min-w-8',
-              props.iconOnly && option.icon !== undefined && size() === 'lg' && 'touch:min-w-11',
-              props.fullWidth && !(props.iconOnly && option.icon !== undefined) && 'flex-1'
+              props.iconOnly &&
+                option.icon !== undefined &&
+                size() === 'lg' &&
+                'touch:min-w-11',
+              props.fullWidth &&
+                !(props.iconOnly && option.icon !== undefined) &&
+                'flex-1'
             )}
           >
             <KSegmentedControl.ItemInput class="pointer-events-none absolute inset-0" />
             <KSegmentedControl.ItemLabel
               class={cn(
                 'flex min-w-0 flex-1 self-stretch items-center gap-1.5 rounded-full font-medium whitespace-nowrap select-none text-ink-extra-muted hover:text-ink data-checked:text-ink transition-colors duration-120 motion-reduce:transition-none',
-                !(props.iconOnly && option.icon !== undefined) && tabContentClasses(size()),
-                (props.fullWidth || (props.iconOnly && option.icon !== undefined)) && 'justify-center'
+                !(props.iconOnly && option.icon !== undefined) &&
+                  tabContentClasses(size()),
+                (props.fullWidth ||
+                  (props.iconOnly && option.icon !== undefined)) &&
+                  'justify-center'
               )}
             >
               <OptionContent
                 option={option}
                 iconOnly={props.iconOnly ?? false}
-                iconClass={tabIconSizes[size()][props.iconOnly && option.icon !== undefined ? 'square' : 'labeled']}
+                iconClass={
+                  tabIconSizes[size()][
+                    props.iconOnly && option.icon !== undefined
+                      ? 'square'
+                      : 'labeled'
+                  ]
+                }
               />
             </KSegmentedControl.ItemLabel>
           </KSegmentedControl.Item>
@@ -377,16 +394,23 @@ function TouchInset<T extends string>(props: TabsProps<T>) {
                   props.iconOnly && option.icon !== undefined
                     ? iconControlSizes[size()]
                     : labeledControlFrames[size()],
-                  props.iconOnly && option.icon !== undefined && 'touch:min-w-8',
-                  props.fullWidth && !(props.iconOnly && option.icon !== undefined) && 'flex-1'
+                  props.iconOnly &&
+                    option.icon !== undefined &&
+                    'touch:min-w-8',
+                  props.fullWidth &&
+                    !(props.iconOnly && option.icon !== undefined) &&
+                    'flex-1'
                 )}
               >
                 <KSegmentedControl.ItemInput class="pointer-events-none absolute inset-0" />
                 <KSegmentedControl.ItemLabel
                   class={cn(
                     'flex min-w-0 flex-1 self-stretch items-center gap-1.5 rounded-full font-medium whitespace-nowrap text-ink-extra-muted ring-inset hover:text-ink data-checked:bg-surface data-checked:text-ink data-checked:ring data-checked:ring-edge-muted',
-                    !(props.iconOnly && option.icon !== undefined) && tabContentClasses(size()),
-                    (props.fullWidth || (props.iconOnly && option.icon !== undefined)) && 'justify-center'
+                    !(props.iconOnly && option.icon !== undefined) &&
+                      tabContentClasses(size()),
+                    (props.fullWidth ||
+                      (props.iconOnly && option.icon !== undefined)) &&
+                      'justify-center'
                   )}
                   // Keep a focused input focused while switching.
                   onPointerDown={(event) => event.preventDefault()}
@@ -394,7 +418,13 @@ function TouchInset<T extends string>(props: TabsProps<T>) {
                   <OptionContent
                     option={option}
                     iconOnly={props.iconOnly ?? false}
-                    iconClass={tabIconSizes[size()][props.iconOnly && option.icon !== undefined ? 'square' : 'labeled']}
+                    iconClass={
+                      tabIconSizes[size()][
+                        props.iconOnly && option.icon !== undefined
+                          ? 'square'
+                          : 'labeled'
+                      ]
+                    }
                   />
                 </KSegmentedControl.ItemLabel>
               </KSegmentedControl.Item>
@@ -430,20 +460,29 @@ function TouchSegmented<T extends string>(props: TabsProps<T>) {
               option.disabled
                 ? 'opacity-50'
                 : 'text-ink-muted active:overlay-active data-checked:text-ink data-checked:overlay-active',
-              props.fullWidth && !(props.iconOnly && option.icon !== undefined) && 'flex-1'
+              props.fullWidth &&
+                !(props.iconOnly && option.icon !== undefined) &&
+                'flex-1'
             )}
           >
             <KSegmentedControl.ItemInput class="pointer-events-none absolute inset-0" />
             <KSegmentedControl.ItemLabel
               class={cn(
                 'flex min-w-0 flex-1 self-stretch items-center justify-center gap-1.5',
-                !(props.iconOnly && option.icon !== undefined) && tabContentClasses(size())
+                !(props.iconOnly && option.icon !== undefined) &&
+                  tabContentClasses(size())
               )}
             >
               <OptionContent
                 option={option}
                 iconOnly={props.iconOnly ?? false}
-                iconClass={tabIconSizes[size()][props.iconOnly && option.icon !== undefined ? 'square' : 'labeled']}
+                iconClass={
+                  tabIconSizes[size()][
+                    props.iconOnly && option.icon !== undefined
+                      ? 'square'
+                      : 'labeled'
+                  ]
+                }
               />
             </KSegmentedControl.ItemLabel>
           </KSegmentedControl.Item>

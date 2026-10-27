@@ -21,7 +21,12 @@ type BoardMenuItemProps = {
 export function BoardMenu(props: BoardMenuItemProps) {
   return (
     <Dropdown>
-      <Dropdown.Trigger aria-label={"Board menu"} tooltip={"Board menu"} variant="ghost" size={"icon-md"}  >
+      <Dropdown.Trigger
+        aria-label="Board menu"
+        tooltip="Board menu"
+        variant="ghost"
+        size="icon-md"
+      >
         <DotsIcon class="size-4" />
       </Dropdown.Trigger>
       <Dropdown.Content class="min-w-48">

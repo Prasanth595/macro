@@ -18,13 +18,16 @@ function linearize(channel: number): number {
 }
 
 /** Choose accent contrast only. CSS owns all other Button materials and states. */
-export function buttonAccentVars(colors: ResolvedThemeColors): Record<string, string> {
+export function buttonAccentVars(
+  colors: ResolvedThemeColors
+): Record<string, string> {
   const accent = colors.accent;
   const rgb = new Color('oklch', [accent.l, accent.c, accent.h], accent.alpha)
     .toGamut({ space: 'srgb' })
     .to('srgb');
   const luminance = rgb.coords.reduce(
-    (sum, channel, index) => sum + linearize(channel) * LUMINANCE_WEIGHTS[index],
+    (sum, channel, index) =>
+      sum + linearize(channel) * LUMINANCE_WEIGHTS[index],
     0
   );
   const useDarkInk = luminance > DARK_INK_LUMINANCE_THRESHOLD;

@@ -34,9 +34,10 @@ export function MarkupToolbar() {
     <Show when={canComment()}>
       <div class="flex flex-row items-center">
         <Show when={canEdit()}>
-          <Button aria-label={"Text Box"} tooltip={"Text Box"}
+          <Button
+            aria-label="Text Box"
+            tooltip="Text Box"
             size="icon-sm"
-            
             variant="ghost"
             onClick={() => {
               pdf.markup.commands.beginPlacement(
@@ -46,9 +47,10 @@ export function MarkupToolbar() {
           >
             <Textbox class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
-          <Button aria-label={"Signature"} tooltip={"Signature"}
+          <Button
+            aria-label="Signature"
+            tooltip="Signature"
             size="icon-sm"
-            
             variant="ghost"
             onClick={() =>
               pdf.markup.commands.beginPlacement(PayloadMode.Signature)
@@ -57,9 +59,10 @@ export function MarkupToolbar() {
             <Signature class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
         </Show>
-        <Button aria-label={"Comment"} tooltip={"Comment"}
+        <Button
+          aria-label="Comment"
+          tooltip="Comment"
           size="icon-sm"
-          
           variant="ghost"
           onClick={() => {
             pdf.markup.commands.beginPlacement(PayloadMode.Thread);

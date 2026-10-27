@@ -20,12 +20,12 @@ export function ToolbarPopover(props: {
       overlap
       overflowPadding={8}
     >
-      <Popover.Trigger aria-label={`${props.label}${props.count ? ` ${props.count}` : ''}`}
+      <Popover.Trigger
+        aria-label={`${props.label}${props.count ? ` ${props.count}` : ''}`}
         as={props.grouped ? ButtonGroup.Button : Button}
         variant="ghost"
         size={props.compact && !props.count ? 'icon-md' : 'md'}
         class={props.count ? 'text-accent' : undefined}
-        
         tooltip={props.label}
       >
         {props.icon}

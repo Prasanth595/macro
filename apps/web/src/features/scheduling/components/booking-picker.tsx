@@ -291,19 +291,21 @@ export function BookingPicker(props: {
                       })}
                     </span>
                     <div class="flex gap-1">
-                      <Button aria-label={"Previous month"} tooltip={"Previous month"}
+                      <Button
+                        aria-label="Previous month"
+                        tooltip="Previous month"
                         type="button"
                         variant="ghost"
-                        
                         disabled={month() <= currentMonth()}
                         onClick={() => shiftMonth(-1)}
                       >
                         ‹
                       </Button>
-                      <Button aria-label={"Next month"} tooltip={"Next month"}
+                      <Button
+                        aria-label="Next month"
+                        tooltip="Next month"
                         type="button"
                         variant="ghost"
-                        
                         onClick={() => shiftMonth(1)}
                       >
                         ›
@@ -325,7 +327,9 @@ export function BookingPicker(props: {
                       {(d) => (
                         <Button
                           type="button"
-                          variant={date() === dateKey(d) ? "secondary" : 'ghost'}
+                          variant={
+                            date() === dateKey(d) ? 'secondary' : 'ghost'
+                          }
                           class="h-auto w-full aspect-square"
                           aria-pressed={date() === dateKey(d)}
                           disabled={dateKey(d) < today()}

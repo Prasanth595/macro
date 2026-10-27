@@ -326,7 +326,7 @@ export function LinkDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant={"accent"}
+            variant="accent"
             type="submit"
             data-testid="pptx-link-ok"
             disabled={!link()}
@@ -334,10 +334,11 @@ export function LinkDialog(props: {
             OK
           </Button>
         </div>
-        <Button aria-label={"Close"} tooltip={"Close"}
+        <Button
+          aria-label="Close"
+          tooltip="Close"
           size="icon-sm"
           variant="ghost"
-          
           class="absolute top-3 right-3"
           onClick={props.onClose}
         >

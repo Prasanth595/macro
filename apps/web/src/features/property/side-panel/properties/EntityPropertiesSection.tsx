@@ -876,7 +876,6 @@ function NonUserEntityValue(props: { property: Property }) {
           <Button
             type="button"
             variant="ghost"
-            
             size="icon-sm"
             aria-label={`Add ${props.property.displayName}`}
             onClick={(event) => {
@@ -960,7 +959,6 @@ function EntityCollectionPropertyBody(props: {
             <Button
               type="button"
               variant="ghost"
-              
               size="icon-sm"
               class="size-5"
               aria-label={`Add ${props.property.displayName}`}

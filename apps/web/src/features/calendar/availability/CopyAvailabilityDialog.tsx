@@ -125,10 +125,11 @@ export function CopyAvailabilityDialog(props: ManagedDialogProps) {
         <ActionDialogShell.Body>
           <ActionDialogShell.Header class="flex items-start justify-between gap-3">
             <ActionDialogShell.Title>Copy availability</ActionDialogShell.Title>
-            <Button aria-label={"Close availability dialog"} tooltip={"Close availability dialog"}
+            <Button
+              aria-label="Close availability dialog"
+              tooltip="Close availability dialog"
               variant="ghost"
               size="icon-sm"
-              
               onClick={() => props.onOpenChange(false)}
             >
               <XIcon class="size-4" />
@@ -225,7 +226,7 @@ export function CopyAvailabilityDialog(props: ManagedDialogProps) {
                   tabIndex={unavailable() ? 0 : undefined}
                 >
                   <Button
-                    variant={"secondary"}
+                    variant="secondary"
                     size="md"
                     class={cn(
                       'w-full px-2 disabled:cursor-not-allowed disabled:opacity-50',

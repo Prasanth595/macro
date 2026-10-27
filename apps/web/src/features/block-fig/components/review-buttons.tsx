@@ -16,7 +16,8 @@ export function CommentButton(props: {
     <Show when={props.comments}>
       {(c) => (
         <div class="relative">
-          <Button aria-label={"Comment (C)"}
+          <Button
+            aria-label="Comment (C)"
             variant="ghost"
             size="icon-md"
             aria-pressed={c().active}
@@ -25,7 +26,6 @@ export function CommentButton(props: {
                 ? 'rounded-lg bg-accent text-accent-contrast'
                 : 'rounded-lg'
             }
-            
             tooltip="Comment · C"
             data-testid="fig-tool-comment"
             onClick={() => c().onToggle()}
@@ -48,10 +48,10 @@ export function CommentButton(props: {
 
 export function PresentButton(props: { mac: boolean; onPresent: () => void }) {
   return (
-    <Button aria-label={"Present"}
+    <Button
+      aria-label="Present"
       variant="ghost"
       size="icon-md"
-      
       tooltip={`Present · ${props.mac ? '⌥⌘↵' : 'Ctrl+Alt+Enter'}`}
       data-testid="fig-present-button"
       onClick={() => props.onPresent()}

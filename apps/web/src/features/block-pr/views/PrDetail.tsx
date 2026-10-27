@@ -204,9 +204,12 @@ export function PrDetailActions(props: { detail?: PrForeignEntityData }) {
           <>
             <HeaderActionGroup label="Sharing">
               <Tooltip label="Share pull request">
-                <HeaderActionButton grouped
+                <HeaderActionButton
+                  grouped
                   label="Share"
-                  icon={<IconShared class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
+                  icon={
+                    <IconShared class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+                  }
                   onClick={openShare}
                 />
               </Tooltip>

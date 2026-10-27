@@ -15,11 +15,11 @@ export function DictationButton(props: {
 }) {
   return (
     <Show when={isFeatureEnabled(enableDictation)}>
-      <Button aria-label={props.dictation.label()}
+      <Button
+        aria-label={props.dictation.label()}
         variant="ghost"
-        size={"icon-md"}
+        size="icon-md"
         class="text-ink not-touch:text-composer-ink"
-        
         tooltip={props.dictation.label()}
         disabled={props.disabled || props.dictation.disabled()}
         onClick={() => fireAndForget(props.dictation.start(), 'dictation')}
@@ -59,11 +59,12 @@ export function DictationPanel(props: { dictation: DictationController }) {
               .otherwise(() => 'Listening…')}
           </span>
         </div>
-        <Button aria-label={"Cancel dictation"} tooltip={"Cancel dictation"}
+        <Button
+          aria-label="Cancel dictation"
+          tooltip="Cancel dictation"
           variant="ghost"
-          size={"icon-md"}
+          size="icon-md"
           class="text-composer-ink touch:bg-ink/5 touch:text-ink-muted"
-          
           ref={(element) =>
             queueMicrotask(() => {
               if (element.isConnected) element.focus();
@@ -75,11 +76,12 @@ export function DictationPanel(props: { dictation: DictationController }) {
         </Button>
         {/* Confirm is the composer's primary action while recording, so on
             touch it borrows the send button's filled circle. */}
-        <Button aria-label={"Use dictation"} tooltip={"Use dictation"}
+        <Button
+          aria-label="Use dictation"
+          tooltip="Use dictation"
           variant="ghost"
-          size={"icon-md"}
+          size="icon-md"
           class="text-composer-ink touch:bg-ink touch:text-surface-4"
-          
           disabled={
             props.dictation.phase() === 'starting' ||
             props.dictation.phase() === 'finishing'

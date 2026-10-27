@@ -205,7 +205,9 @@ export function ReviewsControls(
         />
       </HeaderActionGroup>
       <HeaderActionGroup label="Review layout">
-        <ButtonGroup.Button aria-label={"List"} tooltip={"List"}
+        <ButtonGroup.Button
+          aria-label="List"
+          tooltip="List"
           variant="ghost"
           size="icon-sm"
           aria-pressed={props.layout === 'list'}
@@ -213,7 +215,9 @@ export function ReviewsControls(
         >
           <ListIcon class="size-4" />
         </ButtonGroup.Button>
-        <ButtonGroup.Button aria-label={"Board"} tooltip={"Board"}
+        <ButtonGroup.Button
+          aria-label="Board"
+          tooltip="Board"
           variant="ghost"
           size="icon-sm"
           aria-pressed={props.layout === 'board'}

@@ -26,11 +26,11 @@ export function UsageInfoDialog(props: {
           <Dialog.Title class="text-xl font-semibold text-ink">
             Monthly limit
           </Dialog.Title>
-          <Button aria-label={"Close usage explanation"} tooltip={"Close usage explanation"}
+          <Button
+            aria-label="Close usage explanation"
+            tooltip="Close usage explanation"
             size="icon-sm"
             variant="ghost"
-            
-            
             onClick={props.onClose}
           >
             <XIcon class="size-4" />

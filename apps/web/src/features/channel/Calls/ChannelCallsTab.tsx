@@ -426,7 +426,6 @@ function ChannelCallsList(props: { channelId: string }) {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    
                                     disabled={loadMore().isLoading}
                                     class="bg-surface"
                                   >

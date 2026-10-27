@@ -196,7 +196,11 @@ export function ChannelDetailActions(props: ChannelDetailHeaderProps) {
         <Show when={askMacroEntity()}>
           {(entity) => (
             <DebugSuspense name="ChannelDetail.ask-macro">
-              <ChatWithAgentButton grouped entity={entity()} label="Ask Macro" />
+              <ChatWithAgentButton
+                grouped
+                entity={entity()}
+                label="Ask Macro"
+              />
             </DebugSuspense>
           )}
         </Show>

@@ -56,10 +56,10 @@ export function ArtboardsPanel(props: { viewer: AiViewer; editor: AiEditor }) {
         <span class="flex-1 text-ink-muted">
           {viewer.artboards().length} artboards
         </span>
-        <Button aria-label={"New artboard"}
+        <Button
+          aria-label="New artboard"
           variant="ghost"
           size="icon-sm"
-          
           tooltip="New artboard"
           data-testid="ai-artboard-new"
           disabled={!editor.enabled()}

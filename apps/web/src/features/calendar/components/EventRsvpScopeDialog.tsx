@@ -70,7 +70,7 @@ export function EventRsvpScopeDialog(props: {
                 <Button variant="ghost" onClick={props.onClose}>
                   Cancel
                 </Button>
-                <Button variant={"secondary"} onClick={props.onConfirm}>
+                <Button variant="secondary" onClick={props.onConfirm}>
                   OK
                 </Button>
               </div>
@@ -152,7 +152,7 @@ export function EventRsvpScopeDialog(props: {
                   Cancel
                 </Button>
                 <Button
-                  variant={"secondary"}
+                  variant="secondary"
                   class="min-h-11 flex-1"
                   onClick={props.onConfirm}
                 >

@@ -67,7 +67,10 @@ export function ProviderRow(props: {
           aria-label={`Import from ${props.provider.name}`}
           onClick={() => props.onImport()}
         >
-          <SparkleIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" aria-hidden="true" />
+          <SparkleIcon
+            class="size-3 touch:size-6 shrink-0 pointer-events-none"
+            aria-hidden="true"
+          />
           Import
         </Button>
       </Show>

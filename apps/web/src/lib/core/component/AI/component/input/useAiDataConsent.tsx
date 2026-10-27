@@ -42,7 +42,12 @@ export function useAiDataConsentGate() {
             <div class="flex flex-row items-center justify-between px-2 h-10 gap-2 border-b border-b-edge-muted">
               <div class="flex flex-row items-center gap-2">
                 <Dialog.CloseButton>
-                  <Button aria-label={"Close"} tooltip={"Close"}  variant="ghost" size="icon-sm">
+                  <Button
+                    aria-label="Close"
+                    tooltip="Close"
+                    variant="ghost"
+                    size="icon-sm"
+                  >
                     <CloseIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                   </Button>
                 </Dialog.CloseButton>
@@ -59,7 +64,7 @@ export function useAiDataConsentGate() {
                 <Button variant="ghost" onClick={denyConsent}>
                   Cancel
                 </Button>
-                <Button variant={"secondary"} onClick={grantConsent}>
+                <Button variant="secondary" onClick={grantConsent}>
                   Accept
                 </Button>
               </div>

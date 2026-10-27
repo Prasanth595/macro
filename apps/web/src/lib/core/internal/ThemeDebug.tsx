@@ -34,8 +34,18 @@ const BUTTON_VARIANTS = [
   'danger',
   'primary',
 ] as const;
-const BUTTON_CONTENT_VARIANTS = ['outline', 'accent', 'secondary', 'primary'] as const;
-const BUTTON_ICON_SIZES = { sm: 'icon-sm', md: 'icon-md', lg: 'icon-lg', xl: 'icon-xl' } as const;
+const BUTTON_CONTENT_VARIANTS = [
+  'outline',
+  'accent',
+  'secondary',
+  'primary',
+] as const;
+const BUTTON_ICON_SIZES = {
+  sm: 'icon-sm',
+  md: 'icon-md',
+  lg: 'icon-lg',
+  xl: 'icon-xl',
+} as const;
 const BUTTON_SIZES = ['sm', 'md', 'lg', 'xl'] as const;
 const BADGE_SIZES = ['sm', 'md', 'lg'] as const;
 const BADGE_VARIANTS = ['ghost', 'outline'] as const;
@@ -286,11 +296,11 @@ function ThemeDebug() {
                                   <span class="text-xs text-ink-extra-muted">
                                     Icon only
                                   </span>
-                                  <Button aria-label={`Add (${variant}, ${size})`} tooltip={`Add (${variant}, ${size})`}
+                                  <Button
+                                    aria-label={`Add (${variant}, ${size})`}
+                                    tooltip={`Add (${variant}, ${size})`}
                                     variant={variant}
                                     size={BUTTON_ICON_SIZES[size]}
-                                    
-                                    
                                   >
                                     <PlusIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                                   </Button>
@@ -423,18 +433,10 @@ function ThemeDebug() {
                   </Panel.Header>
                   <Panel.Body class="p-4">
                     <div class="flex flex-wrap gap-2">
-                      <Button variant="ghost" >
-                        Ghost
-                      </Button>
-                      <Button variant="outline" >
-                        Base
-                      </Button>
-                      <Button variant="accent" >
-                        Active
-                      </Button>
-                      <Button variant="danger" >
-                        Danger
-                      </Button>
+                      <Button variant="ghost">Ghost</Button>
+                      <Button variant="outline">Base</Button>
+                      <Button variant="accent">Active</Button>
+                      <Button variant="danger">Danger</Button>
                     </div>
                   </Panel.Body>
                 </Panel>
@@ -462,7 +464,7 @@ function ThemeDebug() {
               <Button variant="ghost" size="sm">
                 Cancel
               </Button>
-              <Button variant={"secondary"} size="sm">
+              <Button variant="secondary" size="sm">
                 Confirm
               </Button>
             </Panel.Footer>

@@ -170,7 +170,7 @@ function EveryoneElseDeclinedNotice(props: {
               <Button variant="ghost" size="sm" onClick={props.onDelete}>
                 Delete
               </Button>
-              <Button variant={"accent"} size="sm" onClick={props.onReschedule}>
+              <Button variant="accent" size="sm" onClick={props.onReschedule}>
                 Reschedule
               </Button>
             </div>
@@ -242,38 +242,37 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
               aria-label="Close event details"
               variant="ghost"
               size="icon-md"
-              
               class="size-11 rounded-full bg-ink/6 text-ink-muted"
             >
               <CloseIcon class="size-5 shrink-0" />
             </MobileDrawer.Close>
             <div class="flex items-center gap-1">
               <Show when={!props.event.teamProjection}>
-                <Button aria-label={"Copy event"} tooltip={"Copy event"}
-                  
+                <Button
+                  aria-label="Copy event"
+                  tooltip="Copy event"
                   variant="ghost"
                   size="icon-md"
-                  
                   class="size-11 bg-ink/6 text-ink-muted"
                   onClick={() => copyCalendarEventMention(props.event)}
                 >
                   <LinkIcon class="size-5 shrink-0" />
                 </Button>
-                <Button aria-label={"Download .ics"} tooltip={"Download .ics"}
-                  
+                <Button
+                  aria-label="Download .ics"
+                  tooltip="Download .ics"
                   variant="ghost"
                   size="icon-md"
-                  
                   class="size-11 bg-ink/6 text-ink-muted"
                   onClick={() => downloadCalendarEventIcs(props.event)}
                 >
                   <DownloadSimpleIcon class="size-5 shrink-0" />
                 </Button>
-                <Button aria-label={"Forward by email"} tooltip={"Forward by email"}
-                  
+                <Button
+                  aria-label="Forward by email"
+                  tooltip="Forward by email"
                   variant="ghost"
                   size="icon-md"
-                  
                   class="size-11 bg-ink/6 text-ink-muted"
                   onClick={forwardByEmail}
                 >
@@ -569,31 +568,31 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
               <Popover.Title class="sr-only">{props.event.title}</Popover.Title>
               <div class="flex shrink-0 items-center justify-end gap-1 px-2 pt-2">
                 <Show when={!props.event.teamProjection}>
-                  <Button aria-label={"Copy event"} tooltip={"Copy event"}
-                    
+                  <Button
+                    aria-label="Copy event"
+                    tooltip="Copy event"
                     variant="ghost"
                     size="icon-sm"
-                    
                     class="text-ink-muted"
                     onClick={() => copyCalendarEventMention(props.event)}
                   >
                     <LinkIcon class="size-4 shrink-0" />
                   </Button>
-                  <Button aria-label={"Download .ics"} tooltip={"Download .ics"}
-                    
+                  <Button
+                    aria-label="Download .ics"
+                    tooltip="Download .ics"
                     variant="ghost"
                     size="icon-sm"
-                    
                     class="text-ink-muted"
                     onClick={() => downloadCalendarEventIcs(props.event)}
                   >
                     <DownloadSimpleIcon class="size-4 shrink-0" />
                   </Button>
-                  <Button aria-label={"Forward by email"} tooltip={"Forward by email"}
-                    
+                  <Button
+                    aria-label="Forward by email"
+                    tooltip="Forward by email"
                     variant="ghost"
                     size="icon-sm"
-                    
                     class="text-ink-muted"
                     onClick={forwardByEmail}
                   >
@@ -631,7 +630,6 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                   tooltip="Close event details"
                   variant="ghost"
                   size="icon-sm"
-                  
                   class="rounded-md text-ink-muted"
                 >
                   <CloseIcon class="size-4 shrink-0" />

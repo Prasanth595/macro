@@ -191,7 +191,9 @@ function InputGroupRoot(props: InputGroupProps) {
           isTouchDevice() ? 'rounded-lg' : 'rounded-full',
           grouped() &&
             'flex-1 rounded-none border-0 bg-transparent outline-none has-[[data-slot=input-group-control]:focus-visible]:ring-0',
-          grouped() && buttonGroup?.orientation === 'horizontal' && 'h-full min-h-0',
+          grouped() &&
+            buttonGroup?.orientation === 'horizontal' &&
+            'h-full min-h-0',
           local.class
         )}
         {...rest}

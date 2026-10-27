@@ -90,11 +90,12 @@ export function PollComposer(props: {
                     }}
                   />
                   <Show when={options().length > 2}>
-                    <Button aria-label={`Remove option ${index + 1}`} tooltip={`Remove option ${index + 1}`}
+                    <Button
+                      aria-label={`Remove option ${index + 1}`}
+                      tooltip={`Remove option ${index + 1}`}
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      
                       onClick={() => {
                         setOptions((current) =>
                           current.filter((_, at) => at !== index)
@@ -168,7 +169,7 @@ export function PollComposer(props: {
         </Button>
         <Button
           type="submit"
-          variant={"accent"}
+          variant="accent"
           size="sm"
           disabled={!ready() || props.pending}
           aria-busy={props.pending}

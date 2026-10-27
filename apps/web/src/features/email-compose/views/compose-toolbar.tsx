@@ -51,7 +51,7 @@ export function EmailComposeToolbar(props: {
               variant="ghost"
               onClick={ctx.onDelete}
               tooltip="Delete draft"
-              size={"icon-md"}
+              size="icon-md"
               disabled={ctx.disabled()}
             >
               <Trash class="size-4 touch:size-6 shrink-0 pointer-events-none" />
@@ -67,7 +67,7 @@ export function EmailComposeToolbar(props: {
                 }))
               }
               tooltip="Attach"
-              size={"icon-md"}
+              size="icon-md"
               disabled={ctx.disabled()}
             >
               <PaperclipIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
@@ -76,7 +76,7 @@ export function EmailComposeToolbar(props: {
           <Button
             variant="ghost"
             tooltip="Format"
-            size={"icon-md"}
+            size="icon-md"
             disabled={ctx.disabled()}
             onClick={() => setShowFormatRibbon(!showFormatRibbon())}
           >
@@ -101,9 +101,12 @@ export function EmailComposeToolbar(props: {
             onClick={() => ctx.onSend()}
             disabled={ctx.isSavingDraft?.() || ctx.primaryActionDisabled()}
             pending={ctx.isSending()}
-            tooltip={{ content: ctx.sendUnavailableReason?.() ?? ctx.schedule.actionLabel(), shortcut: "cmd+enter" }}
+            tooltip={{
+              content:
+                ctx.sendUnavailableReason?.() ?? ctx.schedule.actionLabel(),
+              shortcut: 'cmd+enter',
+            }}
             aria-label={ctx.schedule.actionLabel()}
-            
           />
         </div>
       </div>

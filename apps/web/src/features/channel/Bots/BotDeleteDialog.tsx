@@ -38,7 +38,7 @@ export function BotDeleteDialog(props: {
             </Button>
             <Button
               type="button"
-              variant={"secondary"}
+              variant="secondary"
               size="sm"
               disabled={props.pending}
               onClick={props.onConfirm}

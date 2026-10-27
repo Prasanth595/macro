@@ -70,7 +70,8 @@ export function MarkdownSidePanelSections() {
             <DispatchAgentButton showPrimaryLabel />
           </Show>
           <HeaderActionGroup label="Actions">
-            <AskMacroButton grouped
+            <AskMacroButton
+              grouped
               entity={{
                 type: 'document',
                 id: documentId(),

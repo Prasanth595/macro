@@ -40,7 +40,12 @@ export function CopyFilePathButton(props: {
         class="motion-safe:transition-transform motion-safe:duration-150 motion-safe:active:scale-95"
         onClick={() => fireAndForget(copy(), 'changes')}
       >
-        <Show when={copied()} fallback={<CopyIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}>
+        <Show
+          when={copied()}
+          fallback={
+            <CopyIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+          }
+        >
           <CheckIcon class="text-success size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Show>
       </Button>

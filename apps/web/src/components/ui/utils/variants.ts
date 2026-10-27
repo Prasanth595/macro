@@ -3,7 +3,10 @@ import { cn } from './classname';
 type VariantGroups = Record<string, Record<string, string>>;
 
 type VariantSelection<Groups extends VariantGroups> = {
-  -readonly [Group in keyof Groups]?: Extract<keyof Groups[Group], string> | null;
+  -readonly [Group in keyof Groups]?: Extract<
+    keyof Groups[Group],
+    string
+  > | null;
 };
 
 /** Extracts the inferred variant selections accepted by a variant helper. */
@@ -32,7 +35,8 @@ export function createVariants<const Groups extends VariantGroups>(
     return cn(
       base,
       Object.entries(groups).map(([group, values]) => {
-        const value = selected[group] === undefined ? fallback[group] : selected[group];
+        const value =
+          selected[group] === undefined ? fallback[group] : selected[group];
         return value == null ? undefined : values[value];
       })
     );

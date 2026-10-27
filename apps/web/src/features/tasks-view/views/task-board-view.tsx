@@ -256,10 +256,11 @@ export function TaskBoardView(props: {
                 />
                 <Show when={props.onCreate}>
                   <div class="ml-auto flex shrink-0">
-                    <Button aria-label={`Add task to ${column().label}`} tooltip={`Add task to ${column().label}`}
+                    <Button
+                      aria-label={`Add task to ${column().label}`}
+                      tooltip={`Add task to ${column().label}`}
                       size="icon-sm"
                       variant="ghost"
-                      
                       onClick={() => props.onCreate?.(column().id)}
                     >
                       <PlusIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />

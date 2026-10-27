@@ -44,11 +44,12 @@ export function SchedulingMobileHeader(props: {
       <Show when={props.editorTitle}>
         <div class="flex h-10 min-w-0 items-center gap-2">
           <HeaderIsland class="gap-0 px-1">
-            <Button variant="ghost" aria-label={"Back to availability"} tooltip={"Back to availability"}
-              
-              size={"icon-sm"}
+            <Button
+              variant="ghost"
+              aria-label="Back to availability"
+              tooltip="Back to availability"
+              size="icon-sm"
               class="p-1 touch:active:bg-transparent"
-              
               disabled={props.disabled}
               onClick={props.onBack}
             >
@@ -87,13 +88,14 @@ export function SchedulingMobileHeader(props: {
                 restoreFocus
                 finalFocusEl={ownerTrigger()}
               >
-                <MobileDrawer.Trigger aria-label={`Calendar owner: ${ownerName()}`} tooltip={`Calendar owner: ${ownerName()}`}
+                <MobileDrawer.Trigger
+                  aria-label={`Calendar owner: ${ownerName()}`}
+                  tooltip={`Calendar owner: ${ownerName()}`}
                   ref={setOwnerTrigger}
                   as={Button}
                   variant="ghost"
                   size="sm"
                   class="h-10 min-w-0 rounded-full px-2"
-                  
                   disabled={props.disabled}
                 >
                   <Show
@@ -146,11 +148,12 @@ export function SchedulingMobileHeader(props: {
                 </MobileDrawer.Portal>
               </MobileDrawer>
               <Show when={props.createLabel}>
-                <Button aria-label={props.createLabel} tooltip={props.createLabel}
+                <Button
+                  aria-label={props.createLabel}
+                  tooltip={props.createLabel}
                   variant="ghost"
                   size="icon-md"
                   class="size-10 rounded-full"
-                  
                   disabled={props.createDisabled}
                   onClick={(event) => props.onCreate(event.currentTarget)}
                 >

@@ -46,7 +46,6 @@ export function AutoReloadLimitNotice(props: {
           <Button
             size="sm"
             variant="outline"
-            
             disabled={props.pending}
             onClick={(event) => props.onAdjust(event.currentTarget)}
           >
@@ -55,7 +54,6 @@ export function AutoReloadLimitNotice(props: {
           <Button
             size="sm"
             variant="ghost"
-            
             disabled={props.pending}
             onClick={(event) => props.onAddCredits(event.currentTarget)}
           >

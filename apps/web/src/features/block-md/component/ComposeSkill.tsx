@@ -437,8 +437,7 @@ export function ComposeSkill(props: ComposeSkillProps) {
         <Button
           onClick={handleCreateSkill}
           disabled={title().trim().length === 0 || isCreating()}
-          variant={"secondary"}
-          
+          variant="secondary"
           class="gap-3"
         >
           Create Skill

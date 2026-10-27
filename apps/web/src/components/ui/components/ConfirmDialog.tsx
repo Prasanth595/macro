@@ -71,7 +71,6 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
               <Button
                 type="button"
                 variant="ghost"
-                
                 disabled={props.pending}
                 onClick={() => props.onOpenChange(false)}
               >

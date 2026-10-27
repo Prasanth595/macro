@@ -70,7 +70,7 @@ export function CreateProject(props: {
                 tabIndex={-1}
                 aria-label="Continue editing in split"
                 tooltip="Continue editing in split"
-                size={"icon-md"}
+                size="icon-md"
                 disabled={composer.pending()}
                 onClick={() => props.onContinueInSplit?.(composer.snapshot())}
               >
@@ -105,7 +105,7 @@ export function CreateProject(props: {
             tabIndex={-1}
             aria-label="Close"
             tooltip="Close"
-            size={"icon-md"}
+            size="icon-md"
             disabled={composer.pending()}
             onClick={props.onClose}
           >

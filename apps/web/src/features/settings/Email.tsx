@@ -178,10 +178,11 @@ export function EmailCard(
             <ConnectAction label="Connect" onClick={onConnectEmail} />
           </Show>
           <Show when={props.onOpenSettings}>
-            <UiButton aria-label={"Email settings"} tooltip={"Email settings"}
+            <UiButton
+              aria-label="Email settings"
+              tooltip="Email settings"
               variant="ghost"
               size="icon-md"
-              
               onClick={props.onOpenSettings}
               class="touch:min-h-11 touch:min-w-11"
             >
@@ -300,7 +301,6 @@ export function EmailCard(
                 <Button
                   variant="outline"
                   size="md"
-                  
                   aria-label="Add inbox"
                   onClick={onConnectEmail}
                 >
@@ -350,14 +350,10 @@ export function EmailCard(
               </Show>
             </Dialog.Description>
             <div class="pt-3 justify-end items-center gap-3 inline-flex">
-              <Button
-                variant="ghost"
-                
-                onClick={() => setRemoveTarget(null)}
-              >
+              <Button variant="ghost" onClick={() => setRemoveTarget(null)}>
                 Cancel
               </Button>
-              <Button variant={"secondary"}  onClick={handleRemoveInbox}>
+              <Button variant="secondary" onClick={handleRemoveInbox}>
                 Remove
               </Button>
             </div>
@@ -451,7 +447,7 @@ function DisabledPrimaryRow(props: { email: string; onEnable: () => void }) {
         </div>
         <span class="text-xs text-ink-muted">Sync disabled</span>
       </div>
-      <Button variant="outline" size="md"  onClick={props.onEnable}>
+      <Button variant="outline" size="md" onClick={props.onEnable}>
         Enable
       </Button>
     </div>
@@ -532,7 +528,6 @@ function InboxRow(props: {
             <Button
               variant="accent"
               size="md"
-              
               onClick={props.onReconnect}
               aria-label={`Reconnect ${props.link.email_address}`}
             >
@@ -547,7 +542,6 @@ function InboxRow(props: {
             <Button
               variant="outline"
               size="md"
-              
               onClick={props.onEnableCalendar}
               aria-label={`Enable calendar for ${props.link.email_address}`}
             >
@@ -571,7 +565,6 @@ function InboxRow(props: {
               <Button
                 variant="outline"
                 size="icon-sm"
-                
                 onClick={props.onTurnOffCalendar}
                 aria-label={`Turn off calendar for ${props.link.email_address}`}
               >
@@ -584,7 +577,6 @@ function InboxRow(props: {
               <Button
                 variant="outline"
                 size="icon-sm"
-                
                 disabled={
                   props.resyncing ||
                   (ENABLE_INBOX_SYNC_STATUS &&
@@ -601,7 +593,6 @@ function InboxRow(props: {
             <Button
               variant="ghost"
               size="md"
-              
               onClick={props.onRemove}
               aria-label={`Remove ${props.link.email_address}`}
             >

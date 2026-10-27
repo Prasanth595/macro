@@ -7,7 +7,10 @@ import { Show } from 'solid-js';
 import { CHANNEL_TOUR } from '../tour';
 import { useStartChannelCall } from './use-start-channel-call';
 
-export function ChannelCallButton(props: { channelId: string; grouped?: boolean }) {
+export function ChannelCallButton(props: {
+  channelId: string;
+  grouped?: boolean;
+}) {
   const call = useStartChannelCall(() => props.channelId);
 
   const tooltip = () => (call.isCallInProgress() ? 'Join Call' : 'Start Call');
@@ -15,12 +18,15 @@ export function ChannelCallButton(props: { channelId: string; grouped?: boolean 
 
   return (
     <Show when={!call.isInThisChannel()}>
-      <HeaderActionButton grouped={props.grouped}
+      <HeaderActionButton
+        grouped={props.grouped}
         ref={tourTarget(CHANNEL_TOUR.call)}
         onClick={() => fireAndForget(call.start(), 'channel-call')}
         tooltip={tooltip()}
         label={label()}
-        icon={<PhoneIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
+        icon={
+          <PhoneIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+        }
         class={cn(call.isCallInProgress() && 'text-success')}
       />
     </Show>

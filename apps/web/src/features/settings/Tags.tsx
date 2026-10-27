@@ -114,10 +114,10 @@ function TagListSection(props: {
                       <div class="flex shrink-0 items-center gap-1">
                         <Show when={props.onShare}>
                           {(onShare) => (
-                            <Button aria-label={`Share ${optionLabel(option)} with team`}
+                            <Button
+                              aria-label={`Share ${optionLabel(option)} with team`}
                               variant="ghost"
                               size="icon-sm"
-                              
                               tooltip="Share with team"
                               disabled={
                                 props.deleting ||
@@ -134,20 +134,20 @@ function TagListSection(props: {
                             </Button>
                           )}
                         </Show>
-                        <Button aria-label={`Edit ${optionLabel(option)}`}
+                        <Button
+                          aria-label={`Edit ${optionLabel(option)}`}
                           variant="ghost"
                           size="icon-sm"
-                          
                           tooltip="Edit tag"
                           disabled={props.deleting}
                           onClick={() => props.onEdit(tag())}
                         >
                           <PencilIcon class="size-3.5 touch:size-4" />
                         </Button>
-                        <Button aria-label={`Delete ${optionLabel(option)}`}
+                        <Button
+                          aria-label={`Delete ${optionLabel(option)}`}
                           variant="ghost"
                           size="icon-sm"
-                          
                           tooltip="Delete tag"
                           disabled={props.deleting}
                           onClick={() => props.onDelete(tag())}
@@ -207,7 +207,7 @@ function ConfirmDialog(props: {
               Cancel
             </Button>
             <Button
-              variant={"secondary"}
+              variant="secondary"
               disabled={props.pending}
               onClick={props.onConfirm}
             >
@@ -313,12 +313,7 @@ export function Tags() {
       title="Tags"
       description="Manage personal labels and shared team labels."
       actions={
-        <Button
-          variant={"accent"}
-          size="sm"
-          
-          onClick={() => openCreate('user')}
-        >
+        <Button variant="accent" size="sm" onClick={() => openCreate('user')}>
           <PlusIcon class="size-4" />
           New tag
         </Button>

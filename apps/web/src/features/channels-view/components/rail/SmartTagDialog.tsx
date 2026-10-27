@@ -86,10 +86,12 @@ function SmartTagDialog(props: SmartTagDialogProps & ManagedDialogProps) {
                 {props.initial ? 'Edit smart label' : 'New smart label'}
               </Dialog.Title>
             </div>
-            <Button variant="ghost" aria-label={"Close"} tooltip={"Close"}
+            <Button
+              variant="ghost"
+              aria-label="Close"
+              tooltip="Close"
               type="button"
-              
-              size={"icon-md"}
+              size="icon-md"
               tabIndex={-1}
               disabled={saving()}
               onClick={() => props.onOpenChange(false)}
@@ -141,7 +143,6 @@ function SmartTagDialog(props: SmartTagDialogProps & ManagedDialogProps) {
             <Button
               type="button"
               variant="ghost"
-              
               disabled={saving()}
               onClick={() => props.onOpenChange(false)}
             >
@@ -150,7 +151,6 @@ function SmartTagDialog(props: SmartTagDialogProps & ManagedDialogProps) {
             <Button
               type="submit"
               variant="accent"
-              
               class="not-touch:h-[33.75px] not-touch:px-[15px]"
               disabled={!canSubmit() || saving()}
             >

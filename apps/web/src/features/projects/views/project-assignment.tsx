@@ -103,7 +103,10 @@ export function ProjectAssignment(props: {
           <p role="alert" class="text-sm text-failure">
             Could not load projects.
           </p>
-          <Button variant="ghost" onClick={() => fireAndForget(source.refresh(), 'projects')}>
+          <Button
+            variant="ghost"
+            onClick={() => fireAndForget(source.refresh(), 'projects')}
+          >
             Try again
           </Button>
         </Show>

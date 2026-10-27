@@ -225,10 +225,10 @@ function QueuedRow(props: QueuedRowProps) {
             </Show>
           </span>
           <Show when={props.onSteer}>
-            <Button aria-label={"Steer"}
+            <Button
+              aria-label="Steer"
               variant="ghost"
               size="xs"
-              
               tooltip="Interrupt the current turn and send this message next"
               disabled={props.disabled}
               onClick={() => props.onSteer?.()}
@@ -237,10 +237,11 @@ function QueuedRow(props: QueuedRowProps) {
               Steer
             </Button>
           </Show>
-          <Button aria-label={"Remove queued message"} tooltip={"Remove queued message"}
+          <Button
+            aria-label="Remove queued message"
+            tooltip="Remove queued message"
             variant="ghost"
             size="icon-sm"
-            
             disabled={props.disabled}
             onClick={() => props.onRemove()}
             class="shrink-0"

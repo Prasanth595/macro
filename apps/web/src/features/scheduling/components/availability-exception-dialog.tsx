@@ -124,7 +124,7 @@ export function AvailabilityExceptionDialog(props: {
                 Cancel
               </Button>
               <Button
-                variant={"accent"}
+                variant="accent"
                 size="lg"
                 aria-label={
                   props.dates.length > 1

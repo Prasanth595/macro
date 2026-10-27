@@ -92,19 +92,21 @@ export function RecordPanel(props: RecordPanelProps) {
             {props.position + 1} of {props.total}
           </span>
         </Show>
-        <Button variant="ghost" aria-label={"Previous record"} tooltip={{ content: "Previous record", disabled: true }}
+        <Button
+          variant="ghost"
+          aria-label="Previous record"
+          tooltip={{ content: 'Previous record', disabled: true }}
           size="icon-sm"
-          
-          
           disabled={props.position <= 0}
           onClick={() => props.onNavigate(-1)}
         >
           <ArrowUpIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
-        <Button variant="ghost" aria-label={"Next record"} tooltip={{ content: "Next record", disabled: true }}
+        <Button
+          variant="ghost"
+          aria-label="Next record"
+          tooltip={{ content: 'Next record', disabled: true }}
           size="icon-sm"
-          
-          
           disabled={props.position < 0 || props.position >= props.total - 1}
           onClick={() => props.onNavigate(1)}
         >
@@ -145,7 +147,8 @@ export function RecordPanel(props: RecordPanelProps) {
               class="hover:text-failure-ink"
               onClick={props.onRequestDelete}
             >
-              <TrashIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" /> Delete record
+              <TrashIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />{' '}
+              Delete record
             </Button>
           </div>
         </Show>
@@ -156,7 +159,12 @@ export function RecordPanel(props: RecordPanelProps) {
           class="flex items-center gap-3 border-t border-warning/20 bg-warning/5 px-5 py-3 text-xs text-ink-muted"
         >
           <span class="flex-1">{props.saveError}</span>
-          <Button variant="ghost" size="xs" disabled={props.pending} onClick={props.onRetry}>
+          <Button
+            variant="ghost"
+            size="xs"
+            disabled={props.pending}
+            onClick={props.onRetry}
+          >
             Retry
           </Button>
         </div>

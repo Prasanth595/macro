@@ -119,7 +119,6 @@ export function ConfirmDrawer(props: ConfirmDialogProps) {
                 variant={confirmVariant()}
                 size="xl"
                 fullWidth
-                
                 class="h-12 rounded-2xl"
                 disabled={props.pending}
                 onClick={() => !props.pending && props.onConfirm()}

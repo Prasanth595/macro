@@ -45,7 +45,12 @@ export function SpreadsheetDraftMenu(props: {
       when={isTouchDevice()}
       fallback={
         <Dropdown open={props.open} onOpenChange={props.onOpenChange}>
-          <Dropdown.Trigger aria-label={"File actions"} tooltip={"File actions"}  size="icon-sm" variant="ghost">
+          <Dropdown.Trigger
+            aria-label="File actions"
+            tooltip="File actions"
+            size="icon-sm"
+            variant="ghost"
+          >
             <DotsThree class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Dropdown.Trigger>
           <Dropdown.Content class="w-64">

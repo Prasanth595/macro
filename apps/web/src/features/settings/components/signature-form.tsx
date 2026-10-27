@@ -40,7 +40,6 @@ export function SignatureForm(props: {
               class="shrink-0"
               variant="ghost"
               size="md"
-              
               disabled={props.pending || props.importing}
               onClick={() => onImport()()}
             >
@@ -75,7 +74,6 @@ export function SignatureForm(props: {
           <Button
             variant="outline"
             size="md"
-            
             disabled={!props.hasContent || props.pending || props.importing}
             onClick={props.onClear}
           >
@@ -83,9 +81,8 @@ export function SignatureForm(props: {
           </Button>
           <Show when={!props.mobile}>
             <Button
-              variant={"accent"}
+              variant="accent"
               size="md"
-              
               disabled={!props.dirty || props.pending || props.importing}
               onClick={props.onSave}
             >

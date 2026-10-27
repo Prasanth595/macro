@@ -1,5 +1,10 @@
 import PlusIcon from '@icon/system/regular/plus.svg';
-import { badgeTriggerClasses, type BadgeSize, type BadgeVariant, cn } from '@ui';
+import {
+  type BadgeSize,
+  type BadgeVariant,
+  badgeTriggerClasses,
+  cn,
+} from '@ui';
 import { usePropertiesContext } from '../context/PropertiesContext';
 
 export function AddPropertyButton(props: {

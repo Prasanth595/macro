@@ -89,7 +89,7 @@ export function PipelineDialog(props: {
                   tabIndex={-1}
                   aria-label="Close"
                   tooltip="Close"
-                  size={"icon-md"}
+                  size="icon-md"
                   disabled={pending()}
                   onClick={close}
                 >

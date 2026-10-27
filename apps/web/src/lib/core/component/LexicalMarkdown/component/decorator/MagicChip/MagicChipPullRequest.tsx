@@ -112,8 +112,13 @@ export const MagicChipPullRequest: Component<{ url: string }> = (props) => {
           target="_blank"
           rel="noreferrer"
           aria-label={label()}
-          class={buttonClasses({ variant: 'ghost', size: 'sm', fullWidth: true, class:
-              'h-8 min-w-0 justify-start rounded-lg bg-hover p-2 transition-none not-touch:not-disabled:hover:bg-active not-touch:not-disabled:hover:bg-none not-disabled:active:bg-none' })}
+          class={buttonClasses({
+            variant: 'ghost',
+            size: 'sm',
+            fullWidth: true,
+            class:
+              'h-8 min-w-0 justify-start rounded-lg bg-hover p-2 transition-none not-touch:not-disabled:hover:bg-active not-touch:not-disabled:hover:bg-none not-disabled:active:bg-none',
+          })}
           data-magic-chip-pull-request={props.url}
           on:click={(event) => event.stopPropagation()}
         >
@@ -127,7 +132,6 @@ export const MagicChipPullRequest: Component<{ url: string }> = (props) => {
             variant="ghost"
             size="sm"
             fullWidth
-            
             class="h-8 min-w-0 flex-1 justify-start rounded-lg bg-hover p-2 transition-none not-touch:not-disabled:hover:bg-active not-touch:not-disabled:hover:bg-none not-disabled:active:bg-none"
             aria-label={label()}
             data-magic-chip-pull-request={props.url}

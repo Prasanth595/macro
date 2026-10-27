@@ -59,7 +59,7 @@ export function ApiKeys() {
           disabled={!atLimit()}
         >
           <Button
-            variant={"accent"}
+            variant="accent"
             size="sm"
             disabled={createDisabled()}
             onClick={openCreate}
@@ -107,7 +107,7 @@ export function ApiKeys() {
                     </div>
                     <Button
                       class="mt-4"
-                      variant={"accent"}
+                      variant="accent"
                       size="sm"
                       onClick={openCreate}
                     >
@@ -202,10 +202,10 @@ function ApiKeyRow(props: {
           Created {formatRelativeTimestamp(props.keyInfo.createdAt)}
         </div>
       </div>
-      <Button aria-label={`Delete ${props.keyInfo.name}`}
+      <Button
+        aria-label={`Delete ${props.keyInfo.name}`}
         variant="ghost"
         size="icon-sm"
-        
         tooltip="Delete key"
         disabled={props.deleting}
         onClick={props.onDelete}
@@ -274,10 +274,10 @@ function CreateApiKeyDialog(props: {
             {created() ? 'API key created' : 'New API key'}
           </Dialog.Title>
           <div class="ml-auto">
-            <Button tooltip={"Close"}
+            <Button
+              tooltip="Close"
               variant="ghost"
               size="icon-sm"
-              
               aria-label="Close"
               disabled={props.pending}
               onClick={close}
@@ -349,7 +349,7 @@ function CreateApiKeyDialog(props: {
                   <code class="font-mono">{USER_API_KEY_HEADER}</code>.
                 </div>
                 <div class="flex justify-end border-t border-edge-muted pt-4">
-                  <Button variant={"secondary"} size="sm" onClick={close}>
+                  <Button variant="secondary" size="sm" onClick={close}>
                     Done
                   </Button>
                 </div>

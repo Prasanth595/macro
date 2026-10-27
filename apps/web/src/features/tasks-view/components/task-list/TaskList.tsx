@@ -640,7 +640,6 @@ export function TaskList(props: TaskListProps) {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      
                                       class={buttonClass()}
                                       disabled
                                     >
@@ -652,7 +651,6 @@ export function TaskList(props: TaskListProps) {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    
                                     class={buttonClass()}
                                   >
                                     <CaretDownIcon class="size-2.5" />

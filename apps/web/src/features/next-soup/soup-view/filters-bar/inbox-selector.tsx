@@ -61,7 +61,6 @@ export function InboxSelector() {
         as={Button}
         variant="outline"
         size="sm"
-        
         aria-label={selectorProps.hideLabel ? label() : undefined}
         class={cn(
           'bg-surface gap-1',
@@ -81,7 +80,6 @@ export function InboxSelector() {
     <Button
       variant="outline"
       size="sm"
-      
       aria-label={buttonProps.hideLabel ? 'Connect another account' : undefined}
       tooltip={buttonProps.hideLabel ? 'Connect another account' : undefined}
       class={cn('bg-surface gap-1', buttonProps.hideLabel && 'px-1')}

@@ -262,7 +262,7 @@ export function HeaderFooterDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant={"accent"}
+            variant="accent"
             data-testid="pptx-hf-apply-all"
             disabled={ro()}
             onClick={() => apply(true)}
@@ -270,10 +270,11 @@ export function HeaderFooterDialog(props: {
             Apply to All
           </Button>
         </div>
-        <Button aria-label={"Close"} tooltip={"Close"}
+        <Button
+          aria-label="Close"
+          tooltip="Close"
           size="icon-sm"
           variant="ghost"
-          
           class="absolute top-3 right-3"
           onClick={props.onClose}
         >

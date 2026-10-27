@@ -60,12 +60,12 @@ function MoreMenu(props: {
       placement="bottom-end"
       gutter={2}
     >
-      <Popover.Trigger aria-label={props.label} tooltip={{ content: props.label, placement: "top" }}
+      <Popover.Trigger
+        aria-label={props.label}
+        tooltip={{ content: props.label, placement: 'top' }}
         as={Button}
         size="icon-sm"
         variant="ghost"
-        
-        
         data-testid="pptx-comment-menu"
         onClick={(e: MouseEvent) => e.stopPropagation()}
       >
@@ -108,10 +108,10 @@ function CommentBox(props: {
     setText('');
   };
   const send = (
-    <Button aria-label={props.submitLabel}
+    <Button
+      aria-label={props.submitLabel}
       size={props.compact ? 'icon-sm' : 'sm'}
       variant={props.compact ? 'ghost' : 'accent'}
-      
       tooltip={`${props.submitLabel} (Ctrl+Enter)`}
       disabled={!text().trim()}
       data-testid={props.submitTestId}
@@ -434,10 +434,10 @@ export function CommentsPane(props: {
       <div class="flex h-9 items-center gap-1 border-edge-muted border-b px-3">
         <span class="flex-1 font-semibold text-ink text-sm">Comments</span>
         <Show when={!props.readonly}>
-          <Button aria-label={"New comment"}
+          <Button
+            aria-label="New comment"
             size="sm"
             variant="ghost"
-            
             tooltip="New comment (Ctrl+Alt+M)"
             data-testid="pptx-comments-new"
             onClick={() => c.newComment()}
@@ -446,10 +446,11 @@ export function CommentsPane(props: {
             New
           </Button>
         </Show>
-        <Button aria-label={"Close"} tooltip={"Close"}
+        <Button
+          aria-label="Close"
+          tooltip="Close"
           size="icon-sm"
           variant="ghost"
-          
           onClick={props.onClose}
         >
           <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />

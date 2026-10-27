@@ -66,12 +66,12 @@ export function CollapsedInput(props: CollapsedInputProps) {
         <Show
           when={props.leadingAction}
           fallback={
-            <Button tooltip={"Attach files"}
+            <Button
+              tooltip="Attach files"
               variant="ghost"
-              size={"icon-md"}
+              size="icon-md"
               class="not-touch:light-mode:text-composer-ink"
               aria-label="Attach files"
-              
               onClick={() => props.onAttach?.()}
             >
               <PaperclipIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
@@ -106,7 +106,8 @@ export function CollapsedInput(props: CollapsedInputProps) {
           </Show>
         </button>
         <Show when={hasAttachments() && !hasText()}>
-          <Button tooltip={`${attachmentCount()} attachment${
+          <Button
+            tooltip={`${attachmentCount()} attachment${
               attachmentCount() === 1 ? '' : 's'
             }`}
             variant="ghost"
@@ -115,7 +116,6 @@ export function CollapsedInput(props: CollapsedInputProps) {
             aria-label={`${attachmentCount()} attachment${
               attachmentCount() === 1 ? '' : 's'
             }`}
-            
             ref={attachFocusInput}
             onClick={() => props.onOpen?.()}
             data-collapsed-input-attachments

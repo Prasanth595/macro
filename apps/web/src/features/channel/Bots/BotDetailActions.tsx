@@ -38,7 +38,7 @@ export function BotDetailActions(props: BotDetailActionsProps) {
         </Button>
         <Button
           type="submit"
-          variant={"accent"}
+          variant="accent"
           size="sm"
           disabled={!props.dirty || props.pending}
         >

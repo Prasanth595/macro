@@ -67,30 +67,32 @@ export function SelectionLayoutInspector(props: {
             onChange={(value) => props.onChange('rotation', value)}
             onScrub={() => props.onScrub('rotation')}
           />
-          <ButtonGroup finish="raised" variant="secondary"
+          <ButtonGroup
+            finish="raised"
+            variant="secondary"
             size="icon-sm"
             class="w-full data-[orientation=horizontal]:rounded-lg"
           >
-            <ButtonGroup.Button aria-label={"Rotate 90°"} tooltip={"Rotate 90°"}
+            <ButtonGroup.Button
+              aria-label="Rotate 90°"
+              tooltip="Rotate 90°"
               fullWidth
-              
-              
               onClick={() => props.onTransform('rotate90')}
             >
               <ArrowClockwise class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </ButtonGroup.Button>
-            <ButtonGroup.Button aria-label={"Flip horizontal"} tooltip={"Flip horizontal"}
+            <ButtonGroup.Button
+              aria-label="Flip horizontal"
+              tooltip="Flip horizontal"
               fullWidth
-              
-              
               onClick={() => props.onTransform('flipX')}
             >
               <ArrowsHorizontal class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </ButtonGroup.Button>
-            <ButtonGroup.Button aria-label={"Flip vertical"} tooltip={"Flip vertical"}
+            <ButtonGroup.Button
+              aria-label="Flip vertical"
+              tooltip="Flip vertical"
               fullWidth
-              
-              
               onClick={() => props.onTransform('flipY')}
             >
               <ArrowsVertical class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
@@ -121,14 +123,21 @@ export function SelectionLayoutInspector(props: {
             onChange={(value) => props.onChange('height', value)}
             onScrub={() => props.onScrub('height')}
           />
-          <Button variant="ghost" aria-label={"Lock aspect ratio"} tooltip={"Lock aspect ratio"}
+          <Button
+            variant="ghost"
+            aria-label="Lock aspect ratio"
+            tooltip="Lock aspect ratio"
             size="icon-sm"
-            
             aria-pressed={props.lockAspectRatio}
             class="aria-pressed:bg-active aria-pressed:text-ink"
             onClick={() => props.onLockAspectRatio(!props.lockAspectRatio)}
           >
-            <Show when={props.lockAspectRatio} fallback={<LockOpen class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}>
+            <Show
+              when={props.lockAspectRatio}
+              fallback={
+                <LockOpen class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+              }
+            >
               <Lock class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Show>
           </Button>

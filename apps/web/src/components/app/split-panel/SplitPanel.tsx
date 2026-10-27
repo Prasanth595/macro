@@ -178,11 +178,12 @@ function BackButton(props: SplitControlButtonProps) {
   return (
     <Button
       {...rest}
-      tooltip={local.tooltip ?? { content: label(), hotkey: TOKENS.split.go.back }}
+      tooltip={
+        local.tooltip ?? { content: label(), hotkey: TOKENS.split.go.back }
+      }
       type={local.type ?? 'button'}
       variant={local.variant}
-      size={local.size ?? "icon-sm"}
-      
+      size={local.size ?? 'icon-sm'}
       class={cn(
         !local.size && 'p-1',
         'transition-none touch:active:bg-transparent',
@@ -192,7 +193,9 @@ function BackButton(props: SplitControlButtonProps) {
       disabled={Boolean(local.disabled) || !controller.canGoBack()}
       {...pressHandlers(() => controller.goBack())}
     >
-      {local.children ?? <CaretLeftIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />}
+      {local.children ?? (
+        <CaretLeftIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+      )}
     </Button>
   );
 }
@@ -214,11 +217,12 @@ function ForwardButton(props: SplitControlButtonProps) {
   return (
     <Button
       {...rest}
-      tooltip={local.tooltip ?? { content: label(), hotkey: TOKENS.split.go.forward }}
+      tooltip={
+        local.tooltip ?? { content: label(), hotkey: TOKENS.split.go.forward }
+      }
       type={local.type ?? 'button'}
       variant={local.variant}
-      size={local.size ?? "icon-sm"}
-      
+      size={local.size ?? 'icon-sm'}
       class={cn(
         !local.size && 'p-1',
         'transition-none touch:active:bg-transparent',
@@ -228,7 +232,9 @@ function ForwardButton(props: SplitControlButtonProps) {
       disabled={Boolean(local.disabled) || !controller.canGoForward()}
       {...pressHandlers(() => controller.goForward())}
     >
-      {local.children ?? <CaretRightIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />}
+      {local.children ?? (
+        <CaretRightIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+      )}
     </Button>
   );
 }
@@ -256,11 +262,12 @@ function CloseButton(props: SplitControlButtonProps) {
     >
       <Button
         {...rest}
-        tooltip={local.tooltip ?? { content: label(), hotkey: TOKENS.split.close }}
+        tooltip={
+          local.tooltip ?? { content: label(), hotkey: TOKENS.split.close }
+        }
         type={local.type ?? 'button'}
         variant={local.variant ?? 'ghost'}
         size={local.size ?? 'icon-sm'}
-        
         class={cn('transition-none', local.class)}
         aria-label={label()}
         disabled={Boolean(local.disabled)}

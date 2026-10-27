@@ -175,10 +175,11 @@ function CalendarPageDataStatus(props: {
             <p class="text-xs text-ink-muted">
               We couldn’t load your calendar events. Try again.
             </p>
-            <Button aria-label={"Retry loading calendar"} tooltip={"Retry loading calendar"}
+            <Button
+              aria-label="Retry loading calendar"
+              tooltip="Retry loading calendar"
               variant="accent"
               size="sm"
-              
               onClick={() =>
                 fireAndForget(
                   props.data.occurrencesQuery.refetch(),

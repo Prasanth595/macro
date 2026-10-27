@@ -154,7 +154,6 @@ export function CallRecordingSplitHeader(props: { record: CallRecord }) {
             <HeaderActionGroup label="Call actions">
               <HeaderIsland>
                 <ButtonGroup.Button
-                  
                   variant="outline"
                   size={isTouchDevice() ? 'icon-xs' : 'icon-sm'}
                   class={isTouchDevice() ? 'bg-surface' : undefined}

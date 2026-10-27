@@ -26,9 +26,12 @@ export function ChannelInviteButton(props: {
   return (
     <Show when={canInvite()}>
       <HeaderActionGroup label="Sharing">
-        <HeaderActionButton grouped
+        <HeaderActionButton
+          grouped
           label="Invite"
-          icon={<UserPlusIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
+          icon={
+            <UserPlusIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+          }
           tooltip="Invite people"
           onClick={() => setOpen(true)}
         />

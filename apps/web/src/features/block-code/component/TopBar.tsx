@@ -93,7 +93,11 @@ export const TopBar: Component<{
       icon: ChatWithAgentIcon,
       action: () => openChatWithAgent(chatEntity()),
       buttonComponent: (control) => (
-        <ChatWithAgentButton grouped={control.grouped} entity={chatEntity()} label="Ask Macro" />
+        <ChatWithAgentButton
+          grouped={control.grouped}
+          entity={chatEntity()}
+          label="Ask Macro"
+        />
       ),
     },
     {

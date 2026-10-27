@@ -70,10 +70,11 @@ export function DocxMarginLayout(props: {
           class="absolute left-2 z-10"
           style={{ top: `${props.selectionTop()}px` }}
         >
-          <Button aria-label={"Comment"} tooltip={"Comment"}
+          <Button
+            aria-label="Comment"
+            tooltip="Comment"
             size="icon-md"
-            variant={"accent"}
-            
+            variant="accent"
             data-docx-comment-button
             onPointerDown={(event: PointerEvent) => event.preventDefault()}
             onMouseDown={(event: MouseEvent) => event.preventDefault()}

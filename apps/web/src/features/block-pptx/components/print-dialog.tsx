@@ -297,10 +297,11 @@ export function PrintDialog(props: {
             <Printer class="size-4" />
             Print
           </h2>
-          <Button aria-label={"Close"} tooltip={"Close"}
+          <Button
+            aria-label="Close"
+            tooltip="Close"
             size="icon-sm"
             variant="ghost"
-            
             onClick={props.onClose}
           >
             <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
@@ -422,7 +423,7 @@ export function PrintDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant={"accent"}
+            variant="accent"
             data-testid="pptx-print-go"
             disabled={pages().length === 0 || !!progress()}
             onClick={() => fireAndForget(print(), 'pptx-print')}

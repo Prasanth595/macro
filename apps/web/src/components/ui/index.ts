@@ -24,10 +24,10 @@ export {
 export type {
   ButtonClassOptions,
   ButtonFinish,
-  ButtonTooltip,
-  ButtonTooltipOptions,
   ButtonProps,
   ButtonSize,
+  ButtonTooltip,
+  ButtonTooltipOptions,
   ButtonVariant,
   ButtonVariantProps,
 } from './components/Button';

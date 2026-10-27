@@ -114,7 +114,7 @@ function Composer(props: {
           Cancel
         </Button>
         <Button
-          variant={"accent"}
+          variant="accent"
           size="sm"
           disabled={empty()}
           onClick={() => props.onSubmit()}

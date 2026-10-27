@@ -86,29 +86,40 @@ export function Lightbox(props: LightboxProps) {
         class="flex items-center justify-center bg-surface rounded-md overflow-hidden"
       >
         <LightboxToolbar isVisible={true}>
-          <Button aria-label={"Copy image"} tooltip={"Copy image"}
+          <Button
+            aria-label="Copy image"
+            tooltip="Copy image"
             variant="ghost"
             size="icon-md"
             onClick={images.copyToClipboard}
             disabled={images.isBusy() || images.isPrefetching()}
-            
           >
-            {images.isCopying() ? <SpinnerIcon /> : <ClipboardIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />}
+            {images.isCopying() ? (
+              <SpinnerIcon />
+            ) : (
+              <ClipboardIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+            )}
           </Button>
-          <Button aria-label={"Download image"} tooltip={"Download image"}
+          <Button
+            aria-label="Download image"
+            tooltip="Download image"
             variant="ghost"
             size="icon-md"
             onClick={images.downloadImage}
             disabled={images.isBusy() || images.isPrefetching()}
-            
           >
-            {images.isDownloading() ? <SpinnerIcon /> : <DownloadIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />}
+            {images.isDownloading() ? (
+              <SpinnerIcon />
+            ) : (
+              <DownloadIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+            )}
           </Button>
-          <Dialog.CloseButton aria-label={"Close"} tooltip={"Close"}
+          <Dialog.CloseButton
+            aria-label="Close"
+            tooltip="Close"
             as={Button}
             variant="ghost"
             size="icon-md"
-            
           >
             <XIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
           </Dialog.CloseButton>

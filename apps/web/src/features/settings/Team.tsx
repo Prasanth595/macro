@@ -432,7 +432,7 @@ export function CreateTeamDialog(props: {
               Cancel
             </Button>
             <Button
-              variant={"secondary"}
+              variant="secondary"
               disabled={
                 createTeamMutation.isPending ||
                 !!teamNameError() ||
@@ -532,7 +532,7 @@ export function InviteToTeamDialog(props: {
               Cancel
             </Button>
             <Button
-              variant={"secondary"}
+              variant="secondary"
               disabled={!hasValidInvites() || inviteToTeamMutation.isPending}
               onClick={handleInvite}
             >

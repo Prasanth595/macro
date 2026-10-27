@@ -16,7 +16,6 @@ export function SlackImportCard(props: Props): JSX.Element {
       <Button
         variant="outline"
         size="sm"
-        
         onClick={(event) => props.onOpen(event.currentTarget)}
       >
         Import from Slack

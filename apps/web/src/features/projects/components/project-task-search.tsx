@@ -23,12 +23,12 @@ export function ProjectTaskSearch(props: {
     <Show
       when={expanded()}
       fallback={
-        <Button aria-label={label()} tooltip={label()}
+        <Button
+          aria-label={label()}
+          tooltip={label()}
           ref={trigger}
           variant="outline"
           size="icon-md"
-          
-          
           aria-expanded={false}
           aria-controls={inputId}
           onClick={() => setExpanded(true)}

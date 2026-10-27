@@ -55,17 +55,21 @@ export function ChannelBotRow(props: {
       </a>
       <div class="absolute right-3 top-1/2 -translate-y-1/2">
         <Item.Actions>
-          <Button variant="ghost" aria-label={"Copy webhook URL"} tooltip={"Copy webhook URL"}
+          <Button
+            variant="ghost"
+            aria-label="Copy webhook URL"
+            tooltip="Copy webhook URL"
             size="icon-sm"
-            
             onClick={props.onCopyWebhook}
           >
             <CopyIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
           <Show when={props.editable}>
-            <Button variant="danger" aria-label={`Remove ${props.bot.name}`} tooltip={`Remove ${props.bot.name}`}
+            <Button
+              variant="danger"
+              aria-label={`Remove ${props.bot.name}`}
+              tooltip={`Remove ${props.bot.name}`}
               size="icon-sm"
-              
               disabled={props.removing}
               onClick={props.onRemove}
             >

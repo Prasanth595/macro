@@ -12,10 +12,11 @@ export function SplitBackButton() {
   const context = useContext(SplitPanelContext);
   if (!context) return '';
   return (
-    <Button aria-label={"Go Back"} tooltip={"Go Back"}
+    <Button
+      aria-label="Go Back"
+      tooltip="Go Back"
       variant="ghost"
       size="icon-md"
-      
       disabled={!context.handle.canGoBack()}
       onClick={context.handle.goBack}
     >
@@ -28,10 +29,11 @@ export function SplitForwardButton() {
   const context = useContext(SplitPanelContext);
   if (!context) return '';
   return (
-    <Button aria-label={"Go Forward"} tooltip={"Go Forward"}
+    <Button
+      aria-label="Go Forward"
+      tooltip="Go Forward"
       variant="ghost"
       size="icon-md"
-      
       disabled={!context.handle.canGoForward()}
       onClick={context.handle.goForward}
     >
@@ -44,10 +46,11 @@ export function SplitCreateButton() {
   const context = useContext(SplitLayoutContext);
   if (!context) return '';
   return (
-    <Button aria-label={"Create new split"} tooltip={"Create new split"}
+    <Button
+      aria-label="Create new split"
+      tooltip="Create new split"
       variant="ghost"
       size="icon-md"
-      
       onClick={() => {
         context.manager.createNewSplit({
           content: {
@@ -67,10 +70,11 @@ export function SplitCloseButton() {
   const context = useContext(SplitPanelContext);
   if (!context) return '';
   return (
-    <Button aria-label={"Close"} tooltip={"Close"}
+    <Button
+      aria-label="Close"
+      tooltip="Close"
       variant="ghost"
       size="icon-sm"
-      
       onClick={context.handle.close}
     >
       <CloseIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />

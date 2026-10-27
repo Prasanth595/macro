@@ -234,4 +234,3 @@ export function themeTokenCssVar(
 
   return { name: `--color-${token}`, value };
 }
-

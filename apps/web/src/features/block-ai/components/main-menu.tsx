@@ -27,10 +27,10 @@ export function MainMenu(props: { items: (MenuItem | 'divider')[] }) {
         }
       }}
     >
-      <Button aria-label={"Main menu"}
+      <Button
+        aria-label="Main menu"
         variant="ghost"
         size="icon-md"
-        
         tooltip={open() ? undefined : 'Main menu'}
         aria-haspopup="menu"
         aria-expanded={open()}

@@ -816,7 +816,6 @@ export function EmailList(props: EmailListProps) {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    
                                     disabled={loadMore().isLoading}
                                     class="bg-surface"
                                   >

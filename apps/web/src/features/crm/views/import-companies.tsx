@@ -224,7 +224,7 @@ export function CrmImport(props: {
             Close
           </Button>
           <Button
-            variant={"secondary"}
+            variant="secondary"
             disabled={pending() || !runnable()}
             onClick={() => fireAndForget(run(), 'crm')}
           >

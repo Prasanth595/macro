@@ -84,7 +84,7 @@ export function EventJoinRequests(props: {
                     Decline
                   </Button>
                   <Button
-                    variant={"accent"}
+                    variant="accent"
                     size="sm"
                     disabled={respond.isPending}
                     onClick={() => answer(request, 'accept')}

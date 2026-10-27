@@ -56,7 +56,6 @@ export function GanttTodayButton() {
   const gantt = useGantt();
   return (
     <Button
-      
       size="md"
       variant="outline"
       class="bg-surface shadow-sm"

@@ -227,10 +227,11 @@ export function SelectionPane(props: {
     >
       <div class="flex h-9 items-center justify-between border-edge-muted border-b px-3">
         <span class="font-semibold text-ink text-sm">Selection</span>
-        <Button aria-label={"Close"} tooltip={"Close"}
+        <Button
+          aria-label="Close"
+          tooltip="Close"
           size="icon-sm"
           variant="ghost"
-          
           onClick={props.onClose}
         >
           <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
@@ -256,10 +257,10 @@ export function SelectionPane(props: {
           Hide All
         </Button>
         <div class="flex-1" />
-        <Button aria-label={"Bring forward"}
+        <Button
+          aria-label="Bring forward"
           size="icon-sm"
           variant="ghost"
-          
           tooltip="Bring Forward"
           data-testid="pptx-selection-forward"
           disabled={
@@ -274,10 +275,10 @@ export function SelectionPane(props: {
         >
           <ArrowUp class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
-        <Button aria-label={"Send backward"}
+        <Button
+          aria-label="Send backward"
           size="icon-sm"
           variant="ghost"
-          
           tooltip="Send Backward"
           data-testid="pptx-selection-backward"
           disabled={ro() || !position() || position()!.index === 0}

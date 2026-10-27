@@ -417,11 +417,12 @@ export const SoupView = (props: SoupViewProps) => {
                   <span class="text-sm font-semibold">{props.viewName}</span>
                   <Show when={docsUrl()}>
                     {(url) => (
-                      <Button aria-label={"View documentation"} tooltip={"View documentation"}
+                      <Button
+                        aria-label="View documentation"
+                        tooltip="View documentation"
                         size="icon-sm"
                         variant="ghost"
                         class="@max-[380px]/split-header:hidden"
-                        
                         onClick={() => openExternalUrl(url())}
                       >
                         <InfoIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
@@ -1209,7 +1210,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                           soupNavigationTouchHighlight(el);
                         }}
                         scrollerRef={setListScrollerRef}
-                        virtualizerClass={'scrollbar-hidden space-y-2'}
+                        virtualizerClass="scrollbar-hidden space-y-2"
                         class="overflow-hidden flex min-w-0"
                         virtualizerRef={registerVirtualizerHandler}
                         onScrollBottom={debouncedFetchMore}
@@ -1307,7 +1308,6 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                             <Button
                                               variant="outline"
                                               size="sm"
-                                              
                                               class={cn({
                                                 'bg-surface': !highlighted(),
                                                 'border-transparent':
@@ -1323,7 +1323,6 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            
                                             class={cn({
                                               'bg-surface': !highlighted(),
                                               'border-transparent':

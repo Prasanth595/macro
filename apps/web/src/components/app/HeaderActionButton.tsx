@@ -29,7 +29,10 @@ export function HeaderActionButton(props: {
       aria-busy={props.busy}
       class={cn(
         !iconOnly() && 'px-2 @max-[600px]/split-header:p-0',
-        !iconOnly() && (props.grouped && props.size !== 'md' ? '@max-[600px]/split-header:w-7' : '@max-[600px]/split-header:w-8'),
+        !iconOnly() &&
+          (props.grouped && props.size !== 'md'
+            ? '@max-[600px]/split-header:w-7'
+            : '@max-[600px]/split-header:w-8'),
         props.class
       )}
     >

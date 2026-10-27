@@ -51,10 +51,11 @@ export function ParticipantsMobileLayout(props: {
             <div class="min-w-0 flex-1">{props.search()}</div>
             {props.inviteLink?.()}
             <Show when={props.addParticipants}>
-              <Button aria-label={"Add participants"} tooltip={"Add participants"}
+              <Button
+                aria-label="Add participants"
+                tooltip="Add participants"
                 variant="outline"
                 size="icon-md"
-                
                 onClick={() => setAdding(true)}
               >
                 <UserPlusIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />

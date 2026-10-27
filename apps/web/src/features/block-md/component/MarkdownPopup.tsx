@@ -322,7 +322,6 @@ export function MarkdownPopup(props: {
     >
       <Button
         size="icon-sm"
-        
         variant="ghost"
         tooltip="Stop AI edit"
         onClick={() => cancelAiEdit(blockId)}
@@ -545,18 +544,13 @@ export function MarkdownPopup(props: {
           <Toolbar ref={measureToolbar}>
             {/* Selection actions: AI edit + convert to tasks. */}
             <Show when={shouldShowEditWithAiButton()}>
-              <Toolbar.Button
-                size="sm"
-                
-                onClick={() => setActivePrompt('ai')}
-              >
+              <Toolbar.Button size="sm" onClick={() => setActivePrompt('ai')}>
                 AI edit
               </Toolbar.Button>
             </Show>
             <Show when={shouldShowCheckboxToTaskButton()}>
               <Toolbar.Button
                 size="sm"
-                
                 onClick={handleConvertToTasks}
                 disabled={isConverting()}
               >
@@ -583,7 +577,6 @@ export function MarkdownPopup(props: {
             <Show when={shouldShowTableButton()}>
               <Toolbar.Button
                 size="sm"
-                
                 tooltip="Convert list to table"
                 onClick={handleConvertListToTable}
               >
@@ -593,22 +586,20 @@ export function MarkdownPopup(props: {
               <Toolbar.Divider />
             </Show>
             <Show when={ENABLE_MARKDOWN_COMMENTS && canComment()}>
-              <Toolbar.Button aria-label={"Comment"}
+              <Toolbar.Button
+                aria-label="Comment"
                 size="icon-sm"
-                
                 onClick={handleInsertComment}
                 tooltip="Comment"
-                
               >
                 <ChatTeardrop />
               </Toolbar.Button>
             </Show>
-            <Toolbar.Button aria-label={"Copy link to snippet"}
+            <Toolbar.Button
+              aria-label="Copy link to snippet"
               size="icon-sm"
-              
               onClick={() => fireAndForget(handleShare(), 'markdown-editor')}
               tooltip="Copy link to snippet"
-              
             >
               <Dynamic
                 component={locationCopied() ? CheckIcon : LinkIcon}
@@ -677,7 +668,7 @@ export function MarkdownPopup(props: {
           <Show when={activePrompt() === 'link'}>
             <Button
               size="icon-sm"
-              variant={"secondary"}
+              variant="secondary"
               tooltip="Insert link"
               disabled={!linkInput().trim()}
               onClick={handleInsertLink}

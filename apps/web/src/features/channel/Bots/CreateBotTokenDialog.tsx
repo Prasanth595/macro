@@ -39,10 +39,10 @@ export function CreateBotTokenDialog(props: {
             New webhook token
           </Dialog.Title>
           <div class="ml-auto">
-            <Button tooltip={"Close"}
+            <Button
+              tooltip="Close"
               variant="ghost"
               size="icon-sm"
-              
               aria-label="Close"
               disabled={minted.isPending()}
               onClick={close}
@@ -99,7 +99,7 @@ export function CreateBotTokenDialog(props: {
                           Cancel
                         </Button>
                         <Button
-                          variant={"secondary"}
+                          variant="secondary"
                           size="sm"
                           disabled={isPending}
                           onClick={mint}
@@ -115,7 +115,7 @@ export function CreateBotTokenDialog(props: {
                         Store this token somewhere secure before closing.
                       </div>
                       <div class="flex justify-end border-t border-edge-muted pt-4">
-                        <Button variant={"secondary"} size="sm" onClick={close}>
+                        <Button variant="secondary" size="sm" onClick={close}>
                           Done
                         </Button>
                       </div>

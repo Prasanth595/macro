@@ -41,7 +41,7 @@ function NoteEditor(props: {
       />
       <div class="flex items-center gap-1.5">
         <Button
-          variant={"accent"}
+          variant="accent"
           size="xs"
           class="h-6.5 px-2.5"
           disabled={props.draft.text.trim() === ''}

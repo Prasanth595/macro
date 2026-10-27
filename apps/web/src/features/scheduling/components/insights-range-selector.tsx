@@ -118,7 +118,7 @@ export function InsightsRangeSelector(props: {
         >
           Clear
         </Button>
-        <Button type="submit" variant={"accent"} class="flex-1">
+        <Button type="submit" variant="accent" class="flex-1">
           Apply dates
         </Button>
       </div>

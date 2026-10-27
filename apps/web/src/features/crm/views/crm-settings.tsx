@@ -107,7 +107,7 @@ function DisableCrmDialog(props: {
               Cancel
             </Button>
             <Button
-              variant={"secondary"}
+              variant="secondary"
               disabled={
                 props.pending || props.confirmation !== DISABLE_CRM_PHRASE
               }
@@ -236,7 +236,7 @@ function CrmEnablementSection() {
                 </Show>
               </Button>
               <Button
-                variant={"secondary"}
+                variant="secondary"
                 disabled={patchCrmMutation.isPending}
                 onClick={() => handleEnable(true)}
               >

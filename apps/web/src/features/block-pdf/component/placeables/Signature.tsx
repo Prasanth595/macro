@@ -189,19 +189,21 @@ function SignatureEditor(props: SignatureEditorProps) {
             }}
           />
           <div class="flex flex-row w-full justify-center items-center border-t border-edge">
-            <Button aria-label={"Use signature"} tooltip={"Use signature"}
+            <Button
+              aria-label="Use signature"
+              tooltip="Use signature"
               variant="ghost"
               size="icon-md"
-              
               disabled={!hasStrokes()}
               onClick={updatePlaceable}
             >
               <Check class="size-4 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
-            <Button aria-label={"Cancel signature"} tooltip={"Cancel signature"}
+            <Button
+              aria-label="Cancel signature"
+              tooltip="Cancel signature"
               variant="ghost"
               size="icon-md"
-              
               onClick={cancel}
             >
               <Trash class="size-4 touch:size-6 shrink-0 pointer-events-none" />

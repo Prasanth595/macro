@@ -1121,7 +1121,12 @@ export function ComposeTask(props: ComposeTaskProps) {
                 )}
               </For>
               <Show when={tagLayoutMode() === 'bottom'}>
-                <InlineTagsPill docTags={composerTags} variant="secondary" size="xs" showPlaceholder />
+                <InlineTagsPill
+                  docTags={composerTags}
+                  variant="secondary"
+                  size="xs"
+                  showPlaceholder
+                />
               </Show>
               <TaskComposerPropertyEditor
                 name={title()}

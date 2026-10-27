@@ -324,7 +324,7 @@ export function Agents(props: {
                   </p>
                 </div>
                 <Button
-                  variant={"accent"}
+                  variant="accent"
                   size="sm"
                   onClick={() => setCreating(true)}
                 >
@@ -600,7 +600,7 @@ function AgentDeleteDialog(props: {
           </Button>
           <Button
             type="button"
-            variant={"secondary"}
+            variant="secondary"
             size="sm"
             disabled={props.pending}
             onClick={props.onConfirm}
@@ -1064,7 +1064,8 @@ function AgentEditorPage(props: {
           description="Name it, tell it what to do, and pick where it runs."
           actions={
             <Button variant="ghost" size="sm" onClick={close} disabled={busy()}>
-              <ArrowLeftIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" /> Back
+              <ArrowLeftIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />{' '}
+              Back
             </Button>
           }
         >
@@ -1506,7 +1507,8 @@ function AgentEditorPage(props: {
                     disabled={busy()}
                     onClick={onDelete()}
                   >
-                    <TrashIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" /> Delete agent
+                    <TrashIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />{' '}
+                    Delete agent
                   </Button>
                 )}
               </Show>
@@ -1523,7 +1525,7 @@ function AgentEditorPage(props: {
                 <Button
                   type="submit"
                   form="agent-form"
-                  variant={"secondary"}
+                  variant="secondary"
                   size="sm"
                   disabled={!canCreate()}
                 >

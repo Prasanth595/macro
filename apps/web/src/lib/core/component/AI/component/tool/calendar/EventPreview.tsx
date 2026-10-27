@@ -313,18 +313,20 @@ export function CalendarToolEventPreview(props: CalendarToolEventPreviewProps) {
                         Go to event
                       </Button>
                     </Show>
-                    <Button aria-label={`Previous ${previewView() === 'dayGridMonth' ? 'month' : 'week'}`} tooltip={`Previous ${previewView() === 'dayGridMonth' ? 'month' : 'week'}`}
+                    <Button
+                      aria-label={`Previous ${previewView() === 'dayGridMonth' ? 'month' : 'week'}`}
+                      tooltip={`Previous ${previewView() === 'dayGridMonth' ? 'month' : 'week'}`}
                       variant="ghost"
                       size="icon-sm"
-                      
                       onClick={() => navigate('previous')}
                     >
                       <CaretLeftIcon class="size-4" />
                     </Button>
-                    <Button aria-label={`Next ${previewView() === 'dayGridMonth' ? 'month' : 'week'}`} tooltip={`Next ${previewView() === 'dayGridMonth' ? 'month' : 'week'}`}
+                    <Button
+                      aria-label={`Next ${previewView() === 'dayGridMonth' ? 'month' : 'week'}`}
+                      tooltip={`Next ${previewView() === 'dayGridMonth' ? 'month' : 'week'}`}
                       variant="ghost"
                       size="icon-sm"
-                      
                       onClick={() => navigate('next')}
                     >
                       <CaretRightIcon class="size-4" />

@@ -174,7 +174,6 @@ function HeaderTopRow(props: {
             <Button
               variant="ghost"
               size="icon-sm"
-              
               onClick={(e) => {
                 e.stopPropagation();
                 props.onToggle();

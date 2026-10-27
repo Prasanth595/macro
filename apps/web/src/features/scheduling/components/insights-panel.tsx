@@ -491,10 +491,11 @@ export function InsightsPanel(props: {
       <Show when={props.headerTitle}>
         <ListHeader title={props.headerTitle}>
           <HeaderActionGroup label="Insights actions">
-            <ButtonGroup.Button aria-label={"Download CSV"} tooltip={"Download CSV"}
+            <ButtonGroup.Button
+              aria-label="Download CSV"
+              tooltip="Download CSV"
               variant="ghost"
               size="icon-sm"
-              
               onClick={download}
               disabled={!canDownload()}
             >

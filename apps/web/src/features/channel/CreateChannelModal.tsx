@@ -284,11 +284,12 @@ export function CreateChannelModal() {
                   </p>
                 </Show>
               </div>
-              <Dialog.CloseButton aria-label={"Close"} tooltip={"Close"}
+              <Dialog.CloseButton
+                aria-label="Close"
+                tooltip="Close"
                 as={Button}
                 variant="ghost"
                 size="icon-sm"
-                
                 tabIndex={-1}
                 disabled={
                   createChannelMutation.isPending ||

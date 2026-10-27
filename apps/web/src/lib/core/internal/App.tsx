@@ -72,7 +72,8 @@ const App: Component = () => {
         center={
           <Center>
             <Button variant="ghost" onClick={togglePublicPermissions}>
-              {documentAccess()} <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+              {documentAccess()}{' '}
+              <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           </Center>
         }
@@ -81,7 +82,9 @@ const App: Component = () => {
         <For each={Themes}>
           {() => (
             <Button variant="outline">
-              <Subtract class="size-3.5 touch:size-6 shrink-0 pointer-events-none" /> Button Text <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+              <Subtract class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />{' '}
+              Button Text{' '}
+              <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           )}
         </For>
@@ -90,7 +93,9 @@ const App: Component = () => {
         <Index each={ThemesWithSeparator}>
           {() => (
             <Button variant="outline">
-              <Subtract class="size-3.5 touch:size-6 shrink-0 pointer-events-none" /> Button Text <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+              <Subtract class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />{' '}
+              Button Text{' '}
+              <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           )}
         </Index>

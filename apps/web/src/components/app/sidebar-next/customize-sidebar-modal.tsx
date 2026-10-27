@@ -118,21 +118,23 @@ function CustomizeNavRow(props: {
           when={reorderMode === 'drag' && sortable}
           fallback={
             <div class="flex shrink-0 flex-col">
-              <Button aria-label={`Move ${props.item.label} up`} tooltip={`Move ${props.item.label} up`}
+              <Button
+                aria-label={`Move ${props.item.label} up`}
+                tooltip={`Move ${props.item.label} up`}
                 variant="ghost"
                 size="icon-sm"
                 class="size-6"
-                
                 disabled={!canMoveUp()}
                 onClick={() => props.onMove(-1)}
               >
                 <CaretUpIcon class="size-3" />
               </Button>
-              <Button aria-label={`Move ${props.item.label} down`} tooltip={`Move ${props.item.label} down`}
+              <Button
+                aria-label={`Move ${props.item.label} down`}
+                tooltip={`Move ${props.item.label} down`}
                 variant="ghost"
                 size="icon-sm"
                 class="size-6"
-                
                 disabled={!canMoveDown()}
                 onClick={() => props.onMove(1)}
               >

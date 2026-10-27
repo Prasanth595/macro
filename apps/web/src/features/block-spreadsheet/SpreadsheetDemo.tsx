@@ -208,7 +208,7 @@ export default function SpreadsheetDemo() {
             </Button>
             <Button
               size="sm"
-              variant={"secondary"}
+              variant="secondary"
               type="submit"
               disabled={!renameDraft()?.trim() || !canRename()}
             >

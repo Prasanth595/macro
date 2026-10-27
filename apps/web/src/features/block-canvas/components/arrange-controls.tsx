@@ -36,17 +36,19 @@ export function CanvasAlignmentControls(props: {
           }
         >
           {(alignments) => (
-            <ButtonGroup finish="raised" variant="secondary"
+            <ButtonGroup
+              finish="raised"
+              variant="secondary"
               size="icon-sm"
               class="w-full data-[orientation=horizontal]:rounded-lg"
             >
               <For each={alignments}>
                 {([alignment, icon]) => (
                   <>
-                    <ButtonGroup.Button aria-label={`Align ${alignment}`} tooltip={`Align ${alignment}`}
+                    <ButtonGroup.Button
+                      aria-label={`Align ${alignment}`}
+                      tooltip={`Align ${alignment}`}
                       fullWidth
-                      
-                      
                       disabled={props.count < 2}
                       onClick={() => props.onAlign(alignment)}
                     >
@@ -60,19 +62,23 @@ export function CanvasAlignmentControls(props: {
         </For>
       </div>
       <Show when={props.count >= 3}>
-        <ButtonGroup finish="raised" variant="secondary"
+        <ButtonGroup
+          finish="raised"
+          variant="secondary"
           size="icon-sm"
           class="data-[orientation=horizontal]:rounded-lg"
         >
-          <ButtonGroup.Button aria-label={"Distribute horizontal"} tooltip={"Distribute horizontal"}
-            
+          <ButtonGroup.Button
+            aria-label="Distribute horizontal"
+            tooltip="Distribute horizontal"
             disabled={props.count < 3}
             onClick={() => props.onDistribute('horizontal')}
           >
             <ArrowsHorizontal class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </ButtonGroup.Button>
-          <ButtonGroup.Button aria-label={"Distribute vertical"} tooltip={"Distribute vertical"}
-            
+          <ButtonGroup.Button
+            aria-label="Distribute vertical"
+            tooltip="Distribute vertical"
             disabled={props.count < 3}
             onClick={() => props.onDistribute('vertical')}
           >

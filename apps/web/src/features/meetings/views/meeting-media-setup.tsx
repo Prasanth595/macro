@@ -126,15 +126,21 @@ export function MeetingMediaSetup(props: {
         </Show>
         <div class="absolute inset-x-0 bottom-4 flex justify-center">
           <div class="flex items-center gap-1 rounded-xl border border-edge-muted bg-panel p-1 shadow-sm">
-            <Button variant="ghost" aria-label={media.microphoneEnabled()
+            <Button
+              variant="ghost"
+              aria-label={
+                media.microphoneEnabled()
                   ? 'Turn off microphone'
-                  : 'Turn on microphone'} tooltip={{ content: media.microphoneEnabled()
+                  : 'Turn on microphone'
+              }
+              tooltip={{
+                content: media.microphoneEnabled()
                   ? 'Turn off microphone'
-                  : 'Turn on microphone', placement: "top" }}
+                  : 'Turn on microphone',
+                placement: 'top',
+              }}
               size="icon-lg"
               class="size-12"
-              
-              
               disabled={props.disabled}
               aria-pressed={media.microphoneEnabled()}
               onClick={() =>
@@ -143,37 +149,56 @@ export function MeetingMediaSetup(props: {
             >
               <Show
                 when={media.microphoneEnabled()}
-                fallback={<MicrophoneSlash class="size-5 touch:size-6 shrink-0 pointer-events-none" />}
+                fallback={
+                  <MicrophoneSlash class="size-5 touch:size-6 shrink-0 pointer-events-none" />
+                }
               >
                 <Microphone class="size-5 touch:size-6 shrink-0 pointer-events-none" />
               </Show>
             </Button>
-            <Button variant="ghost" aria-label={media.cameraEnabled() ? 'Turn off camera' : 'Turn on camera'} tooltip={{ content: media.cameraEnabled() ? 'Turn off camera' : 'Turn on camera', placement: "top" }}
+            <Button
+              variant="ghost"
+              aria-label={
+                media.cameraEnabled() ? 'Turn off camera' : 'Turn on camera'
+              }
+              tooltip={{
+                content: media.cameraEnabled()
+                  ? 'Turn off camera'
+                  : 'Turn on camera',
+                placement: 'top',
+              }}
               size="icon-lg"
               class="size-12"
-              
-              
               disabled={props.disabled}
               aria-pressed={media.cameraEnabled()}
               onClick={() => media.setCameraEnabled(!media.cameraEnabled())}
             >
               <Show
                 when={media.cameraEnabled()}
-                fallback={<VideoCameraSlash class="size-5 touch:size-6 shrink-0 pointer-events-none" />}
+                fallback={
+                  <VideoCameraSlash class="size-5 touch:size-6 shrink-0 pointer-events-none" />
+                }
               >
                 <VideoCamera class="size-5 touch:size-6 shrink-0 pointer-events-none" />
               </Show>
             </Button>
-            <Button variant="ghost" aria-label={media.backgroundEffect().type === 'none'
+            <Button
+              variant="ghost"
+              aria-label={
+                media.backgroundEffect().type === 'none'
                   ? 'Turn on background'
-                  : 'Turn off background'} tooltip={{ content: media.backgroundEffect().type === 'none'
-                  ? 'Turn on background'
-                  : 'Turn off background', placement: "top" }}
+                  : 'Turn off background'
+              }
+              tooltip={{
+                content:
+                  media.backgroundEffect().type === 'none'
+                    ? 'Turn on background'
+                    : 'Turn off background',
+                placement: 'top',
+              }}
               size="icon-lg"
               class="size-12"
               disabled={props.disabled || uploading()}
-              
-              
               aria-pressed={media.backgroundEffect().type !== 'none'}
               onClick={() =>
                 selectBackground(

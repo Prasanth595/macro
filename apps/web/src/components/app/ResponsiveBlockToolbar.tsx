@@ -48,10 +48,11 @@ export function ToolButton(props: { tool: BlockTool; grouped?: boolean }) {
 
   const Control = props.grouped ? ButtonGroup.Button : Button;
   return (
-    <Control variant="ghost" aria-label={label()} tooltip={{ content: label(), hotkey: props.tool.hotkeyToken }}
+    <Control
+      variant="ghost"
+      aria-label={label()}
+      tooltip={{ content: label(), hotkey: props.tool.hotkeyToken }}
       onClick={props.tool.action}
-      
-      
       class={cn(
         'px-1',
         props.tool.isActive?.() && 'bg-accent/20 hover:bg-accent/30 text-accent'

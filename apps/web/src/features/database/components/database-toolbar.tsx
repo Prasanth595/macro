@@ -223,10 +223,11 @@ export function DatabaseToolbar(props: DatabaseToolbarProps) {
             </div>
             <Show when={props.canEdit}>
               <Dropdown placement="bottom-start">
-                <Dropdown.Trigger aria-label={"New view"} tooltip={"New view"}
+                <Dropdown.Trigger
+                  aria-label="New view"
+                  tooltip="New view"
                   size="icon-md"
                   variant="ghost"
-                  
                   class="ml-1.5 shrink-0"
                   disabled={creating()}
                 >
@@ -356,11 +357,11 @@ function ViewTab(props: {
       >
         <ContextMenu>
           <Tooltip label={props.view.name}>
-            <ContextMenu.Trigger tooltip={{ content: undefined, disabled: true }}
+            <ContextMenu.Trigger
+              tooltip={{ content: undefined, disabled: true }}
               as={Button}
               variant="outline"
               size="md"
-              
               type="button"
               {...(props.canReorder ? sortable.dragActivators : {})}
               data-view-id={props.view.id}

@@ -48,7 +48,11 @@ export const SearchRailButton = () => {
       triggerProps={{
         size: 'icon-md',
         variant: 'ghost',
-        tooltip: { content: 'Search', placement: 'right', hotkey: TOKENS.sidebar.goTo.search },
+        tooltip: {
+          content: 'Search',
+          placement: 'right',
+          hotkey: TOKENS.sidebar.goTo.search,
+        },
         'data-sidebar-next-search': '',
         class: 'size-10 rounded-xl',
       }}

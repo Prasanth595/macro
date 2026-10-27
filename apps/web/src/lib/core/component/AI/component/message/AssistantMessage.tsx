@@ -178,7 +178,6 @@ export function AssistantMessage(props: {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  
                   class="p-1 text-ink-extra-muted hover:text-ink-muted"
                   tooltip={
                     isLoading()
@@ -197,7 +196,9 @@ export function AssistantMessage(props: {
                 >
                   <Show
                     when={!isLoading()}
-                    fallback={<LoadingIcon class="animate-spin size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
+                    fallback={
+                      <LoadingIcon class="animate-spin size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+                    }
                   >
                     <WideFileMd class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                   </Show>
@@ -205,7 +206,6 @@ export function AssistantMessage(props: {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  
                   class="p-1 text-ink-extra-muted hover:text-ink-muted"
                   tooltip={
                     copied()
@@ -214,7 +214,12 @@ export function AssistantMessage(props: {
                   }
                   onClick={handleCopy}
                 >
-                  <Show when={!copied()} fallback={<CheckIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}>
+                  <Show
+                    when={!copied()}
+                    fallback={
+                      <CheckIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+                    }
+                  >
                     <ClipboardIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                   </Show>
                 </Button>

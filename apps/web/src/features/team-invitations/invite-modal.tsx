@@ -106,7 +106,7 @@ export const InviteModal = () => {
                   requestAnimationFrame(() => el.focus())
                 );
               }}
-              placeholder={'name@company.com\ncolleague@company.com'}
+              placeholder="name@company.com&#10;colleague@company.com"
               value={value()}
               onInput={(e) => setValue(e.currentTarget.value)}
               rows={4}

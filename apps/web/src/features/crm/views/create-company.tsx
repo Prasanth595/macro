@@ -127,7 +127,7 @@ export function CreateCompanyModal(props: {
                   tabIndex={-1}
                   aria-label="Close"
                   tooltip="Close"
-                  size={"icon-md"}
+                  size="icon-md"
                   disabled={createCompanyMutation.isPending}
                   onClick={close}
                 >

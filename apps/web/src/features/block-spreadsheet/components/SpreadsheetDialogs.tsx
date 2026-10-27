@@ -143,10 +143,11 @@ export function SpreadsheetFindDialog(props: SpreadsheetFindDialogProps) {
             <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
           <Show when={!props.readonly}>
-            <Button aria-label={replacing() ? 'Hide replace' : 'Replace'} tooltip={replacing() ? 'Hide replace' : 'Replace'}
+            <Button
+              aria-label={replacing() ? 'Hide replace' : 'Replace'}
+              tooltip={replacing() ? 'Hide replace' : 'Replace'}
               size="icon-sm"
               variant="ghost"
-              
               aria-pressed={replacing()}
               onClick={() => setReplacing((open) => !open)}
             >
@@ -278,7 +279,7 @@ export function SpreadsheetMoveDialog(props: {
           >
             Cancel
           </Button>
-          <Button size="sm" variant={"secondary"} type="submit">
+          <Button size="sm" variant="secondary" type="submit">
             Replace
           </Button>
         </div>

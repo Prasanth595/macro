@@ -105,7 +105,9 @@ function DesktopTasksControls() {
         </div>
       </HeaderActionGroup>
       <HeaderActionGroup label="Task layout">
-        <ButtonGroup.Button aria-label={"List"} tooltip={"List"}
+        <ButtonGroup.Button
+          aria-label="List"
+          tooltip="List"
           variant="ghost"
           size="icon-sm"
           aria-pressed={state.layout === 'list'}
@@ -113,7 +115,9 @@ function DesktopTasksControls() {
         >
           <ListIcon class="size-4" />
         </ButtonGroup.Button>
-        <ButtonGroup.Button aria-label={"Board"} tooltip={"Board"}
+        <ButtonGroup.Button
+          aria-label="Board"
+          tooltip="Board"
           variant="ghost"
           size="icon-sm"
           aria-pressed={state.layout === 'board'}
@@ -122,7 +126,9 @@ function DesktopTasksControls() {
           <BoardIcon class="size-4" />
         </ButtonGroup.Button>
         <Show when={ganttEnabled()}>
-          <ButtonGroup.Button aria-label={"Gantt"} tooltip={"Gantt"}
+          <ButtonGroup.Button
+            aria-label="Gantt"
+            tooltip="Gantt"
             variant="ghost"
             size="icon-sm"
             aria-pressed={state.layout === 'gantt'}

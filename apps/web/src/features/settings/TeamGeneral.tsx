@@ -456,7 +456,7 @@ export function TeamGeneral(props: { team: TeamSummary }) {
                 Cancel
               </Button>
               <Button
-                variant={"secondary"}
+                variant="secondary"
                 disabled={!canDeleteTeam() || deleteTeamMutation.isPending}
                 onClick={handleDeleteTeam}
               >

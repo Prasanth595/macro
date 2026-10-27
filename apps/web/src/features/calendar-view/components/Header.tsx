@@ -195,31 +195,37 @@ export function Header(props: {
   const previous = (compact = false) => {
     const Control = compact ? ButtonGroup.Button : Button;
     return (
-    <Control aria-label={`Previous ${periodLabel()}`} tooltip={{ content: `Previous ${periodLabel()}`, hotkey: TOKENS.calendar.period.previous }}
-      variant="ghost"
-      size={compact ? 'icon-sm' : 'icon-lg'}
-      class="border-transparent bg-transparent"
-      
-      
-      onClick={calendarPager.previousPeriod}
-    >
-      <CaretLeftIcon class={compact ? 'size-4' : 'size-5'} />
-    </Control>
+      <Control
+        aria-label={`Previous ${periodLabel()}`}
+        tooltip={{
+          content: `Previous ${periodLabel()}`,
+          hotkey: TOKENS.calendar.period.previous,
+        }}
+        variant="ghost"
+        size={compact ? 'icon-sm' : 'icon-lg'}
+        class="border-transparent bg-transparent"
+        onClick={calendarPager.previousPeriod}
+      >
+        <CaretLeftIcon class={compact ? 'size-4' : 'size-5'} />
+      </Control>
     );
   };
   const next = (compact = false) => {
     const Control = compact ? ButtonGroup.Button : Button;
     return (
-    <Control aria-label={`Next ${periodLabel()}`} tooltip={{ content: `Next ${periodLabel()}`, hotkey: TOKENS.calendar.period.next }}
-      variant="ghost"
-      size={compact ? 'icon-sm' : 'icon-lg'}
-      class="border-transparent bg-transparent"
-      
-      
-      onClick={calendarPager.nextPeriod}
-    >
-      <CaretRightIcon class={compact ? 'size-4' : 'size-5'} />
-    </Control>
+      <Control
+        aria-label={`Next ${periodLabel()}`}
+        tooltip={{
+          content: `Next ${periodLabel()}`,
+          hotkey: TOKENS.calendar.period.next,
+        }}
+        variant="ghost"
+        size={compact ? 'icon-sm' : 'icon-lg'}
+        class="border-transparent bg-transparent"
+        onClick={calendarPager.nextPeriod}
+      >
+        <CaretRightIcon class={compact ? 'size-4' : 'size-5'} />
+      </Control>
     );
   };
   const todayButton = (mobile: boolean, compact = false) => {
@@ -229,29 +235,35 @@ export function Header(props: {
       return mobile ? 'icon-lg' : 'lg';
     };
     return (
-    <Control aria-label={"Go to today"} tooltip={{ content: "Go to today", hotkey: TOKENS.calendar.period.today }}
-      variant={mobile || compact ? 'ghost' : 'outline'}
-      size={size()}
-      class={cn(
-        mobile && 'relative',
-        !mobile && 'bg-transparent text-sm',
-        !mobile && (compact ? 'px-2' : 'px-3'),
-        !mobile && !compact && 'border-edge-button'
-      )}
-      
-      
-      onClick={calendarPager.navigateToToday}
-    >
-      <Show when={mobile} fallback="Today">
-        <CalendarBlankIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" aria-hidden="true" />
-        <span
-          aria-hidden="true"
-          class="pointer-events-none absolute inset-0 flex items-center justify-center pt-1 text-[10px] font-bold leading-none"
-        >
-          {today().getDate()}
-        </span>
-      </Show>
-    </Control>
+      <Control
+        aria-label="Go to today"
+        tooltip={{
+          content: 'Go to today',
+          hotkey: TOKENS.calendar.period.today,
+        }}
+        variant={mobile || compact ? 'ghost' : 'outline'}
+        size={size()}
+        class={cn(
+          mobile && 'relative',
+          !mobile && 'bg-transparent text-sm',
+          !mobile && (compact ? 'px-2' : 'px-3'),
+          !mobile && !compact && 'border-edge-button'
+        )}
+        onClick={calendarPager.navigateToToday}
+      >
+        <Show when={mobile} fallback="Today">
+          <CalendarBlankIcon
+            class="size-4 touch:size-6 shrink-0 pointer-events-none"
+            aria-hidden="true"
+          />
+          <span
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 flex items-center justify-center pt-1 text-[10px] font-bold leading-none"
+          >
+            {today().getDate()}
+          </span>
+        </Show>
+      </Control>
     );
   };
   return (
@@ -260,11 +272,12 @@ export function Header(props: {
         <SplitHeaderLeft>
           <HeaderIsland class="min-w-0 shrink px-1">
             <Show when={!isMobile() && shell?.aside.isCollapsed()}>
-              <Button aria-label={"Show calendar navigation"} tooltip={"Show calendar navigation"}
+              <Button
+                aria-label="Show calendar navigation"
+                tooltip="Show calendar navigation"
                 variant="ghost"
                 size="icon-sm"
                 class="shrink-0"
-                
                 ref={tourTarget(CALENDAR_TOUR.sidebarToggle)}
                 aria-expanded={shell?.aside.isOverlay() ?? false}
                 onClick={() => shell?.aside.expand()}

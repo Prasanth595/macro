@@ -565,7 +565,15 @@ export function ViewSidebarToggle(props: { action: 'collapse' | 'expand' }) {
   // Show and Hide are separate actions, not a persistently pressed toggle.
   return (
     <Show when={visible()}>
-      <Button aria-label={props.action === 'expand' ? 'Show navigation' : 'Hide navigation'} tooltip={{ content: props.action === 'expand' ? 'Show navigation' : 'Hide navigation', hotkey: TOKENS.workspace.toggleNavigation }}
+      <Button
+        aria-label={
+          props.action === 'expand' ? 'Show navigation' : 'Hide navigation'
+        }
+        tooltip={{
+          content:
+            props.action === 'expand' ? 'Show navigation' : 'Hide navigation',
+          hotkey: TOKENS.workspace.toggleNavigation,
+        }}
         variant="ghost"
         size="icon-sm"
         class={cn(

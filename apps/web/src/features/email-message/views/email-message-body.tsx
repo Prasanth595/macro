@@ -55,10 +55,11 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
         </Switch>
         <Show when={!showFullHTML() && hasHiddenReplyStructure()}>
           <div class="flex items-center mt-1.5 mb-2">
-            <Button aria-label={"Show quoted text"} tooltip={"Show quoted text"}
+            <Button
+              aria-label="Show quoted text"
+              tooltip="Show quoted text"
               variant="ghost"
               size="icon-sm"
-              
               onClick={() => setShowFullHTML(true)}
               class={cn(
                 'text-ink-extra-muted hover:text-ink-muted',

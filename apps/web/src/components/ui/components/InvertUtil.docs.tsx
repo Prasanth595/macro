@@ -59,9 +59,9 @@ function InvertedDemo() {
           <div class="flex flex-wrap gap-2">
             <Button variant="ghost">Ghost</Button>
             <Button variant="outline">Outline</Button>
-            <Button variant={"secondary"}>Strong</Button>
+            <Button variant="secondary">Strong</Button>
             <Button variant="accent">Accent</Button>
-            <Button variant={"accent"}>Primary action</Button>
+            <Button variant="accent">Primary action</Button>
             <Button variant="success">Success</Button>
             <Button variant="danger">Danger</Button>
             <Button disabled>Disabled</Button>
@@ -78,7 +78,7 @@ function InvertedDemo() {
               background.
               <div class="mt-3 flex flex-col gap-3">
                 <InvertedPaletteSamples />
-                <Button variant={"accent"}>Nested primary action</Button>
+                <Button variant="accent">Nested primary action</Button>
               </div>
             </div>
           </InvertUtil>

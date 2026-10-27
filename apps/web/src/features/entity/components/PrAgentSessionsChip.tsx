@@ -21,13 +21,13 @@ export function PrAgentSessionChip(props: {
   onOpen: (event: MouseEvent) => void;
 }) {
   return (
-    <Button aria-label={`Open agent session: ${props.label}`} tooltip={`Open agent session: ${props.label}`}
+    <Button
+      aria-label={`Open agent session: ${props.label}`}
+      tooltip={`Open agent session: ${props.label}`}
       variant="ghost"
       size="xs"
-      
       class={cn(rowPillTriggerClasses('max-w-48'), props.class)}
       title={props.label}
-      
       disabled={props.disabled}
       onClick={(event) => {
         event.stopPropagation();
@@ -53,13 +53,13 @@ export function PrAgentSessionsCountChip(
   const label = () => `${props.count} agent sessions`;
   return (
     <Dropdown open={props.open} onOpenChange={props.onOpenChange}>
-      <Dropdown.Trigger aria-label={`Show ${label()}`} tooltip={`Show ${label()}`}
+      <Dropdown.Trigger
+        aria-label={`Show ${label()}`}
+        tooltip={`Show ${label()}`}
         variant="ghost"
         size="xs"
-        
         class={cn(rowPillTriggerClasses('max-w-48'), props.class)}
         title={label()}
-        
         onClick={(event: MouseEvent) => event.stopPropagation()}
         onKeyDown={(event: KeyboardEvent) => {
           if (event.key === 'Enter' || event.key === ' ')

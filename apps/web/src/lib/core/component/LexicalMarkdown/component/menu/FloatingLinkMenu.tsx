@@ -518,12 +518,13 @@ export function FloatingLinkMenu(props: {
           >
             <Button
               onClick={handleSubmit}
-              variant={"accent"}
+              variant="accent"
               size="sm"
               tooltip="Apply link changes"
               disabled={!pendingLinkInfo()?.url && !pendingLinkInfo()?.linkText}
             >
-              <Check class="size-3 touch:size-6 shrink-0 pointer-events-none" /> Apply
+              <Check class="size-3 touch:size-6 shrink-0 pointer-events-none" />{' '}
+              Apply
             </Button>
           </div>
         </MenuWrapper>

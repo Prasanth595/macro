@@ -6,7 +6,15 @@ import PlusIcon from '@icon/system/regular/plus.svg';
 import { useInFlightEntityPropertyOptions } from '@queries/properties/in-flight-options';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import type { SoupProperty } from '@service-storage/generated/schemas/soupProperty';
-import { Button, badgeTriggerClasses, cn, HoverCard, Layer, type BadgeSize, type BadgeVariant } from '@ui';
+import {
+  type BadgeSize,
+  type BadgeVariant,
+  Button,
+  badgeTriggerClasses,
+  cn,
+  HoverCard,
+  Layer,
+} from '@ui';
 import { createSignal, For, Match, Show, Switch } from 'solid-js';
 import { TagDot } from './TagDot';
 import { type EditableTag, TagEditorDialog } from './TagEditorDialog';
@@ -22,8 +30,7 @@ const DEFAULT_MAX_VISIBLE = 3;
 const MAX_OVERFLOW_DOTS = 3;
 
 const hoverMenuLabelClass = 'min-w-0 max-w-[30ch] truncate';
-const hoverMenuIconButtonClass =
-  'size-5 shrink-0 p-0.5 text-ink-extra-muted';
+const hoverMenuIconButtonClass = 'size-5 shrink-0 p-0.5 text-ink-extra-muted';
 
 function HoverTagRow(props: {
   tag: ResolvedTag;
@@ -42,7 +49,6 @@ function HoverTagRow(props: {
             type="button"
             variant="ghost"
             size="icon-sm"
-            
             tooltip="Filter by tag"
             aria-label={`Filter by ${props.tag.label}`}
             class={hoverMenuIconButtonClass}
@@ -64,7 +70,6 @@ function HoverTagRow(props: {
         type="button"
         variant="ghost"
         size="icon-sm"
-        
         tooltip="Edit tag"
         aria-label={`Edit ${props.tag.label}`}
         class={hoverMenuIconButtonClass}

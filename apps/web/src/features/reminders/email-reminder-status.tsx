@@ -37,7 +37,13 @@ function EmailReminderStatusContent(props: {
   const action = makeCreateReminderAction({ onEmailSaved: props.onSaved });
   const Control = props.grouped ? ButtonGroup.Button : Button;
   return (
-    <Control variant="ghost" aria-label={label()} tooltip={{ content: label(), hotkey: TOKENS.entity.action.createReminder }}
+    <Control
+      variant="ghost"
+      aria-label={label()}
+      tooltip={{
+        content: label(),
+        hotkey: TOKENS.entity.action.createReminder,
+      }}
       size="icon-md"
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => {

@@ -31,7 +31,12 @@ function ReferenceDemo() {
           aria-pressed={saved()}
           onClick={() => setSaved(!saved())}
         >
-          <Heart class={cn('size-3.5 shrink-0', saved() && 'fill-current text-accent')} />
+          <Heart
+            class={cn(
+              'size-3.5 shrink-0',
+              saved() && 'fill-current text-accent'
+            )}
+          />
         </Button>
       </Item.Actions>
     </Item>

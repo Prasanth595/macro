@@ -63,7 +63,7 @@ export function FolderComposer(props: {
               <Button
                 variant="ghost"
                 tabIndex={-1}
-                size={"icon-md"}
+                size="icon-md"
                 aria-label="Continue editing in split"
                 tooltip="Continue editing in split"
                 disabled={props.busy}
@@ -78,7 +78,6 @@ export function FolderComposer(props: {
               tabIndex={-1}
               size="sm"
               variant="outline"
-              
               disabled={props.busy}
               onClick={() => {
                 props.onClear();
@@ -91,7 +90,7 @@ export function FolderComposer(props: {
           <Button
             variant="ghost"
             tabIndex={-1}
-            size={"icon-md"}
+            size="icon-md"
             aria-label="Close"
             tooltip="Close"
             disabled={props.busy}

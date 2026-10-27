@@ -164,7 +164,7 @@ export function InviteWelcome() {
                   </div>
                   <div class="flex flex-col gap-3">
                     <Button
-                      variant={"accent"}
+                      variant="accent"
                       size="xl"
                       disabled={redeem.isPending}
                       onClick={onContinue}

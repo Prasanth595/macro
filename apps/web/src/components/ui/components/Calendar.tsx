@@ -451,13 +451,13 @@ export function CalendarMonthMenu(props: CalendarMonthMenuProps) {
 
       <Show when={props.presentation === 'radio-group'}>
         <div class="flex pt-3">
-          <Button aria-label={"Go To Today"} tooltip={"Go To Today"}
+          <Button
+            aria-label="Go To Today"
+            tooltip="Go To Today"
             fullWidth
             variant="ghost"
             size="sm"
-            
             class="min-h-11 bg-ink/6 px-3 text-ink"
-            
             onClick={() => {
               if (props.onToday) {
                 props.onToday();

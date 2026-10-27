@@ -36,14 +36,20 @@ export function CredentialField(props: {
           class="min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none"
           onClick={(event) => event.currentTarget.select()}
         />
-        <Button aria-label={`Copy ${props.label.toLowerCase()}`} tooltip={`Copy ${props.label.toLowerCase()}`}
+        <Button
+          aria-label={`Copy ${props.label.toLowerCase()}`}
+          tooltip={`Copy ${props.label.toLowerCase()}`}
           type="button"
           variant={copied() ? 'success' : 'ghost'}
           size="sm"
-          
           onClick={copy}
         >
-          <Show when={copied()} fallback={<CopyIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />}>
+          <Show
+            when={copied()}
+            fallback={
+              <CopyIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
+            }
+          >
             <CheckIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
             Copied
           </Show>

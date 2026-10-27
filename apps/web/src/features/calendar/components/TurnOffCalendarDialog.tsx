@@ -66,15 +66,13 @@ export function TurnOffCalendarDialog(props: {
           <div class="pt-3 justify-end items-center gap-3 inline-flex">
             <Button
               variant="ghost"
-              
               onClick={props.onClose}
               disabled={disableCalendar.isPending}
             >
               Cancel
             </Button>
             <Button
-              variant={"secondary"}
-              
+              variant="secondary"
               onClick={confirm}
               disabled={disableCalendar.isPending}
             >

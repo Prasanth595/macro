@@ -54,7 +54,9 @@ function Actions(props: { sidebar?: boolean; compact?: boolean }) {
 
   return (
     <Dropdown placement={props.sidebar ? 'bottom-start' : 'bottom-end'}>
-      <Dropdown.Trigger aria-label={"Booking links"} tooltip={"Booking links"}
+      <Dropdown.Trigger
+        aria-label="Booking links"
+        tooltip="Booking links"
         variant={props.compact ? 'outline' : 'ghost'}
         size={props.sidebar || props.compact ? 'md' : 'lg'}
         class={
@@ -64,7 +66,6 @@ function Actions(props: { sidebar?: boolean; compact?: boolean }) {
               ? 'shrink-0 px-2 text-sm'
               : 'shrink-0 px-2 text-sm lg:px-3'
         }
-        
       >
         <Show
           when={props.sidebar}

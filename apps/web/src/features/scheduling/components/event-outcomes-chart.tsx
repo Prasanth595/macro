@@ -93,19 +93,21 @@ export function EventOutcomesChart(props: { rows: InsightOutcomeRow[] }) {
       <div class="min-w-0 w-full flex-1">
         <div class="mb-4 flex justify-end">
           <ButtonGroup finish="raised" variant="secondary">
-            <ButtonGroup.Button aria-label={"Show counts"} tooltip={"Show counts"}
+            <ButtonGroup.Button
+              aria-label="Show counts"
+              tooltip="Show counts"
               type="button"
               size="icon-md"
-              
               aria-pressed={display() === 'count'}
               onClick={() => setDisplay('count')}
             >
               <HashIcon class="size-4" />
             </ButtonGroup.Button>
-            <ButtonGroup.Button aria-label={"Show percentages"} tooltip={"Show percentages"}
+            <ButtonGroup.Button
+              aria-label="Show percentages"
+              tooltip="Show percentages"
               type="button"
               size="icon-md"
-              
               aria-pressed={display() === 'percent'}
               onClick={() => setDisplay('percent')}
             >

@@ -39,7 +39,6 @@ export const EntitySelectionToolbarModal = (
                 onClick={props.onAction}
                 variant="outline"
                 class="p-1 pl-2 bg-surface"
-                
               >
                 <span>Actions</span>
                 <Hotkey token={TOKENS.global.commandMenu} theme="subtle" />
@@ -50,7 +49,6 @@ export const EntitySelectionToolbarModal = (
               onClick={props.onClose}
               variant="outline"
               class="p-1 pl-2 bg-surface"
-              
             >
               <span>Clear</span>
               <Hotkey shortcut="escape" theme="subtle" />

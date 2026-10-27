@@ -62,11 +62,12 @@ export function ChannelInviteModal(props: {
               <Dialog.Title class="min-w-0 break-words text-xl font-semibold text-ink">
                 Invite people to {props.channelName}
               </Dialog.Title>
-              <Dialog.CloseButton aria-label={"Close"} tooltip={"Close"}
+              <Dialog.CloseButton
+                aria-label="Close"
+                tooltip="Close"
                 as={Button}
                 variant="ghost"
                 size="icon-sm"
-                
                 tabIndex={-1}
                 disabled={pending()}
               >

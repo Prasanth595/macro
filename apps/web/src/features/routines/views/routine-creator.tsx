@@ -42,7 +42,7 @@ export function RoutineCreatorView(props: {
         <ClockIcon class="ml-2 size-4 text-ink-muted" />
         <span class="flex-1 px-1 text-sm text-ink-muted">New routine</span>
         <Button
-          size={"icon-md"}
+          size="icon-md"
           variant="ghost"
           aria-label="Close routine composer"
           onClick={() => props.onClose()}

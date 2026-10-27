@@ -347,7 +347,7 @@ export function FormulaEditor(props: {
           Cancel
         </Button>
         <Button
-          variant={"accent"}
+          variant="accent"
           size="sm"
           disabled={!canSave()}
           onClick={() => fireAndForget(save(), 'database')}

@@ -194,7 +194,7 @@ export function ExportDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant={"accent"}
+            variant="accent"
             data-testid="pptx-export-run"
             disabled={!!progress() || indexes().length === 0}
             onClick={() => fireAndForget(run(), 'pptx-export')}
@@ -202,10 +202,11 @@ export function ExportDialog(props: {
             Export
           </Button>
         </div>
-        <Button aria-label={"Close"} tooltip={"Close"}
+        <Button
+          aria-label="Close"
+          tooltip="Close"
           size="icon-sm"
           variant="ghost"
-          
           class="absolute top-3 right-3"
           onClick={props.onClose}
         >

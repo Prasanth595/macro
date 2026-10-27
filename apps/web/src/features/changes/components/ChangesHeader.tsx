@@ -30,10 +30,11 @@ export function ChangesHeader(props: {
   return (
     <>
       <Show when={props.mobile}>
-        <Button aria-label={"Back to conversation"} tooltip={"Back to conversation"}
+        <Button
+          aria-label="Back to conversation"
+          tooltip="Back to conversation"
           variant="ghost"
           size="icon-sm"
-          
           onClick={props.onClose}
         >
           <ArrowLeftIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
@@ -122,24 +123,34 @@ export function ChangesHeader(props: {
       </div>
       <Show when={!props.mobile}>
         <Show when={props.onSpotlight}>
-          <Button aria-label={props.spotlit
+          <Button
+            aria-label={
+              props.spotlit
                 ? 'Back to the split'
-                : 'Expand changes to the full width'} tooltip={props.spotlit
+                : 'Expand changes to the full width'
+            }
+            tooltip={
+              props.spotlit
                 ? 'Back to the split'
-                : 'Expand changes to the full width'}
+                : 'Expand changes to the full width'
+            }
             variant="ghost"
             size="icon-sm"
             aria-pressed={props.spotlit}
-            
             onClick={() => props.onSpotlight?.()}
           >
-            {props.spotlit ? <ArrowsInSimpleIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" /> : <ArrowsOutSimpleIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
+            {props.spotlit ? (
+              <ArrowsInSimpleIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+            ) : (
+              <ArrowsOutSimpleIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+            )}
           </Button>
         </Show>
-        <Button aria-label={"Close the changes pane"} tooltip={"Close the changes pane"}
+        <Button
+          aria-label="Close the changes pane"
+          tooltip="Close the changes pane"
           variant="ghost"
           size="icon-sm"
-          
           onClick={() => props.onClose()}
         >
           <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />

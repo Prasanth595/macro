@@ -315,11 +315,12 @@ function DropdownForm(props: {
                   }}
                   class="min-w-0 flex-1 rounded border border-edge-muted bg-input px-3 py-1.5 text-ink outline-none placeholder:text-ink-placeholder focus:border-accent"
                 />
-                <Button aria-label={`Remove choice ${index() + 1}`} tooltip={`Remove choice ${index() + 1}`}
+                <Button
+                  aria-label={`Remove choice ${index() + 1}`}
+                  tooltip={`Remove choice ${index() + 1}`}
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  
                   disabled={choices.length === 1}
                   onClick={() => remove(index())}
                 >
@@ -382,10 +383,11 @@ function ChoiceColorMenu(props: {
 }) {
   return (
     <Dropdown placement="bottom-start">
-      <Dropdown.Trigger aria-label={`Color of ${props.choice}`} tooltip={`Color of ${props.choice}`}
+      <Dropdown.Trigger
+        aria-label={`Color of ${props.choice}`}
+        tooltip={`Color of ${props.choice}`}
         variant="ghost"
         size="icon-sm"
-        
         class="shrink-0"
       >
         <span

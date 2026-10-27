@@ -167,26 +167,29 @@ export function FindReplace(props: {
               : `${current() < 0 ? '–' : current() + 1} of ${matches().length}`
             : ''}
         </span>
-        <Button aria-label={"Previous"} tooltip={"Previous"}
+        <Button
+          aria-label="Previous"
+          tooltip="Previous"
           size="icon-xs"
           variant="ghost"
-          
           onClick={() => step(-1)}
         >
           <CaretUp class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
-        <Button aria-label={"Next"} tooltip={"Next"}
+        <Button
+          aria-label="Next"
+          tooltip="Next"
           size="icon-xs"
           variant="ghost"
-          
           onClick={() => step(1)}
         >
           <CaretDown class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
-        <Button aria-label={"Close"} tooltip={"Close"}
+        <Button
+          aria-label="Close"
+          tooltip="Close"
           size="icon-xs"
           variant="ghost"
-          
           onClick={props.onClose}
         >
           <X class="size-3 touch:size-6 shrink-0 pointer-events-none" />

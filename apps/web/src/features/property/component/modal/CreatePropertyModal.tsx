@@ -147,10 +147,11 @@ const OptionInput: Component<OptionInputProps<string | number>> = (props) => {
               class={inputClass}
               data-option-id={option().id}
             />
-            <Button aria-label={"Remove option"} tooltip={"Remove option"}
+            <Button
+              aria-label="Remove option"
+              tooltip="Remove option"
               variant="ghost"
               size="icon-sm"
-              
               onClick={() => props.onRemove(option().id)}
               class="shrink-0 text-failure-ink"
             >
@@ -554,12 +555,13 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
           >
             Create property
           </Dialog.Title>
-          <Dialog.CloseButton aria-label={"Close"} tooltip={"Close"}
+          <Dialog.CloseButton
+            aria-label="Close"
+            tooltip="Close"
             as={Button}
             variant="ghost"
             size="icon-sm"
             disabled={pending()}
-            
           >
             <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Dialog.CloseButton>
@@ -767,7 +769,6 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
             </Button>
             <Button
               variant="accent"
-              
               class={cn('gap-3 ', pending() && 'gap-1.5')}
               onClick={handleCreateProperty}
               disabled={!canSubmit()}

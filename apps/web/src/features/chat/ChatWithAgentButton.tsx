@@ -155,10 +155,13 @@ export function ChatWithAgentButton(props: {
     }
   }
   return (
-    <HeaderActionButton grouped={props.grouped}
+    <HeaderActionButton
+      grouped={props.grouped}
       tooltip={props.label ?? 'Chat with Agent'}
       label={props.label ?? 'Chat'}
-      icon={<AgentIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
+      icon={
+        <AgentIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+      }
       onClick={() => fireAndForget(open(), 'chat-with-agent')}
       disabled={props.disabled || opening()}
       busy={opening()}
@@ -166,14 +169,21 @@ export function ChatWithAgentButton(props: {
   );
 }
 
-export function AskMacroButton(props: { entity: ChatWithAgentEntity; grouped?: boolean; size?: ButtonSize }) {
+export function AskMacroButton(props: {
+  entity: ChatWithAgentEntity;
+  grouped?: boolean;
+  size?: ButtonSize;
+}) {
   return (
-    <HeaderActionButton grouped={props.grouped}
+    <HeaderActionButton
+      grouped={props.grouped}
       size={props.size}
       onClick={() => openChatWithAgent(props.entity)}
       tooltip="Ask Macro"
       label="Ask Macro"
-      icon={<AgentIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}
+      icon={
+        <AgentIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+      }
     />
   );
 }

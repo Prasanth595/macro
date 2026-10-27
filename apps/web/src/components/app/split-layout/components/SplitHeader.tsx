@@ -125,12 +125,12 @@ function SplitBackButton() {
   const context = useContext(SplitPanelContext);
   if (!context) return null;
   return (
-    <Button variant="ghost" aria-label={"Go Back"} tooltip={{ content: "Go Back", hotkey: TOKENS.split.go.back }}
-      
-      size={"icon-sm"}
+    <Button
+      variant="ghost"
+      aria-label="Go Back"
+      tooltip={{ content: 'Go Back', hotkey: TOKENS.split.go.back }}
+      size="icon-sm"
       class="p-1 touch:active:bg-transparent"
-      
-      
       disabled={
         !context.handle.canGoBack() &&
         !hasAgentsBackFallback(context.handle.content())
@@ -162,10 +162,18 @@ function _SplitSpotlightButton() {
   if (!context || !layout) return '';
   return (
     <Show when={canSpotlight(layout.manager)}>
-      <Button variant="ghost" aria-label={context.handle.isSpotLight() ? 'Minimize Split' : 'Spotlight Split'} tooltip={{ content: context.handle.isSpotLight() ? 'Minimize Split' : 'Spotlight Split', hotkey: TOKENS.window.spotlight.toggle }}
+      <Button
+        variant="ghost"
+        aria-label={
+          context.handle.isSpotLight() ? 'Minimize Split' : 'Spotlight Split'
+        }
+        tooltip={{
+          content: context.handle.isSpotLight()
+            ? 'Minimize Split'
+            : 'Spotlight Split',
+          hotkey: TOKENS.window.spotlight.toggle,
+        }}
         class="p-1 hidden"
-        
-        
         onClick={() => context.handle.toggleSpotlight()}
       >
         {context.handle.isSpotLight() ? (
@@ -339,26 +347,30 @@ export function ListNavigationButtons(props: {
   class?: string;
   size?: 'sm' | 'md';
 }) {
-  const iconSize = () => isTouchDevice() || props.size === 'md' ? 'icon-md' : 'icon-sm';
+  const iconSize = () =>
+    isTouchDevice() || props.size === 'md' ? 'icon-md' : 'icon-sm';
   return (
     <HeaderActionGroup label="Item navigation" size={props.size}>
       <div class={cn('flex items-center touch:gap-0.5', props.class)}>
-        <ButtonGroup.Button aria-label={"Previous item"} tooltip={{ content: "Previous item", hotkey: TOKENS.entity.step.start }}
+        <ButtonGroup.Button
+          aria-label="Previous item"
+          tooltip={{
+            content: 'Previous item',
+            hotkey: TOKENS.entity.step.start,
+          }}
           variant="ghost"
           size={iconSize()}
-          
-          
           disabled={!props.navigation.canPrevious()}
           onMouseDown={(event) => event.preventDefault()}
           onClick={props.navigation.previous}
         >
           <CaretUp class="size-4" />
         </ButtonGroup.Button>
-        <ButtonGroup.Button aria-label={"Next item"} tooltip={{ content: "Next item", hotkey: TOKENS.entity.step.end }}
+        <ButtonGroup.Button
+          aria-label="Next item"
+          tooltip={{ content: 'Next item', hotkey: TOKENS.entity.step.end }}
           variant="ghost"
           size={iconSize()}
-          
-          
           disabled={!props.navigation.canNext()}
           onMouseDown={(event) => event.preventDefault()}
           onClick={props.navigation.next}

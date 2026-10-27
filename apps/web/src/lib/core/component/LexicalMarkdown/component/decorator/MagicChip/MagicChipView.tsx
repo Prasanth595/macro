@@ -200,7 +200,6 @@ export const MagicChipView: Component<{
             <Button
               variant="ghost"
               size="icon-sm"
-              
               aria-label="Collapse to mention"
               on:click={(event) => {
                 event.preventDefault();
@@ -214,7 +213,6 @@ export const MagicChipView: Component<{
           <Button
             variant="outline"
             size="sm"
-            
             class="aspect-square bg-transparent p-0 font-normal @[600px]:aspect-auto @[600px]:px-2"
             aria-label="Open session"
             disabled={props.loading || !props.onOpen}

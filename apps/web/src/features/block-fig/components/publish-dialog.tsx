@@ -63,11 +63,12 @@ export function PublishDialog(props: {
               <Dialog.Title class="font-semibold text-base text-ink">
                 Publish library
               </Dialog.Title>
-              <Dialog.CloseButton aria-label={"Close"} tooltip={"Close"}
+              <Dialog.CloseButton
+                aria-label="Close"
+                tooltip="Close"
                 as={Button}
                 variant="ghost"
                 size="icon-sm"
-                
                 tabIndex={-1}
               >
                 <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
@@ -124,7 +125,7 @@ export function PublishDialog(props: {
                 Cancel
               </Button>
               <Button
-                variant={"accent"}
+                variant="accent"
                 size="sm"
                 data-testid="fig-publish-confirm"
                 disabled={props.publishing || props.status.changes.length === 0}

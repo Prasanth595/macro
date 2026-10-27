@@ -1,4 +1,3 @@
-import { ButtonGroup } from '@ui';
 import { defineDoc } from '@app/features/ui-gallery/types';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import FilterIcon from '@icon/system/regular/funnel-simple.svg';
@@ -8,6 +7,7 @@ import PlusIcon from '@icon/system/regular/plus.svg';
 import SidebarIcon from '@icon/system/regular/sidebar-simple.svg';
 import SortIcon from '@icon/system/regular/sort-ascending.svg';
 import BoardIcon from '@icon/system/regular/squares-four.svg';
+import { ButtonGroup } from '@ui';
 import { createSignal, For } from 'solid-js';
 import { Button } from '../components/Button';
 import { Tabs } from '../components/Tabs';
@@ -33,25 +33,35 @@ function HeaderDemo() {
       />
       <div class="ml-auto flex shrink-0 items-center gap-2">
         <HeaderActionGroup label="Task filters">
-          <ButtonGroup.Button aria-label={"Filter tasks"} tooltip={"Filter tasks"} size="icon-sm" >
+          <ButtonGroup.Button
+            aria-label="Filter tasks"
+            tooltip="Filter tasks"
+            size="icon-sm"
+          >
             <FilterIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
           </ButtonGroup.Button>
-          <ButtonGroup.Button aria-label={"Sort tasks"} tooltip={"Sort tasks"} size="icon-sm" >
+          <ButtonGroup.Button
+            aria-label="Sort tasks"
+            tooltip="Sort tasks"
+            size="icon-sm"
+          >
             <SortIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
           </ButtonGroup.Button>
         </HeaderActionGroup>
         <HeaderActionGroup label="Task layout">
-          <ButtonGroup.Button aria-label={"List"} tooltip={"List"}
+          <ButtonGroup.Button
+            aria-label="List"
+            tooltip="List"
             size="icon-sm"
-            
             aria-pressed={layout() === 'list'}
             onClick={() => setLayout('list')}
           >
             <ListIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
           </ButtonGroup.Button>
-          <ButtonGroup.Button aria-label={"Board"} tooltip={"Board"}
+          <ButtonGroup.Button
+            aria-label="Board"
+            tooltip="Board"
             size="icon-sm"
-            
             aria-pressed={layout() === 'board'}
             onClick={() => setLayout('board')}
           >
@@ -62,7 +72,12 @@ function HeaderDemo() {
           <PlusIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           New
         </Button>
-        <Button aria-label={"Search tasks"} tooltip={"Search tasks"} variant="outline" size="icon-md" >
+        <Button
+          aria-label="Search tasks"
+          tooltip="Search tasks"
+          variant="outline"
+          size="icon-md"
+        >
           <SearchIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>
@@ -86,10 +101,11 @@ function SelectedDemo() {
         value={value()}
         onChange={setValue}
       />
-      <Button aria-label={open() ? 'Hide details' : 'Show details'} tooltip={open() ? 'Hide details' : 'Show details'}
+      <Button
+        aria-label={open() ? 'Hide details' : 'Show details'}
+        tooltip={open() ? 'Hide details' : 'Show details'}
         variant="outline"
         size="icon-md"
-        
         aria-pressed={open()}
         onClick={() => setOpen(!open())}
       >
@@ -122,10 +138,11 @@ function SizesDemo() {
               <PlusIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
               New
             </Button>
-            <Button aria-label={"Search"} tooltip={"Search"}
+            <Button
+              aria-label="Search"
+              tooltip="Search"
               variant="outline"
               size={size === 'sm' ? 'icon-sm' : 'icon-md'}
-              
             >
               <SearchIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
             </Button>

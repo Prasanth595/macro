@@ -265,11 +265,13 @@ export function FloatingFormatMenu(props: {
       : MoreInlineOptions;
 
   const InlineButton = (buttonProps: { item: InlineOption }) => (
-    <Button aria-label={buttonProps.item.label} tooltip={{ content: buttonProps.item.label, shortcut: buttonProps.item.shortcut }}
-      
-      
+    <Button
+      aria-label={buttonProps.item.label}
+      tooltip={{
+        content: buttonProps.item.label,
+        shortcut: buttonProps.item.shortcut,
+      }}
       size="icon-sm"
-      
       variant={selection()?.[buttonProps.item.format] ? 'accent' : 'ghost'}
       onPointerDown={(e: PointerEvent) => e.preventDefault()}
       onClick={(e: MouseEvent | KeyboardEvent) => {
@@ -290,7 +292,6 @@ export function FloatingFormatMenu(props: {
         <Dropdown.Trigger
           variant="ghost"
           size="icon-sm"
-          
           tooltip="More formatting"
           tabIndex={-1}
         >
@@ -325,7 +326,6 @@ export function FloatingFormatMenu(props: {
           variant="ghost"
           size="sm"
           class="gap-1"
-          
           tooltip="Text style"
           tabIndex={-1}
         >
@@ -384,7 +384,6 @@ export function FloatingFormatMenu(props: {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                
                 onPointerDown={(e: PointerEvent) => e.preventDefault()}
                 onClick={handleLink}
                 tooltip={selection()?.hasLinks ? 'Remove Link' : 'Insert Link'}

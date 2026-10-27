@@ -235,7 +235,10 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
                       type="button"
                       aria-label={`Open ${name(id)}`}
                       title={`Open ${name(id)}`}
-                      class={buttonClasses({ size: 'icon-xs', class: 'pointer-events-auto shrink-0' })}
+                      class={buttonClasses({
+                        size: 'icon-xs',
+                        class: 'pointer-events-auto shrink-0',
+                      })}
                       data-disabled={!available(id) ? '' : undefined}
                       disabled={!available(id)}
                       onClick={() => openRecord(id)}
@@ -379,10 +382,14 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
                             <ArrowUpRightIcon class="size-3 shrink-0 text-ink-muted" />
                           </Button>
                           <Show when={editable()}>
-                            <Button variant="ghost" aria-label={`Remove ${name(id)}`} tooltip={{ content: `Remove ${name(id)}`, disabled: true }}
+                            <Button
+                              variant="ghost"
+                              aria-label={`Remove ${name(id)}`}
+                              tooltip={{
+                                content: `Remove ${name(id)}`,
+                                disabled: true,
+                              }}
                               size="icon-xs"
-                              
-                              
                               onClick={() => toggle(id)}
                             >
                               <XIcon class="size-3" />

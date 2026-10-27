@@ -24,10 +24,11 @@ export function ParticipantsActionSheet(
             <MobileDrawer.Title class="text-base font-semibold">
               {props.title}
             </MobileDrawer.Title>
-            <Button aria-label={"Close"} tooltip={"Close"}
+            <Button
+              aria-label="Close"
+              tooltip="Close"
               variant="ghost"
               size="icon-md"
-              
               onClick={() => props.onOpenChange(false)}
             >
               <XIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />

@@ -25,10 +25,11 @@ export function SpellingPane(props: {
     >
       <div class="flex h-9 items-center justify-between border-edge-muted border-b px-3">
         <span class="font-semibold text-ink text-sm">Spelling</span>
-        <Button aria-label={"Close"} tooltip={"Close"}
+        <Button
+          aria-label="Close"
+          tooltip="Close"
           size="icon-sm"
           variant="ghost"
-          
           onClick={props.onClose}
         >
           <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />

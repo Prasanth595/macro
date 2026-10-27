@@ -23,8 +23,9 @@ export function ThemeEditor(props: {
     <Layer depth={3}>
       <div class="mx-3 my-2 flex max-h-[70vh] flex-col gap-3 rounded-xl border border-edge-muted bg-surface px-4 py-4">
         <div class="flex items-center gap-2">
-          <Button aria-label={"Close editor"} tooltip={"Close editor"}
-            
+          <Button
+            aria-label="Close editor"
+            tooltip="Close editor"
             onClick={props.onClose}
             variant="ghost"
             size="icon-sm"

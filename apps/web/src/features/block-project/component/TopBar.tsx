@@ -95,7 +95,10 @@ export function TopBar() {
       action: () => openChatWithAgent({ type: 'project', id, name: name() }),
       condition: () => !isSpecialProject,
       buttonComponent: (control) => (
-        <ChatWithAgentButton grouped={control.grouped} entity={{ type: 'project', id, name: name() }} />
+        <ChatWithAgentButton
+          grouped={control.grouped}
+          entity={{ type: 'project', id, name: name() }}
+        />
       ),
     },
     {

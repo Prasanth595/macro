@@ -18,7 +18,11 @@ export function EmailThreadControlGroups(props: {
       <Show when={props.navigation}>
         {(navigation) => (
           <HeaderActionGroup label="Item navigation" size="md">
-            <ListNavigationButtons navigation={navigation()} size="md" class="gap-0" />
+            <ListNavigationButtons
+              navigation={navigation()}
+              size="md"
+              class="gap-0"
+            />
           </HeaderActionGroup>
         )}
       </Show>

@@ -198,10 +198,11 @@ export function PipelineView(props: {
         onOpenRecord={props.onOpenRecord}
         actions={
           <Show when={isTouchDevice()}>
-            <Button aria-label={"Pipeline actions"} tooltip={"Pipeline actions"}
+            <Button
+              aria-label="Pipeline actions"
+              tooltip="Pipeline actions"
               variant="ghost"
               size="icon-md"
-              
               onClick={openActions}
             >
               <DotsThreeIcon class="size-4" />

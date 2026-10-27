@@ -390,13 +390,16 @@ export function EventTypesPanel(props: {
                           .exhaustive(() => null)}
                       </Badge>
                       <Dropdown>
-                        <Dropdown.Trigger aria-label={`Options for ${event.title}`} tooltip={{ content: `Options for ${event.title}`, disabled: true }}
+                        <Dropdown.Trigger
+                          aria-label={`Options for ${event.title}`}
+                          tooltip={{
+                            content: `Options for ${event.title}`,
+                            disabled: true,
+                          }}
                           variant="ghost"
                           size="icon-sm"
-                          
                           class="shrink-0 touch:hidden"
                           disabled={props.saving}
-                          
                         >
                           <Dots class="size-4" />
                         </Dropdown.Trigger>

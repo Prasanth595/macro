@@ -123,7 +123,7 @@ export function MessageOperationRecovery(props: {
                 <div class="flex gap-2">
                   <Button
                     size="sm"
-                    variant={"secondary"}
+                    variant="secondary"
                     disabled={
                       pending() ||
                       ((decision()?.action === 'retry_send' ||

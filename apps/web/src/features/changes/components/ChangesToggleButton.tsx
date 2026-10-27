@@ -10,16 +10,18 @@ export function ChangesToggleButton(props: {
 }) {
   const Control = props.grouped ? ButtonGroup.Button : Button;
   return (
-    <Control aria-label={"Changes"}
+    <Control
+      aria-label="Changes"
       variant="ghost"
       size={isTouchDevice() || props.grouped ? 'sm' : 'md'}
-      
       aria-pressed={props.open}
       tooltip={props.open ? 'Hide the changes pane' : 'Show the changes pane'}
       // The label collapses as the header narrows; the pressed fill marks open.
       class={cn(
         'touch:h-7 gap-1.5 touch:@max-[28rem]/split-header:w-7 @max-[28rem]/split-header:gap-0 @max-[28rem]/split-header:px-0',
-        props.grouped ? 'not-touch:@max-[28rem]/split-header:w-7' : 'not-touch:@max-[28rem]/split-header:w-8'
+        props.grouped
+          ? 'not-touch:@max-[28rem]/split-header:w-7'
+          : 'not-touch:@max-[28rem]/split-header:w-8'
       )}
       onClick={() => props.onToggle()}
     >

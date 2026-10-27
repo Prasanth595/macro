@@ -165,7 +165,7 @@ export function SmartArtDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant={"accent"}
+            variant="accent"
             data-testid="pptx-smartart-ok"
             disabled={!current()}
             onClick={ok}
@@ -173,10 +173,11 @@ export function SmartArtDialog(props: {
             OK
           </Button>
         </div>
-        <Button aria-label={"Close"} tooltip={"Close"}
+        <Button
+          aria-label="Close"
+          tooltip="Close"
           size="icon-sm"
           variant="ghost"
-          
           class="absolute top-3 right-3"
           onClick={props.onClose}
         >

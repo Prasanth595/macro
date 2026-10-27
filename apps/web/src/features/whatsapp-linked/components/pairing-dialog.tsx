@@ -262,11 +262,7 @@ export function PairingDialog(props: {
           </Switch>
         </ActionDialogShell.Body>
         <ActionDialogShell.Footer>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={props.onCancel}
-          >
+          <Button type="button" variant="ghost" onClick={props.onCancel}>
             Cancel
           </Button>
         </ActionDialogShell.Footer>

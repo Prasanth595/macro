@@ -129,10 +129,11 @@ export function MobileAgentPicker(props: AgentPickerProps) {
           <MobileDrawer.Handle />
           <div class="flex items-center gap-2 px-4 pb-3">
             <Show when={browsing() || showAll()}>
-              <Button aria-label={showAll() ? 'Back to Suggested' : 'Back to agents'} tooltip={showAll() ? 'Back to Suggested' : 'Back to agents'}
+              <Button
+                aria-label={showAll() ? 'Back to Suggested' : 'Back to agents'}
+                tooltip={showAll() ? 'Back to Suggested' : 'Back to agents'}
                 variant="ghost"
                 size="icon-md"
-                
                 onClick={() => {
                   if (showAll()) {
                     setShowAll(false);
@@ -287,11 +288,12 @@ export function MobileAgentPicker(props: AgentPickerProps) {
                               />
                             </MobileDrawer.Item>
                             <Show when={!agent.unavailableReason}>
-                              <Button aria-label={`Models for ${agent.name}`} tooltip={`Models for ${agent.name}`}
+                              <Button
+                                aria-label={`Models for ${agent.name}`}
+                                tooltip={`Models for ${agent.name}`}
                                 variant="ghost"
                                 size="icon-md"
                                 class="mr-1 size-11 shrink-0"
-                                
                                 onClick={() => browse(agent)}
                               >
                                 <CaretRight class="size-4 touch:size-6 shrink-0 pointer-events-none" />
@@ -317,9 +319,8 @@ export function MobileAgentPicker(props: AgentPickerProps) {
             </Show>
             <div class="flex justify-end px-4 pt-1">
               <Button
-                variant={"secondary"}
+                variant="secondary"
                 size="sm"
-                
                 class="gap-1.5"
                 onClick={() => {
                   changeOpen(false);

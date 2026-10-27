@@ -16,9 +16,10 @@ export function PdfTabsToggle() {
 
   return (
     <Show when={canEdit()}>
-      <Button aria-label={pdf.tabs.isVisible() ? 'Hide Tabs' : 'Show Tabs'} tooltip={pdf.tabs.isVisible() ? 'Hide Tabs' : 'Show Tabs'}
+      <Button
+        aria-label={pdf.tabs.isVisible() ? 'Hide Tabs' : 'Show Tabs'}
+        tooltip={pdf.tabs.isVisible() ? 'Hide Tabs' : 'Show Tabs'}
         size="icon-sm"
-        
         variant="ghost"
         onClick={pdf.tabs.commands.toggleVisibility}
       >

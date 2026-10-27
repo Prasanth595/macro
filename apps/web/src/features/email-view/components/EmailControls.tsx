@@ -47,7 +47,16 @@ export function EmailControls(props: EmailControlsProps) {
       </div>
       <HeaderActionGroup label="Email view options" size="md">
         <Show when={!isTouchDevice()}>
-          <ButtonGroup.Button aria-label={readingPane() ? 'Hide reading pane' : 'Show reading pane'} tooltip={{ content: readingPane() ? 'Hide reading pane' : 'Show reading pane', hotkey: TOKENS.email.toggleReadingPane }}
+          <ButtonGroup.Button
+            aria-label={
+              readingPane() ? 'Hide reading pane' : 'Show reading pane'
+            }
+            tooltip={{
+              content: readingPane()
+                ? 'Hide reading pane'
+                : 'Show reading pane',
+              hotkey: TOKENS.email.toggleReadingPane,
+            }}
             variant="ghost"
             size="icon-md"
             aria-pressed={readingPane()}

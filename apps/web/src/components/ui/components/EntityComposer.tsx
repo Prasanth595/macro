@@ -92,10 +92,12 @@ function Submit(props: ButtonProps & { hasContent: boolean }) {
       {...rest}
       variant={local.variant ?? 'accent'}
       class={local.class}
-      tooltip={local.tooltip ?? {
-        content: local.children,
-        shortcut: 'cmd+enter',
-      }}
+      tooltip={
+        local.tooltip ?? {
+          content: local.children,
+          shortcut: 'cmd+enter',
+        }
+      }
     >
       {local.children}
     </Button>

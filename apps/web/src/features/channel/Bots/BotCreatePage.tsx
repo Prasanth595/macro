@@ -308,7 +308,7 @@ export function BotCreate(props: { channelId?: string; onBack: () => void }) {
                 <Button type="button" variant="ghost" size="sm" onClick={leave}>
                   Cancel
                 </Button>
-                <Button type="submit" variant={"accent"} size="sm">
+                <Button type="submit" variant="accent" size="sm">
                   Create bot
                 </Button>
               </div>

@@ -557,7 +557,6 @@ export function EventForm(props: EventFormProps) {
         <Button
           type="submit"
           variant="accent"
-          
           disabled={!controller.canSave() || formIsDisabled()}
           aria-label={isEdit() ? 'Save' : 'Create event'}
         >

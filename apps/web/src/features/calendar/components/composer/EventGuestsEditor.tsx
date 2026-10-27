@@ -136,8 +136,9 @@ export function AddOnlyGuestsEditor(props: {
                 <li>
                   <EventGuestRow guest={guest}>
                     {props.addedControls?.(guest)}
-                    <Button aria-label={`Remove ${guestDisplayName(guest)}`} tooltip={`Remove ${guestDisplayName(guest)}`}
-                      
+                    <Button
+                      aria-label={`Remove ${guestDisplayName(guest)}`}
+                      tooltip={`Remove ${guestDisplayName(guest)}`}
                       variant="ghost"
                       size="icon-sm"
                       class="shrink-0 text-ink-muted"

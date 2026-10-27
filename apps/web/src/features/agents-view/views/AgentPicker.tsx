@@ -225,7 +225,11 @@ function DesktopAgentPicker(props: AgentPickerProps) {
             <Dropdown.Group class="items-end bg-transparent px-1.5 pt-1 pb-0">
               <Dropdown.Item
                 closeOnSelect
-                class={buttonClasses({ variant: "secondary", size: 'sm', class: 'w-auto gap-1.5 data-highlighted:overlay-hover' })}
+                class={buttonClasses({
+                  variant: 'secondary',
+                  size: 'sm',
+                  class: 'w-auto gap-1.5 data-highlighted:overlay-hover',
+                })}
                 onSelect={() => {
                   setOpen(false);
                   props.onCreate();

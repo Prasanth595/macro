@@ -55,7 +55,6 @@ function Root(props: MobileFilterDrawerProps) {
         aria-label={props.triggerLabel ?? 'Open filters'}
         variant="ghost"
         size="icon-md"
-        
         class={cn(
           'island bg-chrome pointer-events-auto relative z-10 size-10 shrink-0 rounded-full',
           props.class

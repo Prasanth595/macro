@@ -106,7 +106,6 @@ export function AutoReloadDialog(props: {
             <Button
               class="self-start"
               variant="outline"
-              
               size="sm"
               disabled={
                 !props.canManagePaymentMethods || props.paymentMethodsPending
@@ -142,14 +141,13 @@ export function AutoReloadDialog(props: {
             <Show
               when={props.enabled}
               fallback={
-                <Button variant="ghost"  onClick={props.onClose}>
+                <Button variant="ghost" onClick={props.onClose}>
                   Cancel
                 </Button>
               }
             >
               <Button
                 variant="ghost"
-                
                 disabled={props.disabled || props.pending}
                 onClick={props.onTurnOff}
               >
@@ -158,7 +156,6 @@ export function AutoReloadDialog(props: {
             </Show>
             <Button
               variant="accent"
-              
               disabled={props.disabled || props.pending || props.invalid}
               onClick={props.onSave}
             >
@@ -170,12 +167,12 @@ export function AutoReloadDialog(props: {
             </Button>
           </div>
         </div>
-        <Button aria-label={"Close Auto-Reload"} tooltip={"Close Auto-Reload"}
+        <Button
+          aria-label="Close Auto-Reload"
+          tooltip="Close Auto-Reload"
           class="absolute right-4 top-4"
           size="icon-sm"
           variant="ghost"
-          
-          
           onClick={props.onClose}
         >
           <XIcon class="size-4" />

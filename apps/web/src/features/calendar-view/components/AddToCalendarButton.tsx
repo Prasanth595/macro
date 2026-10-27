@@ -61,7 +61,11 @@ export function AddToCalendarButton(props: {
           onClick={() => props.onAdd(targetCalendars()[0]?.id)}
         >
           <CalendarPlusIcon
-            class={props.size === 'xs' ? 'size-3 shrink-0 touch:size-6' : 'size-4 shrink-0 touch:size-6'}
+            class={
+              props.size === 'xs'
+                ? 'size-3 shrink-0 touch:size-6'
+                : 'size-4 shrink-0 touch:size-6'
+            }
           />
           Add to calendar
         </Button>
@@ -74,11 +78,19 @@ export function AddToCalendarButton(props: {
           disabled={props.pending}
         >
           <CalendarPlusIcon
-            class={props.size === 'xs' ? 'size-3 shrink-0 touch:size-6' : 'size-4 shrink-0 touch:size-6'}
+            class={
+              props.size === 'xs'
+                ? 'size-3 shrink-0 touch:size-6'
+                : 'size-4 shrink-0 touch:size-6'
+            }
           />
           Add to calendar
           <CaretDownIcon
-            class={props.size === 'xs' ? 'size-3 shrink-0 touch:size-6' : 'size-4 shrink-0 touch:size-6'}
+            class={
+              props.size === 'xs'
+                ? 'size-3 shrink-0 touch:size-6'
+                : 'size-4 shrink-0 touch:size-6'
+            }
           />
         </Dropdown.Trigger>
         <Dropdown.Content blockingBackdrop class="z-nested-action-menu">

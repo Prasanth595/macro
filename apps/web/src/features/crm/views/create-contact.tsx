@@ -203,7 +203,7 @@ export function CreateContactModal(props: {
                   tabIndex={-1}
                   aria-label="Close"
                   tooltip="Close"
-                  size={"icon-md"}
+                  size="icon-md"
                   disabled={createContactMutation.isPending}
                   onClick={close}
                 >

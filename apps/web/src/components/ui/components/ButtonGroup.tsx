@@ -8,11 +8,11 @@ import {
 import { cn } from '../utils/classname';
 import {
   Button,
-  buttonFrameClasses,
   type ButtonFinish,
   type ButtonProps,
   type ButtonSize,
   type ButtonVariant,
+  buttonFrameClasses,
 } from './Button';
 
 type ButtonGroupOrientation = 'horizontal' | 'vertical';
@@ -88,7 +88,9 @@ export function ButtonGroup(props: ButtonGroupProps) {
 }
 
 /** Only explicit segments inherit the group; ordinary Buttons remain independent. */
-function GroupButton<T extends ValidComponent = 'button'>(props: ButtonProps<T>) {
+function GroupButton<T extends ValidComponent = 'button'>(
+  props: ButtonProps<T>
+) {
   const group = useButtonGroupContext();
   const [local, rest] = splitProps(props as ButtonProps, [
     'variant',

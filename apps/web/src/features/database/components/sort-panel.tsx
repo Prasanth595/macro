@@ -125,10 +125,11 @@ export function SortPanel(props: {
                       changeKey(key().column, { direction })
                     }
                   />
-                  <Button variant="ghost" aria-label={"Remove sort"} tooltip={{ content: "Remove sort", disabled: true }}
+                  <Button
+                    variant="ghost"
+                    aria-label="Remove sort"
+                    tooltip={{ content: 'Remove sort', disabled: true }}
                     size="icon-sm"
-                    
-                    
                     onClick={() =>
                       setSort(withSort(sort(), key().column, null))
                     }

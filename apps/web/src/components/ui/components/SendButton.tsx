@@ -4,7 +4,10 @@ import { children, Show, splitProps } from 'solid-js';
 import { cn } from '../utils/classname';
 import { Button, type ButtonProps } from './Button';
 
-export type SendButtonProps = Omit<ButtonProps, 'size' | 'variant' | 'appearance'> & {
+export type SendButtonProps = Omit<
+  ButtonProps,
+  'size' | 'variant' | 'appearance'
+> & {
   appearance?: 'default' | 'composer';
   /**
    * Empty composer with a queue waiting: the same send control, ringed so it
@@ -69,7 +72,9 @@ export function SendButton(props: SendButtonProps) {
     >
       <Show
         when={!local.pending}
-        fallback={<SpinnerIcon class="size-4 shrink-0 animate-spin touch:size-3.5" />}
+        fallback={
+          <SpinnerIcon class="size-4 shrink-0 animate-spin touch:size-3.5" />
+        }
       >
         {resolved() ?? (
           <>

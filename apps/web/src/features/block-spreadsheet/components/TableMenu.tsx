@@ -72,11 +72,12 @@ export function TableMenu(props: {
           placement="bottom-start"
           modal={false}
         >
-          <Dropdown.Trigger aria-label={`Table ${props.table.name} menu`} tooltip={`Table ${props.table.name} menu`}
+          <Dropdown.Trigger
+            aria-label={`Table ${props.table.name} menu`}
+            tooltip={`Table ${props.table.name} menu`}
             variant="ghost"
             size="xs"
             tabIndex={-1}
-            
             class="h-full rounded-none border-0 bg-transparent p-0 touch:min-h-0"
           >
             <NameChip

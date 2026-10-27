@@ -385,7 +385,7 @@ export function RespondView(props: {
                   <>
                     <Show when={confirmation().booking}>
                       <Button
-                        variant={"accent"}
+                        variant="accent"
                         class="self-start"
                         onClick={() => {
                           respond.openBooking();
@@ -611,7 +611,7 @@ export function RespondView(props: {
                   </Show>
                   <Button
                     type="submit"
-                    variant={"accent"}
+                    variant="accent"
                     size="md"
                     disabled={answering().submitting || answering().uploading}
                     aria-busy={answering().submitting}

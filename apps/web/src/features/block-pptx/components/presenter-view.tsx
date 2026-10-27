@@ -255,21 +255,26 @@ export function PresenterView(props: {
         >
           {formatElapsed(elapsed())}
         </span>
-        <Button aria-label={pausedAt() === null ? 'Pause timer' : 'Resume timer'}
+        <Button
+          aria-label={pausedAt() === null ? 'Pause timer' : 'Resume timer'}
           variant="ghost"
           size="icon-sm"
-          
           tooltip={pausedAt() === null ? 'Pause timer' : 'Resume timer'}
           onClick={togglePause}
         >
-          <Show when={pausedAt() === null} fallback={<Play class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}>
+          <Show
+            when={pausedAt() === null}
+            fallback={
+              <Play class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+            }
+          >
             <Pause class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Show>
         </Button>
-        <Button aria-label={"Restart timer"}
+        <Button
+          aria-label="Restart timer"
           variant="ghost"
           size="icon-sm"
-          
           tooltip="Restart timer"
           onClick={resetTimer}
         >
@@ -362,10 +367,10 @@ export function PresenterView(props: {
             </div>
           </Panel>
           <div class="flex items-center justify-center gap-2">
-            <Button aria-label={"Previous slide"}
+            <Button
+              aria-label="Previous slide"
               variant="ghost"
               size="icon-sm"
-              
               tooltip="Previous slide (←)"
               onClick={() => show.go(-1)}
             >
@@ -377,10 +382,10 @@ export function PresenterView(props: {
             >
               Slide {show.index() + 1} of {show.slides().length}
             </span>
-            <Button aria-label={"Next slide"}
+            <Button
+              aria-label="Next slide"
               variant="ghost"
               size="icon-sm"
-              
               tooltip="Next slide (→)"
               data-testid="pptx-presenter-next-button"
               onClick={() => show.go(1)}

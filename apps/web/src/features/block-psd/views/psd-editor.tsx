@@ -494,10 +494,10 @@ export function PsdEditor() {
         <MenuBar menus={menus()} />
         <span class="flex-1" />
         <Show when={editor.enabled()}>
-          <Button aria-label={"Undo"}
+          <Button
+            aria-label="Undo"
             variant="ghost"
             size="icon-sm"
-            
             tooltip={`Undo · ${IS_MAC ? '⌘Z' : 'Ctrl+Z'}`}
             disabled={!editor.canUndo()}
             data-testid="psd-undo"
@@ -505,10 +505,10 @@ export function PsdEditor() {
           >
             <ArrowUUpLeft class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Button>
-          <Button aria-label={"Redo"}
+          <Button
+            aria-label="Redo"
             variant="ghost"
             size="icon-sm"
-            
             tooltip={`Redo · ${IS_MAC ? '⇧⌘Z' : 'Ctrl+⇧Z'}`}
             disabled={!editor.canRedo()}
             data-testid="psd-redo"
@@ -537,10 +537,10 @@ export function PsdEditor() {
               ))}
           </span>
         </Show>
-        <Button aria-label={"Keyboard shortcuts"}
+        <Button
+          aria-label="Keyboard shortcuts"
           variant="ghost"
           size="icon-sm"
-          
           tooltip={`Keyboard shortcuts · ${IS_MAC ? '⌘/' : 'Ctrl+/'}`}
           onClick={() => setShowShortcuts((s) => !s)}
         >

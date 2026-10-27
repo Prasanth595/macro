@@ -83,10 +83,10 @@ export function StatusBar(props: {
       onPointerDown={(e) => e.stopPropagation()}
     >
       <Show when={props.editable}>
-        <Button aria-label={"Undo"}
+        <Button
+          aria-label="Undo"
           variant="ghost"
           size="icon-md"
-          
           tooltip={`Undo · ${mod()}Z`}
           disabled={!props.canUndo}
           data-testid="ai-undo"
@@ -94,10 +94,10 @@ export function StatusBar(props: {
         >
           <ArrowUUpLeft class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
-        <Button aria-label={"Redo"}
+        <Button
+          aria-label="Redo"
           variant="ghost"
           size="icon-md"
-          
           tooltip={`Redo · ${props.mac ? '⇧⌘Z' : 'Ctrl+Shift+Z'}`}
           disabled={!props.canRedo}
           data-testid="ai-redo"

@@ -1,7 +1,10 @@
 import type { ThemeV3 } from '../types/themeTypes';
 import { buttonAccentVars } from './buttonTheme';
 import { resolveThemeColors } from './resolvedThemeColors';
-import { normalizeThemeColorTokens, themeTokenCssVar } from './themeColorTokens';
+import {
+  normalizeThemeColorTokens,
+  themeTokenCssVar,
+} from './themeColorTokens';
 
 /** Render a subtree theme with the same authored and derived values as the root. */
 export function themeCssVars(theme: ThemeV3): Record<string, string> {

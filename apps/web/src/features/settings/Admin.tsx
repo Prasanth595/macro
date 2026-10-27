@@ -44,7 +44,6 @@ export function Admin() {
         <Button
           variant="outline"
           size="sm"
-          
           disabled={!hasActiveSettings()}
           onClick={clearAllDebugSettings}
         >

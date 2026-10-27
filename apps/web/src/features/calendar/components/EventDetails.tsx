@@ -567,11 +567,12 @@ export function EventDetails(props: {
                 {conferenceLabel()}
                 <ArrowSquareOutIcon class="size-3.5 shrink-0" />
               </Button>
-              <Button aria-label={"Copy call link"} tooltip={"Copy call link"}
+              <Button
+                aria-label="Copy call link"
+                tooltip="Copy call link"
                 variant="ghost"
                 size="icon-sm"
                 class="shrink-0"
-                
                 onClick={async () => {
                   if (await writeClipboardData({ 'text/plain': url() })) {
                     toast.success('Call link copied');

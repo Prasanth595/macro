@@ -302,7 +302,8 @@ export default function PptxBlock(props: { share?: string }) {
         <SplitHeaderRight>
           <div class="order-[999] flex items-center">
             <HeaderActionGroup label="Presentation actions">
-              <ChatWithAgentButton grouped
+              <ChatWithAgentButton
+                grouped
                 label="Ask Macro"
                 entity={{
                   type: 'document',

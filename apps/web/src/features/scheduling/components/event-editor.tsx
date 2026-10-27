@@ -113,11 +113,12 @@ function QuestionField(props: {
             disabled={props.disabled}
             onChange={(required) => props.onUpdate({ required })}
           />
-          <Button aria-label={`Remove question ${props.index + 1}`} tooltip={`Remove question ${props.index + 1}`}
+          <Button
+            aria-label={`Remove question ${props.index + 1}`}
+            tooltip={`Remove question ${props.index + 1}`}
             type="button"
             size="icon-sm"
             variant="ghost"
-            
             disabled={props.disabled}
             onClick={props.onRemove}
           >
@@ -312,13 +313,14 @@ export function EventEditor(props: EventEditorProps) {
                       open={linkOpen()}
                       onOpenChange={setLinkOpen}
                     >
-                      <Popover.Trigger aria-label={"Edit link"} tooltip={"Edit link"}
+                      <Popover.Trigger
+                        aria-label="Edit link"
+                        tooltip="Edit link"
                         as={Button}
                         ref={setLinkTrigger}
                         type="button"
                         size="icon-xs"
                         variant="ghost"
-                        
                         class="shrink-0 -mt-0.5 text-ink-muted aria-invalid:ring-2 aria-invalid:ring-failure/40"
                         aria-invalid={error('slug') ? true : undefined}
                         aria-describedby={
@@ -572,11 +574,12 @@ export function EventEditor(props: EventEditorProps) {
                     <h4 class="text-sm font-normal tracking-wide text-ink-muted">
                       Team scheduling
                     </h4>
-                    <Button aria-label={"Reset team settings"} tooltip={"Reset team settings"}
+                    <Button
+                      aria-label="Reset team settings"
+                      tooltip="Reset team settings"
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      
                       disabled={
                         props.saving ||
                         props.step !== 'location' ||
@@ -830,7 +833,7 @@ export function EventEditor(props: EventEditorProps) {
           <div class="flex min-w-0 max-w-full flex-col items-end gap-2">
             <Button
               type="submit"
-              variant={"accent"}
+              variant="accent"
               size="lg"
               disabled={props.saving}
               aria-invalid={primaryError() ? true : undefined}

@@ -75,7 +75,6 @@ export function PipedreamAppPicker(props: {
               <Button
                 variant="outline"
                 size="sm"
-                
                 onClick={() => catalog.query.refetch()}
                 class="ml-2"
               >
@@ -116,7 +115,6 @@ export function PipedreamAppPicker(props: {
                 <Button
                   variant="outline"
                   size="sm"
-                  
                   disabled={catalog.query.isFetchingNextPage}
                   onClick={() =>
                     fireAndForget(

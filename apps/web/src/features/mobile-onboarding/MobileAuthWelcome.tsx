@@ -27,7 +27,7 @@ export function MobileAuthWelcome() {
           </div>
           <div class="flex flex-col gap-3 px-8 pb-8">
             <Button
-              variant={"secondary"}
+              variant="secondary"
               size="xl"
               onClick={() => navigate('/onboarding')}
             >

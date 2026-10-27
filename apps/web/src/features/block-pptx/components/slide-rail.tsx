@@ -296,29 +296,33 @@ export function SlideRail(props: SlideRailProps) {
                 </Show>
                 <Show when={!props.readonly && !props.grid}>
                   <div class="absolute top-1 right-1 hidden flex-col gap-0.5 rounded-md bg-surface/90 p-0.5 shadow group-hover:flex group-focus-within:flex">
-                    <Button aria-label={"Duplicate slide"}
+                    <Button
+                      aria-label="Duplicate slide"
                       size="icon-xs"
                       variant="ghost"
-                      
                       tooltip="Duplicate slide"
                       onClick={() => props.onDuplicate(slide.id)}
                     >
                       <CopyIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
                     </Button>
-                    <Button aria-label={slide.hidden ? 'Show slide' : 'Hide slide'}
+                    <Button
+                      aria-label={slide.hidden ? 'Show slide' : 'Hide slide'}
                       size="icon-xs"
                       variant="ghost"
-                      
                       tooltip={slide.hidden ? 'Show slide' : 'Hide slide'}
                       onClick={() => props.onToggleHidden(slide)}
                     >
-                      {slide.hidden ? <EyeIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" /> : <EyeSlashIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />}
+                      {slide.hidden ? (
+                        <EyeIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
+                      ) : (
+                        <EyeSlashIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
+                      )}
                     </Button>
                     <Show when={props.slides.length > 1}>
-                      <Button aria-label={"Delete slide"}
+                      <Button
+                        aria-label="Delete slide"
                         size="icon-xs"
                         variant="ghost"
-                        
                         tooltip="Delete slide"
                         onClick={() => props.onDelete([slide.id])}
                       >
@@ -347,12 +351,13 @@ export function SlideRail(props: SlideRailProps) {
       </ContextMenu>
       <Show when={!props.readonly && !props.grid}>
         <div class="border-edge-muted border-t p-2">
-          <Button aria-label={"New slide"} tooltip={"New slide"}
+          <Button
+            aria-label="New slide"
+            tooltip="New slide"
             size="sm"
             variant="outline"
             class="w-full"
             onClick={props.onAdd}
-            
           >
             <PlusIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
             New slide

@@ -174,7 +174,7 @@ export function ComposeDocument(props: ComposeDocumentProps) {
               disabled={isCreating()}
               tabIndex={-1}
               tooltip="Continue editing in split"
-              size={"icon-md"}
+              size="icon-md"
             >
               <ArrowsOutIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
@@ -185,7 +185,7 @@ export function ComposeDocument(props: ComposeDocumentProps) {
           onClick={() => panel.handle.close()}
           tabIndex={-1}
           tooltip="Close"
-          size={"icon-md"}
+          size="icon-md"
         >
           <XIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Button>

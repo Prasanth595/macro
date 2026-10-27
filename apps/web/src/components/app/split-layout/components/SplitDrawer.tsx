@@ -137,10 +137,11 @@ export function SplitDrawer(
                 </h3>
               </Show>
               <div class="grow" />
-              <Button aria-label={"Close"} tooltip={"Close"}
+              <Button
+                aria-label="Close"
+                tooltip="Close"
                 variant="ghost"
                 size="icon-sm"
-                
                 onClick={drawerControl.close}
               >
                 <CloseIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />

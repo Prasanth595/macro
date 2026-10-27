@@ -929,7 +929,7 @@ export function SpreadsheetEditor(props: {
             >
               Cancel
             </Button>
-            <Button type="submit" variant={"secondary"}>
+            <Button type="submit" variant="secondary">
               Apply
             </Button>
           </div>
@@ -952,9 +952,11 @@ export function SpreadsheetEditor(props: {
             class="flex items-center gap-3 border-y border-failure/20 bg-failure-bg px-4 py-2 text-xs text-failure"
           >
             <span>Calculation is unavailable: {error()}</span>
-            <Button variant="ghost" aria-label={"Retry calculation"} tooltip={"Retry calculation"}
+            <Button
+              variant="ghost"
+              aria-label="Retry calculation"
+              tooltip="Retry calculation"
               size="sm"
-              
               onClick={() => {
                 calculation.retry();
               }}
@@ -1323,10 +1325,12 @@ export function SpreadsheetEditor(props: {
         <Show
           when={editable() && props.store.rowCount() < SPREADSHEET_MAX_ROWS}
         >
-          <Button variant="ghost" aria-label={`Add ${Math.min(100, SPREADSHEET_MAX_ROWS - props.store.rowCount())} rows`} tooltip={`Add ${Math.min(100, SPREADSHEET_MAX_ROWS - props.store.rowCount())} rows`}
+          <Button
+            variant="ghost"
+            aria-label={`Add ${Math.min(100, SPREADSHEET_MAX_ROWS - props.store.rowCount())} rows`}
+            tooltip={`Add ${Math.min(100, SPREADSHEET_MAX_ROWS - props.store.rowCount())} rows`}
             size="sm"
             class="max-sm:hidden touch:min-h-[44px]"
-            
             onClick={() => {
               grid.commit();
               props.store.appendRows(100);
@@ -1341,10 +1345,12 @@ export function SpreadsheetEditor(props: {
             editable() && props.store.columnCount() < SPREADSHEET_MAX_COLUMNS
           }
         >
-          <Button variant="ghost" aria-label={"Add 26 columns"} tooltip={"Add 26 columns"}
+          <Button
+            variant="ghost"
+            aria-label="Add 26 columns"
+            tooltip="Add 26 columns"
             size="sm"
             class="max-sm:hidden touch:min-h-[44px]"
-            
             onClick={() => {
               grid.commit();
               props.store.appendColumns(26);

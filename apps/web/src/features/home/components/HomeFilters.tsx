@@ -217,12 +217,12 @@ export function HomeFilterDropdown() {
       <ListFilterDropdown
         label="Filter Home"
         customTrigger={
-          <Dropdown.Trigger aria-label={"Filter Home"} tooltip={"Filter Home"}
+          <Dropdown.Trigger
+            aria-label="Filter Home"
+            tooltip="Filter Home"
             ref={tourTarget(HOME_TOUR.filter)}
             variant="ghost"
-            size={"icon-sm"}
-            
-            
+            size="icon-sm"
           >
             <FilterIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Dropdown.Trigger>

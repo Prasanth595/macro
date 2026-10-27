@@ -136,11 +136,12 @@ export function EventReview(props: {
                   {props.link}
                 </span>
                 <Show when={props.onCopyLink}>
-                  <Button aria-label={"Copy booking link"} tooltip={"Copy booking link"}
+                  <Button
+                    aria-label="Copy booking link"
+                    tooltip="Copy booking link"
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    
                     disabled={props.saving || copying() || !props.onCopyLink}
                     aria-invalid={copyError() ? true : undefined}
                     aria-describedby={copyError() ? copyErrorId : undefined}

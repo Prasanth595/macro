@@ -67,10 +67,14 @@ export function BoardLaneHeader(props: {
           />
         </Show>
         <Show when={props.onAdd}>
-          <Button variant="ghost" aria-label={`Add record to ${props.label}`} tooltip={{ content: `Add record to ${props.label}`, disabled: true }}
+          <Button
+            variant="ghost"
+            aria-label={`Add record to ${props.label}`}
+            tooltip={{
+              content: `Add record to ${props.label}`,
+              disabled: true,
+            }}
             size="icon-xs"
-            
-            
             title={`Add record to ${props.label}`}
             onClick={props.onAdd}
           >
@@ -188,11 +192,15 @@ function LaneColor(props: { option: EditableOption; children: JSX.Element }) {
       gutter={6}
       onOpenChange={() => setError('')}
     >
-      <Popover.Trigger variant="ghost" aria-label={`Change ${props.option.option.label} color`} tooltip={{ content: `Change ${props.option.option.label} color`, disabled: true }}
+      <Popover.Trigger
+        variant="ghost"
+        aria-label={`Change ${props.option.option.label} color`}
+        tooltip={{
+          content: `Change ${props.option.option.label} color`,
+          disabled: true,
+        }}
         as={Button}
         size="icon-xs"
-        
-        
         data-kanban-no-drag
       >
         {props.children}

@@ -237,7 +237,12 @@ export function QueryEditor(props: {
           </div>
           <Show when={!canAccept()}>
             <div class="flex items-center justify-end gap-2">
-              <Button variant="accent" type="submit" size="sm" disabled={!canAsk()}>
+              <Button
+                variant="accent"
+                type="submit"
+                size="sm"
+                disabled={!canAsk()}
+              >
                 <Show
                   when={busy()}
                   fallback={

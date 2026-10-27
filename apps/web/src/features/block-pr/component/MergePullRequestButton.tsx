@@ -87,7 +87,6 @@ export function MergePullRequestButton(props: {
       <Control
         variant="success"
         size={props.size ?? 'sm'}
-        
         class={cn('shrink-0', props.class)}
         aria-label={`${label()} pull request #${props.target.number}`}
         disabled={action.pending()}

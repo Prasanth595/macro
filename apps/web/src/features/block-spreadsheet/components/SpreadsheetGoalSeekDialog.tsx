@@ -49,9 +49,11 @@ export function SpreadsheetGoalSeekDialog(props: {
       >
         <div class="mb-4 flex items-center justify-between">
           <Dialog.Title class="text-sm font-semibold">Goal Seek</Dialog.Title>
-          <Button variant="ghost" aria-label={"Close Goal Seek"} tooltip={"Close Goal Seek"}
+          <Button
+            variant="ghost"
+            aria-label="Close Goal Seek"
+            tooltip="Close Goal Seek"
             type="button"
-            
             size="icon-sm"
             class="order-last text-ink-muted"
             tabIndex={-1}
@@ -122,7 +124,12 @@ export function SpreadsheetGoalSeekDialog(props: {
               </Button>
             }
           >
-            <Button variant="ghost" type="button" size="sm" onClick={props.onEdit}>
+            <Button
+              variant="ghost"
+              type="button"
+              size="sm"
+              onClick={props.onEdit}
+            >
               Change cells
             </Button>
             <Button type="submit" size="sm" variant="accent">

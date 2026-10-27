@@ -59,11 +59,11 @@ export function CanvasDrawingToolbar(props: {
             }
           >
             {(tool) => (
-              <Toolbar.Button aria-label={`${tool.label} tool`} tooltip={{ content: `${tool.label} tool`, shortcut: tool.key }}
-                
-                
+              <Toolbar.Button
+                aria-label={`${tool.label} tool`}
+                tooltip={{ content: `${tool.label} tool`, shortcut: tool.key }}
                 aria-pressed={props.tool === tool.id}
-                variant={props.tool === tool.id ? "accent" : 'ghost'}
+                variant={props.tool === tool.id ? 'accent' : 'ghost'}
                 onClick={() => props.onTool(tool.id)}
               >
                 <Dynamic component={tool.icon} />
@@ -73,10 +73,13 @@ export function CanvasDrawingToolbar(props: {
         </Toolbar.Group>
         <Show when={!props.readOnly && props.onAttach}>
           <Toolbar.Divider />
-          <Toolbar.Button aria-label={"Attach"} tooltip={{ content: "Attach", disabled: props.attachOpen, shortcut: "i" }}
-            
-            
-            
+          <Toolbar.Button
+            aria-label="Attach"
+            tooltip={{
+              content: 'Attach',
+              disabled: props.attachOpen,
+              shortcut: 'i',
+            }}
             aria-expanded={props.attachOpen ?? false}
             aria-haspopup="menu"
             onClick={(event) => {
@@ -101,10 +104,11 @@ export function CanvasHistoryControls(props: {
   return (
     <Show when={hasHistory()}>
       <div class="flex items-center" role="group" aria-label="Canvas history">
-        <Button variant="ghost" aria-label={"Undo"} tooltip={{ content: "Undo", hotkey: TOKENS.canvas.undo }}
+        <Button
+          variant="ghost"
+          aria-label="Undo"
+          tooltip={{ content: 'Undo', hotkey: TOKENS.canvas.undo }}
           size="icon-xs"
-          
-          
           disabled={!props.state.session().canUndo}
           onClick={() => {
             props.state.editor.undo();
@@ -113,10 +117,11 @@ export function CanvasHistoryControls(props: {
         >
           <Undo class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
-        <Button variant="ghost" aria-label={"Redo"} tooltip={{ content: "Redo", hotkey: TOKENS.canvas.redo }}
+        <Button
+          variant="ghost"
+          aria-label="Redo"
+          tooltip={{ content: 'Redo', hotkey: TOKENS.canvas.redo }}
           size="icon-xs"
-          
-          
           disabled={!props.state.session().canRedo}
           onClick={() => {
             props.state.editor.redo();
@@ -158,10 +163,11 @@ type CanvasZoomProps = {
 function CanvasZoomMenu(props: ParentProps<CanvasZoomProps>) {
   return (
     <Dropdown placement="bottom-end">
-      <Dropdown.Trigger aria-label={"Zoom options"} tooltip={"Zoom options"}
+      <Dropdown.Trigger
+        aria-label="Zoom options"
+        tooltip="Zoom options"
         variant="ghost"
         size="sm"
-        
         class="gap-1.5 tabular-nums"
       >
         <output aria-label="Zoom level">
@@ -219,14 +225,19 @@ export function CanvasZoomToolbar(props: CanvasZoomProps) {
     <div class="absolute bottom-4 left-4 z-40">
       <Toolbar size="icon-sm" aria-label="Canvas zoom">
         <Toolbar.Group>
-          <Toolbar.Button aria-label={"Zoom out"} tooltip={"Zoom out"}
-            
+          <Toolbar.Button
+            aria-label="Zoom out"
+            tooltip="Zoom out"
             onClick={() => props.onZoom(1 / 1.2)}
           >
             <Minus />
           </Toolbar.Button>
           <CanvasZoomMenu {...props} />
-          <Toolbar.Button aria-label={"Zoom in"} tooltip={"Zoom in"}  onClick={() => props.onZoom(1.2)}>
+          <Toolbar.Button
+            aria-label="Zoom in"
+            tooltip="Zoom in"
+            onClick={() => props.onZoom(1.2)}
+          >
             <Plus />
           </Toolbar.Button>
         </Toolbar.Group>

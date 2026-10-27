@@ -240,7 +240,7 @@ export default function ProjectionPlayground() {
               Send request
             </Button>
             <Button
-              variant={"accent"}
+              variant="accent"
               size="sm"
               disabled={busy()}
               onClick={() => fireAndForget(regenerate(), 'devtools')}

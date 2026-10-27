@@ -256,7 +256,7 @@ function InlinePreview(props: {
                   data-document-name={props.documentName}
                   class="opacity-50"
                 >
-                  <Show when={props.documentName} fallback={'Loading...'}>
+                  <Show when={props.documentName} fallback="Loading...">
                     {(name) => name().replaceAll('\n', ' ').trim()}
                   </Show>
                   <MentionAccessories
@@ -302,7 +302,7 @@ function InlinePreview(props: {
                   data-block-name={props.blockName}
                   data-document-name={props.documentName}
                 >
-                  <Show when={props.documentName} fallback={'Unknown'}>
+                  <Show when={props.documentName} fallback="Unknown">
                     {(name) => name().replaceAll('\n', ' ').trim()}
                   </Show>
                   <MentionAccessories

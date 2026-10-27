@@ -90,9 +90,11 @@ function List(props: ComponentProps<typeof Tabs.List>) {
   return (
     <div class="flex min-w-0 items-center">
       <Show when={left() || right()}>
-        <Button variant="ghost" aria-label={"Scroll tabs left"} tooltip={"Scroll tabs left"}
+        <Button
+          variant="ghost"
+          aria-label="Scroll tabs left"
+          tooltip="Scroll tabs left"
           size="icon-sm"
-          
           class="shrink-0 rounded-full"
           disabled={!left()}
           onClick={() => scroll(-1)}
@@ -142,9 +144,11 @@ function List(props: ComponentProps<typeof Tabs.List>) {
         {local.children}
       </Tabs.List>
       <Show when={left() || right()}>
-        <Button variant="ghost" aria-label={"Scroll tabs right"} tooltip={"Scroll tabs right"}
+        <Button
+          variant="ghost"
+          aria-label="Scroll tabs right"
+          tooltip="Scroll tabs right"
           size="icon-sm"
-          
           class="shrink-0 rounded-full"
           disabled={!right()}
           onClick={() => scroll(1)}

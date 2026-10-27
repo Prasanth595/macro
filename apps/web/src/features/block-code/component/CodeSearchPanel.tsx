@@ -184,7 +184,12 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
             tooltip={replaceOpen() ? 'Hide replace' : 'Show replace'}
             onClick={() => setReplaceOpen(!replaceOpen())}
           >
-            <Show when={replaceOpen()} fallback={<CaretRight class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />}>
+            <Show
+              when={replaceOpen()}
+              fallback={
+                <CaretRight class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+              }
+            >
               <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Show>
           </Button>
@@ -232,8 +237,7 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
         <Button
           variant="ghost"
           size="icon-sm"
-          tooltip={{ content: "Previous match", shortcut: "shift+enter" }}
-          
+          tooltip={{ content: 'Previous match', shortcut: 'shift+enter' }}
           onClick={() => findPrevious(props.view)}
         >
           <CaretUp class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
@@ -241,13 +245,17 @@ export function CodeSearchPanel(props: CodeSearchPanelProps) {
         <Button
           variant="ghost"
           size="icon-sm"
-          tooltip={{ content: "Next match", shortcut: "enter" }}
-          
+          tooltip={{ content: 'Next match', shortcut: 'enter' }}
           onClick={() => findNext(props.view)}
         >
           <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
-        <Button variant="ghost" size="icon-sm" tooltip="Close find" onClick={close}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          tooltip="Close find"
+          onClick={close}
+        >
           <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>

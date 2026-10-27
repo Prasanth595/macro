@@ -12,10 +12,11 @@ export function AvailabilityTopBar(props: {
   return (
     <div class="flex min-w-0 items-center gap-2">
       <Show when={props.editing}>
-        <Button aria-label={"Back to availability"} tooltip={"Back to availability"}
+        <Button
+          aria-label="Back to availability"
+          tooltip="Back to availability"
           variant="ghost"
           size="icon-sm"
-          
           disabled={props.disabled}
           onClick={props.onBack}
         >
@@ -31,10 +32,10 @@ export function AvailabilityTopBar(props: {
             : 'Availability'}
         </h1>
         <Show when={!props.editing}>
-          <Button aria-label={"About availability"}
+          <Button
+            aria-label="About availability"
             variant="ghost"
             size="icon-sm"
-            
             tooltip="Set your available hours and make exceptions for specific dates."
           >
             <Info class="size-4 text-ink-muted" />

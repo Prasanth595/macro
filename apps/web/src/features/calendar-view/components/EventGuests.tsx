@@ -137,9 +137,8 @@ function InviteGuestsForm(props: {
           />
         </Show>
         <Button
-          variant={"secondary"}
+          variant="secondary"
           size="sm"
-          
           class="ml-auto"
           disabled={added().length === 0}
           onClick={send}
@@ -180,12 +179,12 @@ function EventInviteGuestsAction(props: {
           flip
           slide
         >
-          <Popover.Trigger aria-label={"Add guests"} tooltip={"Add guests"}
+          <Popover.Trigger
+            aria-label="Add guests"
+            tooltip="Add guests"
             as={Button}
-            
             variant="ghost"
             size="icon-sm"
-            
             class="text-ink-muted"
           >
             <UserPlusIcon class="size-4 shrink-0" />
@@ -201,11 +200,11 @@ function EventInviteGuestsAction(props: {
         </Popover>
       }
     >
-      <Button aria-label={"Add guests"} tooltip={"Add guests"}
-        
+      <Button
+        aria-label="Add guests"
+        tooltip="Add guests"
         variant="ghost"
         size="icon-sm"
-        
         class="text-ink-muted"
         onClick={() => props.invites.setEditorOpen(true)}
       >

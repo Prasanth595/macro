@@ -421,10 +421,10 @@ function FileCounts() {
 function CollapseAll(props: { iconOnly?: boolean }) {
   const { collapse } = useDiffView();
   return (
-    <Button aria-label={collapse.anyExpanded() ? 'Collapse all' : 'Expand all'}
+    <Button
+      aria-label={collapse.anyExpanded() ? 'Collapse all' : 'Expand all'}
       variant="ghost"
       size={props.iconOnly ? 'icon-sm' : 'sm'}
-      
       tooltip={
         collapse.anyExpanded()
           ? 'Hide every diff, keeping just the file headers'
@@ -432,7 +432,11 @@ function CollapseAll(props: { iconOnly?: boolean }) {
       }
       onClick={() => collapse.toggleAll()}
     >
-      {collapse.anyExpanded() ? <ArrowsInIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" /> : <ArrowsOutIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />}
+      {collapse.anyExpanded() ? (
+        <ArrowsInIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+      ) : (
+        <ArrowsOutIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+      )}
       <Show when={!props.iconOnly}>
         <span>{collapse.anyExpanded() ? 'Collapse all' : 'Expand all'}</span>
       </Show>

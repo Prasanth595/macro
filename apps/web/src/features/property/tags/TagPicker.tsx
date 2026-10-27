@@ -930,7 +930,6 @@ function TagPickerRow(props: {
               type="button"
               variant="ghost"
               size="icon-sm"
-              
               tooltip="View tagged items"
               aria-label={`View all items with tag ${label()}`}
               class={tagActionButtonClass}
@@ -950,7 +949,6 @@ function TagPickerRow(props: {
               type="button"
               variant="ghost"
               size="icon-sm"
-              
               tooltip="Edit tag"
               aria-label={`Edit ${label()}`}
               class={tagActionButtonClass}

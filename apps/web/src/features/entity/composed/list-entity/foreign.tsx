@@ -222,14 +222,41 @@ function CheckStateIcon(props: {
       <Show when={props.state === 'success'}>
         <Show
           when={props.circle}
-          fallback={<Check class={cn(props.size === 'md' ? 'size-4' : 'size-3', 'text-success')} />}
+          fallback={
+            <Check
+              class={cn(
+                props.size === 'md' ? 'size-4' : 'size-3',
+                'text-success'
+              )}
+            />
+          }
         >
-          <CheckCircle class={cn(props.size === 'md' ? 'size-4' : 'size-5', 'text-success')} />
+          <CheckCircle
+            class={cn(
+              props.size === 'md' ? 'size-4' : 'size-5',
+              'text-success'
+            )}
+          />
         </Show>
       </Show>
       <Show when={props.state === 'failure'}>
-        <Show when={props.circle} fallback={<X class={cn(props.size === 'md' ? 'size-4' : 'size-3', 'text-failure')} />}>
-          <XCircle class={cn(props.size === 'md' ? 'size-4' : 'size-5', 'text-failure')} />
+        <Show
+          when={props.circle}
+          fallback={
+            <X
+              class={cn(
+                props.size === 'md' ? 'size-4' : 'size-3',
+                'text-failure'
+              )}
+            />
+          }
+        >
+          <XCircle
+            class={cn(
+              props.size === 'md' ? 'size-4' : 'size-5',
+              'text-failure'
+            )}
+          />
         </Show>
       </Show>
       <Show when={props.state === 'pending'}>
@@ -255,7 +282,12 @@ function CheckStateIcon(props: {
         </div>
       </Show>
       <Show when={props.state === 'skipped'}>
-        <MinusCircle class={cn(props.size === 'md' ? 'size-4' : 'size-5', 'text-ink-extra-muted/50')} />
+        <MinusCircle
+          class={cn(
+            props.size === 'md' ? 'size-4' : 'size-5',
+            'text-ink-extra-muted/50'
+          )}
+        />
       </Show>
       <Show when={props.state === 'none'}>
         <div class="relative size-4 inline-flex items-center justify-center">
@@ -393,7 +425,6 @@ export function GithubPullRequestChecksIndicator(props: {
         type="button"
         variant="ghost"
         size="icon-sm"
-        
         class="shrink-0"
         onClick={(event) => event.stopPropagation()}
       >

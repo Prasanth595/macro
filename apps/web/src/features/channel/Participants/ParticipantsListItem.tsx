@@ -72,8 +72,14 @@ export function ParticipantsListItem(props: {
       </a>
       <Show when={props.editable}>
         <div class="absolute right-4 top-1/2 -translate-y-1/2">
-          <Button variant="danger" aria-label={canRemove() ? 'Remove participant' : 'Cannot remove participant'} tooltip={canRemove() ? 'Remove participant' : 'Cannot remove participant'}
-            
+          <Button
+            variant="danger"
+            aria-label={
+              canRemove() ? 'Remove participant' : 'Cannot remove participant'
+            }
+            tooltip={
+              canRemove() ? 'Remove participant' : 'Cannot remove participant'
+            }
             size="icon-sm"
             disabled={!canRemove()}
             onClick={(event) => {

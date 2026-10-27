@@ -78,7 +78,6 @@ export function EventRsvpSection(props: {
               <Button
                 variant="ghost"
                 size={props.buttonSize ?? 'sm'}
-                
                 class="bg-ink/5 px-3 aria-pressed:bg-accent-bg aria-pressed:text-accent mobile:min-h-11"
                 aria-pressed={
                   selfAttendee()?.responseStatus === option.response

@@ -456,7 +456,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
           onSelect: handleAddAttachments,
         }))
       }
-      size={"icon-md"}
+      size="icon-md"
       tooltip="Attach"
       disabled={editingDisabled()}
     >
@@ -794,7 +794,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
                   variant="ghost"
                   onClick={deleteDraftAndReset}
                   tooltip={savedDraftId() ? 'Delete draft' : 'Discard'}
-                  size={"icon-md"}
+                  size="icon-md"
                   disabled={editingDisabled()}
                 >
                   <Trash class="size-4 touch:size-6 shrink-0 pointer-events-none" />
@@ -825,8 +825,10 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
                   pending={isSending()}
                   hidden={sendActionHidden()}
                   onClick={() => sendEmail()}
-                  tooltip={{ content: sendUnavailableReason() ?? scheduleActionLabel(), shortcut: sendUnavailableReason() ? undefined : 'cmd+enter' }}
-                  
+                  tooltip={{
+                    content: sendUnavailableReason() ?? scheduleActionLabel(),
+                    shortcut: sendUnavailableReason() ? undefined : 'cmd+enter',
+                  }}
                   aria-label={scheduleActionLabel()}
                 />
               </div>

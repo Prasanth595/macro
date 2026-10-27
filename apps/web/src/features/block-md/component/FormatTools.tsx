@@ -226,12 +226,14 @@ const InlineFormatButton = (props: {
   const icon = InlineIcons[props.format];
   const isActive = () => isInlineFormatActive(props.selection(), props.format);
   return (
-    <Button aria-label={InlineLabels[props.format]} tooltip={{ content: InlineLabels[props.format], shortcut: InlineShortcuts[props.format] }}
-      
-      
+    <Button
+      aria-label={InlineLabels[props.format]}
+      tooltip={{
+        content: InlineLabels[props.format],
+        shortcut: InlineShortcuts[props.format],
+      }}
       size={props.size ?? 'icon-sm'}
       variant={isActive() ? 'accent' : 'ghost'}
-      
       onClick={(e: MouseEvent | KeyboardEvent) =>
         props.onClick(e as MouseEvent)
       }
@@ -281,7 +283,6 @@ export const ElementFormatButton = (props: {
     <Button
       tooltip={name}
       size={props.size ?? 'icon-sm'}
-      
       variant={
         isElementFormatActive(props.selection(), props.format)
           ? 'accent'
@@ -525,8 +526,7 @@ export function FormatTools(props: {
         <Dropdown.Trigger
           variant={isActive() ? 'accent' : 'ghost'}
           size={buttonSize()}
-          
-          tooltip={'Text Styles'}
+          tooltip="Text Styles"
           disabled={buttonIsDisabled()}
           tabIndex={-1}
         >
@@ -588,7 +588,6 @@ export function FormatTools(props: {
         <Dropdown.Trigger
           variant={isActive() ? 'accent' : 'ghost'}
           size={buttonSize()}
-          
           tooltip="Text Styles"
           disabled={props.buttonIsDisabled()}
           tabIndex={-1}
@@ -646,7 +645,6 @@ export function FormatTools(props: {
             : 'ghost'
         }
         size={buttonSize()}
-        
         tooltip={props.label ?? 'More Formats'}
         disabled={buttonIsDisabled()}
         tabIndex={-1}
@@ -694,7 +692,6 @@ export function FormatTools(props: {
             : 'ghost'
         }
         size={buttonSize()}
-        
         tooltip={props.label ?? 'More Formats'}
         disabled={buttonIsDisabled()}
         tabIndex={-1}
@@ -755,7 +752,6 @@ export function FormatTools(props: {
         <Dropdown.Trigger
           variant="ghost"
           size={buttonSize()}
-          
           tooltip="More formatting"
           disabled={buttonIsDisabled()}
           tabIndex={-1}
@@ -822,7 +818,6 @@ export function FormatTools(props: {
           variant="ghost"
           size="sm"
           class="gap-1"
-          
           tooltip="Text style"
           disabled={buttonIsDisabled()}
           tabIndex={-1}
@@ -889,7 +884,6 @@ export function FormatTools(props: {
           <Button
             variant="ghost"
             size={buttonSize()}
-            
             onPointerDown={(e: PointerEvent) => e.preventDefault()}
             onClick={(e) => {
               if (!selection()?.hasLinks && props.onRequestLink) {
@@ -914,7 +908,6 @@ export function FormatTools(props: {
             <Button
               variant="ghost"
               size={buttonSize()}
-              
               tooltip="Merge cells"
               onClick={handleMergeCells}
               disabled={buttonIsDisabled()}
@@ -926,7 +919,6 @@ export function FormatTools(props: {
             <Button
               variant="ghost"
               size={buttonSize()}
-              
               tooltip="Split cell"
               onClick={handleSplitCell}
               disabled={buttonIsDisabled()}
@@ -1054,7 +1046,6 @@ export function FormatTools(props: {
             <Button
               variant="ghost"
               size="icon-sm"
-              
               onPointerDown={(e: PointerEvent) => e.preventDefault()}
               onClick={handleLink}
               tooltip={selection()?.hasLinks ? 'Remove Link' : 'Insert Link'}
@@ -1069,7 +1060,6 @@ export function FormatTools(props: {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                
                 tooltip="Comment"
                 onClick={(e) => {
                   e.preventDefault();
@@ -1089,7 +1079,6 @@ export function FormatTools(props: {
               <Dropdown.Trigger
                 variant="ghost"
                 size="icon-sm"
-                
                 tooltip="More"
                 disabled={buttonIsDisabled()}
                 tabIndex={-1}
@@ -1165,7 +1154,6 @@ export function FormatTools(props: {
           <Button
             variant="ghost"
             size="icon-sm"
-            
             tooltip="Comment"
             onClick={(e) => {
               e.preventDefault();

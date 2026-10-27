@@ -101,14 +101,19 @@ function ThreadActions(props: { title: string; onCreateTask: () => void }) {
       <HeaderActionGroup label="Actions" size="md">
         <Show when={context.thread()?.db_id}>
           {(id) => (
-            <AskMacroButton grouped
+            <AskMacroButton
+              grouped
               size={isTouchDevice() ? undefined : 'icon-md'}
               entity={{ type: 'email', id: id(), name: props.title }}
             />
           )}
         </Show>
         <Show when={context.thread()?.db_id}>
-          <EmailTaskButton grouped size={isTouchDevice() ? undefined : 'icon-md'} onClick={props.onCreateTask} />
+          <EmailTaskButton
+            grouped
+            size={isTouchDevice() ? undefined : 'icon-md'}
+            onClick={props.onCreateTask}
+          />
         </Show>
       </HeaderActionGroup>
     </SidePanel.HeaderActions>

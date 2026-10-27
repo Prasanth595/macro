@@ -95,10 +95,11 @@ function NavigationToggle(props: {
           when={shell.breakpoints.narrow?.()}
           fallback={
             <Tooltip label="Expand CRM sidebar">
-              <Button aria-label={"Expand CRM sidebar"} tooltip={"Expand CRM sidebar"}
+              <Button
+                aria-label="Expand CRM sidebar"
+                tooltip="Expand CRM sidebar"
                 variant="ghost"
                 size="icon-sm"
-                
                 ref={toggleTarget}
                 onClick={props.onExpand}
               >
@@ -534,10 +535,11 @@ export function CrmWorkspaceView(props: {
                   <Suspense>{sidebar()}</Suspense>
                 </NavigationToggle>
                 <Tooltip label="Back">
-                  <Button aria-label={"Close CRM settings"} tooltip={"Close CRM settings"}
+                  <Button
+                    aria-label="Close CRM settings"
+                    tooltip="Close CRM settings"
                     variant="ghost"
                     size="icon-sm"
-                    
                     onClick={settings.close}
                   >
                     <ArrowLeftIcon class="size-4" />

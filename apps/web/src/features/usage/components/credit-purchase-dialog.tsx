@@ -111,7 +111,7 @@ export function CreditPurchaseDialog(props: {
             </p>
           </Show>
           <div class="flex justify-end gap-2">
-            <Button variant="ghost"  onClick={props.onClose}>
+            <Button variant="ghost" onClick={props.onClose}>
               Cancel
             </Button>
             <Show
@@ -119,7 +119,6 @@ export function CreditPurchaseDialog(props: {
               fallback={
                 <Button
                   variant="accent"
-                  
                   disabled={props.disabled || props.pending}
                   onClick={props.onCheckout}
                 >
@@ -128,19 +127,19 @@ export function CreditPurchaseDialog(props: {
               }
             >
               {(viewPlans) => (
-                <Button variant="accent"  onClick={viewPlans()}>
+                <Button variant="accent" onClick={viewPlans()}>
                   View plans
                 </Button>
               )}
             </Show>
           </div>
         </div>
-        <Button aria-label={"Close credit purchase"} tooltip={"Close credit purchase"}
+        <Button
+          aria-label="Close credit purchase"
+          tooltip="Close credit purchase"
           class="absolute right-4 top-4"
           size="icon-sm"
           variant="ghost"
-          
-          
           onClick={props.onClose}
         >
           <XIcon class="size-4" />

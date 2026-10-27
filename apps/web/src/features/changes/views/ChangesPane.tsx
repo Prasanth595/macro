@@ -107,10 +107,11 @@ function ChangesTreeToggle(props: {
       <SidebarIcon class="size-4" />
     </Dialog.Trigger>
   ) : (
-    <Button aria-label={label()} tooltip={label()}
+    <Button
+      aria-label={label()}
+      tooltip={label()}
       variant="ghost"
       size="icon-sm"
-      
       aria-expanded={open()}
       onClick={props.onToggle ?? layout.toggleTree}
     >
@@ -155,14 +156,20 @@ function ChangesControls(props: { narrow: boolean; drawerOpen: boolean }) {
       </Show>
       <span class="flex-1" />
       <DiffView.CollapseAll iconOnly />
-      <Button aria-label={"Refresh pull request changes"} tooltip={"Refresh pull request changes"}
+      <Button
+        aria-label="Refresh pull request changes"
+        tooltip="Refresh pull request changes"
         variant="ghost"
         size="icon-sm"
-        
         disabled={refreshing()}
         onClick={() => fireAndForget(model.refresh(), 'changes')}
       >
-        <ArrowsClockwiseIcon class={cn('size-3.5 shrink-0 touch:size-6', refreshing() && 'animate-spin')} />
+        <ArrowsClockwiseIcon
+          class={cn(
+            'size-3.5 shrink-0 touch:size-6',
+            refreshing() && 'animate-spin'
+          )}
+        />
       </Button>
     </div>
   );

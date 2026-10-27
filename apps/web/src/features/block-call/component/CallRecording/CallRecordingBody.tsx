@@ -150,7 +150,8 @@ export function CallRecordingBody(props: {
     <div class="relative flex-1 min-h-0 overflow-hidden">
       <SidePanel.HeaderActions>
         <HeaderActionGroup label="Actions">
-          <AskMacroButton grouped
+          <AskMacroButton
+            grouped
             entity={{
               type: 'document',
               id: props.callId,

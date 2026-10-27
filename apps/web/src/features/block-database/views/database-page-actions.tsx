@@ -148,11 +148,12 @@ export function DatabasePageActions(props: {
         />
       </Show>
       <Dropdown>
-        <Dropdown.Trigger aria-label={"Database actions"} tooltip={"Database actions"}
+        <Dropdown.Trigger
+          aria-label="Database actions"
+          tooltip="Database actions"
           ref={menuButton}
           variant="ghost"
           size="icon-sm"
-          
         >
           <DotsThreeIcon class="size-5" />
         </Dropdown.Trigger>

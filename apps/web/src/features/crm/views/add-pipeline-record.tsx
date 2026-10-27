@@ -371,7 +371,7 @@ export function AddPipelineRecordDialog(
                 <Dialog.CloseButton
                   tabIndex={-1}
                   aria-label="Close"
-                  class={buttonClasses({ size: "icon-md" })}
+                  class={buttonClasses({ size: 'icon-md' })}
                   disabled={pending()}
                 >
                   <XIcon class="size-4 shrink-0 touch:size-6" />
