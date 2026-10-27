@@ -42,8 +42,7 @@ pub trait FavoritesRepo: Send + Sync + 'static {
         entity: &Entity<'_>,
     ) -> impl Future<Output = Result<Favorite, Self::Err>> + Send;
 
-    /// Count the favorites in the user's collection whose target still exists,
-    /// including trashed targets that can be restored.
+    /// Count the favorites currently in the user's collection.
     fn count_favorites(
         &self,
         user_id: &MacroUserIdStr<'_>,

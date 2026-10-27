@@ -39,9 +39,8 @@ where
     ) -> Result<Favorite, FavoritesError> {
         validate_entity(entity)?;
         // Cap the collection at add time. Enforcing it here (rather than only
-        // in `reorder_favorites`) guarantees a reorder payload can never exceed
-        // the limit and be rejected. Favorites of entities that no longer exist
-        // don't count, so they can't lock a user out of adding. Re-adding
+        // in `reorder_favorites`) keeps table growth bounded and guarantees a
+        // reorder payload can never exceed the limit and be rejected. Re-adding
         // an already-favorited entity while exactly at the cap is rejected too;
         // that is a harmless, fail-closed edge.
         let count = self
