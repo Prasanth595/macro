@@ -75,8 +75,9 @@ edit capability but calls no nested model and emits no additional model charge; 
 ## Gotchas
 
 - `tools_for(AiHost::Mcp)` never includes the agent-led Setup tools;
-  `mcp_tools_with_agent_setup()` adds them, and the harness's public MCP uses
-  it only while `ENABLE_AGENT_SETUP` is on. `ToolServiceContext::agent_setup_parts`
+  `mcp_tools_with_agent_setup()` (and `mcp_code_mode_tools_with_agent_setup()`)
+  add them, and the harness's public MCP lists them only for people the
+  `agent-led-setup` flag reaches. `ToolServiceContext::agent_setup_parts`
   carries setup's import, connection and inbox adapters; only the public MCP
   composes setup from them.
 

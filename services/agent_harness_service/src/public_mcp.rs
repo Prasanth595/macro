@@ -1,13 +1,15 @@
 //! Public workspace MCP and OAuth, hosted on the harness's public listener.
 //!
-//! With `ENABLE_AGENT_SETUP` on it also serves agent-led setup: the Setup
-//! tools, setup-first instructions for people who signed up through their
-//! agent, the sign-in hook that hands such an account to the agent, and MCP
-//! analytics. Off, it serves exactly what it did before.
+//! For people the `agent-led-setup` PostHog flag reaches it also serves
+//! agent-led setup: the Setup tools, setup-first instructions for people who
+//! signed up through their agent, the sign-in hook that hands such an account
+//! to the agent, and MCP analytics. Everyone else gets exactly what public MCP
+//! served before.
 mod agent_led;
 mod client_attribution;
 mod markdown_images;
 mod request_observer;
+mod setup_access;
 mod setup_ports;
 mod setup_prompt;
 mod sign_in;
@@ -40,13 +42,14 @@ use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
 use secretsmanager_client::LocalOrRemoteSecret;
+pub use setup_access::{FlaggedSetup, SetupAccess};
 use setup_ports::HandoverSetupAccounts;
 use setup_prompt::{ServiceSetupHint, SetupHintSource};
 use sign_in::AgentSignIn;
 use std::sync::Arc;
 use telemetry::McpTelemetry;
 use tool_mode_cache::CachedToolMode;
-use tool_service::{AuthenticatedToolService, CodeModeSurface};
+use tool_service::{AuthenticatedToolService, CodeModeSurface, SetupSurface};
 
 /// User-scoped code execution and the flag that offers it.
 pub struct PublicCodeMode {
@@ -63,14 +66,19 @@ const DEFAULT_MCP_ALLOWED_REDIRECT_HOSTS: [&str; 6] = [
     "www.cursor.com",
 ];
 
-/// What agent-led setup adds to public MCP when it is switched on.
+/// What agent-led setup adds to public MCP.
 struct AgentSetupParts {
     sign_in_observer: Arc<dyn mcp_auth_proxy::domain::ports::SignInObserver>,
     observer: Arc<dyn RequestObserver>,
     setup_hint: Arc<dyn SetupHintSource>,
 }
 
-/// Builds agent-led setup over the shared tool context, wiring its tools.
+/// Builds agent-led setup over the shared tool context, wiring its tools, or
+/// `None` on a host without the import service.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the composition root hands over each shared piece once"
+)]
 fn build_agent_setup(
     config: &Config,
     tool_context: &mut ai_tools::ToolServiceContext,
@@ -79,11 +87,12 @@ fn build_agent_setup(
     mcp_servers: Arc<mcp_client::outbound::pg_server_repo::PgServerRepo>,
     redis_client: redis::Client,
     app_base_url: &str,
-) -> anyhow::Result<AgentSetupParts> {
-    let parts = tool_context
-        .agent_setup_parts
-        .clone()
-        .context("agent-led setup needs the import service, which this host did not build")?;
+    access: Arc<dyn SetupAccess>,
+) -> anyhow::Result<Option<AgentSetupParts>> {
+    let Some(parts) = tool_context.agent_setup_parts.clone() else {
+        tracing::warn!("agent-led setup needs the import service, which this host did not build");
+        return Ok(None);
+    };
     let onboarding = Arc::new(onboarding::domain::service::OnboardingServiceImpl::new(
         onboarding::outbound::pg_onboarding_repo::PgOnboardingRepo::new(pool.clone()),
         mcp_servers,
@@ -115,6 +124,7 @@ fn build_agent_setup(
         Arc::new(NoObserver)
     };
     let sign_in_observer = Arc::new(AgentSignIn::new(
+        access,
         Arc::new(jwt_args.clone()),
         Arc::new(email::outbound::EmailServiceHttpClient::new(
             macro_service_urls::EmailServiceUrl::new()?.to_string(),
@@ -123,11 +133,11 @@ fn build_agent_setup(
         attribution,
         telemetry,
     ));
-    Ok(AgentSetupParts {
+    Ok(Some(AgentSetupParts {
         sign_in_observer,
         observer,
         setup_hint: Arc::new(ServiceSetupHint::new(setup_service)),
-    })
+    }))
 }
 
 /// Build public MCP routes using the harness's shared tools and identities.
@@ -145,15 +155,16 @@ pub async fn router(
     background_tasks: tokio_util::task::TaskTracker,
     cancellation: tokio_util::sync::CancellationToken,
     code_mode: Option<PublicCodeMode>,
+    setup_access: Option<Arc<dyn SetupAccess>>,
 ) -> anyhow::Result<axum::Router> {
     let public_url = macro_service_urls::McpPublicUrl::new()?;
     let item_base_url = macro_service_urls::AppServiceUrl::new()?.to_string();
     let redis_client = redis::Client::open(config.redis_uri.as_ref().to_owned())
         .context("failed to initialize redis client for MCP auth proxy")?;
-    // Agent-led setup is off unless `ENABLE_AGENT_SETUP=true`; off, public MCP
-    // serves exactly what it did before.
-    let agent_setup = if config.enable_agent_setup.is_enabled() {
-        Some(build_agent_setup(
+    // Agent-led setup is built wherever flags can be read, and on only for
+    // the people `agent-led-setup` reaches; without flags it stays off.
+    let agent_setup = match &setup_access {
+        Some(access) => build_agent_setup(
             config,
             &mut tool_context,
             &jwt_args,
@@ -161,20 +172,20 @@ pub async fn router(
             mcp_servers,
             redis_client.clone(),
             &item_base_url,
-        )?)
-    } else {
-        None
+            access.clone(),
+        )?
+        .map(|parts| (access.clone(), parts)),
+        None => None,
     };
     let sign_in_observer: Arc<dyn mcp_auth_proxy::domain::ports::SignInObserver> =
         match &agent_setup {
-            Some(setup) => setup.sign_in_observer.clone(),
+            Some((_, setup)) => setup.sign_in_observer.clone(),
             None => Arc::new(mcp_auth_proxy::domain::ports::NoSignInObserver),
         };
     let observer: Arc<dyn RequestObserver> = match &agent_setup {
-        Some(setup) => setup.observer.clone(),
+        Some((_, setup)) => setup.observer.clone(),
         None => Arc::new(NoObserver),
     };
-    let setup_hint = agent_setup.map(|setup| setup.setup_hint);
     let auth_proxy =
         build_auth_proxy(config, secrets, &public_url, redis_client, sign_in_observer).await?;
     let static_file_base_url =
@@ -185,20 +196,18 @@ pub async fn router(
         .context("public MCP URL has no host")?
         .to_owned();
     // Built once: the factory runs per request in stateless mode.
-    let tools = if setup_hint.is_some() {
-        ai_tools::mcp_tools_with_agent_setup()
-    } else {
-        ai_tools::tools_for(ai_tools::AiHost::Mcp)
-    }
-    .toolset;
+    let tools = ai_tools::tools_for(ai_tools::AiHost::Mcp).toolset;
+    let setup = agent_setup.map(|(access, setup)| {
+        Arc::new(SetupSurface {
+            access,
+            hint: setup.setup_hint,
+            tools: ai_tools::mcp_tools_with_agent_setup().toolset,
+            code_native: ai_tools::mcp_code_mode_tools_with_agent_setup().toolset,
+        })
+    });
     let code_mode = code_mode.map(|code_mode| {
         Arc::new(CodeModeSurface {
-            native: if setup_hint.is_some() {
-                ai_tools::mcp_code_mode_tools_with_agent_setup()
-            } else {
-                ai_tools::tools_for_mcp_code_mode()
-            }
-            .toolset,
+            native: ai_tools::tools_for_mcp_code_mode().toolset,
             tools: Arc::new(agent_code_mode::inbound::toolset::user_toolset()),
             context: agent_code_mode::inbound::toolset::UserCodeModeToolContext {
                 service: code_mode.service,
@@ -217,8 +226,8 @@ pub async fn router(
                 static_file_base_url.clone(),
             )
             .with_observer(observer.clone());
-            let service = match &setup_hint {
-                Some(setup_hint) => service.with_agent_setup(setup_hint.clone()),
+            let service = match &setup {
+                Some(setup) => service.with_agent_setup(setup.clone()),
                 None => service,
             };
             Ok(match &code_mode {

@@ -2,6 +2,7 @@ use crate::public_mcp::markdown_images::MarkdownImageResolver;
 use crate::public_mcp::request_observer::{
     HANDOFF_TOOLS, InitializeSeen, NoObserver, RequestObserver, ToolCallSeen,
 };
+use crate::public_mcp::setup_access::SetupAccess;
 use crate::public_mcp::setup_prompt::SetupHintSource;
 use crate::public_mcp::telemetry::{ClientInfo, ToolCallOutcome};
 use crate::public_mcp::tool_response::tool_result_with_media;
@@ -59,6 +60,19 @@ pub struct CodeModeSurface<Context> {
     pub selector: Arc<dyn ToolModeSelector>,
 }
 
+/// Agent-led setup, for the people the `agent-led-setup` flag reaches.
+pub struct SetupSurface<Context> {
+    /// Whether setup is on for a person.
+    pub access: Arc<dyn SetupAccess>,
+    /// Whether a person's workspace is set up, so instructions lead with
+    /// setup only for those who need it.
+    pub hint: Arc<dyn SetupHintSource>,
+    /// The MCP tools plus the Setup tools.
+    pub tools: Arc<AsyncToolCollection<Context>>,
+    /// Code mode's native tools plus the Setup tools.
+    pub code_native: Arc<AsyncToolCollection<Context>>,
+}
+
 /// MCP server handler that extracts authenticated user identity from HTTP
 /// request parts injected by rmcp's `StreamableHttpService`.
 #[allow(
@@ -75,12 +89,12 @@ pub struct AuthenticatedToolService<Context> {
     static_file_base_url: url::Url,
     /// Present when this deployment can run code.
     code_mode: Option<Arc<CodeModeSurface<Context>>>,
-    /// Told about handshakes and tool calls, for analytics.
+    /// Told about handshakes and tool calls of people with setup on, for
+    /// analytics.
     observer: Arc<dyn RequestObserver>,
-    /// Agent-led setup, when it's switched on: whether a person needs setup,
-    /// so the instructions lead with it only for them. `None` serves the
-    /// instructions and capabilities MCP clients had before agent-led setup.
-    setup: Option<Arc<dyn SetupHintSource>>,
+    /// Agent-led setup. People it doesn't reach, and everyone when `None`,
+    /// get the tools, instructions and capabilities MCP clients had before.
+    setup: Option<Arc<SetupSurface<Context>>>,
 }
 
 /// What MCP clients were told before agent-led setup, ahead of the shared
@@ -117,14 +131,15 @@ impl<Context> AuthenticatedToolService<Context> {
         }
     }
 
-    /// Switches agent-led setup on: the `setup` prompt, and instructions that
-    /// lead with setup for the people `setup_hint` says need it.
-    pub fn with_agent_setup(mut self, setup_hint: Arc<dyn SetupHintSource>) -> Self {
-        self.setup = Some(setup_hint);
+    /// Offers agent-led setup to the people `setup.access` lets in: the Setup
+    /// tools, the `setup` prompt, and instructions that lead with setup for
+    /// those who need it.
+    pub fn with_agent_setup(mut self, setup: Arc<SetupSurface<Context>>) -> Self {
+        self.setup = Some(setup);
         self
     }
 
-    /// Reports handshakes and tool calls to `observer`.
+    /// Reports handshakes and tool calls of people with setup on to `observer`.
     pub fn with_observer(mut self, observer: Arc<dyn RequestObserver>) -> Self {
         self.observer = observer;
         self
@@ -140,15 +155,41 @@ impl<Context> AuthenticatedToolService<Context> {
         definitions(&self.toolset).collect()
     }
 
-    /// Tools listed for a mode. Code mode lists the reduced native set plus the
-    /// SDK tools; every native tool stays callable either way.
-    fn tool_definitions_for(&self, mode: ToolMode) -> Vec<Tool> {
+    /// Tools listed for a mode and person. Code mode lists the reduced native
+    /// set plus the SDK tools; every native tool stays callable either way.
+    /// The Setup tools are listed only for people with setup on.
+    fn tool_definitions_for(
+        &self,
+        mode: ToolMode,
+        setup: Option<&SetupSurface<Context>>,
+    ) -> Vec<Tool> {
         match (mode, &self.code_mode) {
-            (ToolMode::Code, Some(code_mode)) => definitions(&code_mode.native)
-                .chain(definitions(&code_mode.tools))
-                .collect(),
-            _ => self.tool_definitions(),
+            (ToolMode::Code, Some(code_mode)) => definitions(match setup {
+                Some(setup) => &setup.code_native,
+                None => &code_mode.native,
+            })
+            .chain(definitions(&code_mode.tools))
+            .collect(),
+            _ => definitions(self.toolset_for(setup)).collect(),
         }
+    }
+
+    /// The native tools a person can call: with the Setup tools only when
+    /// setup is on for them.
+    fn toolset_for<'a>(
+        &'a self,
+        setup: Option<&'a SetupSurface<Context>>,
+    ) -> &'a AsyncToolCollection<Context> {
+        match setup {
+            Some(setup) => &setup.tools,
+            None => &self.toolset,
+        }
+    }
+
+    /// Agent-led setup, when it's on for this person.
+    async fn setup_for(&self, user_id: &MacroUserIdStr<'static>) -> Option<&SetupSurface<Context>> {
+        let setup = self.setup.as_deref()?;
+        setup.access.allowed(user_id).await.then_some(setup)
     }
 
     async fn tool_mode(&self, user_id: &MacroUserIdStr<'static>) -> ToolMode {
@@ -258,8 +299,9 @@ impl<Context> ServerHandler for AuthenticatedToolService<Context>
 where
     Context: Clone + Send + Sync + MarkdownImageResolver + 'static,
 {
+    /// Without a person, the pre-setup info; `initialize` tailors it.
     fn get_info(&self) -> ServerInfo {
-        self.server_info(self.setup.as_ref().map(|_| SetupHint::Unknown))
+        self.server_info(None)
     }
 
     async fn initialize(
@@ -268,31 +310,34 @@ where
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<InitializeResult, rmcp::ErrorData> {
         let user_id = Self::authenticated_user_id(&context.extensions)?;
-        let (token, user_agent) = Self::request_credentials(&context.extensions);
-        let seen = InitializeSeen {
-            user_id: user_id.as_ref().to_owned(),
-            token,
-            client: ClientInfo {
-                name: Some(request.client_info.name.clone()),
-                version: Some(request.client_info.version.clone()),
-                user_agent,
-            },
-            protocol_version: request.protocol_version.to_string(),
-        };
-        tokio::spawn(
-            Arc::clone(&self.observer)
-                .initialized(seen)
-                .in_current_span(),
-        );
+        let setup = self.setup_for(&user_id).await;
+        if setup.is_some() {
+            let (token, user_agent) = Self::request_credentials(&context.extensions);
+            let seen = InitializeSeen {
+                user_id: user_id.as_ref().to_owned(),
+                token,
+                client: ClientInfo {
+                    name: Some(request.client_info.name.clone()),
+                    version: Some(request.client_info.version.clone()),
+                    user_agent,
+                },
+                protocol_version: request.protocol_version.to_string(),
+            };
+            tokio::spawn(
+                Arc::clone(&self.observer)
+                    .initialized(seen)
+                    .in_current_span(),
+            );
+        }
         if context.peer.peer_info().is_none() {
             context.peer.set_peer_info(request);
         }
         let code_mode = self.tool_mode(&user_id).await == ToolMode::Code;
-        let setup = match &self.setup {
-            Some(source) => Some(source.hint(user_id).await),
+        let hint = match setup {
+            Some(setup) => Some(setup.hint.hint(user_id).await),
             None => None,
         };
-        let mut info = self.server_info(setup);
+        let mut info = self.server_info(hint);
         if code_mode && let Some(instructions) = info.instructions.as_mut() {
             instructions.push_str("\n\n");
             instructions.push_str(include_str!("code_mode_instructions.md"));
@@ -305,11 +350,13 @@ where
         _request: Option<PaginatedRequestParams>,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<ListPromptsResult, rmcp::ErrorData> {
-        Self::authenticated_user_id(&context.extensions)?;
-        Ok(ListPromptsResult::with_all_items(match self.setup {
-            Some(_) => crate::public_mcp::setup_prompt::prompts(),
-            None => Vec::new(),
-        }))
+        let user_id = Self::authenticated_user_id(&context.extensions)?;
+        Ok(ListPromptsResult::with_all_items(
+            match self.setup_for(&user_id).await {
+                Some(_) => crate::public_mcp::setup_prompt::prompts(),
+                None => Vec::new(),
+            },
+        ))
     }
 
     async fn get_prompt(
@@ -317,8 +364,8 @@ where
         request: GetPromptRequestParams,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<GetPromptResult, rmcp::ErrorData> {
-        Self::authenticated_user_id(&context.extensions)?;
-        let prompt = match self.setup {
+        let user_id = Self::authenticated_user_id(&context.extensions)?;
+        let prompt = match self.setup_for(&user_id).await {
             Some(_) => crate::public_mcp::setup_prompt::get(&request),
             None => None,
         };
@@ -340,9 +387,10 @@ where
     ) -> Result<ListToolsResult, rmcp::ErrorData> {
         let user_id = Self::authenticated_user_id(&context.extensions)?;
         let mode = self.tool_mode(&user_id).await;
+        let setup = self.setup_for(&user_id).await;
 
         Ok(ListToolsResult {
-            tools: self.tool_definitions_for(mode),
+            tools: self.tool_definitions_for(mode, setup),
             ..Default::default()
         })
     }
@@ -356,10 +404,14 @@ where
         let (token, user_agent) = Self::request_credentials(&context.extensions);
         let tool_name = request.name.to_string();
         let started = Instant::now();
+        let setup = self.setup_for(&user_id).await;
 
         let result = self
-            .dispatch_tool_call(user_id.clone(), request, context.ct.clone())
+            .dispatch_tool_call(user_id.clone(), request, context.ct.clone(), setup)
             .await;
+        if setup.is_none() {
+            return result;
+        }
 
         let handoff_result = match &result {
             Ok(result) if HANDOFF_TOOLS.contains(&tool_name.as_str()) => {
@@ -394,6 +446,7 @@ where
         user_id: MacroUserIdStr<'static>,
         request: rmcp::model::CallToolRequestParams,
         cancel: tokio_util::sync::CancellationToken,
+        setup: Option<&SetupSurface<Context>>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::ErrorData> {
         let mut request_context = RequestContext::new(user_id.clone());
 
@@ -430,7 +483,7 @@ where
         }
 
         let result = self
-            .toolset
+            .toolset_for(setup)
             .try_tool_call(
                 self.context.clone(),
                 request_context,

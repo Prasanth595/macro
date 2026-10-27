@@ -4,6 +4,7 @@ use mcp_auth_proxy::domain::models::AccessToken;
 use onboarding::domain::models::OnboardingStatus;
 
 use super::*;
+use crate::public_mcp::setup_access::Everyone;
 use crate::public_mcp::test_support::{
     FakeAccounts, FakeOnboarding, MemoryStore, onboarding_row, user,
 };
@@ -46,6 +47,15 @@ fn fixture(
     onboarding: FakeOnboarding,
     accounts: FakeAccounts,
 ) -> Fixture {
+    fixture_with_setup(true, inbox, onboarding, accounts)
+}
+
+fn fixture_with_setup(
+    setup_on: bool,
+    inbox: Option<FirstInboxProvisionOutcome>,
+    onboarding: FakeOnboarding,
+    accounts: FakeAccounts,
+) -> Fixture {
     let inbox = Arc::new(FakeInbox {
         outcome: inbox,
         ..FakeInbox::default()
@@ -54,6 +64,7 @@ fn fixture(
     let attribution = ClientAttribution::new(MemoryStore::default());
     Fixture {
         sign_in: AgentSignIn::new(
+            Arc::new(Everyone(setup_on)),
             Arc::new(FixedIdentity),
             inbox.clone(),
             AgentHandover::new(onboarding.clone(), accounts.clone()),
@@ -176,4 +187,29 @@ async fn an_account_someone_already_had_is_left_alone_on_an_agent_sign_in() {
     assert!(fixture.inbox.calls.lock().unwrap().is_empty());
     assert!(fixture.onboarding.markings.lock().unwrap().is_empty());
     assert_eq!(*fixture.accounts.completed.lock().unwrap(), 0);
+}
+
+#[tokio::test]
+async fn without_the_setup_flag_a_sign_in_sets_nothing_in_motion() {
+    let fixture = fixture_with_setup(
+        false,
+        Some(FirstInboxProvisionOutcome::Provisioned),
+        FakeOnboarding::default(),
+        FakeAccounts::with_tutorial(&[Some(false)]),
+    );
+
+    fixture
+        .sign_in
+        .after_sign_in(user(), sign_in("claude-code"))
+        .await;
+
+    assert!(fixture.inbox.calls.lock().unwrap().is_empty());
+    assert!(fixture.onboarding.markings.lock().unwrap().is_empty());
+    assert!(
+        fixture
+            .attribution
+            .client_for("fresh-access-token", user().as_ref())
+            .await
+            .is_none()
+    );
 }

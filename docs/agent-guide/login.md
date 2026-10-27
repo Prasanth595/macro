@@ -270,7 +270,7 @@ connector, building, and summary step names are migrated on resume.
 ## Agent-led setup links
 
 Accounts set up by the person's own AI agent over MCP are agent-led. While
-agent-led setup is switched on (`ENABLE_AGENT_SETUP` on the MCP server), an
+agent-led setup is on for the person (the `agent-led-setup` PostHog flag), an
 MCP sign-in that created the account, or the person's first Setup tool call,
 marks the onboarding row agent-led and completes the tutorial, so
 `/app/onboarding` is never forced on them. Accounts people already had are left

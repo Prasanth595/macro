@@ -1,4 +1,5 @@
-//! Per-user tool mode, cached because every stateless MCP request asks for it.
+//! Per-user flag results, cached because every stateless MCP request asks for
+//! them: the tool mode and whether agent-led setup is on.
 use agent_inmem::domain::tool_mode::{ToolMode, ToolModeSelector};
 use macro_user_id::user_id::MacroUserIdStr;
 use std::{
@@ -18,34 +19,51 @@ const TTL: Duration = Duration::from_secs(60);
 /// Expired entries are swept once the map grows past this size.
 const SWEEP_AT: usize = 10_000;
 
+/// Each user's last result, reused for [`TTL`].
+pub struct UserCache<V> {
+    entries: Mutex<HashMap<String, (Instant, V)>>,
+}
+
+impl<V> Default for UserCache<V> {
+    fn default() -> Self {
+        Self {
+            entries: Mutex::new(HashMap::new()),
+        }
+    }
+}
+
+impl<V: Copy> UserCache<V> {
+    /// The user's result, if it was stored within [`TTL`].
+    pub fn get(&self, user: &str) -> Option<V> {
+        let entries = self.entries.lock().expect("user cache is not poisoned");
+        entries
+            .get(user)
+            .filter(|(at, _)| at.elapsed() < TTL)
+            .map(|(_, value)| *value)
+    }
+
+    /// Remembers the user's result.
+    pub fn store(&self, user: &str, value: V) {
+        let mut entries = self.entries.lock().expect("user cache is not poisoned");
+        if entries.len() >= SWEEP_AT {
+            entries.retain(|_, (at, _)| at.elapsed() < TTL);
+        }
+        entries.insert(user.to_owned(), (Instant::now(), value));
+    }
+}
+
 /// Reuses each user's tool mode for [`TTL`] instead of loading flags per request.
 pub struct CachedToolMode {
     inner: Arc<dyn ToolModeSelector>,
-    cache: Mutex<HashMap<String, (Instant, ToolMode)>>,
+    cache: UserCache<ToolMode>,
 }
 
 impl CachedToolMode {
     pub fn new(inner: Arc<dyn ToolModeSelector>) -> Self {
         Self {
             inner,
-            cache: Mutex::new(HashMap::new()),
+            cache: UserCache::default(),
         }
-    }
-
-    fn cached(&self, user: &str) -> Option<ToolMode> {
-        let cache = self.cache.lock().expect("tool mode cache is not poisoned");
-        cache
-            .get(user)
-            .filter(|(at, _)| at.elapsed() < TTL)
-            .map(|(_, mode)| *mode)
-    }
-
-    fn store(&self, user: &str, mode: ToolMode) {
-        let mut cache = self.cache.lock().expect("tool mode cache is not poisoned");
-        if cache.len() >= SWEEP_AT {
-            cache.retain(|_, (at, _)| at.elapsed() < TTL);
-        }
-        cache.insert(user.to_owned(), (Instant::now(), mode));
     }
 }
 
@@ -56,11 +74,11 @@ impl ToolModeSelector for CachedToolMode {
     ) -> Pin<Box<dyn Future<Output = ToolMode> + Send + 'a>> {
         Box::pin(async move {
             let key = owner.as_ref();
-            if let Some(mode) = self.cached(key) {
+            if let Some(mode) = self.cache.get(key) {
                 return mode;
             }
             let mode = self.inner.select(owner).await;
-            self.store(key, mode);
+            self.cache.store(key, mode);
             mode
         })
     }

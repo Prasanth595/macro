@@ -1,7 +1,19 @@
 use super::*;
 use ai_toolset::AsyncToolCollection;
-use rmcp::{handler::server::ServerHandler, model::ErrorCode};
+use axum::{
+    body::{Body, to_bytes},
+    http::Request,
+};
+use rmcp::{
+    handler::server::ServerHandler,
+    model::ErrorCode,
+    transport::streamable_http_server::{
+        StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
+    },
+};
+use tower::ServiceExt;
 
+/// The service with no setup and no code mode: what public MCP served before.
 fn empty_service() -> AuthenticatedToolService<()> {
     AuthenticatedToolService::new(
         Arc::new(AsyncToolCollection::new()),
@@ -9,22 +21,93 @@ fn empty_service() -> AuthenticatedToolService<()> {
         "https://macro.com".to_owned(),
         url::Url::parse("https://static-file-service.macro.com").unwrap(),
     )
-    .with_agent_setup(Arc::new(crate::public_mcp::setup_prompt::UnknownSetup))
 }
 
-/// The service as it runs while agent-led setup is switched off.
-fn service_without_setup() -> AuthenticatedToolService<()> {
-    AuthenticatedToolService::new(
-        Arc::new(AsyncToolCollection::new()),
-        (),
-        "https://macro.com".to_owned(),
-        url::Url::parse("https://static-file-service.macro.com").unwrap(),
-    )
+/// Server info for a person with setup on, before their state is known.
+fn setup_info() -> ServerInfo {
+    empty_service().server_info(Some(SetupHint::Unknown))
+}
+
+/// Serves `service` over HTTP, with a stand-in for the OAuth bearer
+/// middleware that takes the user from an `x-user` header.
+fn serve(
+    service: impl Fn() -> AuthenticatedToolService<()> + Send + Sync + 'static,
+) -> axum::Router {
+    let mut config =
+        StreamableHttpServerConfig::default().with_allowed_hosts(["localhost".to_owned()]);
+    config.stateful_mode = false;
+    config.json_response = true;
+    let service = StreamableHttpService::new(
+        move || Ok(service()),
+        Arc::new(LocalSessionManager::default()),
+        config,
+    );
+    axum::Router::new()
+        .nest_service("/mcp", service)
+        .layer(axum::middleware::from_fn(
+            |mut request: axum::extract::Request, next: axum::middleware::Next| async move {
+                let user = request.headers()["x-user"].to_str().unwrap().to_owned();
+                request
+                    .extensions_mut()
+                    .insert(MacroUserIdStr::try_from_email(&user).unwrap());
+                next.run(request).await
+            },
+        ))
+}
+
+async fn rpc(
+    app: axum::Router,
+    user: &str,
+    method: &str,
+    params: serde_json::Value,
+) -> serde_json::Value {
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/mcp")
+                .header("host", "localhost")
+                .header("x-user", user)
+                .header("content-type", "application/json")
+                .header("accept", "application/json, text/event-stream")
+                .body(Body::from(
+                    serde_json::json!({
+                        "jsonrpc": "2.0", "id": 1, "method": method, "params": params,
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let bytes = to_bytes(response.into_body(), 4 * 1024 * 1024)
+        .await
+        .unwrap();
+    serde_json::from_slice(&bytes).unwrap()
+}
+
+fn tool_names(response: &serde_json::Value) -> Vec<String> {
+    let mut names: Vec<String> = response["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap().to_owned())
+        .collect();
+    names.sort();
+    names
+}
+
+fn initialize_params() -> serde_json::Value {
+    serde_json::json!({
+        "protocolVersion": "2025-06-18",
+        "capabilities": {},
+        "clientInfo": {"name": "test", "version": "1"},
+    })
 }
 
 #[tokio::test]
-async fn with_setup_off_mcp_clients_get_exactly_what_they_got_before() {
-    let info = service_without_setup().get_info();
+async fn without_setup_mcp_clients_get_exactly_what_they_got_before() {
+    let info = empty_service().get_info();
 
     assert!(info.capabilities.prompts.is_none());
     assert_eq!(
@@ -47,18 +130,6 @@ async fn with_setup_off_mcp_clients_get_exactly_what_they_got_before() {
     ));
     assert!(!instructions.contains("ReadThread"));
     assert!(!instructions.contains("SetupGetState"));
-}
-
-#[tokio::test]
-async fn with_setup_on_the_setup_prompt_is_offered() {
-    let info = empty_service().get_info();
-
-    assert!(info.capabilities.prompts.is_some());
-    assert!(
-        info.instructions
-            .unwrap_or_default()
-            .contains("SetupGetState")
-    );
 }
 
 #[tokio::test]
@@ -97,8 +168,7 @@ async fn server_info_advertises_the_web_app_favicon() {
 
 #[tokio::test]
 async fn server_instructions_describe_available_workflows() {
-    let instructions = empty_service()
-        .get_info()
+    let instructions = setup_info()
         .instructions
         .expect("server should provide MCP instructions");
 
@@ -127,8 +197,7 @@ async fn server_instructions_describe_available_workflows() {
 
 #[tokio::test]
 async fn server_instructions_only_name_tools_the_server_has() {
-    let instructions = empty_service()
-        .get_info()
+    let instructions = setup_info()
         .instructions
         .expect("server should provide MCP instructions");
 
@@ -138,8 +207,7 @@ async fn server_instructions_only_name_tools_the_server_has() {
 
 #[tokio::test]
 async fn server_instructions_link_items_as_urls_not_mention_tags() {
-    let instructions = empty_service()
-        .get_info()
+    let instructions = setup_info()
         .instructions
         .expect("server should provide MCP instructions");
 
@@ -286,17 +354,9 @@ mod code_mode {
         CodeModeError, ExecutionStatus, UserCodeMode, UserExecutionReceipt,
     };
     use agent_inmem::domain::tool_mode::{ToolMode, ToolModeSelector};
-    use axum::{
-        body::{Body, to_bytes},
-        http::Request,
-    };
     use code_execution::domain::ExecuteRequest;
-    use rmcp::transport::streamable_http_server::{
-        StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
-    };
     use std::{future::Future, pin::Pin, sync::Mutex};
     use tokio_util::sync::CancellationToken;
-    use tower::ServiceExt;
 
     const FLAGGED: &str = "flagged@example.com";
     const UNFLAGGED: &str = "unflagged@example.com";
@@ -352,69 +412,7 @@ mod code_mode {
             },
             selector: Arc::new(Flag),
         });
-        let mut config =
-            StreamableHttpServerConfig::default().with_allowed_hosts(["localhost".to_owned()]);
-        config.stateful_mode = false;
-        config.json_response = true;
-        let service = StreamableHttpService::new(
-            move || Ok(empty_service().with_code_mode(surface.clone())),
-            Arc::new(LocalSessionManager::default()),
-            config,
-        );
-        // Stands in for the OAuth bearer middleware, which inserts the user id.
-        axum::Router::new()
-            .nest_service("/mcp", service)
-            .layer(axum::middleware::from_fn(
-                |mut request: axum::extract::Request, next: axum::middleware::Next| async move {
-                    let user = request.headers()["x-user"].to_str().unwrap().to_owned();
-                    request
-                        .extensions_mut()
-                        .insert(MacroUserIdStr::try_from_email(&user).unwrap());
-                    next.run(request).await
-                },
-            ))
-    }
-
-    async fn rpc(
-        app: axum::Router,
-        user: &str,
-        method: &str,
-        params: serde_json::Value,
-    ) -> serde_json::Value {
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/mcp")
-                    .header("host", "localhost")
-                    .header("x-user", user)
-                    .header("content-type", "application/json")
-                    .header("accept", "application/json, text/event-stream")
-                    .body(Body::from(
-                        serde_json::json!({
-                            "jsonrpc": "2.0", "id": 1, "method": method, "params": params,
-                        })
-                        .to_string(),
-                    ))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        let bytes = to_bytes(response.into_body(), 4 * 1024 * 1024)
-            .await
-            .unwrap();
-        serde_json::from_slice(&bytes).unwrap()
-    }
-
-    fn tool_names(response: &serde_json::Value) -> Vec<String> {
-        let mut names: Vec<String> = response["result"]["tools"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|tool| tool["name"].as_str().unwrap().to_owned())
-            .collect();
-        names.sort();
-        names
+        serve(move || empty_service().with_code_mode(surface.clone()))
     }
 
     #[tokio::test]
@@ -426,11 +424,7 @@ mod code_mode {
         let unflagged = rpc(app.clone(), UNFLAGGED, "tools/list", serde_json::json!({})).await;
         assert!(tool_names(&unflagged).is_empty());
 
-        let initialize = serde_json::json!({
-            "protocolVersion": "2025-06-18",
-            "capabilities": {},
-            "clientInfo": {"name": "test", "version": "1"},
-        });
+        let initialize = initialize_params();
         let flagged = rpc(app.clone(), FLAGGED, "initialize", initialize.clone()).await;
         assert!(
             flagged["result"]["instructions"]
@@ -558,5 +552,103 @@ mod code_mode {
             receipt["error"].as_str().unwrap().contains("TypeError"),
             "{failed}"
         );
+    }
+}
+
+mod setup {
+    use super::*;
+    use crate::public_mcp::setup_access::AccessFuture;
+    use crate::public_mcp::setup_prompt::UnknownSetup;
+    use ai_toolset::{AsyncTool, ServiceContext, ToolAnnotated, ToolAnnotations, ToolResult};
+    use schemars::JsonSchema;
+    use serde::Deserialize;
+
+    const FLAGGED: &str = "flagged@example.com";
+    const UNFLAGGED: &str = "unflagged@example.com";
+
+    /// Setup only for [`FLAGGED`].
+    struct Flag;
+    impl SetupAccess for Flag {
+        fn allowed<'a>(&'a self, user: &'a MacroUserIdStr<'_>) -> AccessFuture<'a> {
+            let allowed = user.as_ref() == format!("macro|{FLAGGED}");
+            Box::pin(async move { allowed })
+        }
+    }
+
+    /// Stands in for a Setup tool.
+    #[derive(Deserialize, JsonSchema)]
+    #[schemars(title = "SetupGetState", description = "Stands in for a Setup tool.")]
+    struct SetupGetState {}
+
+    impl ToolAnnotated for SetupGetState {
+        const ANNOTATIONS: ToolAnnotations = ToolAnnotations::read_only("Setup state");
+    }
+
+    #[async_trait::async_trait]
+    impl AsyncTool<()> for SetupGetState {
+        type Output = serde_json::Value;
+
+        async fn call(
+            &self,
+            _service_context: ServiceContext<()>,
+            _request_context: RequestContext,
+        ) -> ToolResult<Self::Output> {
+            Ok(serde_json::json!({"next_step": "connect"}))
+        }
+    }
+
+    fn app() -> axum::Router {
+        let with_setup = Arc::new(AsyncToolCollection::<()>::new().add_tool::<SetupGetState, ()>());
+        let surface = Arc::new(SetupSurface {
+            access: Arc::new(Flag),
+            hint: Arc::new(UnknownSetup),
+            tools: with_setup.clone(),
+            code_native: with_setup,
+        });
+        serve(move || empty_service().with_agent_setup(surface.clone()))
+    }
+
+    #[tokio::test]
+    async fn only_flagged_people_get_setup_instructions_and_the_setup_prompt() {
+        let app = app();
+
+        let flagged = rpc(app.clone(), FLAGGED, "initialize", initialize_params()).await;
+        assert!(flagged["result"]["capabilities"]["prompts"].is_object());
+        assert!(
+            flagged["result"]["instructions"]
+                .as_str()
+                .unwrap()
+                .contains("SetupGetState")
+        );
+        let prompts = rpc(app.clone(), FLAGGED, "prompts/list", serde_json::json!({})).await;
+        assert_eq!(prompts["result"]["prompts"][0]["name"], "setup");
+
+        let unflagged = rpc(app.clone(), UNFLAGGED, "initialize", initialize_params()).await;
+        assert!(unflagged["result"]["capabilities"]["prompts"].is_null());
+        assert_eq!(
+            unflagged["result"]["instructions"].as_str().unwrap(),
+            format!(
+                "{LEGACY_INSTRUCTIONS_PREAMBLE}\n\n{}",
+                prompt::legacy_mcp_instructions("https://macro.com")
+            )
+        );
+        let prompts = rpc(app, UNFLAGGED, "prompts/list", serde_json::json!({})).await;
+        assert_eq!(prompts["result"]["prompts"], serde_json::json!([]));
+    }
+
+    #[tokio::test]
+    async fn only_flagged_people_can_list_or_call_setup_tools() {
+        let app = app();
+        let call = serde_json::json!({"name": "SetupGetState", "arguments": {}});
+
+        let flagged = rpc(app.clone(), FLAGGED, "tools/list", serde_json::json!({})).await;
+        assert_eq!(tool_names(&flagged), ["SetupGetState"]);
+        let flagged = rpc(app.clone(), FLAGGED, "tools/call", call.clone()).await;
+        assert!(flagged.get("error").is_none(), "{flagged}");
+
+        let unflagged = rpc(app.clone(), UNFLAGGED, "tools/list", serde_json::json!({})).await;
+        assert!(tool_names(&unflagged).is_empty());
+        let unflagged = rpc(app, UNFLAGGED, "tools/call", call).await;
+        assert!(unflagged.get("error").is_some(), "{unflagged}");
     }
 }

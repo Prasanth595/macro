@@ -6,8 +6,8 @@ Agent-led setup over MCP: the Setup tools a person's own AI agent (Claude,
 ChatGPT, Codex) uses to set up their Macro workspace. They report what's set
 up, hand out connect links, show what Macro found, agree one plan, import it,
 report back, and show what the person's inbox and calendar say about their
-work. Served only while `ENABLE_AGENT_SETUP` is on in
-`agent_harness_service`'s public MCP.
+work. Served by `agent_harness_service`'s public MCP only to people the
+`agent-led-setup` PostHog flag reaches.
 
 ## How it works
 

@@ -26,13 +26,14 @@ Pulumi stacks; they do not host extra agent processes.
   reuses the harness tool context and retains bearer authentication. Users with
   `ai-code-mode` get `ExecuteCode`/`DescribeCodeTools` in place of SDK-covered
   tools (`tool_service.rs`); the flag is cached per user (`tool_mode_cache.rs`).
-  Agent-led setup (behind `ENABLE_AGENT_SETUP`, off by default) is composed in
-  `public_mcp.rs` from `ToolServiceContext::agent_setup_parts`:
-  `public_mcp/sign_in.rs` (sign-in hook), `agent_led.rs` (handover),
+  Agent-led setup is composed in `public_mcp.rs` from
+  `ToolServiceContext::agent_setup_parts` and served per person behind the
+  `agent-led-setup` PostHog flag (`setup_access.rs`, cached per user like code
+  mode): `public_mcp/sign_in.rs` (sign-in hook), `agent_led.rs` (handover),
   `setup_prompt.rs` (per-person setup hint, `setup` prompt), `setup_ports.rs`
   (the account adapter for `crates/agent_setup`), and `telemetry.rs`,
   `request_observer.rs`, `client_attribution.rs` (PostHog MCP analytics, only
-  with setup on and `POSTHOG_API_KEY` set).
+  for people with setup on).
 - `src/cognition/`: existing chat, completions, integrations, and projection
   workers; the library also exports their OpenAPI document.
 - `src/scheduling.rs`: routine HTTP routes and background scheduling;
@@ -111,8 +112,9 @@ hostnames and internally rewrites cognition paths. `PREVIEW_DOMAIN` and
 `MCP_PUBLIC_URL`, `MCP_CLIENT_PUBLIC_URL`, `PREVIEW_APP_ORIGIN`, and
 `PREVIEW_CONTROL_HOSTS` values are retained only for old-image rollback; new
 code does not read them. `POSTHOG_API_KEY` and `POSTHOG_HOST` serve
-feature flags, and MCP analytics while `ENABLE_AGENT_SETUP` is on; with it off
-MCP emits no analytics events.
+feature flags (`ai-code-mode`, `agent-led-setup`; without a key both read off),
+and MCP analytics for people with `agent-led-setup` on; MCP emits no analytics
+events for anyone else.
 In deployed configs, `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY`
 is cognition's Secrets Manager reference; AI tools resolve the separate
 `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME` reference.
@@ -125,9 +127,10 @@ listener failure shuts down the process so ECS can replace the task.
 
 ## Gotchas
 
-- With `ENABLE_AGENT_SETUP` off, public MCP clients get exactly the
-  instructions, tools and capabilities they had before agent-led setup; a test
-  in `public_mcp/tool_service/test.rs` pins the text literally, so keep it in
+- People without `agent-led-setup` (and everyone while flags can't load) get
+  exactly the instructions, tools and capabilities public MCP had before
+  agent-led setup, and a sign-in sets nothing in motion for them; a test in
+  `public_mcp/tool_service/test.rs` pins the text literally, so keep it in
   step when the preamble changes. `claude.com` among the default redirect
   hosts, and the auth proxy reading the client's registered name at sign-in,
   apply either way.

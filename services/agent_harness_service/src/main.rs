@@ -603,26 +603,35 @@ async fn run() -> anyhow::Result<()> {
         }
         None => None,
     };
+    // Per-user PostHog flags; without a PostHog key every flag reads off.
+    let feature_flags = match config.posthog_api_key.value() {
+        Some(key) => Some(
+            feature_flags::outbound::posthog::PostHogFeatureFlags::new(
+                config
+                    .posthog_host
+                    .value()
+                    .unwrap_or("https://us.i.posthog.com"),
+                key.to_owned(),
+                std::time::Duration::from_secs(3),
+            )
+            .map_err(|error| anyhow::anyhow!("invalid feature flag configuration: {error}"))?,
+        ),
+        None => None,
+    };
     // `ai-code-mode` decides, per user, whether agent sessions and the public
     // MCP present the SDK in place of the tools it covers.
     let code_mode_selector: Option<Arc<dyn agent_inmem::domain::tool_mode::ToolModeSelector>> =
-        match (&code_runner, config.posthog_api_key.value()) {
-            (Some(_), Some(key)) => {
-                let flags = feature_flags::outbound::posthog::PostHogFeatureFlags::new(
-                    config
-                        .posthog_host
-                        .value()
-                        .unwrap_or("https://us.i.posthog.com"),
-                    key.to_owned(),
-                    std::time::Duration::from_secs(3),
-                )
-                .map_err(|error| anyhow::anyhow!("invalid feature flag configuration: {error}"))?;
-                Some(Arc::new(
-                    agent_inmem::domain::tool_mode::FlaggedToolMode::new(flags),
-                ))
-            }
+        match (&code_runner, &feature_flags) {
+            (Some(_), Some(flags)) => Some(Arc::new(
+                agent_inmem::domain::tool_mode::FlaggedToolMode::new(flags.clone()),
+            )),
             _ => None,
         };
+    // `agent-led-setup` decides, per user, whether public MCP offers agent-led
+    // setup.
+    let setup_access: Option<Arc<dyn public_mcp::SetupAccess>> = feature_flags.map(|flags| {
+        Arc::new(public_mcp::FlaggedSetup::new(flags)) as Arc<dyn public_mcp::SetupAccess>
+    });
     let public_code_mode = match (&code_runner, &code_mode_selector) {
         (Some((_, public)), Some(selector)) => Some(public_mcp::PublicCodeMode {
             service: Arc::new(agent_code_mode::domain::UserCodeModeService::new(
@@ -654,6 +663,7 @@ async fn run() -> anyhow::Result<()> {
         event_broker_tracker.clone(),
         service_shutdown.clone(),
         public_code_mode,
+        setup_access,
     )
     .await
     .context("failed to compose public MCP")?;

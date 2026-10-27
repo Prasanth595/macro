@@ -3,7 +3,9 @@
 //! The MCP sign-in is a real signup path, so it does what the web login does
 //! at the same moment — provision the inbox when Google granted Gmail — plus
 //! what is specific to agent-led setup: hand a new account to the agent and
-//! attribute it to the client that brought it in.
+//! attribute it to the client that brought it in. It does all of this only
+//! for people the `agent-led-setup` flag reaches; for anyone else a sign-in
+//! sets nothing in motion, as before agent-led setup.
 
 #[cfg(test)]
 mod test;
@@ -23,6 +25,7 @@ use onboarding::domain::service::OnboardingService;
 use crate::public_mcp::{
     agent_led::{AccountDirectory, AgentHandover, Handover},
     client_attribution::{ClientAttribution, ClientStore},
+    setup_access::SetupAccess,
     telemetry::{ClientInfo, McpTelemetry, SignInEvent},
 };
 
@@ -48,6 +51,7 @@ impl TokenIdentity for JwtValidationArgs {
 
 /// The MCP server's [`SignInObserver`].
 pub struct AgentSignIn<T, P, O, A, S> {
+    access: Arc<dyn SetupAccess>,
     identity: Arc<T>,
     inbox: Arc<P>,
     handover: AgentHandover<O, A>,
@@ -58,6 +62,7 @@ pub struct AgentSignIn<T, P, O, A, S> {
 impl<T, P, O, A: Clone, S: Clone> Clone for AgentSignIn<T, P, O, A, S> {
     fn clone(&self) -> Self {
         Self {
+            access: Arc::clone(&self.access),
             identity: Arc::clone(&self.identity),
             inbox: Arc::clone(&self.inbox),
             handover: self.handover.clone(),
@@ -77,6 +82,7 @@ where
 {
     /// An observer over its collaborators.
     pub fn new(
+        access: Arc<dyn SetupAccess>,
         identity: Arc<T>,
         inbox: Arc<P>,
         handover: AgentHandover<O, A>,
@@ -84,6 +90,7 @@ where
         telemetry: McpTelemetry,
     ) -> Self {
         Self {
+            access,
             identity,
             inbox,
             handover,
@@ -97,6 +104,9 @@ where
     /// and the setup tools redo the handover, so a lost step only delays it.
     #[tracing::instrument(name = "mcp.agent_sign_in", skip_all, fields(client = sign_in.client_name.as_deref()))]
     pub async fn after_sign_in(&self, user: MacroUserIdStr<'static>, sign_in: SignIn) {
+        if !self.access.allowed(&user).await {
+            return;
+        }
         let token = sign_in.access_token.as_str();
 
         // Only an account this sign-in created is set up for its agent; people
