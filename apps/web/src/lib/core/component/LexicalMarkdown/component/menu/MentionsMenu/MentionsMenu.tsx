@@ -15,11 +15,11 @@ import clickOutside from '@core/directive/clickOutside';
 import { isMobile } from '@core/mobile/isMobile';
 import type { ChannelWithParticipants, IUser } from '@core/user';
 import { useDateSearch } from '@core/util/dateSearch/useDateSearch';
-import { debouncedDependent } from '@core/util/debounce';
+import { idleDebouncedDependent } from '@core/util/debounce';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import type { EmailEntity } from '@entity';
-import { Telemetry } from '@macro-inc/observability';
+import { type Span, Telemetry } from '@macro-inc/observability';
 import type { HistoryItem as Item } from '@queries/history/history';
 import { Key } from '@solid-primitives/keyed';
 import { createLazyMemo } from '@solid-primitives/memo';
@@ -28,6 +28,7 @@ import { Surface } from '@ui';
 import type { LexicalEditor } from 'lexical';
 import {
   type Accessor,
+  createComputed,
   createEffect,
   createMemo,
   createSignal,
@@ -133,7 +134,35 @@ export function MentionsMenu(props: MentionsMenuProps) {
 function MentionsMenuInner(props: MentionsMenuProps) {
   const analytics = useAnalytics();
 
-  const searchTerm = debouncedDependent(props.menu.searchTerm, 60);
+  const legacyBlockId = useMaybeBlockId();
+  const blockId = props.sourceDocumentId ?? legacyBlockId;
+
+  // Re-ranking every source runs when the browser is idle, never ahead of the
+  // next typed character. The commit re-ranks and renders synchronously, so
+  // its span times that work and parents the cache searches it starts; the
+  // idle wait before it is an attribute.
+  const searchTerm = idleDebouncedDependent(props.menu.searchTerm, 60, {
+    wrapCommit: (commit, idleWaitMs) => {
+      const span = Telemetry.span('mentions.search');
+      span.setAttr('search.idle_wait_ms', Math.round(idleWaitMs));
+      if (blockId) span.setAttr('document.id', blockId);
+      try {
+        span.run(() => {
+          commit();
+          span.setAttr('search.query_length', searchTerm().length);
+          span.setAttr(
+            'search.result_count',
+            controller.combinedItems().length
+          );
+        });
+      } catch (error) {
+        span.error(error);
+        throw error;
+      } finally {
+        span.end();
+      }
+    },
+  });
   const activeSearchTerm = () => (props.menu.isOpen() ? searchTerm() : '');
 
   const hasCustomEntities = () => !!props.entities;
@@ -156,9 +185,6 @@ function MentionsMenuInner(props: MentionsMenuProps) {
   const allItems = props.entities ?? quickAccess!.useList().items;
 
   const { isKeypressActive } = useIsKeyPressActive();
-
-  const legacyBlockId = useMaybeBlockId();
-  const blockId = props.sourceDocumentId ?? legacyBlockId;
 
   const { usersAndGroups, groups, availableUsers } = useUsersMention({
     users: props.users,
@@ -324,14 +350,16 @@ function MentionsMenuInner(props: MentionsMenuProps) {
 
   const [mountSelection, setMountSelection] = createSignal<Selection | null>();
 
-  const mentionUsers = () =>
+  // Binning, rendering, and counts each read this; merge once per change.
+  const mentionUsers = createLazyMemo(() =>
     mergePeopleMentions(
       (usersAndGroups() ?? []).filter(
         (item) => props.includeGroups !== false || item.kind !== 'group'
       ),
       contactsEnabled() ? (contactMention?.entities() ?? []) : [],
       availableUsers()
-    );
+    )
+  );
   const sourceEnabled = (source: MentionBucketId) =>
     !props.sources || props.sources.includes(source);
   const mobileAllItems = createLazyMemo((): MentionItem[] => {
@@ -502,6 +530,40 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     return filtered.filter((bucket) => bucket.getFullCount() > 0);
   });
 
+  // Every source above is a lazy memo, and the first read on open builds
+  // them all inside the `@` keystroke. Build them while the composer is idle
+  // instead, so the first open reads cached lists. Safari has no idle
+  // callbacks and keeps building on open.
+  const prewarmSources = () => {
+    if (sourceEnabled('users')) mentionUsers();
+    if (isMobile()) {
+      mobileAllItems();
+      return;
+    }
+    if (sourceEnabled('bookingLinks')) bookingLinks();
+    if (sourceEnabled('documents')) docs();
+    if (sourceEnabled('channels')) channels();
+    if (sourceEnabled('agentSessions')) agentSessions();
+    if (sourceEnabled('companies')) companies();
+    if (sourceEnabled('emails')) emails();
+    if (sourceEnabled('dates')) dates();
+    if (props.showOpenTabs) openTabs();
+  };
+  onMount(() => {
+    if (typeof requestIdleCallback === 'undefined') return;
+    const idleId = requestIdleCallback(() => {
+      if (untrack(menuOpen)) return;
+      const span = Telemetry.span('mentions.prewarm');
+      if (blockId) span.setAttr('document.id', blockId);
+      try {
+        untrack(prewarmSources);
+      } finally {
+        span.end();
+      }
+    });
+    onCleanup(() => cancelIdleCallback(idleId));
+  });
+
   const controller = useMentionsMenuController(bucketConfigs, {
     ignoredIds: () => (blockId ? [blockId] : []),
     targetItems: TARGET_ITEMS,
@@ -535,6 +597,34 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     if (props.onPick) props.onPick(item);
     else await itemActionHandler?.(item);
   };
+
+  // Times opening the menu: building its lists and the first render, which
+  // run inside the keystroke that typed `@`. The span starts before render
+  // work (computeds run first) and ends in the effect that follows it.
+  let openSpan: Span | undefined;
+  let openStartedAt = 0;
+  createComputed(() => {
+    if (!menuOpen()) return;
+    openSpan?.end();
+    openSpan = Telemetry.span('mentions.open');
+    openStartedAt = performance.now();
+  });
+  createEffect(() => {
+    if (!menuOpen() || !openSpan) return;
+    const span = openSpan;
+    openSpan = undefined;
+    span.setAttr(
+      'mentions.open_ms',
+      Math.round(performance.now() - openStartedAt)
+    );
+    span.setAttr(
+      'search.result_count',
+      untrack(controller.combinedItems).length
+    );
+    if (blockId) span.setAttr('document.id', blockId);
+    span.end();
+  });
+  onCleanup(() => openSpan?.end());
 
   createEffect(() => {
     if (props.anchor) return;

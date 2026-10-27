@@ -4,7 +4,6 @@
  */
 
 import uFuzzy from '@leeoniya/ufuzzy';
-import { differenceInMilliseconds } from 'date-fns';
 import type { Accessor } from 'solid-js';
 import type { DateValue } from './date';
 import {
@@ -14,6 +13,7 @@ import {
 import { fuzzyScoreCommaSpaceSeparated } from './fuzzy';
 
 const uf = new uFuzzy({});
+const INFO_THRESHOLD = 1000;
 
 interface FuzzyFilterResult<T> {
   original: T;
@@ -103,15 +103,21 @@ function extractTimestamp(
   return item.updatedAt ?? item.lastInteraction ?? null;
 }
 
+// Runs once per candidate on every keystroke, so resolve `now` and `maxAge`
+// once per search rather than through date-fns and ts-pattern per item.
 function calculateTimeScore(
   timestamp: DateValue | null,
   config: FreshSortConfigWithDefaults,
-  now: Date
+  nowMs: number,
+  maxAgeMs: number
 ): number {
   if (!timestamp) return 0;
 
-  const ageMs = Math.max(0, differenceInMilliseconds(now, timestamp));
-  const maxAgeMs = parsedDurationToMilliseconds(config.maxAge);
+  const timestampMs =
+    timestamp instanceof Date
+      ? timestamp.getTime()
+      : new Date(timestamp).getTime();
+  const ageMs = Math.max(0, nowMs - timestampMs);
 
   if (ageMs >= maxAgeMs) {
     return 0;
@@ -156,6 +162,27 @@ function ufuzzyFilter<T>(
   const idxs = uf.filter(haystack, query);
 
   if (!idxs || idxs.length === 0) return [];
+
+  // Match details cost far more than the filter itself. Past this many
+  // matches (one or two typed characters in a large account) skip them, as
+  // uFuzzy's own search() does. A cheap prefix check keeps names that start
+  // with the query (or have a word that does) ahead; recency ranks the rest.
+  if (idxs.length > INFO_THRESHOLD) {
+    const needle = query.trim().toLowerCase();
+    // A word starts after any non-alphanumeric separator ("Roadmap/Planning").
+    const wordStart = new RegExp(
+      `[^\\p{L}\\p{N}]${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+      'u'
+    );
+    return idxs.map((haystackIdx) => {
+      const name = haystack[haystackIdx].toLowerCase();
+      return {
+        original: items[haystackIdx],
+        string: haystack[haystackIdx],
+        score: name.startsWith(needle) ? 100 : wordStart.test(name) ? 75 : 50,
+      };
+    });
+  }
 
   const info = uf.info(idxs, haystack, query);
   const order = uf.sort(info, haystack, query);
@@ -213,7 +240,8 @@ function freshSort<T>(
       ? Math.max(...filterNoInfResults.map((r) => r.score))
       : 1;
 
-  const now = new Date();
+  const nowMs = Date.now();
+  const maxAgeMs = parsedDurationToMilliseconds(finalConfig.maxAge);
   const scoredResults: FreshSortResult<T>[] = filterResults.map((result) => {
     const timestampInfo = getTimestamp(result.original);
     const rawScore = result.score === Infinity ? maxFuzzyScore : result.score;
@@ -222,7 +250,8 @@ function freshSort<T>(
     const timeScore = calculateTimeScore(
       extractTimestamp(timestampInfo, finalConfig.useViewedAt),
       finalConfig,
-      now
+      nowMs,
+      maxAgeMs
     );
 
     const textForBrevity = result.string || '';

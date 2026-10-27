@@ -24,6 +24,63 @@ export function debouncedDependent<T>(source: () => T, delay = 300): () => T {
 }
 
 /**
+ * Create a debounced view of a signal that commits in idle time, after the
+ * browser has handled pending input, so work derived from it (re-ranking a
+ * typeahead list) never delays the next keystroke. A newer source value
+ * cancels a commit still waiting for idle time. `maxWait` bounds the wait on a
+ * busy page. Safari has no idle callbacks and commits when the debounce fires.
+ *
+ * `wrapCommit` runs around each commit, which synchronously recomputes what
+ * reads the value, so a caller can time that work and the idle wait before it.
+ */
+export function idleDebouncedDependent<T>(
+  source: () => T,
+  delay = 300,
+  options: {
+    maxWait?: number;
+    wrapCommit?: (commit: () => void, idleWaitMs: number) => void;
+  } = {}
+): () => T {
+  const { maxWait = 150, wrapCommit = (commit) => commit() } = options;
+  const [debounced, setDebounced] = createSignal(source());
+  let idleId: number | undefined;
+  const cancelIdle = () => {
+    if (idleId === undefined) return;
+    cancelIdleCallback(idleId);
+    idleId = undefined;
+  };
+  const commit = (v: T) => {
+    if (typeof requestIdleCallback === 'undefined') {
+      wrapCommit(() => setDebounced(() => v), 0);
+      return;
+    }
+    cancelIdle();
+    const requestedAt = performance.now();
+    idleId = requestIdleCallback(
+      () => {
+        idleId = undefined;
+        wrapCommit(
+          () => setDebounced(() => v),
+          performance.now() - requestedAt
+        );
+      },
+      { timeout: maxWait }
+    );
+  };
+  const schedule = solidDebounce(commit, delay);
+  createEffect(() => {
+    const value = source();
+    cancelIdle();
+    schedule(value);
+  });
+  onCleanup(() => {
+    schedule.clear();
+    cancelIdle();
+  });
+  return debounced;
+}
+
+/**
  * Create a throttled view of a signal. Updates immediately on the first change,
  * then skips intermediate values during the cooldown period, catching the last
  * value at the trailing edge.

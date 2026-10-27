@@ -759,3 +759,41 @@ describe('DM activity timestamps for user ranking', () => {
     expect(results).toHaveLength(2);
   });
 });
+
+describe('createFreshSearch with more than 1000 matches', () => {
+  it('ranks names that start with the query ahead of newer matches', () => {
+    const now = new Date().toISOString();
+    const old = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
+    const items = [
+      ...Array.from({ length: 1200 }, (_, i) => ({
+        name: `xx planning ${i}`,
+        updatedAt: now,
+      })),
+      { name: 'Planning review', updatedAt: old },
+    ];
+    const search = createFreshSearch<(typeof items)[number]>({
+      getName: (item) => item.name,
+      getTimestamp: (item) => ({ updatedAt: item.updatedAt }),
+    });
+
+    expect(search(items, 'p')[0].item.name).toBe('Planning review');
+  });
+
+  it('treats a word after punctuation as a word start', () => {
+    const now = new Date().toISOString();
+    const old = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
+    const items = [
+      ...Array.from({ length: 1200 }, (_, i) => ({
+        name: `zzplanning ${i}`,
+        updatedAt: now,
+      })),
+      { name: 'Roadmap/Planning', updatedAt: old },
+    ];
+    const search = createFreshSearch<(typeof items)[number]>({
+      getName: (item) => item.name,
+      getTimestamp: (item) => ({ updatedAt: item.updatedAt }),
+    });
+
+    expect(search(items, 'p')[0].item.name).toBe('Roadmap/Planning');
+  });
+});
