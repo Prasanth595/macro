@@ -12,11 +12,15 @@
  * Both are deterministic, unlike timings. A failure names the unexpected
  * request or the stack that forced each layout. Change them deliberately, in
  * the change that needs it, and say why in its description.
+ *
+ * The composer mounts before the first page, so a second test holds the page
+ * and sends from it.
  */
 import { expect, type Page, test } from '@playwright/test';
 import {
   channelTimeline,
   newestMessageText,
+  postedMessage,
   VIEWER_ID,
 } from './channel-open-data';
 
@@ -42,8 +46,15 @@ const EXPECTED_REQUESTS = [
 const FORCED_LAYOUT_BUDGET = 9;
 
 const TIMELINE = /\/messages\/channel\/([^/]+)\/timeline$/;
+const POST_MESSAGE = /\/messages\/channel\/([^/]+)$/;
 
-async function serveBackend(page: Page, origin: string, requests: string[]) {
+async function serveBackend(
+  page: Page,
+  origin: string,
+  requests: string[],
+  /** Holds every timeline response until it settles. */
+  timelineHeld: Promise<void> = Promise.resolve()
+) {
   await page.addInitScript(() => localStorage.setItem('macro:login', 'true'));
   await page.routeWebSocket(/.*/, (socket) => socket.close());
   // Answer every request that would leave the dev server, so nothing reaches
@@ -71,10 +82,16 @@ async function serveBackend(page: Page, origin: string, requests: string[]) {
         });
       const timeline = path.match(TIMELINE);
       if (timeline) {
+        await timelineHeld;
         // A realistic response time, so the skeleton mounts first.
         await new Promise((resolve) => setTimeout(resolve, 60));
         return route.fulfill({ json: channelTimeline(timeline[1]!) });
       }
+      const posted = path.match(POST_MESSAGE);
+      if (posted && route.request().method() === 'POST')
+        return route.fulfill({
+          json: postedMessage(posted[1]!, route.request().postDataJSON()),
+        });
       if (path.endsWith('/active')) return route.fulfill({ status: 204 });
       if (/\/channels\/[^/]+\/(participants|bots)$/.test(path))
         return route.fulfill({ json: [] });
@@ -162,4 +179,47 @@ test('opening a channel stays within its request and layout budget', async ({
         performance.getEntriesByName('channel.open.painted', 'measure').length
     )
   ).toBe(2);
+});
+
+test('the composer sends a message typed while the first page loads', async ({
+  page,
+  baseURL,
+}) => {
+  const requests: string[] = [];
+  let releaseTimeline!: () => void;
+  const timelineHeld = new Promise<void>((resolve) => {
+    releaseTimeline = resolve;
+  });
+  await serveBackend(
+    page,
+    new URL(baseURL ?? '').origin,
+    requests,
+    timelineHeld
+  );
+  await page.goto('/src/features/channel/browser-test/channel-open.html');
+
+  await page.getByRole('button', { name: 'Open channel-a' }).click();
+  await expect(
+    page.getByRole('status', { name: 'Loading conversation' })
+  ).toBeVisible();
+  const editor = page.locator(
+    '[data-input-id="channel-input-channel-a"] [contenteditable="true"]'
+  );
+  await editor.click();
+  await editor.pressSequentially('Typed before the messages arrived');
+  await page.keyboard.press('Enter');
+
+  // Sending cancels in-flight timeline fetches, so the send waits for the
+  // first page instead of leaving the channel loading forever.
+  await page.waitForTimeout(300);
+  expect(requests).not.toContain('POST /dss/messages/channel/channel-a');
+  releaseTimeline();
+
+  const rows = page.locator('[data-index]');
+  await expect(rows.getByText(newestMessageText('channel-a'))).toBeVisible();
+  await expect(
+    rows.getByText('Typed before the messages arrived')
+  ).toBeVisible();
+  expect(requests).toContain('POST /dss/messages/channel/channel-a');
+  await expect(editor).toHaveText('');
 });
