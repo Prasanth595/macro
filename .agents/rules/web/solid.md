@@ -66,7 +66,7 @@ State ownership, reactivity, and async error handling.
   eager `createMemo`. `data` is a resource read: while the query is pending it
   suspends the caller's nearest `<Suspense>`, which detaches and re-attaches
   that whole subtree — a blank flash, lost scroll position, remounted editors.
-  Gate the read on status (`query.isSuccess ? query.data : fallback`, or
+  Gate the read on status (`query.isPending ? fallback : query.data`, or
   `queryReadyGate` from `src/lib/queries/gate.ts`); an `isLoading` check is not
   enough, because a disabled or paused query is pending without loading and its
   data read still suspends. Every other field is a plain store read and is safe.

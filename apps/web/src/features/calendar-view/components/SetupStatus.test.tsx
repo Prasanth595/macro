@@ -5,13 +5,33 @@
 import type { Link as EmailLink } from '@service-email/generated/schemas';
 import { cleanup, render, screen } from '@solidjs/testing-library';
 import userEvent from '@testing-library/user-event';
-import { createSignal } from 'solid-js';
+import { batch, createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ startAddInbox: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  startAddInbox: vi.fn(),
+  toastCustom: vi.fn(),
+  toastDismiss: vi.fn(),
+}));
 
 const [userId, setUserId] = createSignal<string | undefined>('macro|self');
 const [links, setLinks] = createSignal<EmailLink[]>([]);
+const [calendarStatus, setCalendarStatus] = createSignal<
+  'pending' | 'success' | 'error'
+>('success');
+const [calendars, setCalendars] = createSignal<
+  | {
+      id: string;
+      name: string;
+      emailAddress: string;
+      syncError: string;
+    }[]
+  | undefined
+>([]);
+
+vi.mock('@core/component/Toast/Toast', () => ({
+  toast: { custom: mocks.toastCustom, dismiss: mocks.toastDismiss },
+}));
 
 vi.mock('@app/features/calendar/components/CalendarPagerContext', () => ({
   useCalendarPager: () => ({
@@ -31,7 +51,19 @@ vi.mock('@core/email-link', () => ({
 }));
 
 vi.mock('@queries/calendar/calendars', () => ({
-  useVisibleCalendarsQuery: () => ({ isSuccess: true, data: [] }),
+  useVisibleCalendarsQuery: () => ({
+    get isSuccess() {
+      return calendarStatus() === 'success';
+    },
+    get isPending() {
+      return calendarStatus() === 'pending';
+    },
+    get data() {
+      if (calendarStatus() === 'pending')
+        throw new Error('A pending data read would suspend the calendar');
+      return calendars();
+    },
+  }),
 }));
 
 vi.mock('@queries/email/link', () => ({
@@ -66,10 +98,21 @@ const link = (id: string, overrides: Partial<EmailLink> = {}): EmailLink =>
 const delegated = (id: string, overrides: Partial<EmailLink> = {}) =>
   link(id, { macro_id: 'macro|someone-else', ...overrides });
 
+const failedCalendar = {
+  id: 'calendar-1',
+  name: 'Community events',
+  emailAddress: 'calendar@example.test',
+  syncError:
+    'Google Calendar snapshot could not be fully normalized: invalid interval',
+};
+
 beforeEach(() => {
   mocks.startAddInbox.mockResolvedValue(undefined);
+  mocks.toastCustom.mockReturnValue(1);
   setUserId('macro|self');
   setLinks([]);
+  setCalendarStatus('success');
+  setCalendars([]);
 });
 
 afterEach(() => {
@@ -78,6 +121,49 @@ afterEach(() => {
 });
 
 describe('SetupStatus', () => {
+  it('keeps the existing sync notice when a background refetch fails', () => {
+    setLinks([link('own')]);
+    setCalendars([failedCalendar]);
+    render(() => <SetupStatus />);
+    expect(mocks.toastCustom).toHaveBeenCalledTimes(1);
+
+    setCalendarStatus('error');
+    expect(mocks.toastDismiss).not.toHaveBeenCalled();
+    setCalendarStatus('success');
+    expect(mocks.toastCustom).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves dismissal across a failed calendar query handoff with no data', () => {
+    setLinks([link('own')]);
+    setCalendars([failedCalendar]);
+    render(() => <SetupStatus />);
+    const options = mocks.toastCustom.mock.calls[0][1] as {
+      onDismiss: () => void;
+    };
+    options.onDismiss();
+
+    batch(() => {
+      setCalendarStatus('pending');
+      setCalendars(undefined);
+    });
+    setCalendarStatus('error');
+    batch(() => {
+      setCalendars([failedCalendar]);
+      setCalendarStatus('success');
+    });
+    expect(mocks.toastCustom).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not read pending calendar data or invent a notice after an initial failure', () => {
+    setLinks([link('own')]);
+    setCalendarStatus('pending');
+    setCalendars(undefined);
+    render(() => <SetupStatus />);
+    expect(mocks.toastCustom).not.toHaveBeenCalled();
+    setCalendarStatus('error');
+    expect(mocks.toastCustom).not.toHaveBeenCalled();
+  });
+
   it('asks a delegate with no inbox of their own to connect one', async () => {
     const user = userEvent.setup();
     setLinks([delegated('shared', { needs_calendar_permission: true })]);

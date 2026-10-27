@@ -47,8 +47,9 @@ export function SetupStatus() {
   const linksQuery = useEmailLinksQuery();
   const calendarsQuery = useVisibleCalendarsQuery();
   const warnings = createMemo(() =>
-    calendarsQuery.isSuccess
-      ? calendarsQuery.data.flatMap((calendar) =>
+    calendarsQuery.isPending
+      ? []
+      : (calendarsQuery.data ?? []).flatMap((calendar) =>
           calendar.syncError
             ? [
                 {
@@ -60,7 +61,6 @@ export function SetupStatus() {
               ]
             : []
         )
-      : []
   );
   const startAddInbox = useAddInboxFlow();
   const userId = useUserId();
@@ -154,7 +154,10 @@ export function SetupStatus() {
     <>
       <CalendarSyncNotifications
         warnings={setupState() === undefined ? warnings() : []}
-        loaded={calendarsQuery.isSuccess}
+        loaded={
+          // Only a successful result can confirm recovery and forget dismissals.
+          calendarsQuery.isSuccess
+        }
       />
       <Show when={setupState() !== undefined}>
         <Show
