@@ -8,8 +8,11 @@ import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
 import { describe, expect, it } from 'vitest';
 import {
   createDateBucketBoundaries,
+  TASK_DUE_DATE_BUCKETS,
+  taskDueDateBucket,
   taskDueDateUrgency,
 } from '../core/task-due-date';
+import { taskBoardComposerContext } from '../task-composer';
 import { boardEntity, boardProperty } from '../tests/task-board-fixture';
 import {
   filterTaskBoardColumns,
@@ -189,5 +192,51 @@ describe('board property writes', () => {
         { entity_id: 'bob', entity_type: 'USER' },
       ],
     });
+  });
+});
+
+describe('board task drafts', () => {
+  it('keeps host presets and seeds dates within the chosen bucket across DST', () => {
+    const calendar = createDateBucketBoundaries(
+      new Date('2025-03-09T12:00:00Z'),
+      'America/New_York'
+    );
+    const project = {
+      valueType: 'ENTITY' as const,
+      refs: [{ entity_id: 'project', entity_type: 'INITIATIVE' as const }],
+    };
+    for (const { id } of TASK_DUE_DATE_BUCKETS) {
+      const draft = taskBoardComposerContext({
+        grouping: 'due_date',
+        columnId: id,
+        calendar,
+        context: {
+          key: 'project-view',
+          visiblePropertyIds: [SYSTEM_PROPERTY_IDS.PROJECT],
+          initialPropertyValues: {
+            [SYSTEM_PROPERTY_IDS.PROJECT]: project,
+            [SYSTEM_PROPERTY_IDS.DUE_DATE]: {
+              valueType: 'DATE',
+              value: new Date('2025-03-01T05:00:00Z'),
+            },
+          },
+        },
+      });
+      const dueDate =
+        draft.initialPropertyValues?.[SYSTEM_PROPERTY_IDS.DUE_DATE];
+      expect(dueDate?.valueType).toBe('DATE');
+      if (dueDate?.valueType !== 'DATE') throw new Error('Missing date preset');
+      expect(taskDueDateBucket(dueDate.value?.toISOString(), calendar)).toBe(
+        id
+      );
+      expect(
+        draft.initialPropertyValues?.[SYSTEM_PROPERTY_IDS.PROJECT]
+      ).toEqual(project);
+      expect(draft.visiblePropertyIds).toContain(SYSTEM_PROPERTY_IDS.DUE_DATE);
+      if (id === 'tomorrow') {
+        expect(dueDate.value?.toISOString()).toBe('2025-03-10T04:00:00.000Z');
+      }
+      if (id === 'no_due_date') expect(dueDate.value).toBeNull();
+    }
   });
 });

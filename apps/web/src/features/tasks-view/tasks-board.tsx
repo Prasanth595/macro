@@ -37,14 +37,14 @@ export function TasksBoard(props: { ref?: (element: HTMLDivElement) => void }) {
       usePropertyUserDisplay(id).name,
   };
 
-  const canCreate = () =>
-    state.groupBy !== 'due_date' && (!!context.createTask || !context.scopeKey);
+  const canCreate = () => !!context.createTask || !context.scopeKey;
   const createTask = (columnId: string) => {
     const grouping = toTaskBoardGrouping(state.groupBy);
-    if (!canCreate() || grouping === 'due_date') return;
+    if (!canCreate()) return;
     const composerContext = taskBoardComposerContext({
       grouping,
       columnId,
+      calendar: calendar(),
       scopeKey: context.scopeKey ?? panel.handle.id,
       context: createContext.snapshot('task', panel.handle.id),
     });

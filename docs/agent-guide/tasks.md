@@ -312,11 +312,12 @@ Both layouts share one grouping, which restores with the Tasks navigation entry.
 List-only None and Date groupings display Status columns in Board; switching
 back to List retains those selections and collapsed groups until grouping changes.
 
-Status, Priority, Assignee, and Project column headers have an icon-only
-**Add task** plus button. Due-date buckets keep their existing drag-to-reschedule
-behavior without a column creation shortcut. The button opens the task
-composer with that column's Status, Priority, Assignee, or Project preselected,
-while preserving the originating pane's other creation presets. **Unassigned**
+Status, Priority, Assignee, Project, and Due date column headers have an icon-only
+**Add task** plus button. The button opens the task composer with that column's
+property preselected, while preserving the originating pane's other creation
+presets. Due-date columns prefill yesterday for Overdue, today or tomorrow for
+their named columns, D+2 for Next 7 days, and D+8 for Later. No due date clears any
+inherited date preset. The draft's due date remains editable. **Unassigned**
 and **No priority** start with that property empty. **No project** starts empty
 outside project boards; project boards always retain the current project.
 **No status** starts with **Not started**, because new tasks require a status.
