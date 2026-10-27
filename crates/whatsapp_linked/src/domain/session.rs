@@ -276,7 +276,7 @@ impl SessionService {
         scope: SessionScope,
         page: &HistoryPage,
     ) -> LinkedResult<Vec<(Uuid, BackfillState)>> {
-        if !is_group_jid(&page.chat_jid) {
+        if !is_group_jid(&page.chat_jid) && !is_person_jid(&page.chat_jid) {
             return Ok(vec![]);
         }
         self.repository.backfill_page(scope, page).await
@@ -412,8 +412,16 @@ fn is_person_jid(jid: &str) -> bool {
 }
 
 pub(crate) fn validate_event(event: &InboundEvent) -> LinkedResult<()> {
-    if !is_group_jid(&event.group_jid) {
-        return Err(LinkedError::Invalid("invalid group").into());
+    let direct = is_person_jid(&event.group_jid);
+    if !is_group_jid(&event.group_jid) && !direct {
+        return Err(LinkedError::Invalid("invalid chat").into());
+    }
+    if event
+        .chat_alternate_jid
+        .as_deref()
+        .is_some_and(|alternate| !direct || !is_person_jid(alternate))
+    {
+        return Err(LinkedError::Invalid("invalid chat").into());
     }
     match &event.kind {
         InboundKind::Left => Ok(()),
@@ -425,8 +433,6 @@ pub(crate) fn validate_event(event: &InboundEvent) -> LinkedResult<()> {
                     .iter()
                     .any(|id| id.is_empty() || id.len() > 256)
                 || !is_person_jid(&receipt.participant_jid)
-                || receipt.state.is_empty()
-                || receipt.state.len() > 64
             {
                 return Err(LinkedError::Invalid("invalid receipt").into());
             }
@@ -434,9 +440,14 @@ pub(crate) fn validate_event(event: &InboundEvent) -> LinkedResult<()> {
         }
         InboundKind::Message(message) => {
             let sender = &message.sender;
+            // A group change WhatsApp made without naming who did it is the
+            // group's own.
+            let group_itself = message.kind == MessageKind::System
+                && sender.jid == event.group_jid
+                && sender.alternate_jid.is_none();
             if message.source_id.is_empty()
                 || message.source_id.len() > 256
-                || !is_person_jid(&sender.jid)
+                || !(is_person_jid(&sender.jid) || group_itself)
                 || sender
                     .alternate_jid
                     .as_deref()
@@ -453,10 +464,31 @@ pub(crate) fn validate_event(event: &InboundEvent) -> LinkedResult<()> {
             }
             let needs_target = matches!(
                 message.kind,
-                MessageKind::Reaction | MessageKind::Edit | MessageKind::Delete
+                MessageKind::Reaction
+                    | MessageKind::Edit
+                    | MessageKind::Delete
+                    | MessageKind::PollVote
             );
             if needs_target && message.target.is_none() {
                 return Err(LinkedError::Invalid("message operation without a target").into());
+            }
+            let rich_fits = match (message.kind, &message.rich) {
+                (MessageKind::System, Some(RichContent::System(_)))
+                | (MessageKind::PollVote, Some(RichContent::PollVote(_)))
+                | (
+                    MessageKind::Rich,
+                    Some(
+                        RichContent::Poll(_)
+                        | RichContent::Location(_)
+                        | RichContent::Contacts(_)
+                        | RichContent::Event(_),
+                    ),
+                ) => true,
+                (MessageKind::System | MessageKind::PollVote | MessageKind::Rich, _) => false,
+                (_, rich) => rich.is_none(),
+            };
+            if !rich_fits || message.mentions.len() > 256 {
+                return Err(LinkedError::Invalid("invalid message content").into());
             }
             // Only the verified author edits or deletes. Admin deletions need
             // separate role evidence and are not imported.

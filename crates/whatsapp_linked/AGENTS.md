@@ -3,9 +3,12 @@
 ## What it is
 
 Personal WhatsApp accounts linked as devices: owner-bound pairing, adopting an
-existing group as the adopter's own, independently shared `WhatsAppGroup`
-entity (one per owner and WhatsApp group, named after WhatsApp), ingesting group traffic, and
-deliberate sends from each person's own account. DSS serves the HTTP API
+existing group or direct chat as the adopter's own, independently shared
+`WhatsAppGroup` entity (one per owner and WhatsApp chat, named after WhatsApp),
+ingesting chat traffic, and deliberate sends from each person's own account.
+"Group" in table, column, type and route names means any added chat;
+`Binding.kind` / `whatsapp_group.kind` says group or direct (only the owner
+sends in a direct chat). DSS serves the HTTP API
 (`/meta/linked/*`); the WhatsApp session service calls
 `domain::session::SessionService` in-process. They share no HTTP: only MacroDB
 rows and `NOTIFY` (the `outbound::pg` notify helper).
@@ -21,6 +24,14 @@ rows and `NOTIFY` (the `outbound::pg` notify helper).
   first (`resolve_sender_in`): WhatsApp's from-me flag means the account's own
   identity; a LID-only sender takes its phone number from the account's roster
   pair. Only what is still LID-only is quarantined.
+- `src/domain/rich.rs`: stored structured content (`RichContent`: poll, poll
+  vote, location, contact cards, event, system line) in
+  `whatsapp_group_message.rich`; `kind = 'system'` rows never notify or count
+  as unread. `src/domain/timeline/view.rs` resolves ids in mentions, system
+  lines and votes to names and tallies polls. Poll votes are stored per voter
+  in `whatsapp_group_poll_vote` through the reaction path of `reserve_in`. A
+  re-ingested message fills in `rich`/`mentions`/`forwarded` an earlier copy
+  lacked (re-importing history upgrades old placeholders).
 - `src/outbound/pg/chats.rs`: the account's chat list (`whatsapp_chat`,
   `GET /chats` via `LinkedService::chats`) and importing earlier messages of
   added groups (`backfill_*` columns on `whatsapp_group`; limits
@@ -66,13 +77,16 @@ rows and `NOTIFY` (the `outbound::pg` notify helper).
 - `src/domain/timeline.rs` and `src/domain/service/timeline.rs` own list/detail,
   timeline, unread and sharing use cases. Group HTTP paths are
   `/meta/linked/whatsapp-groups/{group_id}`. Soup/search are deferred.
-- Store messages/reactions/attachments in `whatsapp_group_message`,
-  `whatsapp_group_reaction`, and `whatsapp_group_attachment`; never native comms tables.
+- Store messages/reactions/attachments/poll votes in `whatsapp_group_message`,
+  `whatsapp_group_reaction`, `whatsapp_group_attachment` and
+  `whatsapp_group_poll_vote`; never native comms tables.
 - Attachment bytes cross Postgres (`whatsapp_media_blob`, ≤ 32 MiB) because the
   session service has no document storage; DSS imports and deletes them.
   `events::Media::locator` is sealed by the session service; never read it.
 - `src/domain/media.rs` + `src/outbound/pg/media.rs`: download claims, import
-  queue. Not implemented: participant-receipt UI.
+  queue. `src/domain/shape.rs` reads a staged upload's pixel size and length
+  (stored on `whatsapp_media_blob`, sent with the message). Not implemented:
+  participant-receipt UI.
 
 ## Related
 

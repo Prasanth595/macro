@@ -9,7 +9,8 @@ import type { WhatsAppGroup } from './group';
 export class WhatsAppMessage extends MacroEntity<WhatsAppGroupMessage> {
   private constructor(
     client: MacroClient,
-    private readonly group: WhatsAppGroup,
+    /** The chat this message is in. */
+    readonly group: WhatsAppGroup,
     id: string,
     seed?: WhatsAppGroupMessage,
   ) {
@@ -34,11 +35,6 @@ export class WhatsAppMessage extends MacroEntity<WhatsAppGroupMessage> {
     return new WhatsAppMessage(client, group, record.id, record);
   }
 
-  /** Group identity for checking reply/mutation scope. */
-  get groupId(): string {
-    return this.group.id;
-  }
-
   protected async fetch(): Promise<WhatsAppGroupMessage> {
     for await (const message of this.group.messages({ limit: 100 })) {
       if (message.id === this.id) return message.detail.get();
@@ -60,6 +56,16 @@ export class WhatsAppMessage extends MacroEntity<WhatsAppGroupMessage> {
   readonly reactions = this.field('reactions');
   /** Caller-owned send's delivery state, when present. */
   readonly deliveryState = this.field('delivery_state');
+  /** `message`, or `system` for something that happened in the group (see `rich`). */
+  readonly kind = this.field('kind');
+  /** Forwarded from another chat. */
+  readonly forwarded = this.field('forwarded');
+  /** Sent as view-once in WhatsApp; Macro keeps and shows it like any media. */
+  readonly viewOnce = this.field('view_once');
+  /** People the body @-mentions: `@<token>` in the body is this person. */
+  readonly mentions = this.field('mentions');
+  /** Poll (with tallies), location, contact cards, event or system line. */
+  readonly rich = this.field('rich');
   /** Quoted message in this group. */
   readonly replyTo: () => Promise<WhatsAppMessage | undefined> =
     this.mappedField('reply_to', (id) =>
@@ -73,6 +79,10 @@ export class WhatsAppMessage extends MacroEntity<WhatsAppGroupMessage> {
       fileName: record.file_name,
       mime: record.mime,
       size: record.size,
+      width: record.width ?? undefined,
+      height: record.height ?? undefined,
+      durationSeconds: record.duration_seconds ?? undefined,
+      presentation: record.presentation ?? undefined,
       document: record.document_id
         ? Document.byId(this.client, record.document_id)
         : undefined,

@@ -4,16 +4,90 @@ import type { BaseFetchErrorCode } from '@core/util/safeFetch';
 import type { WhatsAppGroupApi } from '@queries/whatsapp-groups';
 import type { LinkedReplyContent } from '@service-storage/generated/schemas/linkedReplyContent';
 import type { LinkedSendProgress } from '@service-storage/generated/schemas/linkedSendProgress';
+import type { WhatsAppPersonRef } from '@service-storage/generated/schemas/whatsAppPersonRef';
+import type { WhatsAppRichContent } from '@service-storage/generated/schemas/whatsAppRichContent';
 import type { WhatsAppErrorCode } from '@service-storage/whatsapp-errors';
 import { whatsappGroupsClient as client } from '@service-storage/whatsapp-groups';
 import { err, ok } from 'neverthrow';
 import { match, P } from 'ts-pattern';
 import { phoneFromJid } from '../../whatsapp-linked/core/account';
 import type { GroupSend, SendFailure, SendProgress } from '../core/group';
+import { type Person, type RichContent, webLink } from '../core/rich';
+
+function person(ref: WhatsAppPersonRef): Person {
+  return { name: ref.name, userId: ref.userId ?? undefined };
+}
+
+/** DSS's rich content in feature terms; nulls become absent. */
+function richContent(rich: WhatsAppRichContent): RichContent | undefined {
+  return (
+    match(rich)
+      .returnType<RichContent | undefined>()
+      .with({ type: 'poll' }, (poll) => ({
+        type: 'poll',
+        question: poll.question,
+        options: poll.options.map((option) => ({
+          name: option.name,
+          votes: option.votes,
+          mine: option.mine,
+          voters: option.voters.map(person),
+        })),
+        selectableCount: poll.selectableCount,
+        voters: poll.voters,
+      }))
+      .with({ type: 'location' }, (location) => ({
+        type: 'location',
+        latitude: location.latitude,
+        longitude: location.longitude,
+        name: location.name ?? undefined,
+        address: location.address ?? undefined,
+        url: webLink(location.url),
+        live: location.live ?? false,
+        comment: location.comment ?? undefined,
+      }))
+      .with({ type: 'contacts' }, (contacts) => ({
+        type: 'contacts',
+        contacts: contacts.contacts.map((card) => ({
+          name: card.name,
+          phones: card.phones,
+        })),
+      }))
+      .with({ type: 'event' }, (event) => ({
+        type: 'event',
+        name: event.name,
+        description: event.description ?? undefined,
+        startAt: event.startAt ?? undefined,
+        endAt: event.endAt ?? undefined,
+        location: event.location ?? undefined,
+        joinLink: webLink(event.joinLink),
+        canceled: event.canceled ?? false,
+      }))
+      .with({ type: 'system' }, (line) => ({
+        type: 'system',
+        action: line.action,
+        actor: line.actor ? person(line.actor) : undefined,
+        participants: line.participants.map(person),
+        value: line.value ?? undefined,
+        call: line.call
+          ? {
+              video: line.call.video,
+              outcome: line.call.outcome,
+              durationSeconds: line.call.durationSeconds ?? undefined,
+            }
+          : undefined,
+      }))
+      // A newer server's content type renders as the message body alone.
+      .exhaustive(() => undefined)
+  );
+}
 
 function content(request: GroupSend): LinkedReplyContent {
   return match(request)
-    .with({ kind: 'text' }, ({ text }) => ({ type: 'text' as const, text }))
+    .with({ kind: 'text' }, ({ text, mentions }) => ({
+      type: 'text' as const,
+      text,
+      mentions: mentions ?? [],
+    }))
     .with({ kind: 'media' }, ({ uploadId, caption }) => ({
       type: 'media' as const,
       upload_id: uploadId,
@@ -83,7 +157,7 @@ function writeFailure(
       }))
       .with(P.union('forbidden', 'FORBIDDEN'), () => ({
         kind: 'refused',
-        reason: "Your WhatsApp can't send to this group.",
+        reason: "Your WhatsApp can't send to this chat.",
       }))
       .with(P.union('not_found', 'NOT_FOUND', 'GONE'), () => ({
         kind: 'refused',
@@ -120,6 +194,7 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
   list: async () =>
     (await throwOnErr(client.list)).map((group) => ({
       id: group.id,
+      kind: group.kind,
       name: group.name,
       unreadCount: group.unread_count,
       canSend: group.can_send,
@@ -128,6 +203,7 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
     const view = await throwOnErr(() => client.detail(id));
     return {
       id,
+      kind: view.kind,
       name: view.name,
       ownerId: view.user_id,
       accessLevel: view.access_level,
@@ -148,11 +224,17 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
       backfill: view.backfill
         ? { state: view.backfill.state, imported: view.backfill.imported }
         : undefined,
+      disappearingSeconds: view.disappearing_seconds ?? undefined,
+      community: view.community
+        ? {
+            name: view.community.name,
+            announcements: view.community.announcements,
+          }
+        : undefined,
       limits: {
         textBytes: view.limits.text_limit_bytes,
         attachmentBytes: view.limits.attachment_limit_bytes,
         attachmentTypes: view.limits.attachment_types,
-        maxAttachments: view.limits.max_attachments,
         editSeconds: view.limits.mutation_window_seconds,
         mutations: view.limits.mutations,
       },
@@ -164,11 +246,18 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
       before: page.next_cursor ?? undefined,
       messages: page.messages.map((message) => ({
         id: message.id,
+        kind: message.kind,
         sender: {
           name: message.sender.name,
           userId: message.sender.user_id ?? undefined,
         },
         body: message.body,
+        mentions: message.mentions.map((mention) => ({
+          token: mention.token,
+          ...person(mention),
+        })),
+        forwarded: message.forwarded,
+        rich: message.rich ? richContent(message.rich) : undefined,
         sentAt: message.sent_at,
         edited: !!message.edited_at,
         deleted: message.deleted,
@@ -184,6 +273,10 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
           fileName: attachment.file_name,
           mime: attachment.mime,
           documentId: attachment.document_id ?? undefined,
+          width: attachment.width ?? undefined,
+          height: attachment.height ?? undefined,
+          durationSeconds: attachment.duration_seconds ?? undefined,
+          presentation: attachment.presentation ?? undefined,
         })),
       })),
     };

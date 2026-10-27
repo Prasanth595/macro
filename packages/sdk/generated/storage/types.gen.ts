@@ -8987,7 +8987,8 @@ export type LinkedAccountView = {
  */
 export type LinkedAdoptGroup = {
     /**
-     * Group the requester's account has joined.
+     * A group the requester's account has joined, or a direct chat from
+     * their chat list (the other person's JID, as the list names it).
      */
     group_jid: string;
 };
@@ -9001,9 +9002,17 @@ export type LinkedAttachment = {
      */
     document_id?: string | null;
     /**
+     * Length of audio or video in whole seconds, when declared.
+     */
+    duration_seconds?: number | null;
+    /**
      * Display filename.
      */
     file_name: string;
+    /**
+     * Pixel height, when declared.
+     */
+    height?: number | null;
     /**
      * Declared MIME type.
      */
@@ -9012,6 +9021,7 @@ export type LinkedAttachment = {
      * Position within the message.
      */
     ordinal: number;
+    presentation?: null | LinkedMediaPresentation;
     /**
      * Declared size in bytes.
      */
@@ -9020,6 +9030,10 @@ export type LinkedAttachment = {
      * Current state.
      */
     state: LinkedAttachmentState;
+    /**
+     * Pixel width of an image, sticker or video, when WhatsApp declared it.
+     */
+    width?: number | null;
 };
 
 /**
@@ -9045,6 +9059,11 @@ export type LinkedBackfill = {
  * Where importing a group's earlier messages stands.
  */
 export type LinkedBackfillState = 'pending' | 'running' | 'waiting_for_phone' | 'done' | 'partial';
+
+/**
+ * Why a chat can't be added to Macro; the app words it from the code.
+ */
+export type LinkedCannotAdd = 'not_in_group' | 'community' | 'own_chat' | 'not_in_chat_list';
 
 /**
  * Operations implemented for linked groups, independent of current permission.
@@ -9088,10 +9107,8 @@ export type LinkedChat = {
      * "Add to Macro" works now.
      */
     canAdd: boolean;
-    /**
-     * Why it can't be added, when it is neither added, shared nor addable.
-     */
-    cannotAddReason?: string | null;
+    cannotAddReason?: null | LinkedCannotAdd;
+    community?: null | LinkedCommunityReference;
     group?: null | LinkedGroupReference;
     /**
      * WhatsApp chat JID: a group, or the other person's phone-number JID
@@ -9132,6 +9149,24 @@ export type LinkedChats = {
      * Newest activity first; chats with unknown activity last, by name.
      */
     chats: Array<LinkedChat>;
+};
+
+/**
+ * The WhatsApp community a group belongs to.
+ */
+export type LinkedCommunityReference = {
+    /**
+     * This group is the community's announcement group.
+     */
+    announcements: boolean;
+    /**
+     * The community's WhatsApp JID.
+     */
+    id: string;
+    /**
+     * The community's name.
+     */
+    name: string;
 };
 
 /**
@@ -9198,14 +9233,22 @@ export type LinkedGroupInfo = {
      */
     announce: boolean;
     /**
-     * Community announcement or parent group, outside the supported surface.
+     * The community's announcement group (everyone reads, admins post).
      */
-    community: boolean;
+    communityAnnouncements?: boolean;
     /**
-     * Disappearing messages are on; content is not retained.
+     * The community a linked subgroup or announcement group belongs to.
      */
-    disappearing: boolean;
-    group?: null | LinkedGroupReference;
+    communityJid?: string | null;
+    /**
+     * The community itself: it has no messages of its own and can't be added.
+     */
+    communityParent?: boolean;
+    /**
+     * Disappearing-messages timer in seconds while it is on. Macro keeps the
+     * messages; its sends carry the timer so phones treat them like their own.
+     */
+    disappearingSeconds?: number | null;
     /**
      * Remote group JID.
      */
@@ -9222,7 +9265,6 @@ export type LinkedGroupInfo = {
      * Full roster.
      */
     participants: Array<LinkedParticipant>;
-    shared?: null | LinkedSharedGroupReference;
 };
 
 /**
@@ -9261,6 +9303,11 @@ export type LinkedIdentity = {
  * Attachment categories WhatsApp distinguishes.
  */
 export type LinkedMediaKind = 'image' | 'audio' | 'video' | 'document';
+
+/**
+ * How WhatsApp shows an attachment, when not as a plain file of its kind.
+ */
+export type LinkedMediaPresentation = 'sticker' | 'gif' | 'voice_note';
 
 /**
  * The attachments of one linked group message.
@@ -9361,6 +9408,12 @@ export type LinkedReplyBlock = 'sending_disabled' | 'no_account' | 'disconnected
  * Content of a deliberate send.
  */
 export type LinkedReplyContent = {
+    /**
+     * Group participants the text @-mentions, by their WhatsApp id
+     * (`jid` of a roster participant); the text must contain
+     * `@<digits before the @ of the id>` for each.
+     */
+    mentions?: Array<string>;
     /**
      * UTF-8 text, at most [`TEXT_LIMIT_BYTES`] bytes.
      */
@@ -9463,7 +9516,7 @@ export type LinkedSharedGroupReference = {
     /**
      * Macro user who added the group and shared it.
      */
-    owner_id: string;
+    ownerId: string;
 };
 
 /**
@@ -16062,6 +16115,87 @@ export type WebhookValidationTestEvent = {
 };
 
 /**
+ * A call in the group.
+ */
+export type WhatsAppCall = {
+    /**
+     * Length, when it connected.
+     */
+    durationSeconds?: number | null;
+    /**
+     * How it went for the account that saw it.
+     */
+    outcome: WhatsAppCallOutcome;
+    /**
+     * Video rather than voice.
+     */
+    video: boolean;
+};
+
+/**
+ * How a call went.
+ */
+export type WhatsAppCallOutcome = 'answered' | 'missed' | 'rejected' | 'other';
+
+/**
+ * One contact card, from its vCard.
+ */
+export type WhatsAppContactCard = {
+    /**
+     * Display name.
+     */
+    name: string;
+    /**
+     * Phone numbers as written on the card.
+     */
+    phones: Array<string>;
+};
+
+/**
+ * Contact cards.
+ */
+export type WhatsAppContacts = {
+    /**
+     * The cards, in order.
+     */
+    contacts: Array<WhatsAppContactCard>;
+};
+
+/**
+ * A WhatsApp event.
+ */
+export type WhatsAppEvent = {
+    /**
+     * Canceled by its organizer.
+     */
+    canceled?: boolean;
+    /**
+     * Description.
+     */
+    description?: string | null;
+    /**
+     * End.
+     */
+    endAt?: string | null;
+    /**
+     * Call link for an online event.
+     */
+    joinLink?: string | null;
+    /**
+     * Place name or address.
+     */
+    location?: string | null;
+    /**
+     * Title.
+     */
+    name: string;
+    /**
+     * Start.
+     */
+    startAt?: string | null;
+};
+
+/**
  * Full group detail and current viewer capabilities.
  */
 export type WhatsAppGroupDetail = WhatsAppGroupSummary & {
@@ -16069,6 +16203,12 @@ export type WhatsAppGroupDetail = WhatsAppGroupSummary & {
      * Caller's effective permission.
      */
     access_level: AccessLevel;
+    community?: null | LinkedCommunityReference;
+    /**
+     * WhatsApp's disappearing-messages timer in seconds while it is on;
+     * Macro keeps the messages anyway. `null` when off or unknown.
+     */
+    disappearing_seconds?: number | null;
     /**
      * Size and mutation limits.
      */
@@ -16106,9 +16246,21 @@ export type WhatsAppGroupMessage = {
      */
     edited_at?: string | null;
     /**
+     * Forwarded from another chat.
+     */
+    forwarded: boolean;
+    /**
      * Stable message id.
      */
     id: string;
+    /**
+     * A message, or a system line.
+     */
+    kind: WhatsAppMessageKind;
+    /**
+     * People the body @-mentions.
+     */
+    mentions: Array<WhatsAppMention>;
     /**
      * Reactions grouped by emoji.
      */
@@ -16121,6 +16273,7 @@ export type WhatsAppGroupMessage = {
      * Message quoted by this one.
      */
     reply_to?: string | null;
+    rich?: null | WhatsAppRichContent;
     /**
      * Sender.
      */
@@ -16129,6 +16282,10 @@ export type WhatsAppGroupMessage = {
      * Timestamp assigned by WhatsApp.
      */
     sent_at: string;
+    /**
+     * Sent as view-once in WhatsApp; Macro shows it like any media.
+     */
+    view_once: boolean;
 };
 
 /**
@@ -16195,11 +16352,15 @@ export type WhatsAppGroupSummary = {
      */
     id: string;
     /**
+     * A group, or a direct chat with one person (only its owner sends).
+     */
+    kind: LinkedChatKind;
+    /**
      * Latest message timestamp.
      */
     last_message_at?: string | null;
     /**
-     * Display name.
+     * Display name: the group's, or a direct chat's other person.
      */
     name: string;
     send_reason?: null | LinkedReplyBlock;
@@ -16211,6 +16372,156 @@ export type WhatsAppGroupSummary = {
      * Actual entity owner.
      */
     user_id: string;
+};
+
+/**
+ * A shared place.
+ */
+export type WhatsAppLocation = {
+    /**
+     * Street address.
+     */
+    address?: string | null;
+    /**
+     * Caption or comment.
+     */
+    comment?: string | null;
+    /**
+     * Degrees.
+     */
+    latitude: number;
+    /**
+     * Shared as a live location (this is where it started).
+     */
+    live?: boolean;
+    /**
+     * Degrees.
+     */
+    longitude: number;
+    /**
+     * Place name.
+     */
+    name?: string | null;
+    /**
+     * Link the sender attached.
+     */
+    url?: string | null;
+};
+
+/**
+ * An @-mention in a message body.
+ */
+export type WhatsAppMention = WhatsAppPersonRef & {
+    /**
+     * What follows the `@` in the body (the digits of the person's WhatsApp
+     * id); replace `@<token>` with the name.
+     */
+    token: string;
+};
+
+/**
+ * What a timeline entry is.
+ */
+export type WhatsAppMessageKind = 'message' | 'system';
+
+/**
+ * A person named in a message: a Macro user when verified, else their
+ * WhatsApp name, else their phone number.
+ */
+export type WhatsAppPersonRef = {
+    /**
+     * Display name, never authentication evidence.
+     */
+    name: string;
+    /**
+     * Verified Macro user, if any.
+     */
+    userId?: string | null;
+};
+
+/**
+ * A poll, read-only in Macro.
+ */
+export type WhatsAppPoll = {
+    /**
+     * Options in order, with tallies.
+     */
+    options: Array<WhatsAppPollOption>;
+    /**
+     * The question.
+     */
+    question: string;
+    /**
+     * How many options one person may choose; 0 means any number.
+     */
+    selectableCount: number;
+    /**
+     * People who voted for anything.
+     */
+    voters: number;
+};
+
+/**
+ * One option of a poll with its votes.
+ */
+export type WhatsAppPollOption = {
+    /**
+     * The caller chose it.
+     */
+    mine: boolean;
+    /**
+     * Option text.
+     */
+    name: string;
+    /**
+     * Who chose it.
+     */
+    voters: Array<WhatsAppPersonRef>;
+    /**
+     * People who chose it.
+     */
+    votes: number;
+};
+
+/**
+ * Structured content of a message besides its body.
+ */
+export type WhatsAppRichContent = (WhatsAppPoll & {
+    type: 'poll';
+}) | (WhatsAppLocation & {
+    type: 'location';
+}) | (WhatsAppContacts & {
+    type: 'contacts';
+}) | (WhatsAppEvent & {
+    type: 'event';
+}) | (WhatsAppSystemLine & {
+    type: 'system';
+});
+
+/**
+ * Kinds of system lines.
+ */
+export type WhatsAppSystemAction = 'group_created' | 'participants_added' | 'participants_removed' | 'participants_left' | 'participants_joined' | 'participants_promoted' | 'participants_demoted' | 'subject_changed' | 'icon_changed' | 'description_changed' | 'disappearing_changed' | 'message_pinned' | 'message_unpinned' | 'call';
+
+/**
+ * Something that happened in the group.
+ */
+export type WhatsAppSystemLine = {
+    /**
+     * What happened.
+     */
+    action: WhatsAppSystemAction;
+    actor?: null | WhatsAppPersonRef;
+    call?: null | WhatsAppCall;
+    /**
+     * Who it happened to (added, removed, promoted, …).
+     */
+    participants: Array<WhatsAppPersonRef>;
+    /**
+     * New subject or description; disappearing-messages timer in seconds
+     * (`"0"` is off).
+     */
+    value?: string | null;
 };
 
 /**
@@ -22914,19 +23225,6 @@ export type LinkedDisconnectResponses = {
 };
 
 export type LinkedDisconnectResponse = LinkedDisconnectResponses[keyof LinkedDisconnectResponses];
-
-export type LinkedGroupsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/meta/linked/groups';
-};
-
-export type LinkedGroupsResponses = {
-    200: Array<LinkedGroupInfo>;
-};
-
-export type LinkedGroupsResponse = LinkedGroupsResponses[keyof LinkedGroupsResponses];
 
 export type LinkedAdoptData = {
     body: LinkedAdoptGroup;

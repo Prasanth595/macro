@@ -49242,11 +49242,36 @@ export const linkedChatsResponse = zod
             archived: zod.boolean().describe('Archived in WhatsApp.'),
             canAdd: zod.boolean().describe('\"Add to Macro\" works now.'),
             cannotAddReason: zod
-              .string()
-              .nullish()
-              .describe(
-                "Why it can't be added, when it is neither added, shared nor addable."
-              ),
+              .union([
+                zod.null(),
+                zod
+                  .enum([
+                    'not_in_group',
+                    'community',
+                    'own_chat',
+                    'not_in_chat_list',
+                  ])
+                  .describe(
+                    "Why a chat can't be added to Macro; the app words it from the code."
+                  ),
+              ])
+              .optional(),
+            community: zod
+              .union([
+                zod.null(),
+                zod
+                  .object({
+                    announcements: zod
+                      .boolean()
+                      .describe(
+                        "This group is the community's announcement group."
+                      ),
+                    id: zod.string().describe("The community's WhatsApp JID."),
+                    name: zod.string().describe("The community's name."),
+                  })
+                  .describe('The WhatsApp community a group belongs to.'),
+              ])
+              .optional(),
             group: zod
               .union([
                 zod.null(),
@@ -49291,7 +49316,7 @@ export const linkedChatsResponse = zod
                     name: zod
                       .string()
                       .describe('Display name, following WhatsApp.'),
-                    owner_id: zod
+                    ownerId: zod
                       .string()
                       .describe(
                         'Macro user who added the group and shared it.'
@@ -49387,96 +49412,15 @@ export const linkedDisconnectResponse = zod
   .describe('Result of disconnecting an account.');
 
 /**
- * @summary Groups the caller's account has joined.
- */
-export const linkedGroupsResponseItem = zod
-  .object({
-    announce: zod.boolean().describe('Only admins may post.'),
-    community: zod
-      .boolean()
-      .describe(
-        'Community announcement or parent group, outside the supported surface.'
-      ),
-    disappearing: zod
-      .boolean()
-      .describe('Disappearing messages are on; content is not retained.'),
-    group: zod
-      .union([
-        zod.null(),
-        zod
-          .object({
-            id: zod.uuid().describe('Group entity id.'),
-            name: zod.string().describe('Display name, following WhatsApp.'),
-          })
-          .describe('A group entity bound to a remote group.'),
-      ])
-      .optional(),
-    jid: zod.string().describe('Remote group JID.'),
-    name: zod.string().describe('Current subject.'),
-    observedAt: zod.iso
-      .datetime({})
-      .describe('When the session service read this metadata.'),
-    participants: zod
-      .array(
-        zod
-          .object({
-            alternateJid: zod
-              .string()
-              .nullish()
-              .describe(
-                'Verified alternate identity, never inferred from a name or phone typed by a user.'
-              ),
-            displayName: zod
-              .string()
-              .nullish()
-              .describe('Untrusted display name.'),
-            jid: zod.string().describe('Phone-number or LID account JID.'),
-          })
-          .describe(
-            'Verified sender aliases, supplied only by protocol metadata.'
-          )
-          .and(
-            zod.object({
-              admin: zod
-                .boolean()
-                .describe(
-                  'Group admin; only admins post in announcement groups.'
-                ),
-            })
-          )
-          .describe(
-            'Current remote participant; Macro access is a separate grant.'
-          )
-      )
-      .describe('Full roster.'),
-    shared: zod
-      .union([
-        zod.null(),
-        zod
-          .object({
-            id: zod.uuid().describe('Group entity id.'),
-            name: zod.string().describe('Display name, following WhatsApp.'),
-            owner_id: zod
-              .string()
-              .describe('Macro user who added the group and shared it.'),
-          })
-          .describe("Another person's group entity the caller can view."),
-      ])
-      .optional(),
-  })
-  .describe(
-    'One full metadata read of a group, never an incomplete membership delta.'
-  );
-export const linkedGroupsResponse = zod.array(linkedGroupsResponseItem);
-
-/**
  * @summary Adopt one of the caller's groups into a standalone group entity.
  */
 export const linkedAdoptBody = zod
   .object({
     group_jid: zod
       .string()
-      .describe("Group the requester's account has joined."),
+      .describe(
+        "A group the requester's account has joined, or a direct chat from\ntheir chat list (the other person's JID, as the list names it)."
+      ),
   })
   .describe(
     "Explicit adoption request; the account is selected server-side. The\ngroup's name always follows WhatsApp."
@@ -49585,11 +49529,16 @@ export const whatsappGroupsResponseItem = zod
       .boolean()
       .describe('Caller may currently send from their own account.'),
     id: zod.uuid().describe('Entity identifier.'),
+    kind: zod
+      .enum(['group', 'direct'])
+      .describe('Whether a WhatsApp chat is a group or a one-to-one chat.'),
     last_message_at: zod.iso
       .datetime({})
       .nullish()
       .describe('Latest message timestamp.'),
-    name: zod.string().describe('Display name.'),
+    name: zod
+      .string()
+      .describe("Display name: the group's, or a direct chat's other person."),
     send_reason: zod
       .union([
         zod.null(),
@@ -49622,6 +49571,8 @@ export const whatsappGroupParams = zod.object({
 
 export const whatsappGroupResponseBackfillImportedMin = 0;
 
+export const whatsappGroupResponseDisappearingSecondsMin = 0;
+
 export const whatsappGroupResponseLimitsAttachmentLimitBytesMin = 0;
 
 export const whatsappGroupResponseLimitsMaxAttachmentsMin = 0;
@@ -49629,6 +49580,8 @@ export const whatsappGroupResponseLimitsMaxAttachmentsMin = 0;
 export const whatsappGroupResponseLimitsMutationWindowSecondsMin = 0;
 
 export const whatsappGroupResponseLimitsTextLimitBytesMin = 0;
+
+export const whatsappGroupResponseRosterDisappearingSecondsMin = 0;
 
 export const whatsappGroupResponse = zod
   .object({
@@ -49660,11 +49613,16 @@ export const whatsappGroupResponse = zod
       .boolean()
       .describe('Caller may currently send from their own account.'),
     id: zod.uuid().describe('Entity identifier.'),
+    kind: zod
+      .enum(['group', 'direct'])
+      .describe('Whether a WhatsApp chat is a group or a one-to-one chat.'),
     last_message_at: zod.iso
       .datetime({})
       .nullish()
       .describe('Latest message timestamp.'),
-    name: zod.string().describe('Display name.'),
+    name: zod
+      .string()
+      .describe("Display name: the group's, or a direct chat's other person."),
     send_reason: zod
       .union([
         zod.null(),
@@ -49691,6 +49649,27 @@ export const whatsappGroupResponse = zod
       access_level: zod
         .enum(['view', 'comment', 'edit', 'owner'])
         .describe('Ordered from least to most access top -> bottom'),
+      community: zod
+        .union([
+          zod.null(),
+          zod
+            .object({
+              announcements: zod
+                .boolean()
+                .describe("This group is the community's announcement group."),
+              id: zod.string().describe("The community's WhatsApp JID."),
+              name: zod.string().describe("The community's name."),
+            })
+            .describe('The WhatsApp community a group belongs to.'),
+        ])
+        .optional(),
+      disappearing_seconds: zod
+        .number()
+        .min(whatsappGroupResponseDisappearingSecondsMin)
+        .nullish()
+        .describe(
+          "WhatsApp's disappearing-messages timer in seconds while it is on;\nMacro keeps the messages anyway. `null` when off or unknown."
+        ),
       limits: zod
         .object({
           attachment_limit_bytes: zod
@@ -49731,29 +49710,31 @@ export const whatsappGroupResponse = zod
           zod
             .object({
               announce: zod.boolean().describe('Only admins may post.'),
-              community: zod
+              communityAnnouncements: zod
                 .boolean()
+                .optional()
                 .describe(
-                  'Community announcement or parent group, outside the supported surface.'
+                  "The community's announcement group (everyone reads, admins post)."
                 ),
-              disappearing: zod
+              communityJid: zod
+                .string()
+                .nullish()
+                .describe(
+                  'The community a linked subgroup or announcement group belongs to.'
+                ),
+              communityParent: zod
                 .boolean()
+                .optional()
                 .describe(
-                  'Disappearing messages are on; content is not retained.'
+                  "The community itself: it has no messages of its own and can't be added."
                 ),
-              group: zod
-                .union([
-                  zod.null(),
-                  zod
-                    .object({
-                      id: zod.uuid().describe('Group entity id.'),
-                      name: zod
-                        .string()
-                        .describe('Display name, following WhatsApp.'),
-                    })
-                    .describe('A group entity bound to a remote group.'),
-                ])
-                .optional(),
+              disappearingSeconds: zod
+                .number()
+                .min(whatsappGroupResponseRosterDisappearingSecondsMin)
+                .nullish()
+                .describe(
+                  'Disappearing-messages timer in seconds while it is on. Macro keeps the\nmessages; its sends carry the timer so phones treat them like their own.'
+                ),
               jid: zod.string().describe('Remote group JID.'),
               name: zod.string().describe('Current subject.'),
               observedAt: zod.iso
@@ -49794,26 +49775,6 @@ export const whatsappGroupResponse = zod
                     )
                 )
                 .describe('Full roster.'),
-              shared: zod
-                .union([
-                  zod.null(),
-                  zod
-                    .object({
-                      id: zod.uuid().describe('Group entity id.'),
-                      name: zod
-                        .string()
-                        .describe('Display name, following WhatsApp.'),
-                      owner_id: zod
-                        .string()
-                        .describe(
-                          'Macro user who added the group and shared it.'
-                        ),
-                    })
-                    .describe(
-                      "Another person's group entity the caller can view."
-                    ),
-                ])
-                .optional(),
             })
             .describe(
               'One full metadata read of a group, never an incomplete membership delta.'
@@ -49940,6 +49901,12 @@ export const linkedDeliveryResponseItem = zod
           .union([
             zod
               .object({
+                mentions: zod
+                  .array(zod.string())
+                  .optional()
+                  .describe(
+                    'Group participants the text @-mentions, by their WhatsApp id\n(`jid` of a roster participant); the text must contain\n`@<digits before the @ of the id>` for each.'
+                  ),
                 text: zod
                   .string()
                   .describe('UTF-8 text, at most [`TEXT_LIMIT_BYTES`] bytes.'),
@@ -50025,7 +49992,17 @@ export const whatsappGroupMessagesQueryParams = zod.object({
   limit: zod.number().nullish().describe('Page size, 1 through 100.'),
 });
 
+export const whatsappGroupMessagesResponseMessagesItemAttachmentsItemDurationSecondsMin = 0;
+
+export const whatsappGroupMessagesResponseMessagesItemAttachmentsItemHeightMin = 0;
+
 export const whatsappGroupMessagesResponseMessagesItemAttachmentsItemSizeMin = 0;
+
+export const whatsappGroupMessagesResponseMessagesItemAttachmentsItemWidthMin = 0;
+
+export const whatsappGroupMessagesResponseMessagesItemRichSelectableCountMin = 0;
+
+export const whatsappGroupMessagesResponseMessagesItemRichCallDurationSecondsMin = 0;
 
 export const whatsappGroupMessagesResponse = zod
   .object({
@@ -50041,11 +50018,37 @@ export const whatsappGroupMessagesResponse = zod
                       .uuid()
                       .nullish()
                       .describe('The private document, once ready.'),
+                    duration_seconds: zod
+                      .number()
+                      .min(
+                        whatsappGroupMessagesResponseMessagesItemAttachmentsItemDurationSecondsMin
+                      )
+                      .nullish()
+                      .describe(
+                        'Length of audio or video in whole seconds, when declared.'
+                      ),
                     file_name: zod.string().describe('Display filename.'),
+                    height: zod
+                      .number()
+                      .min(
+                        whatsappGroupMessagesResponseMessagesItemAttachmentsItemHeightMin
+                      )
+                      .nullish()
+                      .describe('Pixel height, when declared.'),
                     mime: zod.string().describe('Declared MIME type.'),
                     ordinal: zod
                       .number()
                       .describe('Position within the message.'),
+                    presentation: zod
+                      .union([
+                        zod.null(),
+                        zod
+                          .enum(['sticker', 'gif', 'voice_note'])
+                          .describe(
+                            'How WhatsApp shows an attachment, when not as a plain file of its kind.'
+                          ),
+                      ])
+                      .optional(),
                     size: zod
                       .number()
                       .min(
@@ -50056,6 +50059,15 @@ export const whatsappGroupMessagesResponse = zod
                       .enum(['loading', 'ready', 'unavailable', 'unsupported'])
                       .describe(
                         'Where an attachment of a linked message stands.'
+                      ),
+                    width: zod
+                      .number()
+                      .min(
+                        whatsappGroupMessagesResponseMessagesItemAttachmentsItemWidthMin
+                      )
+                      .nullish()
+                      .describe(
+                        'Pixel width of an image, sticker or video, when WhatsApp declared it.'
                       ),
                   })
                   .describe('One attachment of a linked message.')
@@ -50086,7 +50098,38 @@ export const whatsappGroupMessagesResponse = zod
               .datetime({})
               .nullish()
               .describe('Last edit timestamp.'),
+            forwarded: zod.boolean().describe('Forwarded from another chat.'),
             id: zod.uuid().describe('Stable message id.'),
+            kind: zod
+              .enum(['message', 'system'])
+              .describe('What a timeline entry is.'),
+            mentions: zod
+              .array(
+                zod
+                  .object({
+                    name: zod
+                      .string()
+                      .describe('Display name, never authentication evidence.'),
+                    userId: zod
+                      .string()
+                      .nullish()
+                      .describe('Verified Macro user, if any.'),
+                  })
+                  .describe(
+                    'A person named in a message: a Macro user when verified, else their\nWhatsApp name, else their phone number.'
+                  )
+                  .and(
+                    zod.object({
+                      token: zod
+                        .string()
+                        .describe(
+                          "What follows the `@` in the body (the digits of the person's WhatsApp\nid); replace `@<token>` with the name."
+                        ),
+                    })
+                  )
+                  .describe('An @-mention in a message body.')
+              )
+              .describe('People the body @-mentions.'),
             reactions: zod
               .array(
                 zod
@@ -50105,6 +50148,266 @@ export const whatsappGroupMessagesResponse = zod
               .uuid()
               .nullish()
               .describe('Message quoted by this one.'),
+            rich: zod
+              .union([
+                zod.null(),
+                zod
+                  .union([
+                    zod
+                      .object({
+                        options: zod
+                          .array(
+                            zod
+                              .object({
+                                mine: zod
+                                  .boolean()
+                                  .describe('The caller chose it.'),
+                                name: zod.string().describe('Option text.'),
+                                voters: zod
+                                  .array(
+                                    zod
+                                      .object({
+                                        name: zod
+                                          .string()
+                                          .describe(
+                                            'Display name, never authentication evidence.'
+                                          ),
+                                        userId: zod
+                                          .string()
+                                          .nullish()
+                                          .describe(
+                                            'Verified Macro user, if any.'
+                                          ),
+                                      })
+                                      .describe(
+                                        'A person named in a message: a Macro user when verified, else their\nWhatsApp name, else their phone number.'
+                                      )
+                                  )
+                                  .describe('Who chose it.'),
+                                votes: zod
+                                  .number()
+                                  .describe('People who chose it.'),
+                              })
+                              .describe('One option of a poll with its votes.')
+                          )
+                          .describe('Options in order, with tallies.'),
+                        question: zod.string().describe('The question.'),
+                        selectableCount: zod
+                          .number()
+                          .min(
+                            whatsappGroupMessagesResponseMessagesItemRichSelectableCountMin
+                          )
+                          .describe(
+                            'How many options one person may choose; 0 means any number.'
+                          ),
+                        voters: zod
+                          .number()
+                          .describe('People who voted for anything.'),
+                      })
+                      .describe('A poll, read-only in Macro.')
+                      .and(
+                        zod.object({
+                          type: zod.enum(['poll']),
+                        })
+                      )
+                      .describe('A poll with current votes.'),
+                    zod
+                      .object({
+                        address: zod
+                          .string()
+                          .nullish()
+                          .describe('Street address.'),
+                        comment: zod
+                          .string()
+                          .nullish()
+                          .describe('Caption or comment.'),
+                        latitude: zod.number().describe('Degrees.'),
+                        live: zod
+                          .boolean()
+                          .optional()
+                          .describe(
+                            'Shared as a live location (this is where it started).'
+                          ),
+                        longitude: zod.number().describe('Degrees.'),
+                        name: zod.string().nullish().describe('Place name.'),
+                        url: zod
+                          .string()
+                          .nullish()
+                          .describe('Link the sender attached.'),
+                      })
+                      .describe('A shared place.')
+                      .and(
+                        zod.object({
+                          type: zod.enum(['location']),
+                        })
+                      )
+                      .describe(
+                        'A place (or the start of a live location); link to a maps URL.'
+                      ),
+                    zod
+                      .object({
+                        contacts: zod
+                          .array(
+                            zod
+                              .object({
+                                name: zod.string().describe('Display name.'),
+                                phones: zod
+                                  .array(zod.string())
+                                  .describe(
+                                    'Phone numbers as written on the card.'
+                                  ),
+                              })
+                              .describe('One contact card, from its vCard.')
+                          )
+                          .describe('The cards, in order.'),
+                      })
+                      .describe('Contact cards.')
+                      .and(
+                        zod.object({
+                          type: zod.enum(['contacts']),
+                        })
+                      )
+                      .describe('Contact cards.'),
+                    zod
+                      .object({
+                        canceled: zod
+                          .boolean()
+                          .optional()
+                          .describe('Canceled by its organizer.'),
+                        description: zod
+                          .string()
+                          .nullish()
+                          .describe('Description.'),
+                        endAt: zod.iso.datetime({}).nullish().describe('End.'),
+                        joinLink: zod
+                          .string()
+                          .nullish()
+                          .describe('Call link for an online event.'),
+                        location: zod
+                          .string()
+                          .nullish()
+                          .describe('Place name or address.'),
+                        name: zod.string().describe('Title.'),
+                        startAt: zod.iso
+                          .datetime({})
+                          .nullish()
+                          .describe('Start.'),
+                      })
+                      .describe('A WhatsApp event.')
+                      .and(
+                        zod.object({
+                          type: zod.enum(['event']),
+                        })
+                      )
+                      .describe('A WhatsApp event.'),
+                    zod
+                      .object({
+                        action: zod
+                          .enum([
+                            'group_created',
+                            'participants_added',
+                            'participants_removed',
+                            'participants_left',
+                            'participants_joined',
+                            'participants_promoted',
+                            'participants_demoted',
+                            'subject_changed',
+                            'icon_changed',
+                            'description_changed',
+                            'disappearing_changed',
+                            'message_pinned',
+                            'message_unpinned',
+                            'call',
+                          ])
+                          .describe('Kinds of system lines.'),
+                        actor: zod
+                          .union([
+                            zod.null(),
+                            zod
+                              .object({
+                                name: zod
+                                  .string()
+                                  .describe(
+                                    'Display name, never authentication evidence.'
+                                  ),
+                                userId: zod
+                                  .string()
+                                  .nullish()
+                                  .describe('Verified Macro user, if any.'),
+                              })
+                              .describe(
+                                'A person named in a message: a Macro user when verified, else their\nWhatsApp name, else their phone number.'
+                              ),
+                          ])
+                          .optional(),
+                        call: zod
+                          .union([
+                            zod.null(),
+                            zod
+                              .object({
+                                durationSeconds: zod
+                                  .number()
+                                  .min(
+                                    whatsappGroupMessagesResponseMessagesItemRichCallDurationSecondsMin
+                                  )
+                                  .nullish()
+                                  .describe('Length, when it connected.'),
+                                outcome: zod
+                                  .enum([
+                                    'answered',
+                                    'missed',
+                                    'rejected',
+                                    'other',
+                                  ])
+                                  .describe('How a call went.'),
+                                video: zod
+                                  .boolean()
+                                  .describe('Video rather than voice.'),
+                              })
+                              .describe('A call in the group.'),
+                          ])
+                          .optional(),
+                        participants: zod
+                          .array(
+                            zod
+                              .object({
+                                name: zod
+                                  .string()
+                                  .describe(
+                                    'Display name, never authentication evidence.'
+                                  ),
+                                userId: zod
+                                  .string()
+                                  .nullish()
+                                  .describe('Verified Macro user, if any.'),
+                              })
+                              .describe(
+                                'A person named in a message: a Macro user when verified, else their\nWhatsApp name, else their phone number.'
+                              )
+                          )
+                          .describe(
+                            'Who it happened to (added, removed, promoted, …).'
+                          ),
+                        value: zod
+                          .string()
+                          .nullish()
+                          .describe(
+                            'New subject or description; disappearing-messages timer in seconds\n(`\"0\"` is off).'
+                          ),
+                      })
+                      .describe('Something that happened in the group.')
+                      .and(
+                        zod.object({
+                          type: zod.enum(['system']),
+                        })
+                      )
+                      .describe('A system line.'),
+                  ])
+                  .describe(
+                    'Structured content of a message besides its body.'
+                  ),
+              ])
+              .optional(),
             sender: zod
               .object({
                 name: zod
@@ -50122,6 +50425,11 @@ export const whatsappGroupMessagesResponse = zod
             sent_at: zod.iso
               .datetime({})
               .describe('Timestamp assigned by WhatsApp.'),
+            view_once: zod
+              .boolean()
+              .describe(
+                'Sent as view-once in WhatsApp; Macro shows it like any media.'
+              ),
           })
           .describe('One message in an adopted group.')
       )
@@ -50144,7 +50452,13 @@ export const linkedMessageAttachmentsBody = zod.array(
   linkedMessageAttachmentsBodyItem
 );
 
+export const linkedMessageAttachmentsResponseLinkedAttachmentsItemDurationSecondsMin = 0;
+
+export const linkedMessageAttachmentsResponseLinkedAttachmentsItemHeightMin = 0;
+
 export const linkedMessageAttachmentsResponseLinkedAttachmentsItemSizeMin = 0;
+
+export const linkedMessageAttachmentsResponseLinkedAttachmentsItemWidthMin = 0;
 
 export const linkedMessageAttachmentsResponseItem = zod
   .object({
@@ -50156,9 +50470,35 @@ export const linkedMessageAttachmentsResponseItem = zod
               .uuid()
               .nullish()
               .describe('The private document, once ready.'),
+            duration_seconds: zod
+              .number()
+              .min(
+                linkedMessageAttachmentsResponseLinkedAttachmentsItemDurationSecondsMin
+              )
+              .nullish()
+              .describe(
+                'Length of audio or video in whole seconds, when declared.'
+              ),
             file_name: zod.string().describe('Display filename.'),
+            height: zod
+              .number()
+              .min(
+                linkedMessageAttachmentsResponseLinkedAttachmentsItemHeightMin
+              )
+              .nullish()
+              .describe('Pixel height, when declared.'),
             mime: zod.string().describe('Declared MIME type.'),
             ordinal: zod.number().describe('Position within the message.'),
+            presentation: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum(['sticker', 'gif', 'voice_note'])
+                  .describe(
+                    'How WhatsApp shows an attachment, when not as a plain file of its kind.'
+                  ),
+              ])
+              .optional(),
             size: zod
               .number()
               .min(linkedMessageAttachmentsResponseLinkedAttachmentsItemSizeMin)
@@ -50166,6 +50506,15 @@ export const linkedMessageAttachmentsResponseItem = zod
             state: zod
               .enum(['loading', 'ready', 'unavailable', 'unsupported'])
               .describe('Where an attachment of a linked message stands.'),
+            width: zod
+              .number()
+              .min(
+                linkedMessageAttachmentsResponseLinkedAttachmentsItemWidthMin
+              )
+              .nullish()
+              .describe(
+                'Pixel width of an image, sticker or video, when WhatsApp declared it.'
+              ),
           })
           .describe('One attachment of a linked message.')
       )
@@ -50318,6 +50667,12 @@ export const whatsappGroupSendsResponseItem = zod
           .union([
             zod
               .object({
+                mentions: zod
+                  .array(zod.string())
+                  .optional()
+                  .describe(
+                    'Group participants the text @-mentions, by their WhatsApp id\n(`jid` of a roster participant); the text must contain\n`@<digits before the @ of the id>` for each.'
+                  ),
                 text: zod
                   .string()
                   .describe('UTF-8 text, at most [`TEXT_LIMIT_BYTES`] bytes.'),
@@ -50408,6 +50763,12 @@ export const linkedReplyBody = zod
       .union([
         zod
           .object({
+            mentions: zod
+              .array(zod.string())
+              .optional()
+              .describe(
+                'Group participants the text @-mentions, by their WhatsApp id\n(`jid` of a roster participant); the text must contain\n`@<digits before the @ of the id>` for each.'
+              ),
             text: zod
               .string()
               .describe('UTF-8 text, at most [`TEXT_LIMIT_BYTES`] bytes.'),
@@ -50481,6 +50842,12 @@ export const linkedReplyResponse = zod
           .union([
             zod
               .object({
+                mentions: zod
+                  .array(zod.string())
+                  .optional()
+                  .describe(
+                    'Group participants the text @-mentions, by their WhatsApp id\n(`jid` of a roster participant); the text must contain\n`@<digits before the @ of the id>` for each.'
+                  ),
                 text: zod
                   .string()
                   .describe('UTF-8 text, at most [`TEXT_LIMIT_BYTES`] bytes.'),

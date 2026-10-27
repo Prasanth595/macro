@@ -48,15 +48,30 @@ current, ingests standalone `whatsapp_group` traffic through `whatsapp_linked`'s
   No periodic refresh. The domain signals `whatsapp_changed` only when a roster
   write changed something.
 - `outbound/whatsapp.rs` (+ `events.rs`): `whatsapp_store_pg` device store,
-  whatsmeow `Client` (`whatsmeow_signal::libsignal()`), event mapping. Only
-  group events become inbound events; the gate drops groups the account has
-  not adopted. Before storing, `events::complete_sender` fills the other half
-  of a sender's phone-number/LID pair from the account's LID store (pairing,
+  whatsmeow `Client` (`whatsmeow_signal::libsignal()`), event mapping. Group
+  and direct-chat events become inbound events (`events::chat_of`: a direct
+  chat by phone number, its LID alongside); the gate drops chats the account
+  has not adopted, matching a direct chat by either address. Before storing,
+  `events::complete_addresses` fills the other half of a sender's and a
+  direct chat's phone-number/LID pair from the account's LID store (pairing,
   group participant lists, message addressing); `from_me` carries WhatsApp's
-  own-message flag. Adopted groups stay cached until `whatsapp_account_changed`;
+  own-message flag. If the LID store can't be read, the event is left
+  unacknowledged (WhatsApp redelivers it) rather than gated without its
+  other address. History requests name a direct chat by LID
+  (`events::phone_chat`), as phones key it. Adopted groups stay cached until `whatsapp_account_changed`;
   a miss always waits for a load that started after the event arrived
   (single-flight), so an adoption that committed just before is seen. Media locators (direct path, media key, hashes) are sealed with
   `PgWhatsAppStore::seal("media-locator", …)` before they leave the process.
+- Message types (`events.rs` + `events/rich.rs`): text, media (with declared
+  size/length; stickers, GIFs and PTT voice notes marked), quotes on any
+  content part, mentions, forwarding, polls, locations, contact cards (vCard
+  name and numbers), events; pins and call logs become system lines, as do
+  live group notifications (`map_event` returns the roster refresh plus one
+  system line per change), group icon changes and history stub messages.
+  Poll votes are decrypted in `Forwarder::poll_vote` with the poll's stored
+  message secret (undecryptable ones are acked and dropped). View-once media
+  (unwrapped by the port, or flagged on the media) is imported like any media
+  and marked `view_once`.
 - Chat list and history: `outbound/whatsapp.rs` `Forwarder` turns history
   sync bundles, live messages (any chat) and contact/archive/pin events into
   `ChatUpdate`s (`events.rs`: `history_chats`, `message_chat`,
@@ -96,7 +111,9 @@ Spans: `whatsapp.account.{lease,release,rescan,connect}`,
 `whatsapp.inbound.ingest`, `whatsapp.media.import`, `whatsapp.send.dispatch`
 (parented on the trace of the request that recorded the send),
 `whatsapp.groups.{refresh,event}`, `whatsapp.signal.receive`, `whatsapp.drain`,
-`whatsapp.history.{sync,page}`, `whatsapp.backfill.request`. Log events read by `infra/stacks/monitoring/monitors/
+`whatsapp.history.{sync,page}`, `whatsapp.backfill.request`
+(`whatsapp.inbound.ingest` records the message `kind`; `whatsapp.history.page`
+counts what a page stored, could not parse and skipped, by stub type). Log events read by `infra/stacks/monitoring/monitors/
 whatsapp-session.ts` (`telemetry_event` = `whatsapp_session_health`,
 `whatsapp_session_reconnect`, `whatsapp_send_outcome`,
 `whatsapp_session_drain`): keep their field names. Opaque ids only; never
@@ -132,7 +149,7 @@ JIDs, phone numbers, QR codes or message text.
   never wait on the runner (session events go through an unbounded channel).
 - Every path that acknowledges an event without storing it logs a debug
   event `whatsapp.inbound.skipped` with a `reason` (`not_group_content`,
-  `group_not_adopted`, `invalid_event`). Once stored, the domain may still
+  `group_not_adopted`, `invalid_event`, `undecryptable_poll_vote`). Once stored, the domain may still
   drop an event as not observed (consent boundary).
 - whatsmeow's media, send and history futures are large: the adapter and the
   runner box them, or nesting them overflows a 2 MiB stack in debug builds

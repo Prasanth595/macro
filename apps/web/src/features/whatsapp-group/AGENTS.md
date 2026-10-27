@@ -27,6 +27,10 @@ lists belong to `features/whatsapp-linked` and `features/external-view`.
 
 ## Gotchas
 
+- Despite the name, this is any added WhatsApp chat: `kind` is `group` or
+  `direct`. A direct chat has no roster (header shows the person) and only
+  its owner sends; shared viewers see "Only <owner> can reply in this chat".
+  User-facing copy says "chat"; code, routes and the entity type keep "group".
 - Viewing follows ordinary entity sharing. WhatsApp membership controls sending.
 - Every write uses the viewer's own connected WhatsApp account.
 - A draft keeps one idempotency key until DSS records it; unknown outcomes
@@ -43,7 +47,37 @@ lists belong to `features/whatsapp-linked` and `features/external-view`.
 - Images, video and audio play inline: `fileUrl` resolves the imported
   document's presigned URL and `InboundMedia` hands it to Chat's
   `MediaPreview` (or an audio player); `groupMessageData` keeps them out of
-  the document chips. DSS sends no dimensions, so images size on load.
+  the document chips. DSS's declared width/height reserve the space (keeps
+  the open-at-bottom scroll right); stickers, GIFs and voice notes follow the
+  attachment's `presentation`.
+- The timeline and composer use Chat's layout (`macro-message-width` column,
+  `CustomScrollbar`, `ChannelInputContainer` → centered column). The view
+  follows the bottom (a `ResizeObserver` on the content) until the reader
+  scrolls by intent (wheel, touch, keys, scrollbar); layout-driven scroll
+  events never change that. Media URLs keep their first presigned URL and
+  memoized items so refetches don't remount or reload them.
+- Files this page sent keep their local preview and size on the stored
+  message (`conversation.sentFiles`), so the swap from pending neither
+  flashes nor jumps.
+- `kind: 'system'` rows render through Chat's `SystemActivityLine`
+  (`components/system-line.tsx`, words in `core/rich.ts`) and enter the list
+  meta as `activity` entries; they never count toward the unread divider.
+- `rich` polls, locations, contacts and events are small cards
+  (`components/rich-cards.tsx`); votes happen in WhatsApp only. Map links are
+  built from coordinates; nothing is fetched to draw them. Sender-supplied
+  links (a location's URL, an event's join link) survive decoding only as
+  http(s) (`webLink`).
+- Received text is untrusted: `whatsappToMarkdown` turns every punctuation
+  mark into a `&#NN;` reference, so no Markdown, HTML or Macro tag a sender
+  types takes effect. Only what it writes itself is Markdown: WhatsApp's
+  formatting, links for bare http(s) URLs (so Chat's link preview applies),
+  and for each `@<token>` DSS matched, Chat's user-mention chip (verified
+  Macro users) or the WhatsApp name in bold. Inline code stays a code span
+  only when it holds nothing a tag could start with.
+- The composer runs `ChannelInput` with `mentions: 'participants'`: the `@`
+  menu lists the roster (ids are JIDs, minus the sender) and nothing else;
+  `composerMentions` turns the chips into `@<digits>` plus `mentions` on the
+  text send.
 - Senders show their WhatsApp name (`imported_author`), Macro users included.
 - Use backend limits for text, files, edits and deletes.
 - Keep phone numbers and message bodies out of telemetry.

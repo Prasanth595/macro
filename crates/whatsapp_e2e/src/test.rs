@@ -23,6 +23,10 @@ use whatsmeow::types::Jid;
 
 use super::*;
 
+mod direct_chats;
+mod group_kinds;
+mod message_types;
+
 const TIMEOUT: Duration = Duration::from_secs(60);
 const ALICE: &str = "macro|alice@example.com";
 const BOB: &str = "macro|bob@example.com";
@@ -158,8 +162,11 @@ impl World {
     async fn adopt(&self, user: &str, users: &[&str]) -> Binding {
         let group = self.group.to_string();
         wait_for_rows(&self.pool, TIMEOUT, || async {
-            let groups = self.linked.groups(user).await.ok()?;
-            groups.iter().any(|info| info.jid == group).then_some(())
+            let chats = self.linked.chats(user).await.ok()?.chats;
+            chats
+                .iter()
+                .any(|chat| chat.jid == group && chat.can_add)
+                .then_some(())
         })
         .await
         .expect("the replica lists the group");
@@ -188,7 +195,7 @@ impl World {
     /// A viewer opens the WhatsApp page; their account's refreshed roster
     /// makes it an observer of a group shared with them.
     async fn observe(&self, user: &str, binding: &Binding) {
-        self.linked.groups(user).await.unwrap();
+        self.linked.chats(user).await.unwrap();
         let observing = wait_for_rows(&self.pool, TIMEOUT, || async {
             sqlx::query_scalar!(
                 r#"SELECT m.account_id FROM whatsapp_group_membership m
@@ -326,6 +333,7 @@ impl World {
                     idempotency_key: Uuid::now_v7(),
                     message: ReplyContent::Text {
                         text: text.to_owned(),
+                        mentions: vec![],
                     },
                     reply_to: None,
                 },
@@ -682,8 +690,8 @@ async fn a_phone_group_message_maps_to_one_inbound_text() {
             ));
         }
     }
-    assert!(mapped[0].is_none(), "the key-only part is not content");
-    let Some(Mapped::Inbound(event)) = &mapped[1] else {
+    assert!(mapped[0].is_empty(), "the key-only part is not content");
+    let [Mapped::Inbound(event)] = mapped[1].as_slice() else {
         panic!("the text maps to an inbound event");
     };
     assert_eq!(event.group_jid, group.to_string());
@@ -870,6 +878,27 @@ async fn group_renames_and_removals_in_whatsapp_reach_macro_live(pool: PgPool) {
     world
         .expect(renamed, "the Macro group follows the WhatsApp rename")
         .await;
+    // WhatsApp did not say who renamed it: a system line without an actor.
+    let line = wait_for_rows(&world.pool, TIMEOUT, || async {
+        sqlx::query!(
+            r#"SELECT rich->>'action' AS "action!", rich->>'value' AS value, (rich->>'byWhatsapp')::boolean AS "by_whatsapp!"
+            FROM whatsapp_group_message WHERE binding_id = $1 AND kind = 'system' AND message_id IS NOT NULL"#,
+            binding.id
+        )
+        .fetch_optional(&world.pool)
+        .await
+        .unwrap()
+        .map(|row| (row.action, row.value, row.by_whatsapp))
+    })
+    .await;
+    assert_eq!(
+        world.expect(line, "the rename is a system line").await,
+        (
+            "subject_changed".to_owned(),
+            Some("Escalations, renamed".to_owned()),
+            true
+        )
+    );
 
     world.whatsapp.remove_from_group(&world.group, &world.alice);
     let left = wait_for_rows(&world.pool, TIMEOUT, || async {
@@ -1171,11 +1200,8 @@ async fn the_chat_list_follows_history_sync_and_live_messages(pool: PgPool) {
         .await;
     assert_eq!(direct.kind, ChatKind::Direct);
     assert_eq!(direct.name, "Customer");
-    assert!(!direct.can_add);
-    assert_eq!(
-        direct.cannot_add_reason.as_deref(),
-        Some("direct chats can't be added to Macro yet")
-    );
+    assert!(direct.can_add);
+    assert_eq!(direct.cannot_add_reason, None);
     assert_eq!(group.kind, ChatKind::Group);
     assert_eq!(group.name, "Customer escalations");
     assert!(group.can_add);

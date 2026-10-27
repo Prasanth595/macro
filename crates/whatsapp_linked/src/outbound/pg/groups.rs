@@ -9,8 +9,6 @@ use chrono::{DateTime, Utc};
 fn same_facts(stored: &GroupInfo, observed: &GroupInfo) -> bool {
     let normalize = |group: &GroupInfo| GroupInfo {
         observed_at: DateTime::<Utc>::UNIX_EPOCH,
-        group: None,
-        shared: None,
         ..group.clone()
     };
     normalize(stored) == normalize(observed)
@@ -138,6 +136,24 @@ pub(super) async fn store_groups_in(
             changed_groups
                 .extend(left_selected_in(tx, account, &group, observed_at, Some(&locked)).await?);
         }
+        // The owner's account is always in its own direct chats: keep
+        // observing them at the account's current generation.
+        sqlx::query!(
+            r#"INSERT INTO whatsapp_group_membership (binding_id,account_id,generation,consent_at,remote_member,can_post,reconciled,observed_at)
+            SELECT g.id,$1,$2,clock_timestamp(),true,true,true,$4 FROM whatsapp_group g
+            WHERE g.kind = 'direct' AND g.user_id = $3 AND g.state = 'active'
+            ON CONFLICT (binding_id,account_id) DO UPDATE SET generation = excluded.generation, consent_ended_at = NULL,
+              remote_member = true, can_post = true, reconciled = true, observed_at = excluded.observed_at
+            WHERE whatsapp_group_membership.generation <> excluded.generation
+              OR whatsapp_group_membership.consent_ended_at IS NOT NULL"#,
+            account.id,
+            account.generation,
+            account.user_id,
+            observed_at
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(failure)?;
     }
     signal_changes_in(tx, account, list_changed, changed_groups).await
 }
@@ -355,8 +371,28 @@ impl GroupRepository for PgLinkedRepository {
         .map_err(failure)
     }
 
-    async fn binding_roster(&self, binding: &Binding) -> LinkedResult<Option<GroupInfo>> {
+    async fn binding_community(
+        &self,
+        binding: &Binding,
+        community_jid: &str,
+    ) -> LinkedResult<Option<GroupInfo>> {
         sqlx::query_scalar!(
+            r#"SELECT r.metadata FROM whatsapp_group_roster r
+            JOIN whatsapp_group_membership m ON m.account_id = r.account_id
+            WHERE m.binding_id = $1 AND m.consent_ended_at IS NULL AND r.group_jid = $2
+            ORDER BY r.observed_at DESC LIMIT 1"#,
+            binding.id,
+            community_jid
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(failure)?
+        .map(decode::<GroupInfo>)
+        .transpose()
+    }
+
+    async fn binding_roster(&self, binding: &Binding) -> LinkedResult<Option<GroupInfo>> {
+        let roster = sqlx::query_scalar!(
             r#"SELECT r.metadata FROM whatsapp_group_roster r
             JOIN whatsapp_group_membership m ON m.account_id = r.account_id
             WHERE m.binding_id = $1 AND m.consent_ended_at IS NULL AND r.group_jid = $2
@@ -367,8 +403,51 @@ impl GroupRepository for PgLinkedRepository {
         .fetch_optional(&self.pool)
         .await
         .map_err(failure)?
-        .map(decode)
-        .transpose()
+        .map(decode::<GroupInfo>)
+        .transpose()?;
+        let Some(mut roster) = roster else {
+            return Ok(None);
+        };
+        // WhatsApp's group metadata has no names; people who wrote in the
+        // group are known by their WhatsApp name.
+        let jids: Vec<String> = roster
+            .participants
+            .iter()
+            .filter(|participant| participant.identity.display_name.is_none())
+            .flat_map(|participant| {
+                [
+                    Some(participant.identity.jid.clone()),
+                    participant.identity.alternate_jid.clone(),
+                ]
+            })
+            .flatten()
+            .collect();
+        if jids.is_empty() {
+            return Ok(Some(roster));
+        }
+        let names = sqlx::query!(
+            r#"SELECT a.jid, p.display_name AS "display_name!" FROM whatsapp_identity_alias a
+            JOIN whatsapp_external_person p ON p.id = a.person_id
+            WHERE a.binding_id = $1 AND a.jid = ANY($2) AND p.display_name IS NOT NULL"#,
+            binding.id,
+            &jids
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(failure)?;
+        for participant in &mut roster.participants {
+            let identity = &mut participant.identity;
+            if identity.display_name.is_none() {
+                identity.display_name = names
+                    .iter()
+                    .find(|row| {
+                        row.jid == identity.jid
+                            || identity.alternate_jid.as_deref() == Some(row.jid.as_str())
+                    })
+                    .map(|row| row.display_name.clone());
+            }
+        }
+        Ok(Some(roster))
     }
 
     async fn account_chats(&self, account: Uuid) -> LinkedResult<Vec<StoredChat>> {
