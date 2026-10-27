@@ -58,7 +58,7 @@ The **Folders** pill opens the folder overview and stays highlighted inside
 any folder; tapping it from inside a folder returns to the overview, and
 selecting another pill leaves the folder tree. The sidebar contains `New file or folder`, `My Files`, `Recent`,
 `Shared with me`, collapsible Favorites, a collapsible Databases section
-listing the viewer's own databases by name (hidden when they have none or
+listing every database the viewer owns or has been shared, by name (hidden when they have none or
 databases are disabled), and a searchable folder hierarchy.
 The Drive sidebar's import card (**Import files**, see
 [setup cards](setup-cards.md#import-from-connected-apps)) lists Notion; its

@@ -13,7 +13,6 @@ import { selectSidebarDatabases } from './drive-databases';
 import { hiddenFormDatabases } from './drive-forms';
 
 type DriveSidebarOptions = {
-  userId: Accessor<string | undefined>;
   databasesEnabled: Accessor<boolean>;
   formsEnabled: Accessor<boolean>;
 };
@@ -54,7 +53,6 @@ function createSidebarDatabases(options: DriveSidebarOptions) {
     if (!listedForms) return [];
     return selectSidebarDatabases(
       databases.data ?? [],
-      options.userId(),
       hiddenFormDatabases(listedForms)
     );
   });

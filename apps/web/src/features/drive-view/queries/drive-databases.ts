@@ -42,18 +42,14 @@ export function selectDriveDatabases(
   });
 }
 
-/** The viewer's own databases for the sidebar, alphabetical. */
+/** Every database the viewer can open, owned or shared, for the sidebar, alphabetical. */
 export function selectSidebarDatabases(
   listed: readonly ListedDatabase[],
-  userId: string | undefined,
   hidden: ReadonlySet<string>
 ): DatabaseEntity[] {
-  if (!userId) return [];
   return listed
     .flatMap(({ database, grant }): DatabaseEntity[] =>
-      database.trashed_at ||
-      hidden.has(database.id) ||
-      database.owner_id !== userId
+      database.trashed_at || hidden.has(database.id)
         ? []
         : [
             {

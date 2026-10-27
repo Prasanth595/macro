@@ -74,7 +74,6 @@ function DriveComposition(props: { route: DriveRouteState }) {
   const searchText = () => view.value().search;
   const selection = () => ({ ...viewState(), search: searchText() });
   const sidebar = createDriveSidebarSource({
-    userId,
     databasesEnabled: () => databasesFlag().enabled,
     formsEnabled: () => formsFlag().enabled,
   });

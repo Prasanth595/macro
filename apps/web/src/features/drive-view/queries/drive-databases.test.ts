@@ -167,7 +167,7 @@ describe('disabled database filters', () => {
 });
 
 describe('Drive sidebar databases', () => {
-  it("lists the viewer's live databases by name, without hidden ones", () => {
+  it('lists owned and shared live databases by name, without hidden ones', () => {
     const another: ListedDatabase = {
       database: {
         id: 'another',
@@ -184,12 +184,9 @@ describe('Drive sidebar databases', () => {
       database: { ...another.database, id: 'poll', name: 'Lunch poll' },
     };
     expect(
-      selectSidebarDatabases(
-        [...listed, another, poll],
-        'me',
-        new Set(['poll'])
-      ).map((entity) => entity.id)
-    ).toEqual(['another', 'mine']);
-    expect(selectSidebarDatabases(listed, undefined, none)).toEqual([]);
+      selectSidebarDatabases([...listed, another, poll], new Set(['poll'])).map(
+        (entity) => entity.id
+      )
+    ).toEqual(['shared', 'another', 'mine']);
   });
 });
