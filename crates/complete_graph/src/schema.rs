@@ -964,7 +964,7 @@ where
         ctx: &Context<'_>,
         input: GroupedSoupInput,
     ) -> async_graphql::Result<GroupedSoup<SoupEdges<NR, PR, ER, FR, AR, AcR>>> {
-        resolve_grouped_soup::<S, E, EAS, Auth, St, SoupEdges<NR, PR, ER, FR, AR, AcR>>(
+        resolve_grouped_soup::<S, Auth, St, SoupEdges<NR, PR, ER, FR, AR, AcR>>(
             &self.service,
             ctx,
             input,

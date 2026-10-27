@@ -30,10 +30,7 @@ use models_soup::{
 };
 use predicate_index::RecordKey;
 use serde_json::Value;
-use soup::domain::models::{
-    EnrichedSoupItem, SoupProjectionHydration, SoupPropertiesField,
-    grouping::{GroupedResponse, NestedSoupGroups},
-};
+use soup::domain::models::{EnrichedSoupItem, SoupProjectionHydration, grouping::GroupedResponse};
 use soup_filter_projection::{encode_cache_projection_supplement, project_soup_cache_supplement};
 use uuid::Uuid;
 
@@ -219,27 +216,8 @@ pub struct GroupedSoup<E: SoupEntityEdges> {
 }
 
 impl<E: SoupEntityEdges> GroupedSoup<E> {
-    /// Construct grouped GraphQL Soup bins from the domain grouping model.
-    pub fn new(groups: NestedSoupGroups<SoupPropertiesField>) -> Self {
-        Self {
-            bins: groups
-                .into_bins()
-                .map(|(key, bin)| GraphqlSoupBin {
-                    key,
-                    total_count: bin.group_total_size(),
-                    display_order: None,
-                    next_cursor: bin.next_cursor().map(ToOwned::to_owned),
-                    items: bin
-                        .into_items()
-                        .map(|item| GraphqlSoupEntity::new(item.map_extra(|_| ())))
-                        .collect(),
-                })
-                .collect(),
-        }
-    }
-
     /// Construct GraphQL bins from the shared grouped response and cursor policy.
-    pub fn from_response<Id: Eq + std::hash::Hash>(response: GroupedResponse<Id>) -> Self {
+    pub fn from_response(response: GroupedResponse) -> Self {
         Self {
             bins: response
                 .groups

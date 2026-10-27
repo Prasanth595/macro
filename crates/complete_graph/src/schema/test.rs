@@ -314,7 +314,11 @@ impl SoupService for CountingSoupService {
             soup::domain::models::grouping::ItemGroupingInfo {
                 sort_key: None,
                 display_order: None,
-                document_server_facts: None,
+                document_server_facts: Some(soup::domain::models::SoupDocumentServerFacts {
+                    is_email_attachment: false,
+                    is_important: true,
+                    status_option_ids: Vec::new(),
+                }),
                 key: "document".to_string(),
                 total_group_count: 3,
                 index_in_group: 1,
@@ -2233,7 +2237,7 @@ async fn group_soup_nests_items_in_bins_and_reuses_cached_authorization() {
 
     let response = harness
         .execute(
-            "{ user { id groupSoup(input: {initial: {groupBy: {field: ENTITY_TYPE}}}) { bins { key totalCount nextCursor items { id entityType } } } } }",
+            "{ user { id groupSoup(input: {initial: {groupBy: {field: ENTITY_TYPE}}}) { bins { key totalCount displayOrder nextCursor items { id entityType cacheProjection } } } } }",
         )
         .await;
 
@@ -2245,6 +2249,18 @@ async fn group_soup_nests_items_in_bins_and_reuses_cached_authorization() {
     assert_eq!(harness.authorization_calls.load(Ordering::SeqCst), 1);
     let cursor = bin["nextCursor"].as_str().unwrap();
     assert_eq!(bin["items"].as_array().unwrap().len(), 2);
+    assert_eq!(bin["displayOrder"], 0);
+    let items = bin["items"].as_array().unwrap();
+    let supplement = soup_filter_projection::decode_cache_projection_supplement(
+        items[0]["cacheProjection"].as_str().unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        supplement.record_key(),
+        &predicate_index::RecordKey::new(format!("GraphqlSoupDocument:{}", Uuid::from_u128(1)))
+            .unwrap()
+    );
+    assert!(items[1]["cacheProjection"].is_null());
 
     let continuation = format!(
         "{{ user {{ groupSoup(input: {{continuation: {{groupBy: {{field: ENTITY_TYPE}}, groupKey: \"document\", cursor: \"{cursor}\"}}}}) {{ bins {{ key }} }} }} }}"

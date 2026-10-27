@@ -78,18 +78,14 @@ where
 }
 
 /// Resolve Soup items nested into grouping bins for the authenticated user.
-pub async fn resolve_grouped_soup<S, E, EAS, Auth, St, Edges>(
+pub async fn resolve_grouped_soup<S, Auth, St, Edges>(
     service: &S,
     ctx: &Context<'_>,
     input: GroupedSoupInput,
 ) -> async_graphql::Result<GroupedSoup<Edges>>
 where
     S: SoupService,
-    E: EmailService,
-    EAS: EntityAccessService,
     Auth: MacroAuthorizationService,
-    EmailRouterState<E>: FromRef<St>,
-    Arc<EAS>: FromRef<St>,
     MacroAuthorizationState<Auth>: FromRef<St>,
     St: Clone + Send + Sync + 'static,
     Edges: SoupEntityEdges,
