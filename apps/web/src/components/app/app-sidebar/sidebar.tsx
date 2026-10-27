@@ -196,6 +196,12 @@ export function navigateToSidebarView(args: {
 /** Whether the "g" leader key is currently awaiting a destination key. */
 const [goToHotkeyVisible, setGoToHotkeyVisible] = createSignal(false);
 
+/**
+ * True while the "g" leader awaits a destination, so nav buttons can show
+ * their destination key.
+ */
+export const isGoToLeaderActive = goToHotkeyVisible;
+
 const resetGoToHotkeysState = () => {
   setGoToHotkeyVisible(false);
   // To prevent the next key from triggering the hotkey handler,
