@@ -165,6 +165,8 @@ or the channel glyph. Verify switching between these entries without reloading,
 including a reply-thread entry and a direct Home URL reload. Clicking an avatar
 inside a breadcrumb must select that breadcrumb, not open another DM.
 
+![Home DM breadcrumb with its participant avatar](images/home-conversation-identity.png)
+
 Document previews opened from Home expose **Share** and **Copy Share Link** before
 the details toggle, including tasks, snippets, skills, canvases, PDFs, images,
 code, and videos. Share uses the selected item's permissions and updates when
