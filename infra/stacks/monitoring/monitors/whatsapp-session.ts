@@ -16,9 +16,10 @@
 // Thresholds are starting points: there is no baseline before launch.
 import * as datadog from '@pulumi/datadog';
 
-const CONTEXT = `Runbook: services/whatsapp_session_service/AGENTS.md. To stop new
-sends, turn off WHATSAPP_LINKED_SENDING_ENABLED in the cloud-storage-service
-Doppler config; pending sends stay recorded.
+const CONTEXT = `Runbook: services/whatsapp_session_service/AGENTS.md. To stop all
+WhatsApp traffic, scale whatsapp-session-service to 0 tasks; sends recorded
+meanwhile expire unsent after ten minutes. Turning off the enable-whatsapp-linked
+flag only hides the app UI.
 @webhook-macro-alert-hook`;
 
 const HEALTH = '@telemetry_event:whatsapp_session_health';

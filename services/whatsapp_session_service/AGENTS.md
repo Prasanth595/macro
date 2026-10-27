@@ -107,7 +107,9 @@ current, ingests standalone `whatsapp_group` traffic through `whatsapp_linked`'s
 
 ## Config (Doppler `whatsapp-session-service`, `dev` and `prd`)
 
-- `DATABASE_URL`: pooled MacroDB URL.
+Declared in `infra/stacks/doppler-projects/index.ts`; none is set by hand.
+
+- `DATABASE_URL`: MacroDB URL (`global_databases` reference).
 - `WHATSAPP_SESSION_LOCK_DATABASE_URL`: the RDS **instance** endpoint
   (`macro-db-<stack>`, the macrodb stack's `endpoint` output), never
   `macrodb-proxy-<stack>`: RDS Proxy multiplexes and reaps idle connections,
@@ -115,8 +117,8 @@ current, ingests standalone `whatsapp_group` traffic through `whatsapp_linked`'s
   MacroDB kills sessions idle in transaction after 5 minutes.
 - `WHATSAPP_SESSION_KMS_KEY_ID`: `alias/whatsapp-session-service-<stack>`
   (GenerateDataKey + Decrypt).
-- `WHATSAPP_SESSION_MAX_ACCOUNTS` (local 500), `WHATSAPP_SESSION_DRAIN_BATCH`
-  (local 20).
+- `WHATSAPP_SESSION_MAX_ACCOUNTS` (500), `WHATSAPP_SESSION_DRAIN_BATCH`
+  (20).
 - Tests only, process env: `OVERRIDE_WHATSAPP_WEBSOCKET_URL` (fake server)
   and `OVERRIDE_WHATSAPP_MEDIA_HOST` (`scheme://host[:port]` of its media
   host).
@@ -138,6 +140,10 @@ JIDs, phone numbers, QR codes or message text.
 
 ## Runbook
 
+- **Stop all WhatsApp traffic**: scale the ECS service to 0 tasks. Accounts
+  stay `connected` and are picked up again when it scales back; sends recorded
+  meanwhile expire unsent after ten minutes. The web flag
+  `enable-whatsapp-linked` only hides the UI; the API keeps answering.
 - **Stuck lease** (an account no replica runs, `accounts_unowned` > 0): find
   the holder with `SELECT pid FROM pg_locks WHERE locktype = 'advisory' AND
   objsubid = 1 AND ((classid::bigint << 32) | objid::bigint) =
