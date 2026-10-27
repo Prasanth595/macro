@@ -61,6 +61,28 @@ impl AsyncTool<()> for BoomTool {
     }
 }
 
+/// A tool that panics, as a bug deep inside a tool's code would.
+#[derive(Deserialize, JsonSchema)]
+#[schemars(title = "panic_tool", description = "Always panics.")]
+struct PanicTool {}
+
+impl ToolAnnotated for PanicTool {
+    const ANNOTATIONS: ToolAnnotations = ToolAnnotations::read_only("Panic");
+}
+
+#[async_trait]
+impl AsyncTool<()> for PanicTool {
+    type Output = serde_json::Value;
+
+    async fn call(
+        &self,
+        _service_context: ServiceContext<()>,
+        _request_context: RequestContext,
+    ) -> ToolResult<Self::Output> {
+        panic!("row shapes order by columns only");
+    }
+}
+
 /// A two-turn script: `tool_turn` does the tool calls, then a final turn writes
 /// "done" so we can observe that the loop kept going.
 fn tool_then_done(tool_turn: impl IntoIterator<Item = MockStreamEvent>) -> MockCompletionModel {
@@ -106,6 +128,45 @@ async fn tool_call_error_emits_call_and_error_response() {
     assert!(
         result.error.is_none(),
         "a tool error must not stop the loop, got {:?}",
+        result.error
+    );
+    assert_eq!(result.content(), "done", "the loop should continue");
+}
+
+/// Tool call panic
+/// A panic inside one tool must come back to the model as that call's error,
+/// naming the tool and the panic, and the loop must go on to the next model call.
+#[tokio::test]
+async fn tool_panic_emits_error_response_and_the_loop_continues() {
+    let model = tool_then_done([MockStreamEvent::tool_call(
+        "call-1",
+        "panic_tool",
+        serde_json::json!({}),
+    )]);
+    let toolset = util::single_tool_set::<PanicTool, ()>();
+    let mut session = util::session(toolset, Arc::new(()), model).await;
+
+    let result = util::drive(&mut session, "call the panicking tool").await;
+
+    let call = result
+        .tool_calls()
+        .into_iter()
+        .find(|call| call.name == "panic_tool")
+        .expect("the panicking tool's call should be emitted");
+    let response = result
+        .tool_response(&call.id)
+        .expect("the panicking tool's response should be emitted");
+    assert!(
+        matches!(
+            response,
+            ToolResponse::Err { description, .. }
+                if description == "panic_tool failed internally: row shapes order by columns only"
+        ),
+        "a tool panic should surface as a typed error response, got {response:?}"
+    );
+    assert!(
+        result.error.is_none(),
+        "a tool panic must not stop the loop, got {:?}",
         result.error
     );
     assert_eq!(result.content(), "done", "the loop should continue");

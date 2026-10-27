@@ -4,6 +4,7 @@ use crate::schema::{ValidatedSchema, ValidationError, generate_validated_input_s
 use crate::{AsyncTool, RequestContext, ServiceContext, ToolCallError, ToolResult};
 use async_trait::async_trait;
 use axum::extract::FromRef;
+use futures::FutureExt;
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde::de::Deserialize;
@@ -30,6 +31,7 @@ struct ToolContextAdapter<ToolSetContext, ToolContext, T>
 where
     ToolContext: FromRef<ToolSetContext>,
 {
+    name: String,
     tool: T,
     _phantom: std::marker::PhantomData<fn(ToolSetContext) -> ToolContext>,
 }
@@ -38,8 +40,9 @@ impl<ToolSetContext, ToolContext, T> ToolContextAdapter<ToolSetContext, ToolCont
 where
     ToolContext: FromRef<ToolSetContext>,
 {
-    fn new(tool: T) -> Self {
+    fn new(name: String, tool: T) -> Self {
         Self {
+            name,
             tool,
             _phantom: std::marker::PhantomData,
         }
@@ -62,16 +65,38 @@ where
         request_context: RequestContext,
     ) -> ToolResult<serde_json::Value> {
         let tool_context = ToolContext::from_ref(&context);
-        self.tool
-            .call(ServiceContext(tool_context), request_context)
-            .await
-            .and_then(|out| {
-                serde_json::to_value(out).map_err(|err| ToolCallError {
-                    description: "An internal error occurred".to_string(),
-                    internal_error: anyhow::Error::from(err),
-                })
+        // A panic in one tool call is that call's error: it must not unwind
+        // through the agent loop and end the turn with every other call.
+        std::panic::AssertUnwindSafe(
+            self.tool
+                .call(ServiceContext(tool_context), request_context),
+        )
+        .catch_unwind()
+        .await
+        .unwrap_or_else(|panic| {
+            let message = panic_message(panic.as_ref());
+            Err(ToolCallError {
+                description: format!("{} failed internally: {message}", self.name),
+                internal_error: anyhow::anyhow!("tool {} panicked: {message}", self.name),
             })
+        })
+        .and_then(|out| {
+            serde_json::to_value(out).map_err(|err| ToolCallError {
+                description: "An internal error occurred".to_string(),
+                internal_error: anyhow::Error::from(err),
+            })
+        })
     }
+}
+
+/// The text a panic was raised with; `panic!` payloads are a `&str` or a
+/// `String`.
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> &str {
+    payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("the tool panicked")
 }
 
 /// Trait object type for tools callable with `ToolSetContext`.
@@ -169,9 +194,11 @@ where
             return Err(ValidationError::ExpectedObject);
         };
 
-        let deserializer = Box::new(|data: &serde_json::Value| {
+        let tool_name = name.clone();
+        let deserializer = Box::new(move |data: &serde_json::Value| {
             serde_json::from_value::<T>(data.clone()).map(|tool| {
                 Box::new(ToolContextAdapter::<ToolSetContext, ToolContext, T>::new(
+                    tool_name.clone(),
                     tool,
                 )) as AsyncToolTraitObject<ToolSetContext>
             })

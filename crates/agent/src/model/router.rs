@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 
 use ai_toolset::RequestContext;
 use ai_usage::{UsageContext, UsageRecorder};
-use futures::StreamExt;
+use futures::{FutureExt as _, StreamExt};
 use macro_env_var::env_var;
 use rig_agent::agent::{Agent, AgentBuilder, MultiTurnStreamItem};
 use rig_agent::streaming::StreamingPrompt;
@@ -678,6 +678,7 @@ where
     // usage, errors). The lifecycle hooks (text, tool call, tool response) send
     // through their own clone inside `bridge`; both feed the same FIFO channel.
     let driver_tx = bridge.sender();
+    let panic_tx = bridge.sender();
 
     let mut rig_stream = agent
         .stream_prompt(prompt)
@@ -796,87 +797,94 @@ where
     let records_per_call = financial_context
         .as_ref()
         .is_some_and(MeteringContext::records_per_call);
-    let driver = tokio::spawn(
-        MeteringContext::carry(financial_context, async move {
-            let mut liveness = StreamLiveness::new(agent_span.clone(), telemetry.clone());
+    let run = MeteringContext::carry(financial_context, async move {
+        let mut liveness = StreamLiveness::new(agent_span.clone(), telemetry.clone());
 
-            while let Some(item) = rig_stream.next().await {
-                liveness.observed();
-                if let Ok(MultiTurnStreamItem::StreamAssistantItem(content)) = &item
-                    && let Some(kind) = chunk_kind(content)
-                {
-                    telemetry.record_chunk(kind);
+        while let Some(item) = rig_stream.next().await {
+            liveness.observed();
+            if let Ok(MultiTurnStreamItem::StreamAssistantItem(content)) = &item
+                && let Some(kind) = chunk_kind(content)
+            {
+                telemetry.record_chunk(kind);
+            }
+            match item {
+                Ok(MultiTurnStreamItem::StreamAssistantItem(
+                    StreamedAssistantContent::ReasoningDelta { reasoning, .. },
+                )) => {
+                    // Forwarded as it arrives, like a text delta. Held back
+                    // until the model says something else, a turn that
+                    // thinks for half a minute before its first tool call
+                    // shows the reader nothing for that whole time and then
+                    // the entire thought at once.
+                    let _ = driver_tx.send(Ok(StreamPart::Thinking(reasoning)));
                 }
-                match item {
-                    Ok(MultiTurnStreamItem::StreamAssistantItem(
-                        StreamedAssistantContent::ReasoningDelta { reasoning, .. },
-                    )) => {
-                        // Forwarded as it arrives, like a text delta. Held back
-                        // until the model says something else, a turn that
-                        // thinks for half a minute before its first tool call
-                        // shows the reader nothing for that whole time and then
-                        // the entire thought at once.
-                        let _ = driver_tx.send(Ok(StreamPart::Thinking(reasoning)));
-                    }
-                    other => {
-                        match other {
-                            Ok(MultiTurnStreamItem::FinalResponse(final_resp)) => {
-                                let usage = final_resp.usage;
-                                finish_run.concluded = true;
-                                telemetry.record_agent_output(
-                                    &agent_span,
-                                    &final_resp.output,
-                                    &usage,
+                other => {
+                    match other {
+                        Ok(MultiTurnStreamItem::FinalResponse(final_resp)) => {
+                            let usage = final_resp.usage;
+                            finish_run.concluded = true;
+                            telemetry.record_agent_output(&agent_span, &final_resp.output, &usage);
+                            // Aggregate analytics only. Financial evidence is
+                            // persisted per HTTP attempt before SDK parsing.
+                            if !records_per_call {
+                                recorder.record(
+                                    usage_ctx
+                                        .clone()
+                                        .into_event(model.clone(), usage_amount(protocol, &usage)),
                                 );
-                                // Aggregate analytics only. Financial evidence is
-                                // persisted per HTTP attempt before SDK parsing.
-                                if !records_per_call {
-                                    recorder.record(
-                                        usage_ctx.clone().into_event(
-                                            model.clone(),
-                                            usage_amount(protocol, &usage),
-                                        ),
-                                    );
-                                }
-                                let _ =
-                                    driver_tx.send(Ok(StreamPart::Usage(crate::stream::Usage {
-                                        input_tokens: usage.input_tokens,
-                                        output_tokens: usage.output_tokens,
-                                    })));
                             }
-                            Err(e) => {
-                                finish_run.concluded = true;
-                                let error = AgentError::Streaming(e);
-                                if error.was_cancelled() {
-                                    // The caller stopped the run through its
-                                    // cancellation token: a stop, not a fault.
-                                    telemetry.record_agent_failure(
-                                        &agent_span,
-                                        "cancelled",
-                                        genai_telemetry::attr::finish_reason::CANCELLED,
-                                        "the run was cancelled",
-                                    );
-                                } else {
-                                    // A provider error, or the runtime giving
-                                    // up (retries exhausted): the run failed.
-                                    telemetry.record_agent_failure(
-                                        &agent_span,
-                                        "streaming_error",
-                                        genai_telemetry::attr::finish_reason::ERROR,
-                                        &error.to_string(),
-                                    );
-                                }
-                                let _ = driver_tx.send(Err(error));
-                            }
-                            _ => {}
+                            let _ = driver_tx.send(Ok(StreamPart::Usage(crate::stream::Usage {
+                                input_tokens: usage.input_tokens,
+                                output_tokens: usage.output_tokens,
+                            })));
                         }
+                        Err(e) => {
+                            finish_run.concluded = true;
+                            let error = AgentError::Streaming(e);
+                            if error.was_cancelled() {
+                                // The caller stopped the run through its
+                                // cancellation token: a stop, not a fault.
+                                telemetry.record_agent_failure(
+                                    &agent_span,
+                                    "cancelled",
+                                    genai_telemetry::attr::finish_reason::CANCELLED,
+                                    "the run was cancelled",
+                                );
+                            } else {
+                                // A provider error, or the runtime giving
+                                // up (retries exhausted): the run failed.
+                                telemetry.record_agent_failure(
+                                    &agent_span,
+                                    "streaming_error",
+                                    genai_telemetry::attr::finish_reason::ERROR,
+                                    &error.to_string(),
+                                );
+                            }
+                            let _ = driver_tx.send(Err(error));
+                        }
+                        _ => {}
                     }
                 }
             }
-            // Dropping `rig_stream` (and with it the hook's sender) plus `driver_tx`
-            // here closes the channel, ending the consumer stream below.
-            drop(finish_run);
-        })
+        }
+        // Dropping `rig_stream` (and with it the hook's sender) plus `driver_tx`
+        // here closes the channel, ending the consumer stream below.
+        drop(finish_run);
+    });
+    let driver = tokio::spawn(
+        // A panic here would only close the channel, which the consumer reads
+        // as a run that finished; say it failed instead.
+        async move {
+            if std::panic::AssertUnwindSafe(run)
+                .catch_unwind()
+                .await
+                .is_err()
+            {
+                let _ = panic_tx.send(Err(AgentError::Other(anyhow::anyhow!(
+                    "The agent runtime ended unexpectedly. Please retry this message."
+                ))));
+            }
+        }
         // Entered into the agent span: the runtime opens its `chat` and
         // `execute_tool` spans from inside this task, and they belong under
         // the run, not at the root of a trace of their own.

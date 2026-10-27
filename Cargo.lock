@@ -1234,6 +1234,7 @@ dependencies = [
  "async-trait",
  "axum",
  "axum-macros",
+ "futures",
  "genai_telemetry",
  "macro_user_id",
  "opentelemetry",
