@@ -49,7 +49,7 @@ export function PropertyValuePill(props: PropertyValuePillProps) {
               {props.property.displayName}:
             </span>
           </Show>
-          <span class="inline-flex min-w-0 items-center gap-0.5">
+          <span class="inline-flex min-w-0 items-center gap-1">
             <Switch
               fallback={
                 <Property.Icon
