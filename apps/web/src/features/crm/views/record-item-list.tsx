@@ -1,3 +1,5 @@
+import { DateGroupHeading } from '@app/features/next-soup/soup-view/date-group-heading';
+import { dateBucket } from '@app/features/soup/collection/date-buckets';
 import { createKeyedProjection } from '@app/lib/queries/soup/create-keyed-projection';
 import { fireAndForget } from '@core/util/fireAndForget';
 import {
@@ -36,6 +38,8 @@ export function RecordItemList(props: {
   narrowLayout?: NarrowLayoutVariant;
   /** Property IDs to display as inline reference pills when needed. */
   referencePropertyIds?: readonly string[];
+  /** Group the existing newest-first list by its last-updated date. */
+  groupByDate?: boolean;
 }) {
   const { openEntity } = useCrmContext().createNavigation();
   // Reading `data` before the first page resolves would suspend the tab.
@@ -49,6 +53,17 @@ export function RecordItemList(props: {
   const filteredItems = createMemo(() =>
     rows().filter((item) => recordItemMatchesSearch(item, props.search ?? ''))
   );
+  const dateHeadings = createMemo(() => {
+    if (!props.groupByDate) return [];
+    const now = new Date();
+    let previous: string | undefined;
+    return filteredItems().map((entity) => {
+      const bucket = dateBucket(entity.updatedAt ?? entity.createdAt, now);
+      const label = bucket.key !== previous ? bucket.label : undefined;
+      previous = bucket.key;
+      return label;
+    });
+  });
   const [listRef, setListRef] = createSignal<HTMLElement>();
   const [sentinelRef, setSentinelRef] = createSignal<HTMLDivElement>();
 
@@ -94,14 +109,24 @@ export function RecordItemList(props: {
                 </div>
               </Show>
               <For each={filteredItems()}>
-                {(entity) => (
-                  <ListEntity
-                    entity={entity}
-                    hideCheckbox
-                    timestamp={entity.updatedAt}
-                    onClick={() => openEntity(entity)}
-                    referencePropertyIds={props.referencePropertyIds}
-                  />
+                {(entity, index) => (
+                  <>
+                    <Show when={dateHeadings()[index()]}>
+                      {(label) => (
+                        <DateGroupHeading
+                          label={label()}
+                          isFirst={index() === 0}
+                        />
+                      )}
+                    </Show>
+                    <ListEntity
+                      entity={entity}
+                      hideCheckbox
+                      timestamp={entity.updatedAt}
+                      onClick={() => openEntity(entity)}
+                      referencePropertyIds={props.referencePropertyIds}
+                    />
+                  </>
                 )}
               </For>
             </div>

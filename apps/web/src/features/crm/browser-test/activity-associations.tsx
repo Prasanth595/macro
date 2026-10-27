@@ -1,4 +1,5 @@
 import '@app/index.css';
+import { CreateContextProvider } from '@app/features/command/context/create-context';
 import { AnalyticsContextProvider } from '@app/lib/analytics/analytics-context';
 import { PosthogProvider } from '@app/lib/analytics/posthog';
 import { setGlobalSplitManager } from '@app/signal/splitLayout';
@@ -14,8 +15,14 @@ import { previewKeys } from '@queries/preview/keys';
 import type { PreviewItem } from '@queries/preview/types';
 import type { SoupProperty } from '@service-storage/generated/schemas/soupProperty';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
-import { createSignal, For } from 'solid-js';
+import { Tabs } from '@ui';
+import { createSignal, For, Show } from 'solid-js';
 import { render } from 'solid-js/web';
+import { CrmProvider } from '../context/crm-context';
+import type { ItemListSource } from '../context/crm-sources';
+import { CRM_ACTIVITY_TABS, type CrmActivityTab } from '../core/navigation';
+import { createAppCrmContext } from '../crm-adapter';
+import { CrmActivityView } from '../views/activity';
 
 const createdAt = '2026-10-01T12:00:00Z';
 const common = { ownerId: '', createdAt, updatedAt: createdAt };
@@ -167,6 +174,102 @@ const queryClient = new QueryClient({
 for (const preview of previews)
   queryClient.setQueryData(previewKeys.item(preview.id).queryKey, preview);
 
+function DateGroupingFixture() {
+  const [tab, setTab] = createSignal<CrmActivityTab>('tasks');
+  const [page, setPage] = createSignal(1);
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const activity = { tasks: items[0], email: items[1] };
+  const firstPage = (kind: 'tasks' | 'email'): EntityData[] =>
+    Array.from({ length: 12 }, (_, index) => ({
+      ...activity[kind],
+      id: index === 0 ? activity[kind].id : `${kind}-${index}`,
+      name: index === 0 ? activity[kind].name : `${kind} item ${index}`,
+      updatedAt: today.toISOString(),
+    }));
+  const pages: Record<'tasks' | 'email', EntityData[][]> = {
+    tasks: [
+      firstPage('tasks'),
+      [
+        {
+          ...items[0],
+          id: 'task-next',
+          name: 'Next task today',
+          updatedAt: today.toISOString(),
+        },
+        {
+          ...items[0],
+          id: 'task-older',
+          name: 'Task yesterday',
+          updatedAt: yesterday.toISOString(),
+        },
+      ],
+    ],
+    email: [
+      firstPage('email'),
+      [
+        {
+          ...items[1],
+          id: 'email-next',
+          name: 'Next email today',
+          updatedAt: today.toISOString(),
+        },
+        {
+          ...items[1],
+          id: 'email-older',
+          name: 'Email yesterday',
+          updatedAt: yesterday.toISOString(),
+        },
+      ],
+    ],
+  };
+  const crm = createAppCrmContext();
+  crm.createActivity = (selected): ItemListSource => ({
+    isPending: false,
+    isEnabled: true,
+    isLoading: false,
+    get data() {
+      const rows = pages[selected() === 'email' ? 'email' : 'tasks'];
+      return { entities: page() === 1 ? rows[0] : [...rows[0], ...rows[1]] };
+    },
+    get hasNextPage() {
+      return page() === 1;
+    },
+    isFetchingNextPage: false,
+    isError: false,
+    isFetchNextPageError: false,
+    fetchNextPage: async () => {
+      setPage(2);
+    },
+    refetch: async () => {},
+  });
+  return (
+    <CrmProvider value={crm}>
+      <main class="flex h-dvh flex-col bg-panel text-ink">
+        <Tabs
+          aria-label="Activity sections"
+          touch="inset"
+          options={CRM_ACTIVITY_TABS.filter(
+            (item) => item.id === 'tasks' || item.id === 'email'
+          ).map((item) => ({ value: item.id, label: item.label }))}
+          value={tab()}
+          onChange={(value) => {
+            setPage(1);
+            setTab(value);
+          }}
+        />
+        <div data-testid="activity-scroll" class="flex h-48 flex-col">
+          <Show when={tab()} keyed>
+            {(active) => <CrmActivityView tab={active} />}
+          </Show>
+        </div>
+      </main>
+    </CrmProvider>
+  );
+}
+
 function Fixture() {
   const [element, setElement] = createSignal<HTMLElement>();
   const [opened, setOpened] = createSignal('Nothing opened');
@@ -242,7 +345,17 @@ if (root)
               <EmailLinksContextProvider>
                 <ItemDndProvider>
                   <ListEntityNoopMetadataProvider>
-                    <Fixture />
+                    <Show
+                      when={
+                        new URLSearchParams(location.search).get('mode') ===
+                        'dates'
+                      }
+                      fallback={<Fixture />}
+                    >
+                      <CreateContextProvider focusedPaneId={() => undefined}>
+                        <DateGroupingFixture />
+                      </CreateContextProvider>
+                    </Show>
                   </ListEntityNoopMetadataProvider>
                 </ItemDndProvider>
               </EmailLinksContextProvider>

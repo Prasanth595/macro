@@ -140,3 +140,58 @@ for (const device of [
     });
   });
 }
+
+for (const device of [
+  { name: 'desktop', viewport: { width: 1280, height: 800 }, hasTouch: false },
+  { name: 'phone', viewport: { width: 390, height: 844 }, hasTouch: true },
+]) {
+  test.describe(`${device.name} date grouping`, () => {
+    test.use({ viewport: device.viewport, hasTouch: device.hasTouch });
+
+    test('groups Tasks and Email across appended pages without remounting rows', async ({
+      page,
+    }) => {
+      await page.goto(
+        '/src/features/crm/browser-test/activity-associations.html?mode=dates'
+      );
+      await page.waitForLoadState('networkidle');
+      for (const [tab, first, next, older] of [
+        [
+          'Tasks',
+          'Prepare the renewal proposal',
+          'Next task today',
+          'Task yesterday',
+        ],
+        ['Email', 'Next steps', 'Next email today', 'Email yesterday'],
+      ]) {
+        await page
+          .getByLabel('Activity sections')
+          .getByText(tab, { exact: true })
+          .click();
+        const scroll = page.getByTestId('activity-scroll');
+        const row = scroll.locator('.entity-root').first();
+        await expect(row).toContainText(first);
+        await expect(scroll.getByText('Today', { exact: true })).toHaveCount(1);
+        await expect(
+          scroll.getByText('Yesterday', { exact: true })
+        ).toHaveCount(0);
+        await expect(scroll.locator('.entity-root')).toHaveCount(12);
+        await row.evaluate((element) => {
+          element.dataset.firstRow = 'original';
+        });
+        await scroll.locator('.overflow-y-auto').evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+        });
+        await expect(scroll.getByText(next, { exact: true })).toBeAttached();
+        await expect(scroll.getByText(older, { exact: true })).toBeAttached();
+        await expect(scroll.locator('.entity-root')).toHaveCount(14);
+        await expect(scroll.getByText('Today', { exact: true })).toHaveCount(1);
+        await expect(
+          scroll.getByText('Yesterday', { exact: true })
+        ).toHaveCount(1);
+        await expect(row).toHaveAttribute('data-first-row', 'original');
+        await expect(row).toContainText(first);
+      }
+    });
+  });
+}

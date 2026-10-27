@@ -82,6 +82,9 @@ Email still matches visible company domains and contact addresses for feed
 membership, but the row displays only stored properties, not inferred matches.
 No separate CRM association metadata lookup or row footer runs during paging.
 Record-detail lists and activity membership remain unchanged.
+Tasks and Email use the shared relative-date headings, grouped by last update in
+viewer-local time. Grouping keeps the same flat cursor and stable rows as pages
+append; Notes, Calls, and record-detail lists remain ungrouped.
 
 Activity extends the existing authorized CRM association path rather than
 splitting the feed into independent client queries. This preserves one sorted

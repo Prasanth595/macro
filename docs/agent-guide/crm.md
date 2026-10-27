@@ -59,6 +59,11 @@ the remainder. Email matches still determine feed membership, but an address
 or domain match without a stored property does not add a display pill. The row
 uses shared property previews rather than a separate association lookup.
 Verify these interactions at desktop and phone widths.
+Tasks and Email group their newest-first rows by last update under the shared
+**Today**, **Yesterday**, **Last 7 days**, **Earlier this month**, **Last month**,
+and **Older** headings in viewer-local time, on desktop and phones. Scrolling
+continues the same list and appends to an existing date group without repeating
+its heading. Notes, Calls, and record-detail lists keep their existing layout.
 
 Verify activity loading with a CRM containing thousands of companies and
 contacts, not only an empty fixture. Opening a tab must settle without repeated

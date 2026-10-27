@@ -6,6 +6,11 @@ import { RecordItemList } from './record-item-list';
 
 const mounted = vi.hoisted(() => vi.fn());
 
+vi.mock('@app/features/next-soup/soup-view/date-group-heading', () => ({
+  DateGroupHeading: (props: { label: string }) => (
+    <header>{props.label}</header>
+  ),
+}));
 vi.mock('@entity', () => ({
   ListEntity: (props: {
     entity: { name: string };
@@ -33,7 +38,10 @@ vi.mock('../context/crm-context', () => ({
   }),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 function source(overrides: Partial<ItemListSource>): ItemListSource {
   return {
@@ -110,10 +118,17 @@ it('only declares no search results after the final page', () => {
   expect(screen.queryByText('No matching items.')).toBeNull();
 });
 
-it('retains earlier row nodes when a page appends and updates their content', () => {
+it('continues date groups across pages without remounting earlier rows', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 9, 27, 12));
   mounted.mockClear();
   const [entities, setEntities] = createSignal([
-    { id: 'doc-1', type: 'document', name: 'First page' },
+    {
+      id: 'doc-1',
+      type: 'document',
+      name: 'First page',
+      updatedAt: new Date(2026, 9, 27, 10),
+    },
   ]);
   const list = source({ hasNextPage: true });
   Object.defineProperty(list, 'data', {
@@ -123,17 +138,38 @@ it('retains earlier row nodes when a page appends and updates their content', ()
     <RecordItemList
       source={list}
       empty="Nothing"
+      groupByDate
       referencePropertyIds={['reference-id']}
     />
   ));
   const first = screen.getByText('First page');
+  expect(screen.getAllByText('Today')).toHaveLength(1);
   setEntities([
-    { id: 'doc-1', type: 'document', name: 'First page updated' },
-    { id: 'doc-2', type: 'document', name: 'Second page' },
+    {
+      id: 'doc-1',
+      type: 'document',
+      name: 'First page updated',
+      updatedAt: new Date(2026, 9, 27, 10),
+    },
+    {
+      id: 'doc-2',
+      type: 'document',
+      name: 'Same date, next page',
+      updatedAt: new Date(2026, 9, 27, 9),
+    },
+    {
+      id: 'doc-3',
+      type: 'document',
+      name: 'Older page',
+      updatedAt: new Date(2026, 9, 26, 9),
+    },
   ]);
   expect(screen.getByText('First page updated')).toBe(first);
-  screen.getByText('Second page');
-  expect(mounted).toHaveBeenCalledTimes(2);
+  screen.getByText('Same date, next page');
+  screen.getByText('Older page');
+  expect(screen.getAllByText('Today')).toHaveLength(1);
+  expect(screen.getAllByText('Yesterday')).toHaveLength(1);
+  expect(mounted).toHaveBeenCalledTimes(3);
   expect(mounted).toHaveBeenCalledWith(['reference-id']);
   view.unmount();
 });

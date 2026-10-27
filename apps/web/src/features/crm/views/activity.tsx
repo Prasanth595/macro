@@ -64,6 +64,7 @@ export function CrmActivityView(props: { tab: CrmActivityTab }) {
           <RecordItemList
             source={source}
             empty={`No ${props.tab} linked to your CRM companies or people yet.`}
+            groupByDate={props.tab === 'tasks' || props.tab === 'email'}
             referencePropertyIds={[
               SYSTEM_PROPERTY_IDS.COMPANIES,
               SYSTEM_PROPERTY_IDS.CONTACTS,
