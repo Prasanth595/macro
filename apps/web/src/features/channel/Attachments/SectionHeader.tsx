@@ -41,7 +41,7 @@ export function LoadMoreButton(props: {
   return (
     <Button
       variant="outline"
-      size="sm"
+      size="xs"
       class="justify-self-center mt-2 bg-surface"
       onClick={() => props.onLoadMore()}
       disabled={props.isFetching()}
