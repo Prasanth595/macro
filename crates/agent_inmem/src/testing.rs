@@ -169,6 +169,8 @@ pub(crate) struct RecordedTurn {
     pub(crate) instructions: Option<String>,
     /// Who the agent is, as handed to the engine.
     pub(crate) identity: Option<AgentIdentity>,
+    /// The agent whose own key the turn ran on, if any.
+    pub(crate) agent_key: Option<macro_uuid::Uuid>,
 }
 
 impl ScriptedEngine {
@@ -219,6 +221,7 @@ impl TurnEngine for ScriptedEngine {
                     .collect(),
                 instructions: request.instructions.clone(),
                 identity: request.identity.clone(),
+                agent_key: request.agent_key.as_ref().map(|key| key.bot_id),
             });
         let (parts, receiver) = mpsc::channel(64);
         let script = self.script.clone();
