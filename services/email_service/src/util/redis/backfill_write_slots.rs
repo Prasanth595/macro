@@ -22,8 +22,10 @@ mod test;
 /// twelve slots admit roughly 120 messages a second while the database is
 /// healthy, and fewer as it slows down.
 const CAPACITY: u32 = 12;
-/// Frees the slot of a crashed worker. Longer than any write a slot covers.
+/// Frees the slot of a crashed worker. A held slot renews it every
+/// [`RENEW_EVERY`], so a write that outlasts it keeps its slot.
 const LEASE: Duration = Duration::from_secs(120);
+const RENEW_EVERY: Duration = Duration::from_secs(30);
 /// How long a write waits for a slot before its operation is deferred. With the
 /// Gmail gate's wait before it, the handler stays inside the backfill queue's
 /// 60-second visibility timeout.
@@ -51,6 +53,20 @@ static ACQUIRE: LazyLock<redis::Script> = LazyLock::new(|| {
     )
 });
 
+/// Pushes a held lease forward. Returns 1, or 0 when the lease already expired
+/// and was dropped; it is never re-added, so an expired slot can't overfill.
+static RENEW: LazyLock<redis::Script> = LazyLock::new(|| {
+    redis::Script::new(
+        r#"
+        local clock = redis.call('TIME')
+        local now = tonumber(clock[1]) * 1000 + math.floor(tonumber(clock[2]) / 1000)
+        local renewed = redis.call('ZADD', KEYS[1], 'XX', 'CH', now + tonumber(ARGV[2]), ARGV[1])
+        if renewed == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[2]) end
+        return renewed
+        "#,
+    )
+});
+
 /// One set of write slots. Production uses [`SLOTS`]; tests use their own keys.
 struct SlotSet<'a> {
     key: &'a str,
@@ -68,8 +84,9 @@ const SLOTS: SlotSet<'static> = SlotSet {
 
 /// A held backfill write slot.
 ///
-/// Prefer [`BackfillWriteSlot::release`]. A dropped slot is released by a
-/// spawned task, and the lease frees it if the process dies first.
+/// Run the write with [`BackfillWriteSlot::hold`], which keeps the lease alive
+/// and releases the slot afterwards. A dropped slot is released by a spawned
+/// task, and the lease frees it if the process dies first.
 pub struct BackfillWriteSlot {
     /// `None` after an explicit release, so `Drop` does nothing.
     inner: Option<SlotLease>,
@@ -79,9 +96,22 @@ struct SlotLease {
     client: redis::Client,
     key: String,
     id: String,
+    lease: Duration,
 }
 
 impl SlotLease {
+    /// Pushes the lease forward; `false` means it had already expired.
+    async fn renew(&self) -> redis::RedisResult<bool> {
+        let mut connection = self.client.get_multiplexed_async_connection().await?;
+        let renewed: u32 = RENEW
+            .key(&self.key)
+            .arg(&self.id)
+            .arg(self.lease.as_millis().to_string())
+            .invoke_async(&mut connection)
+            .await?;
+        Ok(renewed == 1)
+    }
+
     async fn release(&self) {
         let result: redis::RedisResult<i32> = async {
             let mut connection = self.client.get_multiplexed_async_connection().await?;
@@ -99,6 +129,30 @@ impl SlotLease {
 }
 
 impl BackfillWriteSlot {
+    /// Runs `work` while holding the slot, renewing its lease until the work
+    /// finishes, then returns the slot to the fleet.
+    pub async fn hold<F: Future>(self, work: F) -> F::Output {
+        let mut work = std::pin::pin!(work);
+        let mut renewals =
+            tokio::time::interval_at(tokio::time::Instant::now() + RENEW_EVERY, RENEW_EVERY);
+        let output = loop {
+            tokio::select! {
+                output = &mut work => break output,
+                _ = renewals.tick() => {
+                    if let Some(lease) = &self.inner {
+                        match lease.renew().await {
+                            Ok(true) => {}
+                            Ok(false) => tracing::warn!("a backfill write outlived its slot's lease"),
+                            Err(error) => tracing::warn!(error = %error, "failed to renew a backfill write slot"),
+                        }
+                    }
+                }
+            }
+        };
+        self.release().await;
+        output
+    }
+
     /// Returns the slot to the fleet.
     pub async fn release(mut self) {
         if let Some(lease) = self.inner.take() {
@@ -165,6 +219,7 @@ impl RedisClient {
                         client: self.inner.clone(),
                         key: slots.key.to_string(),
                         id,
+                        lease: slots.lease,
                     }),
                 }));
             }

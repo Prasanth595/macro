@@ -85,8 +85,10 @@ the gateway `/email` prefix.
   (`util/redis/backfill_write_slots.rs`), however many workers and tasks run,
   so a large backfill can't queue enough writers on the primary to slow every
   other query. A write waits up to 10 s for a slot and is then deferred like a
-  rate limit; Redis failing to decide also defers it. Live inbox sync writes
-  take no slot. Keep new bulk backfill writes behind the same slots.
+  rate limit; Redis failing to decide also defers it. Run the write through
+  `BackfillWriteSlot::hold`, which renews the 120 s lease while the write runs,
+  so a stalled write can't lose its slot to a thirteenth writer. Live inbox
+  sync writes take no slot. Keep new bulk backfill writes behind the same slots.
 - `gmail_ops` workers decode both label write forms: single-message
   `ModifyMessageLabels` and `ModifyMessageLabelsBatch` (up to 1,000 messages;
   one `batchModify` from ten messages up, separate `messages.modify` calls

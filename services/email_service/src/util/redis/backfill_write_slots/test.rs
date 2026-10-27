@@ -91,3 +91,89 @@ async fn a_crashed_writers_expired_lease_frees_its_slot() {
     slot.release().await;
     cleanup(&client, &key).await;
 }
+
+fn lease_id(slot: &BackfillWriteSlot) -> String {
+    slot.inner.as_ref().expect("a held slot").id.clone()
+}
+
+#[tokio::test]
+async fn renewing_a_held_slot_pushes_its_lease_forward() {
+    let client = client();
+    let key = unique_key();
+    let slot = client
+        .acquire_write_slot(&slots(&key, 1))
+        .await
+        .unwrap()
+        .expect("the only slot is free");
+    let id = lease_id(&slot);
+    let mut connection = client
+        .inner
+        .get_multiplexed_async_connection()
+        .await
+        .unwrap();
+    // A lease about to expire, as after a long write.
+    let _: i32 = redis::cmd("ZADD")
+        .arg(&key)
+        .arg("XX")
+        .arg(1)
+        .arg(&id)
+        .query_async(&mut connection)
+        .await
+        .unwrap();
+
+    let renewed = slot.inner.as_ref().unwrap().renew().await.unwrap();
+
+    let expires_at: f64 = redis::cmd("ZSCORE")
+        .arg(&key)
+        .arg(&id)
+        .query_async(&mut connection)
+        .await
+        .unwrap();
+    assert!(renewed);
+    assert!(
+        expires_at > 1.0e12,
+        "the lease now ends at a real time ahead of now"
+    );
+    slot.release().await;
+    cleanup(&client, &key).await;
+}
+
+#[tokio::test]
+async fn an_expired_lease_is_not_renewed_back_into_a_full_set() {
+    let client = client();
+    let key = unique_key();
+    let slot = client
+        .acquire_write_slot(&slots(&key, 1))
+        .await
+        .unwrap()
+        .expect("the only slot is free");
+    let mut connection = client
+        .inner
+        .get_multiplexed_async_connection()
+        .await
+        .unwrap();
+    // The lease expired and another writer took the slot.
+    let _: i32 = redis::cmd("ZREM")
+        .arg(&key)
+        .arg(lease_id(&slot))
+        .query_async(&mut connection)
+        .await
+        .unwrap();
+    let other = client
+        .acquire_write_slot(&slots(&key, 1))
+        .await
+        .unwrap()
+        .expect("the expired slot is free again");
+
+    let renewed = slot.inner.as_ref().unwrap().renew().await.unwrap();
+
+    let held: i32 = redis::cmd("ZCARD")
+        .arg(&key)
+        .query_async(&mut connection)
+        .await
+        .unwrap();
+    assert!(!renewed);
+    assert_eq!(held, 1, "only the new writer holds the slot");
+    other.release().await;
+    cleanup(&client, &key).await;
+}
