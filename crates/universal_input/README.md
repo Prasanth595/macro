@@ -31,9 +31,9 @@ An incomplete pair fails at startup; absent/blank pairs retain Nemotron.
 
 The domain's fallback extractor calls Nemotron Lightning 3.5 through Fireworks
 when Clairic is unconfigured, fails, times out after five seconds, or returns
-malformed/truncated answers, uncertain positive values, or incomplete outgoing
-bodies. Nemotron still requires `FIREWORK_API_KEY` from
-the existing shared-AI configuration, with reasoning disabled and native
+malformed/truncated answers, uncertain positive values, incomplete outgoing
+bodies, or search fields that reuse the same source occurrences. Nemotron still
+requires `FIREWORK_API_KEY` from the existing shared-AI configuration, with reasoning disabled and native
 JSON-schema enforcement. Rate limits fall back immediately instead of retrying
 the preview endpoint. Usage is recorded separately for each provider that reports
 tokens, including unusable Clairic answers. The pricing seed is $0.10 per million
@@ -72,6 +72,10 @@ while typing continues; manual choices and edits invalidate older predictions.
 Cmd/Ctrl+Shift+Right cycles ranked types, and Left cycles backward. Submission
 waits for the current draft to finish updating. Unit tests and the browser fixture use controlled provider
 responses; they do not establish live model accuracy or latency.
+
+For repeatable comparisons, use the [fixed-clock behavior baseline](eval/README.md).
+It records actual intent/field mismatches and compares saved reports without
+submitting any actions.
 
 Before evaluating a configured stack, try these drafts without submitting them:
 

@@ -54,6 +54,8 @@ The comparison lists newly failing and newly passing cases. Exit status is 1
 when any expectation fails; expected mismatches should be reviewed rather than
 rewriting the baseline to fit the current model. This is an opt-in evaluation,
 not a network-dependent unit-test gate.
+Provider outputs can vary between runs; compare several reports before attributing
+a changed case to a code change.
 
 Test the comparison logic without a backend or model credentials:
 
