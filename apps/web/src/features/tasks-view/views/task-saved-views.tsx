@@ -375,9 +375,13 @@ function TaskSavedViewRows(props: {
           <Show
             when={!creating() && !views().loading() && items()?.length === 0}
           >
-            <p class="px-3 py-2 text-xs text-ink-muted">
-              Save a set of filters to return to it.
-            </p>
+            <div class="space-y-1 px-3 py-2 text-xs text-ink-muted">
+              <p>No saved views yet</p>
+              <p>
+                Set up your filters, layout, grouping, and sort order, then
+                choose Save view to keep them here.
+              </p>
+            </div>
           </Show>
           <Show when={views().error()}>
             <Button
