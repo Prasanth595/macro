@@ -8,14 +8,21 @@
  * trialing license — a success URL alone is not proof of a subscription.
  */
 import type { AnalyticsInterface } from './analytics';
-import { SUBSCRIPTION_START_VALUE } from './leadValues';
+import {
+  SUBSCRIPTION_START_VALUE_BY_TIER,
+  SUBSCRIPTION_START_VALUE_DEFAULT,
+} from './leadValues';
 
+/** `tier` is the checkout's `type` return param; unknown tiers use the default value. */
 export function trackSubscriptionStart(
   analytics: Pick<AnalyticsInterface, 'trackGoogleConversion'>,
-  userId: string
+  userId: string,
+  tier: string | undefined
 ) {
   analytics.trackGoogleConversion('subscription_start', {
-    value: SUBSCRIPTION_START_VALUE,
+    value:
+      (tier ? SUBSCRIPTION_START_VALUE_BY_TIER[tier] : undefined) ??
+      SUBSCRIPTION_START_VALUE_DEFAULT,
     currency: 'USD',
     // Onboarding and the in-app paywall can both confirm the same checkout;
     // Google dedupes on transaction_id, so the user counts once.

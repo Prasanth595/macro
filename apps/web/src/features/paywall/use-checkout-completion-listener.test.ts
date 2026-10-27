@@ -111,6 +111,20 @@ describe('checkout completion query changes', () => {
     expect(pending()).toBe(false);
   });
 
+  it('values a Max checkout above a Pro trial', async () => {
+    mocks.setSearch('?subscriptionSuccess=true&type=max');
+    const pending = mount();
+    await vi.waitFor(() => expect(pending()).toBe(false));
+    expect(mocks.trackGoogleConversion).toHaveBeenCalledExactlyOnceWith(
+      'subscription_start',
+      {
+        value: 1000,
+        currency: 'USD',
+        transaction_id: 'subscription_start:macro|ada@acme.com',
+      }
+    );
+  });
+
   it('retains initial-query refresh behavior', async () => {
     mocks.setSearch('?subscriptionSuccess=true&type=pro');
     const pending = mount();

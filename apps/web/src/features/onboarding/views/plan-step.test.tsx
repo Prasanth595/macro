@@ -123,7 +123,7 @@ describe('live trial checkout', () => {
       data: { type: 'max' },
     });
     expect(fake.calls()).toContain(
-      'trackSubscriptionStarted:macro|ada@acme.com'
+      'trackSubscriptionStarted:macro|ada@acme.com:max'
     );
     expect(checkout).not.toHaveBeenCalled();
   });

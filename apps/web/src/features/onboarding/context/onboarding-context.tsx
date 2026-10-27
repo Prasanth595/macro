@@ -144,7 +144,7 @@ export type OnboardingContext = {
   createGithubStars(): Accessor<number | undefined>;
   track: TrackOnboarding;
   /** Reports a server-confirmed subscription from checkout to ad platforms. */
-  trackSubscriptionStarted(viewerId: string): void;
+  trackSubscriptionStarted(viewerId: string, tier: PaidPlanTier): void;
   notifyFailure(message: string): void;
 };
 

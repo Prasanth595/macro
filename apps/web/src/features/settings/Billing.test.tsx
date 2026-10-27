@@ -74,6 +74,7 @@ it.each([true, false])(
     fireEvent.click(screen.getByRole('button', { name: 'Get Pro' }));
     expect(mocks.checkout).toHaveBeenCalledWith({
       plan: 'premium',
+      type: 'premium',
       onboardingTrial: eligible,
     });
   }
@@ -100,6 +101,7 @@ it.each(['loading', 'error'])(
     fireEvent.click(screen.getByRole('button', { name: 'Get Max' }));
     expect(mocks.checkout).toHaveBeenCalledWith({
       plan: 'max',
+      type: 'max',
       onboardingTrial: false,
     });
   }

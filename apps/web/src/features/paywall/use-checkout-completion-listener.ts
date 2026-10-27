@@ -35,7 +35,13 @@ export function useCheckoutCompletionListener() {
         const licenseStatus = result.data?.licenseStatus;
         if (licenseStatus === 'active' || licenseStatus === 'trialing') {
           if (result.data)
-            trackSubscriptionStart(analytics, result.data.userId);
+            trackSubscriptionStart(
+              analytics,
+              result.data.userId,
+              typeof searchParams.type === 'string'
+                ? searchParams.type
+                : undefined
+            );
           break;
         }
         if (attempt < CHECKOUT_REFRESH_ATTEMPTS - 1) {

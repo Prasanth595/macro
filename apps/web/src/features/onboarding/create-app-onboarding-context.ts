@@ -294,8 +294,8 @@ export function createAppOnboardingContext(): OnboardingContext {
       return () => (queryReadyGate(stars) ? stars.data : undefined);
     },
     track: (event, data) => analytics.track(event, data),
-    trackSubscriptionStarted: (viewerId) =>
-      trackSubscriptionStart(analytics, viewerId),
+    trackSubscriptionStarted: (viewerId, tier) =>
+      trackSubscriptionStart(analytics, viewerId, tier),
     notifyFailure: (message) => toast.failure(message),
   };
 }

@@ -55,7 +55,8 @@ export function createPlanConfirmation(
         if (disposed) return;
         if (viewer.t === 'signed-in' && viewer.viewer.licensed) {
           // Members who were already paid didn't just check out.
-          if (returned) context.trackSubscriptionStarted(viewer.viewer.id);
+          if (returned)
+            context.trackSubscriptionStarted(viewer.viewer.id, tier);
           await options.onConfirmed(tier);
           return;
         }
