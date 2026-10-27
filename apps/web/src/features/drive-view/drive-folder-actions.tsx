@@ -4,9 +4,11 @@ import {
   makeDeleteAction,
   makeFavoriteAction,
 } from '@app/features/next-soup/actions';
+import { t } from '@app/lib/i18n';
 import { MenuItem, MenuSeparator } from '@core/component/ContextMenu';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { ProjectEntity } from '@entity';
 import { invalidateProjects } from '@queries/storage/projects';
 import { Show } from 'solid-js';
@@ -31,7 +33,7 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
   const deleteFolder = makeDeleteAction({
     userId,
 
-    onDeleted: () => void invalidateProjects(),
+    onDeleted: () => fireAndForget(invalidateProjects(), 'drive-view'),
   });
 
   const editFolder = (view: 'rename' | 'moveToProject') => {
@@ -40,11 +42,15 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
       entities: [entity()],
 
       onFinish: () => {
-        void invalidateProjects();
-        toast.success(view === 'rename' ? 'Renamed' : 'Moved to folder');
+        fireAndForget(invalidateProjects(), 'drive-view');
+        toast.success(
+          view === 'rename'
+            ? t('entityActions.toastRenamed')
+            : t('entityActions.toastMovedToFolder')
+        );
       },
 
-      onError: () => toast.failure('Failed to update folder'),
+      onError: () => toast.failure(t('entityActions.toastFolderUpdateFailed')),
     });
   };
 
@@ -52,26 +58,39 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
     <>
       <MenuSeparator />
       <Show when={entity().ownerId === userId()}>
-        <MenuItem text="Rename" onClick={() => editFolder('rename')} />
+        <MenuItem
+          text={t('entityActions.rename')}
+          onClick={() => editFolder('rename')}
+        />
       </Show>
       <MenuItem
-        text={favorite.isFavorited(entity()) ? 'Unfavorite' : 'Favorite'}
-        onClick={() => void favorite.execute([entity()])}
+        text={
+          favorite.isFavorited(entity())
+            ? t('entityActions.unfavorite')
+            : t('entityActions.favorite')
+        }
+        onClick={() =>
+          fireAndForget(favorite.execute([entity()]), 'drive-view')
+        }
       />
       <MenuItem
-        text="Move to folder"
+        text={t('entityActions.moveToFolder')}
         onClick={() => editFolder('moveToProject')}
       />
       <MenuItem
-        text="Copy Link"
-        onClick={() => void copyLink.execute([entity()])}
+        text={t('entityActions.copyLink')}
+        onClick={() =>
+          fireAndForget(copyLink.execute([entity()]), 'drive-view')
+        }
       />
       <Show when={deleteFolder.canExecute(entity())}>
         <MenuSeparator />
         <MenuItem
-          text="Delete"
+          text={t('entityActions.delete')}
           class="text-failure-ink"
-          onClick={() => void deleteFolder.execute([entity()])}
+          onClick={() =>
+            fireAndForget(deleteFolder.execute([entity()]), 'drive-view')
+          }
         />
       </Show>
     </>

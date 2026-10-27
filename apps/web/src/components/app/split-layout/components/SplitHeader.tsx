@@ -7,25 +7,29 @@ import type { DriveState } from '@app/features/drive-view/core/types';
 import { useSoup } from '@app/features/next-soup/soup-context';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { projectRouteId } from '@app/features/projects/core/route';
+import { t } from '@app/lib/i18n';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { type BlockName, NonDocumentBlockTypes } from '@core/block';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { type EntityDragEvent, isEntityDragEvent } from '@entity';
-import CollapseIcon from '@phosphor/arrows-in.svg';
-import ExpandIcon from '@phosphor/arrows-out.svg';
-import CaretDown from '@phosphor/caret-down.svg';
-import CaretLeft from '@phosphor/caret-left.svg';
-import CaretUp from '@phosphor/caret-up.svg';
-import CloseIcon from '@phosphor/x.svg';
+import CollapseIcon from '@icon/system/regular/arrows-in.svg';
+import ExpandIcon from '@icon/system/regular/arrows-out.svg';
+import CaretDown from '@icon/system/regular/caret-down.svg';
+import CaretLeft from '@icon/system/regular/caret-left.svg';
+import CaretUp from '@icon/system/regular/caret-up.svg';
+import CloseIcon from '@icon/system/regular/x.svg';
 import { mergeRefs } from '@solid-primitives/refs';
 import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
 import { Button, cn } from '@ui';
 import {
   createMemo,
+  onCleanup,
   type ParentProps,
   type Setter,
   Show,
@@ -33,7 +37,7 @@ import {
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { match, P } from 'ts-pattern';
-import { splitBackInterceptor } from '../back-interceptor';
+import { runSplitBack } from '../back-interceptor';
 import { SplitLayoutContext, SplitPanelContext } from '../context';
 import type { SplitContent } from '../layoutManager';
 import {
@@ -126,24 +130,27 @@ function SplitBackButton() {
       square
       size="sm"
       class="p-1 touch:active:bg-transparent"
-      label="Go Back"
+      label={t('splitMenu.goBack')}
       hotkey={TOKENS.split.go.back}
       disabled={
         !context.handle.canGoBack() &&
         !hasAgentsBackFallback(context.handle.content())
       }
-      onClick={() => {
-        if (splitBackInterceptor()?.()) return;
-        if (
-          !context.handle.canGoBack() &&
-          hasAgentsBackFallback(context.handle.content())
-        ) {
-          context.handle.replace({
-            next: { type: 'component', id: 'agents' },
-            mergeHistory: true,
-          });
-        } else context.handle.goBack();
-      }}
+      onClick={() =>
+        runSplitBack({
+          canGoBack: () =>
+            context.handle.canGoBack() ||
+            hasAgentsBackFallback(context.handle.content()),
+          goBack: () => {
+            if (!context.handle.canGoBack()) {
+              context.handle.replace({
+                next: { type: 'component', id: 'agents' },
+                mergeHistory: true,
+              });
+            } else context.handle.goBack();
+          },
+        })
+      }
     >
       <CaretLeft />
     </Button>
@@ -159,7 +166,9 @@ function _SplitSpotlightButton() {
       <Button
         class="p-1 hidden"
         label={
-          context.handle.isSpotLight() ? 'Minimize Split' : 'Spotlight Split'
+          context.handle.isSpotLight()
+            ? t('splitMenu.minimizeSplit')
+            : t('splitMenu.spotlightSplit')
         }
         hotkey={TOKENS.window.spotlight.toggle}
         onClick={() => context.handle.toggleSpotlight()}
@@ -182,14 +191,17 @@ function SplitCloseButton() {
   const label = createMemo(() => {
     const isOnlySplit = !shouldShowSplitCloseButton(layout.manager);
     const isNotUnifiedList = !isListViewID(context.handle.content().id);
-    return isOnlySplit && isNotUnifiedList ? 'Return to list' : 'Close';
+    return isOnlySplit && isNotUnifiedList
+      ? t('splitMenu.returnToList')
+      : t('splitMenu.close');
   });
 
   return (
     <Show
       when={
-        shouldShowSplitCloseButton(layout.manager) ||
-        !isListViewID(context.handle.content().id)
+        (isTouchDevice() && shouldShowSplitCloseButton(layout.manager)) ||
+        (!shouldShowSplitCloseButton(layout.manager) &&
+          !isListViewID(context.handle.content().id))
       }
     >
       <Button
@@ -303,12 +315,15 @@ function SoupNavigationButtons() {
     const next = soup.navigate.by(offset, { skipGroupHeaders: true });
     if (!next) return;
 
-    void openEntityInSplitFromUnifiedList(next.row.original, {
-      splitHandle: context.handle,
-      mergeHistory: true,
-      referredFrom: navigationReferredFrom(),
-      notificationSource,
-    });
+    fireAndForget(
+      openEntityInSplitFromUnifiedList(next.row.original, {
+        splitHandle: context.handle,
+        mergeHistory: true,
+        referredFrom: navigationReferredFrom(),
+        notificationSource,
+      }),
+      'open-entity-in-split'
+    );
   };
 
   return (
@@ -331,28 +346,30 @@ export function ListNavigationButtons(props: {
   class?: string;
 }) {
   return (
-    <div class={cn('flex items-center gap-0.5', props.class)}>
-      <Button
-        size="icon-md"
-        label="Previous item"
-        hotkey={TOKENS.entity.step.start}
-        disabled={!props.navigation.canPrevious()}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={props.navigation.previous}
-      >
-        <CaretUp class="size-4" />
-      </Button>
-      <Button
-        size="icon-md"
-        label="Next item"
-        hotkey={TOKENS.entity.step.end}
-        disabled={!props.navigation.canNext()}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={props.navigation.next}
-      >
-        <CaretDown class="size-4" />
-      </Button>
-    </div>
+    <HeaderActionGroup label={t('splitMenu.itemNavigation')}>
+      <div class={cn('flex items-center touch:gap-0.5', props.class)}>
+        <Button
+          size="icon-md"
+          label={t('splitMenu.previousItem')}
+          hotkey={TOKENS.entity.step.start}
+          disabled={!props.navigation.canPrevious()}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={props.navigation.previous}
+        >
+          <CaretUp class="size-4" />
+        </Button>
+        <Button
+          size="icon-md"
+          label={t('splitMenu.nextItem')}
+          hotkey={TOKENS.entity.step.end}
+          disabled={!props.navigation.canNext()}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={props.navigation.next}
+        >
+          <CaretDown class="size-4" />
+        </Button>
+      </div>
+    </HeaderActionGroup>
   );
 }
 
@@ -365,6 +382,15 @@ export function SplitHeader(props: {
   if (!panel) {
     throw new Error('<SplitHeader> must be used within a <SplitLayout>');
   }
+
+  const hideMobileBack = () => {
+    const content = panel.handle.content();
+    return (
+      isListViewID(content.id) ||
+      (content.type === 'component' &&
+        (content.id === 'booking-links' || content.id === 'external'))
+    );
+  };
 
   const droppableId = `split-header-${panel.handle.id}`;
   const droppable = createDroppable(droppableId, {
@@ -395,11 +421,14 @@ export function SplitHeader(props: {
     if (!next) return;
     if (current.type === next.type && current.id === next.id) return;
 
-    void openEntityInSplitFromUnifiedList(data, {
-      splitHandle: panel.handle,
-      allowDuplicate: true,
-      notificationSource,
-    });
+    fireAndForget(
+      openEntityInSplitFromUnifiedList(data, {
+        splitHandle: panel.handle,
+        allowDuplicate: true,
+        notificationSource,
+      }),
+      'open-entity-in-split'
+    );
   });
 
   return (
@@ -429,7 +458,7 @@ export function SplitHeader(props: {
                 >
                   <div class="max-w-[min(28rem,calc(100%-3rem))] min-w-0 bg-surface border border-edge rounded-full shadow-lg shadow-drop-shadow px-4 py-2 flex items-center gap-2 font-sans text-xs text-ink">
                     <span class="shrink-0 text-ink-muted">
-                      Open in this split
+                      {t('splitMenu.openInThisSplit')}
                     </span>
                   </div>
                 </div>
@@ -452,19 +481,17 @@ export function SplitHeader(props: {
               </div>
             }
           >
-            {/* Mobile back island. List views never render the back button
-                (their header hosts the filter pills instead), so the island
-                hides for them even when history allows going back. */}
+            {/* List views and Scheduling use navigation islands instead of Back. */}
             <HeaderIsland
               class={cn(
                 'relative gap-0 px-1',
                 ((!panel.handle.canGoBack() &&
                   !hasAgentsBackFallback(panel.handle.content())) ||
-                  isListViewID(panel.handle.content().id)) &&
+                  hideMobileBack()) &&
                   'hidden'
               )}
             >
-              <Show when={!isListViewID(panel.handle.content().id)}>
+              <Show when={!hideMobileBack()}>
                 <SplitBackButton />
               </Show>
             </HeaderIsland>
@@ -481,14 +508,24 @@ export function SplitHeader(props: {
             contentClass="h-full flex items-center gap-0.5 pl-2 touch:pl-0 touch:gap-2 touch:max-w-full"
             contentRef={(element) => {
               panel.layoutRefs.headerLeft = element;
+              onCleanup(() => {
+                if (panel.layoutRefs.headerLeft === element) {
+                  panel.layoutRefs.headerLeft = undefined;
+                }
+              });
             }}
           />
 
-          <div class="header-actions h-full grow shrink flex items-center justify-end gap-1 px-2 touch:px-0 touch:gap-2">
+          <div class="header-actions h-full grow shrink flex items-center justify-end gap-2 px-2 touch:px-0">
             <div
               class="contents"
               ref={(ref) => {
                 panel.layoutRefs.headerRight = ref;
+                onCleanup(() => {
+                  if (panel.layoutRefs.headerRight === ref) {
+                    panel.layoutRefs.headerRight = undefined;
+                  }
+                });
               }}
             />
             <SoupNavigationButtons />

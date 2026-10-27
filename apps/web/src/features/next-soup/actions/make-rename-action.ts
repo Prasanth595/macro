@@ -1,6 +1,8 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
+import { t } from '@app/lib/i18n';
 import { toast } from '@core/component/Toast/Toast';
-import type { EntityData } from '@entity';
+import { fireAndForget } from '@core/util/fireAndForget';
+import { canEditChannelIdentity, type EntityData } from '@entity/types/entity';
 import { restoreSoupFocus } from '../utils';
 import type { EntityActionListState } from './entity-action-context';
 
@@ -24,10 +26,7 @@ export const makeRenameAction = (options: MakeRenameOptions) => {
     }
     if (entity.type === 'foreign') return false;
 
-    if (entity.type === 'channel') {
-      if (entity.channelType === 'direct_message') return false;
-      return entity.isParticipant !== false;
-    }
+    if (entity.type === 'channel') return canEditChannelIdentity(entity);
 
     return entity.ownerId === userId();
   };
@@ -38,7 +37,9 @@ export const makeRenameAction = (options: MakeRenameOptions) => {
       entities,
       onFinish: () => {
         toast.success(
-          entities.length > 1 ? `Renamed ${entities.length} items` : 'Renamed'
+          entities.length > 1
+            ? t('entityActions.toastRenamedCount', { count: entities.length })
+            : t('entityActions.toastRenamed')
         );
       },
     });
@@ -55,18 +56,20 @@ export const makeRenameAction = (options: MakeRenameOptions) => {
       entities,
       onFinish: () => {
         toast.success(
-          entities.length > 1 ? `Renamed ${entities.length} items` : 'Renamed'
+          entities.length > 1
+            ? t('entityActions.toastRenamedCount', { count: entities.length })
+            : t('entityActions.toastRenamed')
         );
         if (firstEntity) {
           soup.focus.set(firstEntity.id);
         }
-        restoreSoupFocus(firstEntity?.id);
+        fireAndForget(restoreSoupFocus(firstEntity?.id), 'entity-actions');
       },
       onCancel: () => {
         if (firstEntity) {
           soup.focus.set(firstEntity.id);
         }
-        restoreSoupFocus(firstEntity?.id);
+        fireAndForget(restoreSoupFocus(firstEntity?.id), 'entity-actions');
       },
     });
   };

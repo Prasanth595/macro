@@ -1,3 +1,4 @@
+import type { LocalDraft } from '@app/features/email-compose/core/local-draft';
 import type {
   CrmCompanyEntity,
   CrmContactEntity,
@@ -26,9 +27,11 @@ import {
 } from '@tanstack/solid-query';
 import {
   createComponent,
+  createMemo,
   createRenderEffect,
   createRoot,
   createSignal,
+  untrack,
 } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useQuickAccess } from './context';
@@ -41,6 +44,14 @@ import {
   type QuickAccessContextValue,
   type QuickAccessListOptions,
 } from './types';
+
+const localDrafts = vi.hoisted(() => ({ read: (): LocalDraft[] => [] }));
+vi.mock('@queries/email/local-draft-source', async () => ({
+  createLocalDraftSource: (enabled: () => boolean) => ({
+    drafts: () => (enabled() ? localDrafts.read() : []),
+    ready: () => true,
+  }),
+}));
 
 const mocks = vi.hoisted(() => ({
   search: vi.fn<(args: SearchCacheArgs) => Promise<SearchCachePage>>(),
@@ -60,6 +71,7 @@ const mocks = vi.hoisted(() => ({
   initiatives: [] as InitiativeEntity[],
   databases: [] as ListedDatabase[],
   crmEnabled: (): boolean => true,
+  graphqlEnabled: (): boolean => true,
   cacheEnabled: true,
   queries: {} as Partial<
     Record<
@@ -68,14 +80,25 @@ const mocks = vi.hoisted(() => ({
     >
   >,
 }));
+vi.mock('@core/context/user', () => ({
+  useIsAuthenticated: () => () => true,
+  useUserId: () => () => 'viewer',
+}));
+
 vi.mock('@core/constant/featureFlags', () => ({
   enableCrm: {},
   enableDatabases: {},
   enableForms: {},
+  enableGraphqlSoup: { key: 'enable-graphql-soup' },
   isFeatureEnabled: () => mocks.crmEnabled(),
 }));
 vi.mock('@app/lib/analytics/posthog', () => ({
-  useFeatureFlag: () => () => ({ enabled: mocks.crmEnabled() }),
+  useFeatureFlag: (flag: { key?: string }) => () => ({
+    enabled:
+      flag.key === 'enable-graphql-soup'
+        ? mocks.graphqlEnabled()
+        : mocks.crmEnabled(),
+  }),
 }));
 vi.mock('@core/constant/allBlocks', () => ({
   itemToSafeName: (item: { name: string }) => item.name,
@@ -170,9 +193,6 @@ vi.mock('@queries/soup/recently-viewed', () => ({
   useRecentlyViewedSoupQuery: () =>
     mocks.queries['recently-viewed']?.() ?? { data: [], isSuccess: true },
 }));
-vi.mock('@queries/storage/instructions-md', () => ({
-  useInstructionsMdIdQuery: () => ({ data: undefined }),
-}));
 vi.mock('@queries/storage/databases', () => ({
   useDatabasesQuery: () => ({ data: mocks.databases, isSuccess: true }),
 }));
@@ -183,12 +203,15 @@ vi.mock('@service-storage/util/filename', () => ({
   formatDocumentName: (name: string) => name,
 }));
 vi.mock('@service-storage/graphql-soup', () => ({
-  getGraphqlSoupCacheHost: () => ({
-    search: mocks.search,
-    onCacheChanged: mocks.onCacheChanged,
-    readRecordsByKeys: mocks.readRecordsByKeys,
-    disabled: !mocks.cacheEnabled,
-  }),
+  getGraphqlSoupCacheHost: () =>
+    untrack(mocks.graphqlEnabled)
+      ? {
+          search: mocks.search,
+          onCacheChanged: mocks.onCacheChanged,
+          readRecordsByKeys: mocks.readRecordsByKeys,
+          disabled: !mocks.cacheEnabled,
+        }
+      : undefined,
 }));
 
 let dispose: (() => void) | undefined;
@@ -221,6 +244,7 @@ function page(start: number, count: number, more = false): SearchCachePage {
   };
 }
 beforeEach(() => {
+  localDrafts.read = () => [];
   vi.clearAllMocks();
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
   mocks.history = [];
@@ -232,6 +256,7 @@ beforeEach(() => {
   mocks.initiatives = [];
   mocks.databases = [];
   mocks.crmEnabled = () => true;
+  mocks.graphqlEnabled = () => true;
   mocks.cacheEnabled = true;
   mocks.queries = {};
   mocks.readRecordsByKeys.mockReset().mockResolvedValue({
@@ -392,6 +417,75 @@ function renderRetainedList(
 }
 
 describe('Quick Access source integration', () => {
+  it('starts cached email search when the GraphQL flag arrives after mounting', async () => {
+    const [enabled, setEnabled] = createSignal(false);
+    mocks.graphqlEnabled = enabled;
+    mocks.search.mockResolvedValue({
+      documents: [
+        {
+          profile: 'quick-access-v1',
+          recordKey: 'GraphqlSoupEmailThread:thread-1',
+          bucket: 'email',
+          searchText: 'weekly update | teo | teo@example.com',
+          timestampMs: 1,
+          sourceHash: 'email-hash',
+        },
+      ],
+      nextCursor: null,
+    });
+    mocks.readRecordsByKeys.mockResolvedValue({
+      revision: INITIAL_CACHE_REVISION,
+      records: [
+        {
+          recordKey: 'GraphqlSoupEmailThread:thread-1',
+          record: {
+            __typename: 'GraphqlSoupEmailThread',
+            id: 'thread-1',
+            name: 'Weekly update',
+            ownerId: 'owner',
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+            viewedAt: null,
+            senderName: 'Teo',
+            senderEmail: 'teo@example.com',
+            linkId: 'inbox',
+            isRead: true,
+            isDraft: false,
+            isImportant: false,
+            inboxVisible: true,
+          },
+        },
+      ],
+    });
+    const { source, list } = setup((source) => ({
+      source,
+      // The shared mobile/desktop entity source owns lists in a memo.
+      list: createMemo(() =>
+        source.useList({
+          buckets: ['email'],
+          searchTerm: () => 'teo',
+        })
+      ),
+    }));
+    expect(source.usesSearchProjection()).toBe(false);
+    expect(list().items()).toEqual([]);
+    expect(mocks.search).not.toHaveBeenCalled();
+
+    setEnabled(true);
+    await vi.waitFor(() => {
+      expect(source.usesSearchProjection()).toBe(true);
+      expect(
+        list()
+          .items()
+          .map((item) => item.id)
+      ).toEqual(['thread-1']);
+    });
+
+    setEnabled(false);
+    expect(source.usesSearchProjection()).toBe(false);
+    expect(list().items()).toEqual([]);
+  });
+
   it('keeps cached document order and fuzzy matches stable across typing and backspacing', async () => {
     const names = [
       'Seamus snip',
@@ -1338,4 +1432,107 @@ describe('database command discovery', () => {
     });
     expect(mocks.history).toEqual([]);
   });
+});
+
+it('finds an unqueued first-use draft by title without a cached thread and retires it after sync', async () => {
+  const [copies, setCopies] = createSignal<LocalDraft[]>([
+    {
+      key: 'local-draft',
+      draftId: 'local-draft',
+      threadId: 'local-thread',
+      accountId: 'viewer',
+      generation: 'generation',
+      revision: 1,
+      acknowledgedRevision: 0,
+      content: { subject: 'Offline receipt' },
+      attachments: [],
+      status: 'dirty',
+      updatedAt: 1,
+    },
+  ]);
+  localDrafts.read = copies;
+  const [term, setTerm] = createSignal('receipt');
+  const { source, list, notes } = setup((source) => ({
+    source,
+    list: source.useList({ buckets: ['email'], searchTerm: term }),
+    notes: source.useList({ buckets: ['note'], searchTerm: term }),
+  }));
+  expect(list.items().map((item) => item.id)).toEqual(['local-thread']);
+  expect(source.getById('local-thread')?.data.name).toBe('Offline receipt');
+  expect(notes.items()).toEqual([]);
+  setTerm('unrelated');
+  expect(list.items()).toEqual([]);
+  setTerm('receipt');
+  setCopies([{ ...copies()[0], status: 'synced', acknowledgedRevision: 1 }]);
+  expect(list.items()).toEqual([]);
+  expect(source.getById('local-thread')).toBeUndefined();
+});
+
+it('keeps a cached sender hit when the same thread has an unmatched local draft', async () => {
+  localDrafts.read = () => [
+    {
+      key: 'reply',
+      draftId: 'reply',
+      threadId: 'thread-1',
+      accountId: 'viewer',
+      generation: 'generation',
+      revision: 1,
+      acknowledgedRevision: 0,
+      content: { subject: 'Weekly update' },
+      attachments: [],
+      status: 'dirty',
+      updatedAt: 1,
+    },
+  ];
+  mocks.search.mockResolvedValue({
+    documents: [
+      {
+        profile: 'quick-access-v1',
+        recordKey: 'GraphqlSoupEmailThread:thread-1',
+        bucket: 'email',
+        searchText: 'weekly update | teo | teo@example.com',
+        timestampMs: 1,
+        sourceHash: 'hash',
+      },
+    ],
+    nextCursor: null,
+  });
+  mocks.readRecordsByKeys.mockResolvedValue({
+    revision: INITIAL_CACHE_REVISION,
+    records: [
+      {
+        recordKey: 'GraphqlSoupEmailThread:thread-1',
+        record: {
+          __typename: 'GraphqlSoupEmailThread',
+          id: 'thread-1',
+          name: 'Weekly update',
+          ownerId: 'viewer',
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+          viewedAt: null,
+          senderName: 'Teo',
+          senderEmail: 'teo@example.com',
+          linkId: 'inbox',
+          isRead: true,
+          isDraft: false,
+          isImportant: false,
+          inboxVisible: true,
+        },
+      },
+    ],
+  });
+  const loaded = Promise.withResolvers<void>();
+  const list = setup((source) => {
+    const list = source.useList({
+      buckets: ['email'],
+      searchTerm: () => 'teo',
+    });
+    createRenderEffect(() => {
+      if (!list.isLoading()) loaded.resolve();
+    });
+    return list;
+  });
+  await loaded.promise;
+  expect(list.items().map((item) => item.id)).toEqual(['thread-1']);
+  expect(list.items()[0].searchText).toContain('teo@example.com');
 });

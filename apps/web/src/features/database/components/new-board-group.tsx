@@ -1,5 +1,6 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import EmptyStateNoFilterMatchGraphic from '@design/empty-state-no-filter-match.svg';
-import PlusIcon from '@phosphor/plus.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
 import type { DatabaseOpsError } from '@service-storage/databases';
 import { Button } from '@ui/components/Button';
 import type { Result } from 'neverthrow';
@@ -85,7 +86,10 @@ export function NewBoardGroup(props: {
           </>
         }
       >
-        <form class="w-full text-left" onSubmit={(event) => void save(event)}>
+        <form
+          class="w-full text-left"
+          onSubmit={(event) => fireAndForget(save(event), 'database')}
+        >
           <p class="mb-2 block text-xs font-medium text-ink-muted">
             New {props.column.name.toLowerCase()} group
           </p>

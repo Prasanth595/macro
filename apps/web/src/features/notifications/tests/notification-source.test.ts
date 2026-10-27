@@ -14,7 +14,7 @@ import {
   createNotificationSource,
   setDoneOverride,
 } from '../notification-source';
-import type { UnifiedNotification } from '../types';
+import { type UnifiedNotification, unifiedNotificationSchema } from '../types';
 
 const mocks = vi.hoisted(() => ({
   graphqlCacheEnabled: true,
@@ -783,6 +783,7 @@ describe('createNotificationSource', () => {
         isFetching: false,
       };
       let runs = 0;
+      let first: Promise<unknown> | undefined;
       const { source, dispose } = createRoot((dispose) => {
         const source = createNotificationSource(
           {} as ConnectionGatewayWebsocket
@@ -791,9 +792,10 @@ describe('createNotificationSource', () => {
           runs += 1;
           // Bound a regression so an accidental subscription cannot loop the test.
           if (runs > 1) return;
-          void (operation === 'seen'
-            ? source.bulkMarkAsRead([row])
-            : source.bulkMarkAsDone([row]));
+          first =
+            operation === 'seen'
+              ? source.bulkMarkAsRead([row])
+              : source.bulkMarkAsDone([row]);
         });
         return { source, dispose };
       });
@@ -802,6 +804,7 @@ describe('createNotificationSource', () => {
         await (operation === 'seen'
           ? source.bulkMarkAsRead([row])
           : source.bulkMarkAsDone([row]));
+        await first;
         await Promise.resolve();
         expect(runs).toBe(1);
       } finally {
@@ -1188,4 +1191,23 @@ describe('createNotificationSource', () => {
       dispose();
     }
   });
+});
+
+it('accepts the independent WhatsApp notification through the generated wire schema', () => {
+  const row: UnifiedNotification = {
+    ...notification(
+      '019a061e-0000-7000-8000-000000000003',
+      'whatsapp_group',
+      '019a061e-0000-7000-8000-000000000001'
+    ),
+    notification_event_type: 'whatsapp_group_message',
+    notification_metadata: {
+      tag: 'whatsapp_group_message',
+      content: {
+        groupName: 'Design Crit',
+        messageId: '019a061e-0000-7000-8000-000000000002',
+      },
+    },
+  };
+  expect(unifiedNotificationSchema.safeParse(row).success).toBe(true);
 });

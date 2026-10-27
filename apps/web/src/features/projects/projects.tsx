@@ -3,6 +3,7 @@ import {
   makeCopyEntityIdAction,
   makeCopyLinkAction,
 } from '@app/features/next-soup/actions';
+import { TasksCreateAction } from '@app/features/tasks-view/tasks-create-action';
 import { ShowFeatureFlag, useFeatureFlag } from '@app/lib/analytics/posthog';
 import { createSearchParams } from '@app/lib/split-router';
 import { globalSplitManager } from '@app/signal/splitLayout';
@@ -13,6 +14,8 @@ import {
 } from '@components/app/split-layout/layoutUtils';
 import { enableGantt, enableProjects } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { usePropertyUserDisplay } from '@property/hooks/usePropertyUserDisplay';
 import { queryClient } from '@queries/client';
 import {
@@ -99,9 +102,12 @@ function ProjectsContent(props: ParentProps) {
   );
 }
 
-export function ProjectsTab(props: {
+type ProjectsTabProps = {
   onOpen: (id: string, event?: MouseEvent, newSplit?: boolean) => void;
-}) {
+  search?: Parameters<typeof createProjectCollection>[0]['search'];
+};
+
+export function ProjectsTab(props: ProjectsTabProps) {
   return (
     <Projects>
       <ProjectsCollectionHost {...props} />
@@ -117,9 +123,7 @@ export function ProjectsSidebarSection(props: ProjectsSidebarProps) {
   );
 }
 
-function ProjectsCollectionHost(props: {
-  onOpen: (id: string, event?: MouseEvent, newSplit?: boolean) => void;
-}) {
+function ProjectsCollectionHost(props: ProjectsTabProps) {
   const panel = useSplitPanelOrThrow();
   const layout = useSplitLayout();
   const context = useProjectsContext();
@@ -145,6 +149,7 @@ function ProjectsCollectionHost(props: {
       createProjectCollection({
         ...createProjectCollectionPersistence(panel.handle),
         createSource: context.createCollectionSource,
+        search: props.search,
         userId: context.userId,
         onOpen: (id, metadata) => activation.current?.(id, metadata),
       })
@@ -171,6 +176,11 @@ function ProjectsCollectionHost(props: {
   return (
     <>
       <ProjectsCollection
+        createAction={
+          <Show when={!isTouchDevice()}>
+            <TasksCreateAction presentation="toolbar" projectsEnabled />
+          </Show>
+        }
         onOpen={open}
         collection={displayCollection}
         ganttEnabled={ganttFlag().enabled}
@@ -188,12 +198,15 @@ function ProjectsCollectionHost(props: {
           globalSplitManager()?.canAppendSplit() ?? false
         }
         onCopyLink={(id) =>
-          void copyLink.executeByBlock(
-            projectRouteId({ id, section: 'overview' }),
-            'component'
+          fireAndForget(
+            copyLink.executeByBlock(
+              projectRouteId({ id, section: 'overview' }),
+              'component'
+            ),
+            'projects'
           )
         }
-        onCopyId={(id) => void copyId.executeById(id)}
+        onCopyId={(id) => fireAndForget(copyId.executeById(id), 'projects')}
         onShare={(projectId) => setSharing(projectId)}
       />
       <Show when={sharing()} keyed>

@@ -22,6 +22,7 @@ import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { HotkeyTags } from '@core/hotkey/constants';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { createScrollTopFade } from '@core/util/createScrollTopFade';
 import {
   type EntityData,
   EntitySelectionToolbar,
@@ -31,9 +32,9 @@ import {
 } from '@entity';
 import { useListLayout } from '@entity/composed/list-entity/shared';
 import { soupPropertyToProperty } from '@entity/extractors-property';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import CheckIcon from '@phosphor/check.svg';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
@@ -64,6 +65,7 @@ import { TaskListHeader } from './TaskListHeader';
 import { taskGridColumnCount } from './task-grid-template';
 import './task-list.css';
 import { ProjectAssignmentDialog } from '@app/features/projects/projects';
+import { fireAndForget } from '@core/util/fireAndForget';
 
 function ResponsiveTaskListHeader() {
   const layout = useListLayout();
@@ -90,6 +92,7 @@ const getStatusProperty = (task: TaskEntityWithProperties) => {
 export type TaskListProps = {
   /** The focusable list root, for callers that hand keyboard focus back. */
   ref?: (element: HTMLDivElement) => void;
+  referencePropertyIds?: readonly string[];
 };
 
 export function TaskList(props: TaskListProps) {
@@ -125,11 +128,14 @@ export function TaskList(props: TaskListProps) {
       mergeHistory?: boolean;
     } = {}
   ) {
-    void openEntityInSplitFromUnifiedList(entity, {
-      splitHandle: panel.handle,
-      referredFrom: 'tasks',
-      ...options,
-    });
+    fireAndForget(
+      openEntityInSplitFromUnifiedList(entity, {
+        splitHandle: panel.handle,
+        referredFrom: 'tasks',
+        ...options,
+      }),
+      'open-entity-in-split'
+    );
   }
 
   function onActivate({
@@ -144,15 +150,18 @@ export function TaskList(props: TaskListProps) {
 
     if (item.kind === 'load-more' && item.groupId !== undefined) {
       const focusIndex = list.items.indexOf(item.id);
-      void source.loadMoreGroup(item.groupId).then(() => {
-        if (list.focus.requestedKey() !== item.id) return;
+      fireAndForget(
+        source.loadMoreGroup(item.groupId).then(() => {
+          if (list.focus.requestedKey() !== item.id) return;
 
-        list.focus.restore(item.id, {
-          fallback: 'nearest',
-          nearestIndex: focusIndex,
-          retainUnavailable: false,
-        });
-      });
+          list.focus.restore(item.id, {
+            fallback: 'nearest',
+            nearestIndex: focusIndex,
+            retainUnavailable: false,
+          });
+        }),
+        'tasks-view'
+      );
 
       return;
     }
@@ -188,6 +197,7 @@ export function TaskList(props: TaskListProps) {
       activeTab: state.tab,
     });
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
+  createScrollTopFade(viewport);
   const [grid, setGrid] = createSignal<HTMLDivElement>();
   const [virtualizer, setVirtualizer] = createSignal<VirtualizerHandle>();
 
@@ -299,7 +309,7 @@ export function TaskList(props: TaskListProps) {
           : 0;
         if (distanceFromEnd > 3) return;
 
-        void source.loadMore();
+        fireAndForget(source.loadMore(), 'tasks-view');
       },
     },
     activation: {
@@ -391,7 +401,7 @@ export function TaskList(props: TaskListProps) {
       handle.scrollSize - handle.scrollOffset - handle.viewportSize;
     if (distance >= 300 || source.isLoadingMore()) return;
 
-    void source.loadMore();
+    fireAndForget(source.loadMore(), 'tasks-view');
   }
 
   const emptyMessage = () => {
@@ -436,7 +446,9 @@ export function TaskList(props: TaskListProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void source.refresh()}
+                    onClick={() =>
+                      fireAndForget(source.refresh(), 'tasks-view')
+                    }
                   >
                     Try again
                   </Button>
@@ -451,7 +463,9 @@ export function TaskList(props: TaskListProps) {
                       variant="outline"
                       size="sm"
                       disabled={source.isLoadingMore()}
-                      onClick={() => void source.loadMore()}
+                      onClick={() =>
+                        fireAndForget(source.loadMore(), 'tasks-view')
+                      }
                     >
                       <Show
                         when={source.isLoadingMore()}
@@ -515,6 +529,7 @@ export function TaskList(props: TaskListProps) {
                             }}
                           >
                             <TaskListEntity
+                              referencePropertyIds={props.referencePropertyIds}
                               showProject={projectsEnabled()}
                               rowId={entityRow().id}
                               entity={entityRow().entity}

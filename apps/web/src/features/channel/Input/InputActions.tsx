@@ -1,8 +1,9 @@
 import { pickNativePhotoLibraryMedia } from '@core/mobile/nativePhotoLibrary';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isPlatform } from '@core/util/platform';
-import PaperclipIcon from '@phosphor/paperclip.svg';
-import FormatIcon from '@phosphor/text-aa.svg';
-import TrashIcon from '@phosphor/trash.svg';
+import PaperclipIcon from '@icon/system/regular/paperclip.svg';
+import FormatIcon from '@icon/system/regular/text-aa.svg';
+import TrashIcon from '@icon/system/regular/trash.svg';
 import type { JSX } from 'solid-js';
 import { InputActionButton } from './ActionButton';
 import { CHANNEL_FILE_PICKER_ACCEPT } from './accepted-file-types';
@@ -21,6 +22,7 @@ export function AttachFilesAction(
     accept?: string | null;
     disabled?: boolean;
     children?: JSX.Element;
+    trigger?: (openPicker: () => void) => JSX.Element;
   } = {}
 ) {
   const commands = useInputCommands();
@@ -32,7 +34,7 @@ export function AttachFilesAction(
     const files = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = '';
     if (files.length === 0) return;
-    void commands.attachFiles(files);
+    fireAndForget(commands.attachFiles(files), 'channel-input');
   };
 
   return (
@@ -53,13 +55,17 @@ export function AttachFilesAction(
         disabled={props.disabled}
         data-input-attach-file-picker
       />
-      <InputActionButton
-        label="Attach files"
-        disabled={props.disabled}
-        onClick={() => fileInputRef?.click()}
-      >
-        {props.children ?? <PaperclipIcon />}
-      </InputActionButton>
+      {props.trigger ? (
+        props.trigger(() => fileInputRef?.click())
+      ) : (
+        <InputActionButton
+          label="Attach files"
+          disabled={props.disabled}
+          onClick={() => fileInputRef?.click()}
+        >
+          {props.children ?? <PaperclipIcon />}
+        </InputActionButton>
+      )}
     </>
   );
 }
@@ -77,7 +83,7 @@ export function AttachNativeMediaAction() {
     const files = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = '';
     if (files.length === 0) return;
-    void commands.attachFiles(files);
+    fireAndForget(commands.attachFiles(files), 'channel-input');
   };
 
   const onAttachMedia = async () => {
@@ -107,7 +113,7 @@ export function AttachNativeMediaAction() {
       />
       <InputActionButton
         label="Attach photos or videos"
-        onClick={() => void onAttachMedia()}
+        onClick={() => fireAndForget(onAttachMedia(), 'channel-input')}
       >
         <PaperclipIcon />
       </InputActionButton>

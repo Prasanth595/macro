@@ -2,10 +2,11 @@ import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { toast } from '@core/component/Toast/Toast';
 import { useEmail, useIsAuthenticated } from '@core/context/user';
 import { idToDisplayName } from '@core/user/util';
+import { fireAndForget } from '@core/util/fireAndForget';
 import LogoIcon from '@icon/macro-logo.svg';
-import CopyIcon from '@phosphor/copy.svg';
-import LinkIcon from '@phosphor/link.svg';
-import XIcon from '@phosphor/x.svg';
+import CopyIcon from '@icon/system/regular/copy.svg';
+import LinkIcon from '@icon/system/regular/link.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import {
   type GtmInviteLink,
   useCreateGtmInviteLinkMutation,
@@ -231,7 +232,7 @@ function CreateLinkForm(props: { onCreated: (link: GtmInviteLink) => void }) {
       setFirstName('');
       setRecipientEmail('');
       setNote('');
-      void copyLink(link, { silent: true });
+      fireAndForget(copyLink(link, { silent: true }), 'gtm-invite');
       toast.success(`Link for ${link.firstName} created and copied`);
     },
   });

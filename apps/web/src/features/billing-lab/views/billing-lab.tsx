@@ -1,7 +1,8 @@
-import ArrowClockwiseIcon from '@phosphor/arrow-clockwise.svg';
-import ArrowRightIcon from '@phosphor/arrow-right.svg';
-import CalendarIcon from '@phosphor/calendar-blank.svg';
-import FlaskIcon from '@phosphor/flask.svg';
+import { fireAndForget } from '@core/util/fireAndForget';
+import ArrowClockwiseIcon from '@icon/system/regular/arrow-clockwise.svg';
+import ArrowRightIcon from '@icon/system/regular/arrow-right.svg';
+import CalendarIcon from '@icon/system/regular/calendar-blank.svg';
+import FlaskIcon from '@icon/system/regular/flask.svg';
 import { Button, Dialog, Layer, Surface } from '@ui';
 import { createSignal, For, type JSX, Show } from 'solid-js';
 import { match } from 'ts-pattern';
@@ -132,7 +133,11 @@ export function BillingLabView(props: {
               <span class="size-1.5 rounded-full bg-success" />
               Local simulation
             </span>
-            <Button variant="ghost" size="sm" onClick={() => void copyLink()}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => fireAndForget(copyLink(), 'billing-lab')}
+            >
               {copied() ? 'Scenario link copied' : 'Copy scenario link'}
             </Button>
           </div>
@@ -578,7 +583,7 @@ export function BillingLabView(props: {
               <Button
                 variant="accent"
                 disabled={lab.pending()}
-                onClick={() => void completePayment()}
+                onClick={() => fireAndForget(completePayment(), 'billing-lab')}
               >
                 {lab.pending() ? 'Processing…' : 'Complete simulation'}
               </Button>

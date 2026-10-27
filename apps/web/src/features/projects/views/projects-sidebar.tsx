@@ -1,7 +1,8 @@
 import { CollapsibleSection, ViewSidebar } from '@app/components/view-shell';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isResponseFreeNetworkError } from '@core/util/request-error';
-import PlusIcon from '@phosphor/plus.svg';
-import StackIcon from '@phosphor/stack.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
+import StackIcon from '@icon/system/regular/stack.svg';
 import { createSignal, For, Show, Suspense } from 'solid-js';
 import { ProjectsSidebarSkeleton } from '../components/project-skeletons';
 import { useProjectsContext } from '../context/projects-context';
@@ -97,7 +98,9 @@ export function ProjectsSidebar(props: ProjectsSidebarProps) {
               </p>
               <ViewSidebar.Item
                 disabled={pending()}
-                onClick={() => void readProjects('refresh')}
+                onClick={() =>
+                  fireAndForget(readProjects('refresh'), 'projects')
+                }
               >
                 Try again
               </ViewSidebar.Item>
@@ -114,7 +117,7 @@ export function ProjectsSidebar(props: ProjectsSidebarProps) {
             <Show when={source.hasMore() && !failed()}>
               <ViewSidebar.Item
                 disabled={pending() || source.loadingMore()}
-                onClick={() => void readProjects('more')}
+                onClick={() => fireAndForget(readProjects('more'), 'projects')}
               >
                 {pending() || source.loadingMore()
                   ? 'Loading…'

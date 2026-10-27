@@ -61,6 +61,7 @@ pub static TOOL_USE_PROMPT: ComposedPrompt = BASE_PROMPT
     .compose(&tool_usage::PROMPT)
     .compose(&databases::PROMPT)
     .compose(&crm_pipelines::PROMPT)
+    .compose(&user_tools::BOOKING_PROMPT)
     .compose(&user_tools::PROMPT)
     .compose(&skills::PROMPT)
     .compose(&document_content_links::PROMPT)
@@ -74,7 +75,19 @@ pub static SESSION_TOOL_USE_PROMPT: ComposedPrompt = BASE_PROMPT
     .compose(&tool_usage::PROMPT)
     .compose(&databases::PROMPT)
     .compose(&crm_pipelines::PROMPT)
+    .compose(&user_tools::BOOKING_PROMPT)
     .compose(&user_tools::SESSION_PROMPT)
+    .compose(&skills::PROMPT)
+    .compose(&document_content_links::PROMPT)
+    .compose(&email::PROMPT);
+
+/// Agent-session instructions for nonblocking saved reviews in code mode.
+pub static CODE_MODE_SESSION_TOOL_USE_PROMPT: ComposedPrompt = BASE_PROMPT
+    .compose(&tool_usage::PROMPT)
+    .compose(&databases::PROMPT)
+    .compose(&crm_pipelines::PROMPT)
+    .compose(&user_tools::BOOKING_PROMPT)
+    .compose(&user_tools::CODE_MODE_SESSION_PROMPT)
     .compose(&skills::PROMPT)
     .compose(&document_content_links::PROMPT)
     .compose(&email::PROMPT);
@@ -139,6 +152,7 @@ mod tests {
         // worked example for a document.
         assert!(instructions.contains("https://macro.com/app/<type>/<id>"));
         assert!(instructions.contains("[Name](https://macro.com/app/md/<id>)"));
+        assert!(instructions.contains("[Name](https://macro.com/app/routines/<id>)"));
     }
 
     #[test]
@@ -241,6 +255,15 @@ mod tests {
     }
 
     #[test]
+    fn session_tool_use_prompt_treats_a_private_conversation_like_the_session_view() {
+        // A DM with the agent is read live: its questions and review cards
+        // appear there, so the thread rule does not apply to it.
+        let session = SESSION_TOOL_USE_PROMPT.to_string();
+        assert!(session.contains("private conversation with the user is the exception"));
+        assert!(session.contains("like one typed in the agent session view"));
+    }
+
+    #[test]
     fn session_tool_use_prompt_keeps_the_thread_mechanics_away_from_the_user() {
         // The thread rule explains review cards and the session view so the
         // model knows why it writes the draft out. None of that is for the
@@ -334,6 +357,7 @@ mod tests {
         assert!(instructions.contains("\"blockName\":\"skill\""));
         assert!(instructions.contains("\"blockName\":\"initiative\""));
         assert!(instructions.contains("\"blockName\":\"pipeline\""));
+        assert!(instructions.contains("\"blockName\":\"routine\""));
     }
 
     #[test]

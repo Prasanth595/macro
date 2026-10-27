@@ -1,24 +1,34 @@
 import { useCrmContactMentionSource } from '@app/features/crm/record-adapter';
+import { whatsappGroupApi } from '@app/features/whatsapp-group/queries/production-api';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import type { BlockName } from '@core/block';
 import { useMaybeBlockId, useMaybeBlockName } from '@core/block';
 import { SUPPORTED_CHAT_ATTACHMENT_BLOCKS } from '@core/component/AI/constant/fileType';
 import { type PortalScope, ScopedPortal } from '@core/component/ScopedPortal';
-import { enableCrm, isFeatureEnabled } from '@core/constant/featureFlags';
+import {
+  enableCrm,
+  enableWhatsappLinked,
+  isFeatureEnabled,
+} from '@core/constant/featureFlags';
 import {
   type EntityBucket,
   type EntityItem,
   useQuickAccess,
 } from '@core/context/quickAccess';
+import { useUserId } from '@core/context/user';
 import clickOutside from '@core/directive/clickOutside';
 import { isMobile } from '@core/mobile/isMobile';
 import type { ChannelWithParticipants, IUser } from '@core/user';
 import { useDateSearch } from '@core/util/dateSearch/useDateSearch';
 import { debouncedDependent } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import type { EmailEntity } from '@entity';
+import { Telemetry } from '@macro-inc/observability';
+import { queryReadyGate } from '@queries/gate';
 import type { HistoryItem as Item } from '@queries/history/history';
+import { useWhatsappGroupsQuery } from '@queries/whatsapp-groups';
 import { Key } from '@solid-primitives/keyed';
 import { createLazyMemo } from '@solid-primitives/memo';
 import { createVirtualizer } from '@tanstack/solid-virtual';
@@ -45,11 +55,14 @@ import type {
   DateMentionItem,
   MentionItem,
   UserMentionRecord,
+  WhatsAppGroupMentionItem,
 } from '../../../utils/mentionsUtils';
 import { useMenuKeyboardNavigation } from '../useMenuKeyboardNavigation';
 import { ItemBin } from './components/ItemBin';
 import { MentionsMenuItem } from './components/MentionsMenuItem';
 import { createMentionPageLoader } from './hooks/createMentionPageLoader';
+import { useBookingLinkMention } from './hooks/useBookingLinkMention';
+import { useCalendarEventMention } from './hooks/useCalendarEventMention';
 import { useEmailSearchMention } from './hooks/useEmailSearchMention';
 import {
   useEntityMention,
@@ -66,6 +79,7 @@ const TARGET_ITEMS = 8;
 const VIRTUAL_ITEM_HEIGHT = 36;
 // Height consumed by Surface's p-px border (2px) + py-2 padding (16px)
 const PANEL_DECORATION_HEIGHT = 18;
+const MAX_CONTENT_HEIGHT = 256;
 const DEFAULT_DOCUMENT_BUCKETS: EntityBucket[] = [
   'note',
   'task',
@@ -87,6 +101,8 @@ type MentionsMenuProps = {
   /** whether the menu checks against block boundary in floating middleware. uses floating-ui default if false. */
   useBlockBoundary?: boolean;
   portalScope?: PortalScope;
+  /** Mounts the menu here instead of by `portalScope`. */
+  portalMount?: HTMLElement;
   block?: BlockName;
   anchor?: HTMLElement | null;
   onUserMention?: (mention: UserMentionRecord) => void;
@@ -248,6 +264,35 @@ function MentionsMenuInner(props: MentionsMenuProps) {
         enabled: () => !props.sources || props.sources.includes('emails'),
       });
 
+  // A WhatsApp chat mentioned in a channel is shared with its members; only
+  // its owner can do that, so only the viewer's own chats are offered.
+  const whatsappGroupsEnabled = () =>
+    !hasCustomEntities() &&
+    props.block === 'channel' &&
+    props.menu.isOpen() &&
+    isFeatureEnabled(enableWhatsappLinked) &&
+    (!props.sources || props.sources.includes('whatsappGroups'));
+  const userId = useUserId();
+  const whatsappGroupsQuery = useWhatsappGroupsQuery(whatsappGroupApi, () =>
+    whatsappGroupsEnabled() ? (userId() ?? '') : ''
+  );
+  const whatsappGroups = createLazyMemo((): WhatsAppGroupMentionItem[] => {
+    if (!whatsappGroupsEnabled() || !queryReadyGate(whatsappGroupsQuery))
+      return [];
+    const term = searchTerm().trim().toLocaleLowerCase();
+    return whatsappGroupsQuery.data
+      .filter(
+        (group) =>
+          group.ownerId === userId() &&
+          group.name.toLocaleLowerCase().includes(term)
+      )
+      .map((group) => ({
+        kind: 'whatsappGroup',
+        id: group.id,
+        data: { id: group.id, name: group.name },
+      }));
+  });
+
   const dateOptions = useDateSearch({ query: searchTerm });
   const dates = createLazyMemo((): DateMentionItem[] => {
     return dateOptions().map(
@@ -257,6 +302,23 @@ function MentionsMenuInner(props: MentionsMenuProps) {
         data: option,
       })
     );
+  });
+
+  // Every composer mounts this menu closed; fetch only once it opens.
+  const bookingLinksEnabled = () =>
+    props.menu.isOpen() &&
+    !hasCustomEntities() &&
+    (!props.sources || props.sources.includes('bookingLinks'));
+  const { bookingLinks } = useBookingLinkMention({
+    enabled: bookingLinksEnabled,
+    searchTerm,
+  });
+  const { events: calendarEvents } = useCalendarEventMention({
+    enabled: () =>
+      props.menu.isOpen() &&
+      !hasCustomEntities() &&
+      (!props.sources || props.sources.includes('calendarEvents')),
+    searchTerm,
   });
 
   const openTabs = createLazyMemo(() => {
@@ -315,12 +377,15 @@ function MentionsMenuInner(props: MentionsMenuProps) {
   const mobileAllItems = createLazyMemo((): MentionItem[] => {
     const users = sourceEnabled('users') ? mentionUsers() : [];
     const combined: MentionItem[] = [
+      ...(sourceEnabled('bookingLinks') ? bookingLinks() : []),
       ...users,
       ...(sourceEnabled('documents') ? (docs() ?? []) : []),
       ...(sourceEnabled('channels') ? (channels() ?? []) : []),
+      ...whatsappGroups(),
       ...(sourceEnabled('agentSessions') ? agentSessions() : []),
       ...(sourceEnabled('companies') ? (companies() ?? []) : []),
       ...(sourceEnabled('emails') ? (emails() ?? []) : []),
+      ...(sourceEnabled('calendarEvents') ? calendarEvents() : []),
       ...(sourceEnabled('dates') ? (dates() ?? []) : []),
     ];
     return sortMobileMentions(combined, searchTerm(), users);
@@ -338,14 +403,17 @@ function MentionsMenuInner(props: MentionsMenuProps) {
           label: 'All',
           getData: mobileAllItems,
           getFullCount: () =>
+            (sourceEnabled('bookingLinks') ? bookingLinks().length : 0) +
             (sourceEnabled('users') ? mentionUsers().length : 0) +
             (sourceEnabled('documents') ? docsMention.totalCount() : 0) +
             (sourceEnabled('agentSessions') ? agentSessions().length : 0) +
             (sourceEnabled('channels') ? channelsMention.totalCount() : 0) +
+            whatsappGroups().length +
             (sourceEnabled('companies')
               ? (companyMention?.totalCount() ?? 0)
               : 0) +
             (sourceEnabled('emails') ? totalEmailCount() : 0) +
+            (sourceEnabled('calendarEvents') ? calendarEvents().length : 0) +
             (sourceEnabled('dates') ? (dates()?.length ?? 0) : 0),
           hasMore: () =>
             (sourceEnabled('users') &&
@@ -382,6 +450,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
 
     const buckets: BucketConfig[] = [
       {
+        id: 'bookingLinks',
+        label: 'Booking Links',
+        getData: bookingLinks,
+        getFullCount: () => bookingLinks().length,
+      },
+      {
         id: 'users',
         label:
           props.includeGroups !== false && groups().length > 0
@@ -416,6 +490,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
         loadMore: channelsMention.loadMore,
       },
       {
+        id: 'whatsappGroups',
+        label: 'WhatsApp chats',
+        getData: whatsappGroups,
+        getFullCount: () => whatsappGroups().length,
+      },
+      {
         id: 'agentSessions',
         label: 'Recent agent sessions',
         getData: agentSessions,
@@ -438,6 +518,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
         hasMore: hasMoreEmails,
         isLoadingMore: isLoadingMoreEmails,
         loadMore: loadMoreEmails,
+      },
+      {
+        id: 'calendarEvents',
+        label: 'Calendar events',
+        getData: calendarEvents,
+        getFullCount: () => calendarEvents().length,
       },
       {
         id: 'dates',
@@ -516,6 +602,9 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     setMenuOpen(false);
   };
 
+  // Phones only show the full list, so there is no grouped view to go back to.
+  const canExitViewAll = () => controller.isViewAllMode() && !isMobile();
+
   useMenuKeyboardNavigation({
     isActive: menuOpen,
     onUp: () => {
@@ -525,7 +614,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       controller.selectNext();
     },
     onLeft: () => {
-      if (controller.isViewAllMode()) {
+      if (canExitViewAll()) {
         controller.exitViewAll();
       }
     },
@@ -546,7 +635,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     onSelect: () => {
       const selectedItem = controller.selectedItem();
       if (selectedItem) {
-        itemAction(selectedItem);
+        itemAction(selectedItem).catch((error) =>
+          Telemetry.error(error, {
+            surface: 'mentions-menu',
+            itemKind: selectedItem.kind,
+          })
+        );
       } else {
         closeMenu();
       }
@@ -554,7 +648,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       setMenuOpen(false);
     },
     onClose: () => {
-      if (controller.isViewAllMode()) {
+      if (canExitViewAll()) {
         controller.exitViewAll();
       } else {
         closeMenu();
@@ -668,7 +762,10 @@ function MentionsMenuInner(props: MentionsMenuProps) {
   const contentMaxHeight = () => {
     const h = menuAvailableHeight();
     if (h === undefined) return undefined;
-    return Math.min(256, Math.max(0, h - PANEL_DECORATION_HEIGHT));
+    return Math.min(
+      MAX_CONTENT_HEIGHT,
+      Math.max(0, h - PANEL_DECORATION_HEIGHT)
+    );
   };
 
   const floatWithElementProps = () =>
@@ -686,13 +783,15 @@ function MentionsMenuInner(props: MentionsMenuProps) {
           reactiveOnContainer: props.editor?.getRootElement(),
           useBlockBoundary: props.useBlockBoundary,
           onAvailableHeight: setMenuAvailableHeight,
+          fullHeight: MAX_CONTENT_HEIGHT + PANEL_DECORATION_HEIGHT,
         }
       : undefined;
 
   return (
     <Show when={menuOpen()}>
-      <ScopedPortal scope={props.portalScope}>
+      <ScopedPortal scope={props.portalScope} mount={props.portalMount}>
         <div
+          data-holds-prompts
           class="w-96 max-w-[calc(100cqw-1rem-2px)] cursor-default select-none z-modal-content"
           classList={{ 'menu-open-animation': props.animate !== false }}
           on:touchstart={(e) => e.stopPropagation()}
@@ -708,7 +807,11 @@ function MentionsMenuInner(props: MentionsMenuProps) {
             clickOutside(el, () => clickOutsideHandler);
           }}
         >
-          <Surface depth={2} class="pt-2 pb-1.5 glass bg-menu-glass rounded-xl">
+          <Surface
+            depth={2}
+            hideBorder
+            class="menu-surface rounded-xl pt-2 pb-1.5"
+          >
             <Show
               when={controller.viewAllMode()}
               fallback={
@@ -804,7 +907,10 @@ function MentionsMenuInner(props: MentionsMenuProps) {
                   activeViewAllBucket()?.isLoadingMore?.() ?? false
                 }
                 onEndReached={() => {
-                  void activeViewAllBucket()?.loadMore?.();
+                  fireAndForget(
+                    activeViewAllBucket()?.loadMore?.(),
+                    'mentions-menu'
+                  );
                 }}
               />
             </Show>

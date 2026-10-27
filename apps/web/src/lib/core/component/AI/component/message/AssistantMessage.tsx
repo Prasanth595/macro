@@ -4,10 +4,11 @@ import { replaceCitations } from '@core/component/LexicalMarkdown/citationsUtils
 import { ENABLE_TTFT } from '@core/constant/featureFlags';
 import { createMarkdownFile } from '@core/util/create';
 import { PulsingStar } from '@entity/components/PulsingStar';
-import WideFileMd from '@phosphor/file.svg';
-import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg?component-solid';
-import ClipboardIcon from '@phosphor-icons/core/bold/clipboard-bold.svg?component-solid';
-import LoadingIcon from '@phosphor-icons/core/bold/spinner-gap-bold.svg?component-solid';
+import CheckIcon from '@icon/system/bold/check-bold.svg?component-solid';
+import ClipboardIcon from '@icon/system/bold/clipboard-bold.svg?component-solid';
+import LoadingIcon from '@icon/system/bold/spinner-gap-bold.svg?component-solid';
+import WideFileMd from '@icon/system/regular/file.svg';
+import { Telemetry } from '@macro-inc/observability';
 import { generateTitle } from '@service-cognition/client';
 import type { ChatMessageContent } from '@service-cognition/generated/schemas/chatMessageContent';
 import type { ChatMessageWithAttachments } from '@service-cognition/generated/schemas/chatMessageWithAttachments';
@@ -185,7 +186,13 @@ export function AssistantMessage(props: {
                       : 'Edit assistant response in Notes'
                   }
                   onClick={() => {
-                    !isLoading() && handleEditInMarkdown();
+                    if (isLoading()) return;
+                    handleEditInMarkdown().catch((error) => {
+                      setIsLoading(false);
+                      Telemetry.error(error, {
+                        surface: 'assistant-message-edit-in-notes',
+                      });
+                    });
                   }}
                 >
                   <Show

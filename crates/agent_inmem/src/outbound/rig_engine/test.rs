@@ -9,8 +9,45 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Mutex;
 
+#[tokio::test]
+async fn a_runtime_panic_is_reported_as_failure_instead_of_an_empty_success() {
+    let (parts, mut receiver) = mpsc::channel(2);
+    forward_turn_result(async { panic!("provider initialization failed") }, &parts).await;
+    drop(parts);
+    let error = receiver.recv().await.unwrap().unwrap_err();
+    assert!(error.to_string().contains("runtime ended unexpectedly"));
+    assert!(receiver.recv().await.is_none());
+}
+
+#[tokio::test]
+async fn a_failure_after_partial_output_is_still_forwarded_to_the_consumer() {
+    let (parts, mut receiver) = mpsc::channel(2);
+    forward_turn_result(
+        async {
+            parts
+                .send(Ok(StreamPart::Content("Partial answer".into())))
+                .await
+                .unwrap();
+            Err(AgentError::Other(anyhow::anyhow!("provider unavailable")))
+        },
+        &parts,
+    )
+    .await;
+    assert!(matches!(
+        receiver.recv().await.unwrap(),
+        Ok(StreamPart::Content(_))
+    ));
+    assert_eq!(
+        receiver.recv().await.unwrap().unwrap_err().to_string(),
+        "provider unavailable"
+    );
+}
+
 /// A stand-in for the toolset prompt, short enough to assert on positionally.
 const TOOLS: &str = "TOOLS";
+
+#[path = "test/tool_mode.rs"]
+mod tool_mode;
 
 #[test]
 fn cached_definitions_keep_client_capabilities_and_reviewable_tools() {
@@ -37,8 +74,31 @@ fn cached_definitions_keep_client_capabilities_and_reviewable_tools() {
     }
 }
 
+#[test]
+fn reduced_definitions_keep_user_input_and_user_tool_review() {
+    let tools = NativeTools::from_factory(ai_tools::tools_for_agent_code_mode, true);
+    assert!(tools.for_turn(true).tools.contains_key("AskUser"));
+    assert!(!tools.for_turn(false).tools.contains_key("AskUser"));
+    for supports_input in [true, false] {
+        let selected = tools.for_turn(supports_input);
+        for name in ["SendEmail", "CreateCalendarEvent"] {
+            assert!(selected.user_tools.contains_key(name));
+        }
+        for name in ["ContentSearch", "NameSearch", "ListEntities"] {
+            assert!(selected.tools.contains_key(name));
+        }
+        assert!(!selected.tools.contains_key("ReadChat"));
+    }
+    for name in ["ContentSearch", "NameSearch", "ListEntities"] {
+        assert!(tools.tool_names.contains(name));
+        assert!(!tools.deferred.iter().any(|tool| tool.name == name));
+    }
+    assert!(!tools.tool_names.contains("ReadChat"));
+}
+
 #[derive(Deserialize, JsonSchema)]
 #[schemars(title = "ReadTurnContext", description = "Read this call's context.")]
+#[serde(deny_unknown_fields)]
 struct ReadTurnContext {}
 
 impl ToolAnnotated for ReadTurnContext {
@@ -104,13 +164,14 @@ async fn shared_definitions_keep_the_callers_context_and_check_each_sessions_gat
             gate: gate.clone(),
             session,
             awaiting: Arc::default(),
+            reviewed_tools: Vec::new(),
         };
         let result = tools
             .dispatch_tool_call(
                 label.to_owned(),
                 RequestContext::new(MacroUserIdStr::try_from(user.to_owned()).unwrap()),
                 "ReadTurnContext",
-                &serde_json::json!({}),
+                &serde_json::json!({"acting_as":"owner"}),
             )
             .await
             .unwrap();
@@ -146,7 +207,7 @@ fn instructions_are_a_delimited_section_after_the_standing_prompt() {
          conversation is agent session {session}. Once it grows long, its earlier part is \
          summarized to keep it within your context. To find the exact words of anything said \
          earlier, summarized or not, run ContentSearch with agentSessionIds \
-         [\"{session}\"].\n</agent_session>"
+         [\"{session}\"]. ContentSearch remains a direct tool for scoped session-history search.\n</agent_session>"
     )));
 }
 
@@ -226,7 +287,7 @@ fn sessions_of_an_agent_share_everything_before_their_instructions() {
         "\n<agent_session>\nThis conversation is agent session {session}. Once it grows long, \
          its earlier part is summarized to keep it within your context. To find the exact words \
          of anything said earlier, summarized or not, run ContentSearch with agentSessionIds \
-         [\"{session}\"].\n</agent_session>"
+         [\"{session}\"]. ContentSearch remains a direct tool for scoped session-history search.\n</agent_session>"
     );
     assert_eq!(
         first.rest(),
@@ -335,5 +396,47 @@ fn opening_transcript_leaves_out_the_hidden_agent_context() {
     assert_eq!(
         opener::transcript(&messages),
         "User: what is going on in my workspace"
+    );
+}
+
+struct SelectedActor(MacroUserIdStr<'static>);
+impl NativeToolGate for SelectedActor {
+    fn check<'a>(
+        &'a self,
+        _: AgentSessionId,
+        _: &'a str,
+        _: &'a serde_json::Value,
+    ) -> std::pin::Pin<Box<dyn Future<Output = NativeToolVerdict> + Send + 'a>> {
+        Box::pin(async { NativeToolVerdict::RunAs(self.0.clone()) })
+    }
+}
+
+#[tokio::test]
+async fn native_dispatch_uses_the_resolved_account_and_strips_routing_arguments() {
+    let requester = MacroUserIdStr::try_from_email("requester@example.com").unwrap();
+    let tools = GatedToolSet {
+        tools: Arc::new(AsyncToolCollection::<String>::new().add_tool::<ReadTurnContext, String>()),
+        gate: Arc::new(SelectedActor(requester.clone())),
+        session: AgentSessionId::new(),
+        awaiting: Arc::default(),
+        reviewed_tools: Vec::new(),
+    };
+    let result = tools
+        .dispatch_tool_call(
+            "context".into(),
+            RequestContext::new(MacroUserIdStr::try_from_email("owner@example.com").unwrap()),
+            "ReadTurnContext",
+            &serde_json::json!({"acting_as":"requester"}),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(result["user"], requester.to_string());
+    let schema = tools.request_schemas().unwrap().remove(0).schema;
+    assert!(
+        schema.as_value()["required"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("acting_as"))
     );
 }

@@ -1,10 +1,11 @@
 import { toast } from '@core/component/Toast/Toast';
 import { writeClipboardData } from '@core/util/dataTransfer';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import CheckIcon from '@phosphor/check.svg';
-import CopyIcon from '@phosphor/copy.svg';
-import SpinnerIcon from '@phosphor/spinner-gap.svg';
-import XIcon from '@phosphor/x.svg';
+import { fireAndForget } from '@core/util/fireAndForget';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import CopyIcon from '@icon/system/regular/copy.svg';
+import SpinnerIcon from '@icon/system/regular/spinner-gap.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import {
   ActionDialogShell,
   Button,
@@ -240,7 +241,12 @@ export function CopyAvailabilityDialog(props: ManagedDialogProps) {
                     }
                     aria-busy={isCopying()}
                     disabled={disabled()}
-                    onClick={() => void copyRange(option.key)}
+                    onClick={() =>
+                      fireAndForget(
+                        copyRange(option.key),
+                        'calendar-availability'
+                      )
+                    }
                   >
                     <span aria-hidden="true" class="grid place-items-center">
                       <span

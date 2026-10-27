@@ -99,6 +99,13 @@ fn api_router(state: ApiContext) -> Router {
     // cal.com validates via HMAC signature.
     let webhook_router = Router::new()
         .nest(
+            "/call/guest-chat",
+            messages::inbound::guest_chat::router(
+                state.guest_chat_service.clone(),
+                state.call_public_rate_limiter.clone(),
+            ),
+        )
+        .nest(
             "/call",
             call::inbound::axum_router::webhook_router(
                 state.call_webhook_state.clone(),
@@ -217,6 +224,11 @@ fn api_router(state: ApiContext) -> Router {
         .merge(calendar_events::inbound::axum_router::calendar_router(
             state.calendar_state.clone(),
         ))
+        .merge(
+            calendar_events::inbound::join_request_router::calendar_join_request_router(
+                state.calendar_join_request_state.clone(),
+            ),
+        )
         .merge(calendar_events::inbound::team_router::team_calendar_router(
             calendar_events::inbound::team_router::CalendarTeamRouterState::new(
                 std::sync::Arc::new(calendar_events::domain::team::CalendarTeamServiceImpl::new(
@@ -268,8 +280,16 @@ fn api_router(state: ApiContext) -> Router {
             slack_integration::inbound::axum_router::slack_router(state.slack_state.clone()),
         )
         .nest(
+            "/meta/linked",
+            whatsapp_linked::inbound::router::router(state.whatsapp_linked_state.clone()),
+        )
+        .nest(
             "/reminders",
             reminders::inbound::axum_router::reminders_router(state.reminders_state.clone()),
+        )
+        .nest(
+            "/entities",
+            access_requests::inbound::axum_router::router(state.access_requests_state.clone()),
         )
         .nest(
             "/initiatives",
@@ -278,6 +298,9 @@ fn api_router(state: ApiContext) -> Router {
         .nest(
             "/databases",
             databases::inbound::axum_router::databases_router(state.databases_state.clone())
+                .merge(databases_sql::inbound::axum_router::sql_router(
+                    state.sql_state.clone(),
+                ))
                 .merge(databases::inbound::starter_router::starter_router(
                     state.database_starter_state.clone(),
                 ))

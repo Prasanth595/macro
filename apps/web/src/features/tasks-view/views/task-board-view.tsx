@@ -1,4 +1,6 @@
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
+import PlusIcon from '@icon/system/regular/plus.svg';
 import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
 import { hasValue } from '@property/utils/typeGuards';
 import { Button } from '@ui/components/Button';
@@ -29,6 +31,7 @@ const CARD_PROPERTY_IDS = [
 export function TaskBoardView(props: {
   data: TaskBoardData;
   onOpen(task: TaskBoardTask, event: MouseEvent): void;
+  onCreate?: (columnId: string) => void;
   ref?: (element: HTMLDivElement) => void;
 }) {
   const { state, source, projectsEnabled, setFacets } = useTasksView();
@@ -191,7 +194,10 @@ export function TaskBoardView(props: {
           class="flex items-center gap-2 px-4 py-2 text-sm text-failure"
         >
           Could not load all tasks.
-          <Button size="sm" onClick={() => void read(source.refresh)}>
+          <Button
+            size="sm"
+            onClick={() => fireAndForget(read(source.refresh), 'tasks-view')}
+          >
             Retry
           </Button>
         </div>
@@ -201,7 +207,9 @@ export function TaskBoardView(props: {
           Could not load task properties. Moving tasks is unavailable.
           <Button
             size="sm"
-            onClick={() => void read(props.data.retryDefinitions)}
+            onClick={() =>
+              fireAndForget(read(props.data.retryDefinitions), 'tasks-view')
+            }
           >
             Retry
           </Button>
@@ -244,6 +252,18 @@ export function TaskBoardView(props: {
                   grouping={grouping()}
                   createAssigneeName={props.data.createAssigneeName}
                 />
+                <Show when={props.onCreate}>
+                  <div class="ml-auto flex shrink-0">
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      label={`Add task to ${column().label}`}
+                      onClick={() => props.onCreate?.(column().id)}
+                    >
+                      <PlusIcon />
+                    </Button>
+                  </div>
+                </Show>
               </TaskBoard.Header>
               <TaskBoard.DropOverlay>
                 Board sorted by {sortLabel()}
@@ -260,7 +280,12 @@ export function TaskBoardView(props: {
                       <Button
                         size="sm"
                         disabled={column().loadingMore}
-                        onClick={() => void read(() => loadMore(column().id))}
+                        onClick={() =>
+                          fireAndForget(
+                            read(() => loadMore(column().id)),
+                            'tasks-view'
+                          )
+                        }
                       >
                         {column().loadingMore ? 'Loading…' : 'Load more tasks'}
                       </Button>
@@ -294,7 +319,12 @@ export function TaskBoardView(props: {
           <Button
             size="sm"
             disabled={source.isLoadingMore()}
-            onClick={() => void read(() => loadMore())}
+            onClick={() =>
+              fireAndForget(
+                read(() => loadMore()),
+                'tasks-view'
+              )
+            }
           >
             {source.isLoadingMore() ? 'Loading…' : 'Load more tasks'}
           </Button>

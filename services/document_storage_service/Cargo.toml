@@ -27,6 +27,8 @@ local_auth = ["macro_authorization/local_auth"]
 location_check = []
 
 [dependencies]
+access_requests = { path = "../../crates/access_requests" }
+async-trait = { workspace = true }
 ai_billing = { path = "../../crates/ai_billing" }
 roles_and_permissions = { path = "../../crates/roles_and_permissions", default-features = false, features = ["outbound"] }
 teams = { path = "../../crates/teams", default-features = false, features = ["outbound"] }
@@ -88,6 +90,7 @@ complete_graph = { path = "../../crates/complete_graph" }
 connection = { path = "../../crates/connection", default-features = false, features = [
   "outbound",
 ] }
+channel_sender = { path = "../../crates/channel_sender" }
 connection_gateway_client = { path = "../../crates/connection_gateway_client" }
 contacts = { path = "../../crates/contacts" }
 cowlike = { path = "../../crates/cowlike" }
@@ -96,6 +99,7 @@ channel_labels = { path = "../../crates/channel_labels", features = [
   "postgres",
 ] }
 crm = { path = "../../crates/crm" }
+databases_sql = { path = "../../crates/databases_sql", features = ["inbound"] }
 databases = { path = "../../crates/databases", features = [
   "entity_mutation",
   "gateway",
@@ -229,14 +233,16 @@ reminders = { path = "../../crates/reminders", features = [
 ] }
 reqwest = { workspace = true }
 rootcause = { workspace = true }
+sha2 = { workspace = true }
 s3_key = { path = "../../crates/s3_key" }
 saved_views = { path = "../../crates/saved_views" }
-scheduled_action = { path = "../scheduled_action" }
+scheduled_action = { path = "../../crates/scheduled_action" }
 schemars = { workspace = true }
 search_service = { path = "../../crates/search_service" }
 secretsmanager_client = { path = "../../crates/secretsmanager_client" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+whatsapp_linked = { path = "../../crates/whatsapp_linked", features = ["inbound", "outbound"] }
 slack_integration = { path = "../../crates/slack_integration", features = [
   "gateway",
   "inbound",

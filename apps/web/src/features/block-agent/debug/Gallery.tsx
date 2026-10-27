@@ -4,16 +4,20 @@
  * `/component/agent-ui`.
  */
 
+import {
+  initialValues,
+  validate,
+} from '@app/features/agent-interactions/state/elicitation-form';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { MagicChipView } from '@core/component/LexicalMarkdown/component/decorator/MagicChip/MagicChipView';
 import type { MagicChipPresentation } from '@core/component/LexicalMarkdown/component/decorator/MagicChip/presentation';
 import { MarkdownImage } from '@core/component/LexicalMarkdown/component/decorator/MarkdownImage';
 import { MediaLoadingPlaceholder } from '@core/component/LexicalMarkdown/component/decorator/MediaLoadingPlaceholder';
 import { useUserId } from '@core/context/user';
-import FileText from '@phosphor/file-text.svg';
-import MagnifyingGlass from '@phosphor/magnifying-glass.svg';
-import PencilSimple from '@phosphor/pencil-simple.svg';
-import Terminal from '@phosphor/terminal.svg';
+import FileText from '@icon/system/regular/file-text.svg';
+import MagnifyingGlass from '@icon/system/regular/magnifying-glass.svg';
+import PencilSimple from '@icon/system/regular/pencil-simple.svg';
+import Terminal from '@icon/system/regular/terminal.svg';
 import type {
   ElicitationSchema,
   FoldedMessage,
@@ -26,7 +30,6 @@ import { createSignal, type JSX, onCleanup } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { Message } from '../component/AgentMessage';
 import { ReplyToSelection } from '../component/ReplyToSelection';
-import { initialValues, validate } from '../state/elicitation-form';
 import {
   ActionLine,
   AgentInput,
@@ -403,6 +406,9 @@ function ToolReplayDemo() {
     agentSessionId: 'tool-replay',
     requestId: null,
     pending: false,
+    segments: [],
+    phase: null,
+    postedAt: null,
     turn: 0,
     author: { kind: 'agent' },
     stop: inFlight() ? null : { kind: 'end_turn' },
@@ -450,6 +456,9 @@ function DisplayResultsDemo() {
     agentSessionId: 'display-results-demo',
     requestId: null,
     pending: false,
+    segments: [],
+    phase: null,
+    postedAt: null,
     turn: 0,
     author: { kind: 'agent' },
     stop: pending() ? null : { kind: 'end_turn' },
@@ -517,6 +526,9 @@ const FIXTURE_MESSAGE: FoldedMessage = {
   agentSessionId: 'demo',
   requestId: null,
   pending: false,
+  segments: [],
+  phase: null,
+  postedAt: null,
   turn: 0,
   author: { kind: 'agent' },
   stop: { kind: 'end_turn' },
@@ -763,6 +775,9 @@ const FIXTURE_IN_FLIGHT: FoldedMessage = {
   agentSessionId: 'demo',
   requestId: null,
   pending: false,
+  segments: [],
+  phase: null,
+  postedAt: null,
   turn: 1,
   author: { kind: 'agent' },
   stop: null,
@@ -806,6 +821,9 @@ const FIXTURE_UNCLOSED: FoldedMessage = {
   agentSessionId: 'demo',
   requestId: null,
   pending: false,
+  segments: [],
+  phase: null,
+  postedAt: null,
   turn: 2,
   author: { kind: 'agent' },
   stop: null,
@@ -872,6 +890,9 @@ function PromptAuthorDemo() {
     agentSessionId: 'demo',
     requestId: null,
     pending: false,
+    segments: [],
+    phase: null,
+    postedAt: null,
     turn: 0,
     author: { kind: 'user', userId },
     stop: null,
@@ -1127,7 +1148,7 @@ export default function AgentUiGallery() {
                   },
                   attendees: [],
                   recurrenceLines: [],
-                  addGoogleMeet: false,
+                  addConference: false,
                   eventType: 'default',
                 },
                 schema: FIXTURE_ELICITATION,

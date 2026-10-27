@@ -1,22 +1,25 @@
-import ArrowBendDownRight from '@phosphor/arrow-bend-down-right.svg';
-import ArrowClockwise from '@phosphor/arrow-clockwise.svg';
-import ArrowCounterClockwise from '@phosphor/arrow-counter-clockwise.svg';
-import CommentIcon from '@phosphor/chat-circle.svg';
-import Check from '@phosphor/check.svg';
-import CurrencyDollar from '@phosphor/currency-dollar.svg';
-import FunctionIcon from '@phosphor/function.svg';
-import MagnifyingGlass from '@phosphor/magnifying-glass.svg';
-import Minus from '@phosphor/minus.svg';
-import Percent from '@phosphor/percent.svg';
-import Plus from '@phosphor/plus.svg';
-import TextB from '@phosphor/text-b.svg';
-import TextItalic from '@phosphor/text-italic.svg';
-import TextStrikethrough from '@phosphor/text-strikethrough.svg';
-import TextUnderline from '@phosphor/text-underline.svg';
-import X from '@phosphor/x.svg';
+import ArrowBendDownRight from '@icon/system/regular/arrow-bend-down-right.svg';
+import ArrowClockwise from '@icon/system/regular/arrow-clockwise.svg';
+import ArrowCounterClockwise from '@icon/system/regular/arrow-counter-clockwise.svg';
+import CommentIcon from '@icon/system/regular/chat-circle.svg';
+import Check from '@icon/system/regular/check.svg';
+import CurrencyDollar from '@icon/system/regular/currency-dollar.svg';
+import FunctionIcon from '@icon/system/regular/function.svg';
+import MagnifyingGlass from '@icon/system/regular/magnifying-glass.svg';
+import Minus from '@icon/system/regular/minus.svg';
+import Percent from '@icon/system/regular/percent.svg';
+import Plus from '@icon/system/regular/plus.svg';
+import TextB from '@icon/system/regular/text-b.svg';
+import TextIndent from '@icon/system/regular/text-indent.svg';
+import TextItalic from '@icon/system/regular/text-italic.svg';
+import TextOutdent from '@icon/system/regular/text-outdent.svg';
+import TextStrikethrough from '@icon/system/regular/text-strikethrough.svg';
+import TextUnderline from '@icon/system/regular/text-underline.svg';
+import X from '@icon/system/regular/x.svg';
 import { Button, type ButtonProps } from '@ui/components/Button';
 import { Show } from 'solid-js';
 import type { SpreadsheetMentions } from '../context/spreadsheet-mentions';
+import type { TableReferences } from '../core/formula-completion';
 import type {
   FormulaReferenceSpan,
   FormulaTextSelection,
@@ -249,6 +252,28 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
         <Divider />
         <BorderMenu {...props} />
         <AlignmentMenu {...props} />
+        <ToolbarButton
+          size="icon-sm"
+          label="Decrease indent"
+          disabled={props.readonly}
+          onClick={() => {
+            props.onCommand('indent-decrease');
+            props.onRestoreFocus?.();
+          }}
+        >
+          <TextOutdent class="size-[18px]" />
+        </ToolbarButton>
+        <ToolbarButton
+          size="icon-sm"
+          label="Increase indent"
+          disabled={props.readonly}
+          onClick={() => {
+            props.onCommand('indent-increase');
+            props.onRestoreFocus?.();
+          }}
+        >
+          <TextIndent class="size-[18px]" />
+        </ToolbarButton>
         <VerticalAlignmentMenu {...props} />
         <ToolbarButton
           size="icon-sm"
@@ -303,6 +328,7 @@ export function FormulaBar(props: {
   readonly: boolean;
   editing?: boolean;
   complete: CompleteFormula;
+  tableReferences?: () => TableReferences | undefined;
   selectionRequest?: FormulaTextSelection;
   references?: FormulaReferenceSpan[];
   pickingReference?: boolean;
@@ -360,6 +386,7 @@ export function FormulaBar(props: {
         mentions={props.mentions}
         label="Formula bar"
         complete={props.complete}
+        tableReferences={props.tableReferences}
         selectionRequest={props.selectionRequest}
         references={props.references}
         pickingReference={props.pickingReference}

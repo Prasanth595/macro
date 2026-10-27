@@ -1,6 +1,7 @@
-import FilterIcon from '@phosphor/funnel-simple.svg';
-import HashIcon from '@phosphor/hash.svg';
-import XIcon from '@phosphor/x.svg';
+import { fireAndForget } from '@core/util/fireAndForget';
+import FilterIcon from '@icon/system/regular/funnel-simple.svg';
+import HashIcon from '@icon/system/regular/hash.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import { useSmartTagPreviewQuery } from '@queries/channel-labels/channel-labels';
 import type { ChannelLabelRule } from '@service-storage/generated/schemas/channelLabelRule';
 import {
@@ -75,7 +76,7 @@ function SmartTagDialog(props: SmartTagDialogProps & ManagedDialogProps) {
       >
         <form
           class="flex shrink-0 flex-col gap-4"
-          onSubmit={(event) => void submit(event)}
+          onSubmit={(event) => fireAndForget(submit(event), 'channels-view')}
           aria-busy={saving()}
         >
           <div class="flex items-center justify-between gap-2">
@@ -191,7 +192,9 @@ function SmartTagDialog(props: SmartTagDialogProps & ManagedDialogProps) {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => void preview.refetch()}
+                      onClick={() =>
+                        fireAndForget(preview.refetch(), 'channels-view')
+                      }
                     >
                       Retry
                     </Button>

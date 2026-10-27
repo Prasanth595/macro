@@ -6,9 +6,10 @@
  */
 
 import type { DeckOutline } from '@core/pptx-engine/types';
-import FilePdf from '@phosphor/file-pdf.svg';
-import Printer from '@phosphor/printer.svg';
-import X from '@phosphor/x.svg';
+import { fireAndForget } from '@core/util/fireAndForget';
+import FilePdf from '@icon/system/regular/file-pdf.svg';
+import Printer from '@icon/system/regular/printer.svg';
+import X from '@icon/system/regular/x.svg';
 import { Button } from '@ui/components/Button';
 import { Dialog } from '@ui/components/Dialog';
 import { createSignal, For, Show } from 'solid-js';
@@ -414,7 +415,7 @@ export function PrintDialog(props: {
             variant="ghost"
             data-testid="pptx-print-pdf"
             disabled={pages().length === 0 || !!progress()}
-            onClick={() => void savePdf()}
+            onClick={() => fireAndForget(savePdf(), 'pptx-print')}
           >
             <FilePdf />
             Save as PDF
@@ -424,7 +425,7 @@ export function PrintDialog(props: {
             variant="cta"
             data-testid="pptx-print-go"
             disabled={pages().length === 0 || !!progress()}
-            onClick={() => void print()}
+            onClick={() => fireAndForget(print(), 'pptx-print')}
           >
             <Printer />
             Print

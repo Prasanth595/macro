@@ -1,11 +1,12 @@
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
+import { t } from '@app/lib/i18n';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
   navigateToSidebarView,
   sidebarContent,
 } from '@components/app/app-sidebar/sidebar';
 import { useSplitLayout } from '@components/app/split-layout/layout';
-import DotsThreeIcon from '@phosphor/dots-three.svg';
+import DotsThreeIcon from '@icon/system/regular/dots-three.svg';
 import { Dropdown } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
@@ -13,7 +14,7 @@ import { CustomizeSidebarModal } from './customize-sidebar-modal';
 import {
   moreMenuItems,
   type NavItemGates,
-  type SidebarNextNavItem,
+  type SidebarNextMenuItem,
 } from './nav-items';
 
 export type MoreMenuProps = {
@@ -21,7 +22,7 @@ export type MoreMenuProps = {
 };
 
 function navigateToItem(
-  item: SidebarNextNavItem,
+  item: SidebarNextMenuItem,
   openWithSplit: ReturnType<typeof useSplitLayout>['openWithSplit'],
   analytics: ReturnType<typeof useAnalytics>,
   shiftKey: boolean
@@ -39,13 +40,13 @@ function navigateToItem(
 
 /**
  * The "More" menu button in the sidebar rail, shown below the main nav.
- * Lists hidden items for quick open, and opens the Customize sidebar modal.
+ * Lists hidden items and Scheduling, and opens the Customize sidebar modal.
  */
 export function MoreMenu(props: MoreMenuProps) {
   const [customizeSidebarOpen, setCustomizeSidebarOpen] = createSignal(false);
   const analytics = useAnalytics();
   const layout = useSplitLayout();
-  const preloadItem = (item: SidebarNextNavItem) =>
+  const preloadItem = (item: SidebarNextMenuItem) =>
     layout.preloadContent(sidebarContent(item.id, item.params));
   const hiddenItems = () => moreMenuItems(props.gates);
 
@@ -62,8 +63,8 @@ export function MoreMenu(props: MoreMenuProps) {
           variant="ghost"
           size="icon-md"
           class="size-10 shrink-0 cursor-default rounded-xl"
-          label="More"
-          tooltip="More options"
+          label={t('nav.more')}
+          tooltip={t('nav.moreOptions')}
           tooltipPlacement="right"
           draggable={false}
           data-sidebar-next-item="more"
@@ -103,7 +104,9 @@ export function MoreMenu(props: MoreMenuProps) {
 
           <Dropdown.Group>
             <Dropdown.Item onSelect={() => setCustomizeSidebarOpen(true)}>
-              <span class="flex-1 truncate text-ink">Customize sidebar</span>
+              <span class="flex-1 truncate text-ink">
+                {t('nav.customizeSidebar')}
+              </span>
             </Dropdown.Item>
           </Dropdown.Group>
         </Dropdown.Content>

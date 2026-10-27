@@ -1,4 +1,5 @@
-import ListPlusIcon from '@phosphor/list-plus.svg';
+import { fireAndForget } from '@core/util/fireAndForget';
+import ListPlusIcon from '@icon/system/regular/list-plus.svg';
 import { EditorPopover } from '@property/editors/popover/EditorPopover';
 import { PropertyEntitySelector } from '@property/editors/selectors/PropertyEntitySelector';
 import { Button, Dropdown } from '@ui';
@@ -102,7 +103,7 @@ export function AddProjectTasks(props: { project: ProjectDetail }) {
               size="sm"
               variant="cta"
               disabled={saving() || !selected().size}
-              onClick={() => void add()}
+              onClick={() => fireAndForget(add(), 'projects')}
             >
               {saving()
                 ? 'Adding tasks…'

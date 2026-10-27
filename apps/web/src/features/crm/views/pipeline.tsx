@@ -1,8 +1,13 @@
+import { ViewSidebar } from '@app/components/view-shell';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { InlineTitleEditor } from '@core/component/InlineTitleEditor';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import DotsThreeIcon from '@phosphor/dots-three.svg';
-import PencilIcon from '@phosphor/pencil-line.svg';
-import TrashIcon from '@phosphor/trash-simple.svg';
+import { fireAndForget } from '@core/util/fireAndForget';
+import DotsThreeIcon from '@icon/system/regular/dots-three.svg';
+import DownloadIcon from '@icon/system/regular/download-simple.svg';
+import PencilIcon from '@icon/system/regular/pencil-line.svg';
+import TrashIcon from '@icon/system/regular/trash-simple.svg';
+import UploadIcon from '@icon/system/regular/upload-simple.svg';
 import { ActionDialogShell } from '@ui/components/ActionDialogShell';
 import { Button } from '@ui/components/Button';
 import { DeleteDialog } from '@ui/components/DeleteDialog';
@@ -14,8 +19,11 @@ import type {
   PipelineEditor,
   PipelineSharing,
   PipelinesSource,
+  PipelineTransfer,
 } from '../context/pipelines';
 import type { Pipeline } from '../core/pipeline';
+import { createPipelineExport } from '../primitives/pipeline-transfer';
+import { PipelineImport } from './pipeline-import';
 
 /** A pipeline's page: its name, sharing and actions above its one table. */
 export function PipelineView(props: {
@@ -28,8 +36,14 @@ export function PipelineView(props: {
   /** After the pipeline moves to trash, leave its page. */
   onTrashed(): void;
   onOpenRecord?(record: { type: 'company' | 'contact'; id: string }): void;
+  /** CSV export and import of the pipeline's entries, when the host offers them. */
+  transfer?: {
+    source: PipelineTransfer;
+    downloadCsv(content: string, filename: string): Promise<{ saved: boolean }>;
+  };
 }) {
   const [pending, setPending] = createSignal(false);
+  const [importing, setImporting] = createSignal(false);
   const [error, setError] = createSignal('');
   const [deleting, setDeleting] = createSignal(false);
   const [actionsOpen, setActionsOpen] = createSignal(false);
@@ -39,6 +53,20 @@ export function PipelineView(props: {
   let mobileNameInput: HTMLInputElement | undefined;
   const canEdit = () => ['owner', 'edit'].includes(props.pipeline.grant);
   const isOwner = () => props.pipeline.grant === 'owner';
+  // A host supplies one transfer for the page's lifetime.
+  const transfer = props.transfer;
+  const exporter =
+    transfer &&
+    createPipelineExport(
+      () => props.pipeline,
+      transfer.source,
+      transfer.downloadCsv
+    );
+  const exportCsv = async () => {
+    setError('');
+    if ((await exporter?.run()) === 'failed')
+      setError('Could not export this pipeline. Please try again.');
+  };
   async function save(action: () => Promise<void>) {
     if (pending()) return false;
     setPending(true);
@@ -87,9 +115,9 @@ export function PipelineView(props: {
           <Show
             when={canEdit()}
             fallback={
-              <h1 class="min-w-0 truncate px-1 text-sm font-semibold">
+              <ViewSidebar.Title caret={false} class="px-1">
                 {props.pipeline.name}
-              </h1>
+              </ViewSidebar.Title>
             }
           >
             <span ref={title} class="flex min-w-0 px-1">
@@ -99,16 +127,19 @@ export function PipelineView(props: {
                 ariaLabel="Pipeline name"
                 class="text-sm"
                 onRename={(name) =>
-                  void save(() => props.source.rename(props.pipeline.id, name))
+                  fireAndForget(
+                    save(() => props.source.rename(props.pipeline.id, name)),
+                    'crm'
+                  )
                 }
               />
             </span>
           </Show>
-          <Show when={canEdit() || isOwner()}>
+          <Show when={canEdit() || isOwner() || transfer}>
             <Dropdown placement="bottom-start">
               <Dropdown.Trigger
                 variant="ghost"
-                size="icon-sm"
+                size="icon-md"
                 aria-label="Pipeline actions"
                 class="shrink-0"
                 disabled={pending()}
@@ -122,6 +153,21 @@ export function PipelineView(props: {
                     Rename
                   </Dropdown.Item>
                 </Show>
+                <Show when={transfer}>
+                  <Dropdown.Item
+                    disabled={exporter?.pending()}
+                    onSelect={() => fireAndForget(exportCsv(), 'crm')}
+                  >
+                    <DownloadIcon class="size-4" />
+                    Export CSV
+                  </Dropdown.Item>
+                  <Show when={canEdit()}>
+                    <Dropdown.Item onSelect={() => setImporting(true)}>
+                      <UploadIcon class="size-4" />
+                      Import CSV
+                    </Dropdown.Item>
+                  </Show>
+                </Show>
                 <Show when={isOwner()}>
                   <Dropdown.Item onSelect={() => setDeleting(true)}>
                     <TrashIcon class="size-4" />
@@ -131,11 +177,13 @@ export function PipelineView(props: {
               </Dropdown.Content>
             </Dropdown>
           </Show>
-          <div class="ml-auto flex shrink-0 items-center gap-1">
-            <props.Sharing
-              pipeline={props.pipeline}
-              onCopyLink={props.onCopyLink}
-            />
+          <div class="ml-auto flex shrink-0 items-center gap-2">
+            <HeaderActionGroup label="Sharing">
+              <props.Sharing
+                pipeline={props.pipeline}
+                onCopyLink={props.onCopyLink}
+              />
+            </HeaderActionGroup>
           </div>
         </div>
       </Show>
@@ -188,7 +236,7 @@ export function PipelineView(props: {
               >
                 <form
                   class="flex flex-col gap-3"
-                  onSubmit={(event) => void rename(event)}
+                  onSubmit={(event) => fireAndForget(rename(event), 'crm')}
                 >
                   <label class="flex flex-col gap-1.5 text-sm">
                     Pipeline name
@@ -213,6 +261,30 @@ export function PipelineView(props: {
                     Save name
                   </Button>
                 </form>
+              </Show>
+            </Show>
+            <Show when={transfer}>
+              <Button
+                variant="ghost"
+                class="w-full justify-start"
+                disabled={exporter?.pending()}
+                onClick={() => fireAndForget(exportCsv(), 'crm')}
+              >
+                <DownloadIcon class="size-4" />
+                Export CSV
+              </Button>
+              <Show when={canEdit()}>
+                <Button
+                  variant="ghost"
+                  class="w-full justify-start"
+                  onClick={() => {
+                    setActionsOpen(false);
+                    setImporting(true);
+                  }}
+                >
+                  <UploadIcon class="size-4" />
+                  Import CSV
+                </Button>
               </Show>
             </Show>
             <div class="flex items-center justify-between gap-3">
@@ -252,6 +324,15 @@ export function PipelineView(props: {
           </ActionDialogShell.Footer>
         </ActionDialogShell>
       </Dialog>
+      <Show when={importing() && transfer}>
+        {(current) => (
+          <PipelineImport
+            pipeline={props.pipeline}
+            transfer={current().source}
+            onClose={() => setImporting(false)}
+          />
+        )}
+      </Show>
       <DeleteDialog
         open={deleting()}
         onOpenChange={setDeleting}
@@ -264,10 +345,13 @@ export function PipelineView(props: {
           </p>
         }
         onDelete={() =>
-          void save(async () => {
-            await props.source.trash(props.pipeline.id);
-            props.onTrashed();
-          })
+          fireAndForget(
+            save(async () => {
+              await props.source.trash(props.pipeline.id);
+              props.onTrashed();
+            }),
+            'crm'
+          )
         }
       />
     </div>

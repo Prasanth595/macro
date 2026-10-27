@@ -10,6 +10,82 @@ export type ClientOptions = {
 export type AccessLevel = 'view' | 'comment' | 'edit' | 'owner';
 
 /**
+ * Latest request for one person and one entity.
+ */
+export type AccessRequest = {
+    /**
+     * Start of this request attempt.
+     */
+    createdAt: string;
+    grantedLevel?: null | AccessLevel;
+    /**
+     * Stable request identity across revisions.
+     */
+    id: string;
+    /**
+     * Requested upgrade.
+     */
+    requestedLevel: AccessLevel;
+    /**
+     * Person requesting access.
+     */
+    requesterId: string;
+    /**
+     * When the request stopped being pending.
+     */
+    resolvedAt?: string | null;
+    /**
+     * Earliest next submission or level change; cancellation preserves this deadline.
+     * Submissions wait one minute, denials wait 24 hours, and approval clears it.
+     */
+    retryAfter?: string | null;
+    /**
+     * Optimistic concurrency token.
+     */
+    revision: number;
+    /**
+     * Current outcome.
+     */
+    status: RequestStatus;
+    /**
+     * Most recent change.
+     */
+    updatedAt: string;
+};
+
+/**
+ * Share state visible to one authenticated viewer.
+ */
+export type AccessRequestState = {
+    accessLevel?: null | AccessLevel;
+    /**
+     * Whether this viewer can resolve requests and manage direct grants.
+     */
+    canReview: boolean;
+    mine?: null | AccessRequest;
+    /**
+     * Next page offset, absent at the end.
+     */
+    nextOffset?: number | null;
+    /**
+     * Recorded owner principal, visible to reviewers and callers with access.
+     */
+    owner?: string | null;
+    /**
+     * Total outstanding requests, for the Share badge.
+     */
+    pendingCount: number;
+    /**
+     * Reviewer-only pending page, oldest first.
+     */
+    requests: Array<AccessRequest>;
+    /**
+     * Permitted access choices for this surface.
+     */
+    supportedLevels: Array<AccessLevel>;
+};
+
+/**
  * Metadata together with the caller's effective grant.
  */
 export type AccessiblePipeline = Pipeline & {
@@ -92,7 +168,7 @@ export type AddFavoriteRequest = {
     /**
      * The type of the entity to favorite.
      */
-    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
 };
 
 /**
@@ -114,6 +190,16 @@ export type AddPinRequest = {
      * The type of the pin
      */
     pinType: string;
+};
+
+/**
+ * Adoption response.
+ */
+export type AdoptedGroup = {
+    /**
+     * Shareable entity identifier.
+     */
+    groupId: string;
 };
 
 /**
@@ -182,6 +268,24 @@ export type AgentActionId = string;
  * Whether an agent is available everywhere or only in selected channels.
  */
 export type AgentChannelScope = 'all' | 'selected';
+
+/**
+ * Historical persona identity displayed beside a private conversation.
+ */
+export type AgentDmProfile = {
+    /**
+     * Persona avatar, when supplied.
+     */
+    avatar_url?: string | null;
+    /**
+     * Persona id without the bot principal prefix.
+     */
+    bot_id: string;
+    /**
+     * Persona display name.
+     */
+    name: string;
+};
 
 /**
  * One Pipedream app an agent lists under [`AgentMcpServers::Selected`].
@@ -320,6 +424,39 @@ export type AgentSessionLifecycleEvent = {
     metadata: SessionDeletedMetadata;
 };
 
+/**
+ * Who started an agent session. The string form is the
+ * `agent_session.source` column's.
+ */
+export type AgentSessionSource = 'user' | 'agent' | 'routine';
+
+/**
+ * Where an agent session is shown. The string form is the
+ * `agent_session.visibility` column's.
+ */
+export type AgentSessionVisibility = 'listed' | 'unlisted' | 'hidden';
+
+/**
+ * An agent session typing through its bot.
+ */
+export type AgentTyping = {
+    /**
+     * What the agent is doing. Deliberately coarse: a typing event reaches
+     * everyone in the conversation, and which tool runs on what is for
+     * viewers who can read the session itself.
+     */
+    phase: AgentTypingPhase;
+    /**
+     * The session whose turn the bot is speaking for.
+     */
+    session_id: string;
+};
+
+/**
+ * What a typing agent is doing.
+ */
+export type AgentTypingPhase = 'thinking' | 'writing' | 'working' | 'waiting';
+
 export type Anchor = PdfAnchor;
 
 export type AnchorId = PdfAnchorId & {
@@ -441,10 +578,51 @@ export type ApiAttachmentChannelReference = {
 };
 
 /**
+ * A reference to an attachment entity from a comment on a non-channel entity.
+ */
+export type ApiAttachmentCommentReference = {
+    /**
+     * When the mention or attachment row was created.
+     */
+    attachment_created_at: string;
+    /**
+     * Full message content (might be used for preview/snippet).
+     */
+    message_content: string;
+    /**
+     * When the message itself was created.
+     */
+    message_created_at: string;
+    /**
+     * Message that contains the reference.
+     */
+    message_id: string;
+    /**
+     * Id of the entity the comment belongs to.
+     */
+    parent_entity_id: string;
+    /**
+     * Stored type of the entity the comment belongs to
+     * (`document`, `initiative`, `crm_company`, `crm_contact`, or `call`).
+     */
+    parent_entity_type: string;
+    /**
+     * Sender of the message.
+     */
+    sender_id: string;
+    /**
+     * If the message belongs to a thread this is the parent id.
+     */
+    thread_id?: string | null;
+};
+
+/**
  * An attachment reference, tagged by source kind.
  */
 export type ApiAttachmentEntityReference = (ApiAttachmentChannelReference & {
     reference_type: 'channel';
+}) | (ApiAttachmentCommentReference & {
+    reference_type: 'comment';
 }) | (ApiAttachmentGenericReference & {
     reference_type: 'generic';
 });
@@ -668,6 +846,7 @@ export type ApiChannelParticipant = {
  * Channel list response item.
  */
 export type ApiChannelWithLatest = {
+    agent_dm?: null | AgentDmProfile;
     /**
      * Whether team members automatically join the channel.
      */
@@ -1457,6 +1636,11 @@ export type CalendarEvent = {
      */
     eventType?: EventType;
     /**
+     * What the organizer lets guests do: the canonical copy's values, or
+     * Google's defaults for an event synced before the policy was modeled.
+     */
+    guestPolicy: GuestPolicy;
+    /**
      * RFC 5545 UID used to reconcile provider and email sources.
      */
     icalUid: string;
@@ -1468,6 +1652,12 @@ export type CalendarEvent = {
      * Whether the canonical source's calendar prohibits editing it.
      */
     isReadOnly: boolean;
+    /**
+     * Whether this is a snapshot of a meeting shared with the owner, which
+     * Macro added to their calendar as a private copy: the meeting's changes
+     * never reach it, and nothing done to it reaches the meeting.
+     */
+    isSnapshot: boolean;
     /**
      * Optional physical or virtual location label.
      */
@@ -1525,6 +1715,12 @@ export type CalendarEvent = {
      * Entity update time.
      */
     updatedAt: string;
+    /**
+     * What the viewing requester may do with the event. Resolved only on
+     * the read path, alongside each attendee's `is_self`; nothing when no
+     * viewer is known. Source projections never store it.
+     */
+    viewerCan: ViewerCapabilities;
     /**
      * Event visibility.
      */
@@ -1618,6 +1814,71 @@ export type CalendarEventSourceContent = {
 };
 
 /**
+ * A channel member's request to be added as a guest of an event they see
+ * only through a channel share.
+ */
+export type CalendarJoinRequest = {
+    /**
+     * When the request was made.
+     */
+    createdAt: string;
+    /**
+     * The sharer's event entity that was shared with the channel.
+     */
+    eventId: string;
+    /**
+     * Request identifier.
+     */
+    id: string;
+    /**
+     * Address the sharer invites when accepting.
+     */
+    requesterEmail: string;
+    /**
+     * Macro user asking to join.
+     */
+    requesterId: string;
+    /**
+     * Where the request stands.
+     */
+    status: CalendarJoinRequestStatus;
+};
+
+/**
+ * HTTP error body returned by join-request endpoints.
+ */
+export type CalendarJoinRequestApiError = {
+    /**
+     * Machine-readable failure category.
+     */
+    code: CalendarJoinRequestErrorCode;
+    /**
+     * Human-readable failure description.
+     */
+    message: string;
+};
+
+/**
+ * Machine-readable join-request failure category.
+ */
+export type CalendarJoinRequestErrorCode = 'not_found' | 'already_on_calendar' | 'sharer_cannot_invite' | 'request_declined' | 'internal';
+
+/**
+ * Lifecycle of a request to be added as a guest of a shared event.
+ */
+export type CalendarJoinRequestStatus = 'pending' | 'accepted' | 'declined';
+
+/**
+ * Pending requests to join one event.
+ */
+export type CalendarJoinRequestsResponse = {
+    /**
+     * Oldest first.
+     */
+    requests: Array<CalendarJoinRequest>;
+};
+
+/**
  * Meeting-level fields shown in a calendar event mention preview, taken from
  * the requester's own projection of the meeting, or — when the requester has
  * none — from the mentioned projection a channel they belong to was given.
@@ -1628,6 +1889,12 @@ export type CalendarMentionEvent = {
      */
     attendeeCount: number;
     /**
+     * For a channel-shared preview, whether the person who shared it can
+     * add the requester as a guest. Always false for the requester's own
+     * copy.
+     */
+    canRequestToJoin?: boolean;
+    /**
      * Provider description, plain text or HTML, truncated for the preview.
      * Clients must sanitize it before rendering.
      */
@@ -1636,6 +1903,7 @@ export type CalendarMentionEvent = {
      * Whether the event repeats.
      */
     isRecurring: boolean;
+    joinRequestStatus?: null | CalendarJoinRequestStatus;
     /**
      * Location label, when set.
      */
@@ -1667,6 +1935,7 @@ export type CalendarMentionEvent = {
      * Entity update time of the previewed copy.
      */
     updatedAt: string;
+    viewerCopy?: null | CalendarMentionViewerCopy;
     /**
      * The requester's own event entity for the mentioned meeting. Differs
      * from the mentioned id when the mention came from another attendee.
@@ -1727,6 +1996,13 @@ export type CalendarMentionPreviewRequestItem = {
 export type CalendarMentionPreviewResponse = {
     items: Array<CalendarMentionPreviewItem>;
 };
+
+/**
+ * How a requester holds a mentioned meeting on their own calendar, decided
+ * by the copy's own inbox, the way viewer capabilities decide organizer and
+ * guest.
+ */
+export type CalendarMentionViewerCopy = 'snapshot' | 'invitation' | 'event';
 
 /**
  * A materialized recurrence instance optimized for range queries.
@@ -1830,6 +2106,11 @@ export type CallFilters = {
 };
 
 /**
+ * Supported call and transcript providers. Add variants as integrations grow.
+ */
+export type CallProvider = 'macro' | 'granola';
+
+/**
  * Full record of a call, unifying rows from `calls` (active) and
  * `call_records` (archived) into a single response shape.
  */
@@ -1896,15 +2177,16 @@ export type CallRecord = {
      */
     recordingUrl?: string | null;
     /**
-     * The RTC room name.
+     * The RTC room name. `None` for imported calls, which never had a room.
      */
-    roomName: string;
+    roomName?: string | null;
     /**
      * Whether the call is shared with the creator's team. While the call is
      * live this is the pending toggle applied at archive; afterwards it
      * mirrors `team_share_access_level`.
      */
     shareWithTeam: boolean;
+    source?: null | CallRecordSource;
     /**
      * When the call started (created_at for active, started_at for archived).
      */
@@ -2011,6 +2293,20 @@ export type CallRecordPreviewData = {
      * When the call started (created_at for active, started_at for archived).
      */
     startedAt: string;
+};
+
+/**
+ * Where an imported call came from.
+ */
+export type CallRecordSource = {
+    /**
+     * Link to the call in the provider's app, if it has one.
+     */
+    externalUrl?: string | null;
+    /**
+     * Provider that supplied the call.
+     */
+    provider: CallProvider;
 };
 
 /**
@@ -2146,6 +2442,12 @@ export type CellValue = {
      * A date-time.
      */
     value: string;
+} | {
+    type: 'date_range';
+    /**
+     * A span of time; its end may not come before its start.
+     */
+    value: DateRange;
 } | {
     type: 'link';
     /**
@@ -2908,7 +3210,7 @@ export type CollabSurfaceResponse = {
     /**
      * Type of the parent entity.
      */
-    parentEntityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+    parentEntityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
     /**
      * Lifecycle state (`ready` for every surface visible via the API).
      */
@@ -3169,6 +3471,11 @@ export type ColumnDetail = {
 };
 
 /**
+ * Identifier of a column placement within a table.
+ */
+export type ColumnId = string;
+
+/**
  * A type a column can have.
  */
 export type ColumnKind = {
@@ -3179,6 +3486,8 @@ export type ColumnKind = {
     type: 'boolean';
 } | {
     type: 'date';
+} | {
+    type: 'date_range';
 } | {
     type: 'link';
 } | {
@@ -3322,18 +3631,12 @@ export type CompleteUploads = {
 /**
  * The conferencing system backing an event's join URL.
  *
- * Macro generates only Google Meet conferences, so this distinguishes one it
- * created from a third party's — Zoom and friends arriving as `addOn`
- * conference data, or a legacy classic Hangout. Clients use it to label the
- * conference and to tell whether the Meet toggle reflects a Macro-managed
- * conference.
- *
- * It does not gate mutation. An explicit request replaces or detaches any
- * conference, third-party included, exactly as deleting the event would;
- * what protects a conference is that omitting the field leaves it untouched,
- * so an unrelated edit never disturbs it.
+ * Calendars can create Google Meet or Microsoft Teams according to their
+ * capabilities. Imported third-party conferences are labeled separately.
+ * Omitting a conference change preserves the current conference; explicit
+ * changes still require provider and calendar capability validation.
  */
-export type ConferenceProvider = 'google_meet' | 'other';
+export type ConferenceProvider = 'microsoft_teams' | 'google_meet' | 'other';
 
 /**
  * How a group's conditions combine.
@@ -3632,6 +3935,38 @@ export type CreateBulkDocumentResponseData = {
      * Indicates if the document was created successfully
      */
     success: boolean;
+};
+
+/**
+ * Request for a backend-initialized native Canvas.
+ */
+export type CreateCanvasDocumentRequest = {
+    /**
+     * Canvas name.
+     */
+    documentName: string;
+    /**
+     * Optional parent project.
+     */
+    projectId?: string | null;
+};
+
+/**
+ * Response for creating a native Canvas.
+ */
+export type CreateCanvasDocumentResponse = {
+    /**
+     * The document ID of the created native Canvas
+     */
+    documentId: string;
+    /**
+     * Metadata for the created document
+     */
+    documentMetadata: DocumentResponseMetadata;
+    /**
+     * A pre-generated permission token that you can use for SS
+     */
+    token: string;
 };
 
 /**
@@ -4445,7 +4780,7 @@ export type CrmAssociation = {
      * Items associated with the contact.
      */
     contact: string;
-};
+} | 'activity';
 
 /**
  * The crm company filters used to narrow which CRM companies appear in soup.
@@ -4701,7 +5036,7 @@ export type CustomSpeakerAssignment = {
 /**
  * Data type for property values, determining storage and validation.
  */
-export type DataType = 'BOOLEAN' | 'DATE' | 'NUMBER' | 'STRING' | 'SELECT_NUMBER' | 'SELECT_STRING' | 'TAG' | 'ENTITY' | 'LINK';
+export type DataType = 'BOOLEAN' | 'DATE' | 'DATE_RANGE' | 'NUMBER' | 'STRING' | 'SELECT_NUMBER' | 'SELECT_STRING' | 'TAG' | 'ENTITY' | 'LINK';
 
 /**
  * A database: a named collection of tables, owned and shared as one entity.
@@ -4748,6 +5083,12 @@ export type DatabaseDetail = {
      */
     tables: Array<TableDetail>;
 };
+
+/**
+ * Identifier of reusable database storage. Its optional Macro entity uses
+ * the same identity, so existing routes and grants keep their IDs.
+ */
+export type DatabaseId = string;
 
 /**
  * One write to a database: its tables, columns, options, rows or views,
@@ -4811,6 +5152,23 @@ export type DatabaseOp = {
      * Every table, in its new order.
      */
     order: Array<string>;
+};
+
+/**
+ * One SQL statement with an optional default database and optimistic write guards.
+ */
+export type DatabaseQueryRequest = {
+    /**
+     * Expected version for each table a subsequent statement writes.
+     */
+    baseVersions?: {
+        [key: string]: TableVersion;
+    };
+    databaseId?: null | DatabaseId;
+    /**
+     * One supported SQL statement. Writes execute once, without automatic retries.
+     */
+    sql: string;
 };
 
 /**
@@ -4927,6 +5285,27 @@ export type DatabaseWebhookResponse = {
 export type DateOperator = 'before' | 'after' | 'onOrBefore' | 'onOrAfter';
 
 /**
+ * A span of time from `start` to `end`, both included. A write whose end
+ * comes before its start is refused.
+ */
+export type DateRange = {
+    /**
+     * Where it ends; never before the start.
+     */
+    end: string;
+    /**
+     * Where it starts.
+     */
+    start: string;
+};
+
+/**
+ * How a date-range cell stands to a day: the whole day starting at the
+ * test's date-time, so a range from 1 PM to 5 PM contains its day.
+ */
+export type DateRangeOperator = 'contains' | 'doesNotContain' | 'endsBefore' | 'endsOnOrAfter' | 'startsAfter' | 'startsOnOrBefore';
+
+/**
  * Response body for `DELETE /channels/mentions/{mention_id}`.
  */
 export type DeleteEntityMentionResponse = {
@@ -4951,6 +5330,20 @@ export type DeleteUnthreadedAnchorResponse = AnchorId & {
 export type DeleteUnthreadedPdfAnchorRequest = {
     anchorType: 'highlight';
     uuid: string;
+};
+
+/**
+ * A direct user grant; inherited grants are deliberately not editable here.
+ */
+export type DirectAccess = {
+    /**
+     * Direct permission level.
+     */
+    accessLevel: AccessLevel;
+    /**
+     * Recipient.
+     */
+    userId: string;
 };
 
 /**
@@ -5521,6 +5914,17 @@ export type DocumentTeamShareResponse = {
 };
 
 /**
+ * Text representation when the document supports one. Other file formats
+ * retain their existing download/export behavior.
+ */
+export type DocumentTextContent = {
+    /**
+     * Current Markdown, or extracted PDF/Word text. Null means use file export.
+     */
+    text: string | null;
+};
+
+/**
  * Events that can be published to [`MacroDocumentsTopic`].
  */
 export type DocumentTopicEvent = {
@@ -5931,7 +6335,7 @@ export type EnsureCollabSurfaceRequest = {
     /**
      * Type of the parent entity access derives from.
      */
-    parentEntityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+    parentEntityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
 };
 
 /**
@@ -6237,7 +6641,7 @@ export type Favorite = {
     /**
      * The type of the favorited entity.
      */
-    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
     /**
      * File type of the favorited document, when applicable.
      */
@@ -6259,7 +6663,7 @@ export type FavoriteEntityRef = {
     /**
      * The type of the favorited entity.
      */
-    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+    entityType: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
 };
 
 /**
@@ -6393,6 +6797,16 @@ export type FilterTest = {
     operator: DateOperator;
     /**
      * The date-time compared against.
+     */
+    value: string;
+} | {
+    kind: 'dateRange';
+    /**
+     * How the cell's range stands to the day.
+     */
+    operator: DateRangeOperator;
+    /**
+     * The start of the day compared against.
      */
     value: string;
 } | {
@@ -6551,6 +6965,11 @@ export type Form = {
      * The form.
      */
     id: string;
+    /**
+     * Whether Drive leaves it, and the database behind it, out of its
+     * listings, as for a channel poll.
+     */
+    isHiddenInDrive: boolean;
     /**
      * Its display name. A standalone form follows the database it created;
      * a form attached to an existing table has its own name.
@@ -6890,6 +7309,11 @@ export type FormSectionDetail = {
  * Where a new form's responses go.
  */
 export type FormSource = {
+    /**
+     * Keep the form, and the database made for it, out of Drive, as
+     * for a channel poll.
+     */
+    isHiddenInDrive?: boolean;
     kind: 'new';
 } | {
     /**
@@ -7233,7 +7657,7 @@ export type GetOrCreateChannelResponse = {
  */
 export type GetOrCreateDmRequest = {
     /**
-     * Recipient user id.
+     * Recipient user id (`macro|...`) or agent persona id (`bot|...`).
      */
     recipient_id: string;
 };
@@ -7776,6 +8200,60 @@ export type GroupedSoupPage = (GroupedSoupInitialPage & {
 export type GroupedSoupSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated';
 
 /**
+ * Guest-safe message projection: no account identities, attachments, or entity grants.
+ */
+export type GuestChatMessage = {
+    /**
+     * Message body.
+     */
+    content: string;
+    /**
+     * Creation time.
+     */
+    created_at: string;
+    /**
+     * Whether the author is a guest.
+     */
+    guest: boolean;
+    /**
+     * Persisted message identity.
+     */
+    id: string;
+    /**
+     * Whether this session authored the message.
+     */
+    is_you: boolean;
+    /**
+     * Display-only author name.
+     */
+    name: string;
+};
+
+/**
+ * Messages in the call's one discussion, oldest first.
+ */
+export type GuestChatPage = {
+    /**
+     * Visible, nondeleted messages.
+     */
+    messages: Array<GuestChatMessage>;
+};
+
+/**
+ * Guests may send text only; attribution and parent are server-owned.
+ */
+export type GuestChatPost = {
+    /**
+     * Text to append to the call discussion.
+     */
+    content: string;
+    /**
+     * UUIDv7 used to deduplicate retries, including the first message.
+     */
+    id: string;
+};
+
+/**
  * A non-account guest of a single call session.
  *
  * The id doubles as the guest's RTC participant identity, so identities are
@@ -7793,6 +8271,25 @@ export type GuestJoinRequest = {
      * Guest's name, displayed to everyone in the room.
      */
     displayName: string;
+};
+
+/**
+ * The switches an organizer sets on an event to bound what its guests may
+ * do. Google omits a switch from the payload while it holds its default.
+ */
+export type GuestPolicy = {
+    /**
+     * Whether guests may invite others.
+     */
+    canInviteOthers: boolean;
+    /**
+     * Whether guests may change the event, including its guest list.
+     */
+    canModify: boolean;
+    /**
+     * Whether guests may see the guest list.
+     */
+    canSeeOtherGuests: boolean;
 };
 
 /**
@@ -8485,6 +8982,540 @@ export type LeaveCallResponse = {
 export type LinkShare = 'PUBLIC' | 'TEAM';
 
 /**
+ * One person's account, never owned by a workspace.
+ */
+export type LinkedAccount = {
+    /**
+     * Explicit consent generation; reconnecting a socket never changes it.
+     */
+    authorizationGeneration: number;
+    /**
+     * Stable account identity.
+     */
+    id: string;
+    /**
+     * WhatsApp-verified identity, absent until the first pairing succeeds.
+     */
+    identityJid?: string | null;
+    /**
+     * Lifecycle.
+     */
+    state: LinkedAccountState;
+    /**
+     * Authenticated owner.
+     */
+    userId: string;
+};
+
+/**
+ * Account lifecycle. Transport outages are not stored: a connected account
+ * stays connected while its session service reconnects.
+ */
+export type LinkedAccountState = 'pairing' | 'connected' | 'logged_out' | 'disconnected';
+
+/**
+ * Owner-scoped account state, including not connected.
+ */
+export type LinkedAccountView = {
+    account?: null | LinkedAccount;
+};
+
+/**
+ * Explicit adoption request; the account is selected server-side. The
+ * group's name always follows WhatsApp.
+ */
+export type LinkedAdoptGroup = {
+    /**
+     * A group the requester's account has joined, or a direct chat from
+     * their chat list (the other person's JID, as the list names it).
+     */
+    groupJid: string;
+};
+
+/**
+ * One attachment of a linked message.
+ */
+export type LinkedAttachment = {
+    /**
+     * The private document, once ready.
+     */
+    documentId?: string | null;
+    /**
+     * Length of audio or video in whole seconds, when declared.
+     */
+    durationSeconds?: number | null;
+    /**
+     * Display filename.
+     */
+    fileName: string;
+    /**
+     * Pixel height, when declared.
+     */
+    height?: number | null;
+    /**
+     * Declared MIME type.
+     */
+    mime: string;
+    /**
+     * Position within the message.
+     */
+    ordinal: number;
+    presentation?: null | LinkedMediaPresentation;
+    /**
+     * Declared size in bytes.
+     */
+    size: number;
+    /**
+     * Current state.
+     */
+    state: LinkedAttachmentState;
+    /**
+     * Pixel width of an image, sticker or video, when WhatsApp declared it.
+     */
+    width?: number | null;
+};
+
+/**
+ * Where an attachment of a linked message stands.
+ */
+export type LinkedAttachmentState = 'loading' | 'ready' | 'unavailable' | 'unsupported';
+
+/**
+ * Earlier messages imported after adding a group.
+ */
+export type LinkedBackfill = {
+    /**
+     * Messages received from the phone so far (including ones already shown).
+     */
+    imported: number;
+    /**
+     * Progress.
+     */
+    state: LinkedBackfillState;
+};
+
+/**
+ * Where importing a group's earlier messages stands.
+ */
+export type LinkedBackfillState = 'waiting_for_message' | 'pending' | 'running' | 'waiting_for_phone' | 'done' | 'partial';
+
+/**
+ * Why a chat can't be added to Macro; the app words it from the code.
+ */
+export type LinkedCannotAdd = 'not_in_group' | 'community' | 'own_chat' | 'not_in_chat_list';
+
+/**
+ * Operations implemented for linked groups, independent of current permission.
+ */
+export type LinkedCapabilities = {
+    /**
+     * Largest attachment in bytes.
+     */
+    attachmentLimitBytes: number;
+    /**
+     * Supported attachment MIME types.
+     */
+    attachmentTypes: Array<string>;
+    /**
+     * Attachments per send.
+     */
+    maxAttachments: number;
+    /**
+     * Edits and deletes are offered this long after sending.
+     */
+    mutationWindowSeconds: number;
+    /**
+     * Supported message operations.
+     */
+    mutations: Array<LinkedMutation>;
+    /**
+     * Maximum UTF-8 bytes per text send.
+     */
+    textLimitBytes: number;
+};
+
+/**
+ * One chat of the caller's WhatsApp chat list, as WhatsApp Web lists it.
+ */
+export type LinkedChat = {
+    /**
+     * Archived in WhatsApp.
+     */
+    archived: boolean;
+    /**
+     * "Add to Macro" works now.
+     */
+    canAdd: boolean;
+    cannotAddReason?: null | LinkedCannotAdd;
+    community?: null | LinkedCommunityReference;
+    group?: null | LinkedGroupReference;
+    /**
+     * WhatsApp chat JID: a group, or the other person's phone-number JID
+     * (LID when WhatsApp never told us the number).
+     */
+    jid: string;
+    /**
+     * Group or direct chat.
+     */
+    kind: LinkedChatKind;
+    /**
+     * Newest activity WhatsApp reported (message or history sync); `null`
+     * when unknown. The list is sorted by it, newest first, unknown last.
+     */
+    lastActivityAt?: string | null;
+    /**
+     * Group: the subject, or member names for an unnamed group. Direct: the
+     * contact or WhatsApp name, else `+<phone>`. Always non-empty.
+     */
+    name: string;
+    /**
+     * Pinned in WhatsApp.
+     */
+    pinned: boolean;
+    shared?: null | LinkedSharedGroupReference;
+};
+
+/**
+ * Whether a WhatsApp chat is a group or a one-to-one chat.
+ */
+export type LinkedChatKind = 'group' | 'direct';
+
+/**
+ * The caller's WhatsApp chat list.
+ */
+export type LinkedChats = {
+    /**
+     * Newest activity first; chats with unknown activity last, by name.
+     */
+    chats: Array<LinkedChat>;
+};
+
+/**
+ * The WhatsApp community a group belongs to.
+ */
+export type LinkedCommunityReference = {
+    /**
+     * This group is the community's announcement group.
+     */
+    announcements: boolean;
+    /**
+     * The community's WhatsApp JID.
+     */
+    id: string;
+    /**
+     * The community's name.
+     */
+    name: string;
+};
+
+/**
+ * Explicit pairing intent; replacement is a separate deliberate action.
+ */
+export type LinkedConnect = {
+    /**
+     * Replace the retained identity with a different WhatsApp account.
+     */
+    replace?: boolean;
+};
+
+/**
+ * Observed send state. `unknown` means the request may have reached WhatsApp;
+ * it is never sent again automatically.
+ */
+export type LinkedDeliveryState = 'pending' | 'sending' | 'unknown' | 'accepted' | 'failed';
+
+/**
+ * Result of disconnecting an account.
+ */
+export type LinkedDisconnect = {
+    /**
+     * The session service was asked to log the device out of WhatsApp. It
+     * unlinks asynchronously; WhatsApp's Linked devices list is authoritative.
+     */
+    remoteUnlinkRequested: boolean;
+};
+
+/**
+ * The consent generation the owner deliberately disconnects.
+ */
+export type LinkedDisconnectRequest = {
+    /**
+     * Fences retries against a later reconnect or replacement.
+     */
+    authorizationGeneration: number;
+};
+
+/**
+ * Independently controlled backend rollout switches. None grants access.
+ */
+export type LinkedFeatures = {
+    /**
+     * Allow explicit existing-group adoption and access grants.
+     */
+    adoption: boolean;
+    /**
+     * Allow new owner-bound pairing transactions.
+     */
+    pairing: boolean;
+    /**
+     * Allow new deliberate sends.
+     */
+    sending: boolean;
+};
+
+/**
+ * A group entity bound to a remote group.
+ */
+export type LinkedGroupReference = {
+    /**
+     * Group entity id.
+     */
+    id: string;
+    /**
+     * Display name, following WhatsApp.
+     */
+    name: string;
+};
+
+/**
+ * Attachment categories WhatsApp distinguishes.
+ */
+export type LinkedMediaKind = 'image' | 'audio' | 'video' | 'document';
+
+/**
+ * How WhatsApp shows an attachment, when not as a plain file of its kind.
+ */
+export type LinkedMediaPresentation = 'sticker' | 'gif' | 'voice_note';
+
+/**
+ * The attachments of one linked group message.
+ */
+export type LinkedMessageAttachments = {
+    /**
+     * Its attachments in order; deleted ones are omitted.
+     */
+    linkedAttachments: Array<LinkedAttachment>;
+    /**
+     * Group message.
+     */
+    messageId: string;
+};
+
+/**
+ * Deliberate operations on an existing linked-group message.
+ */
+export type LinkedMutation = 'reaction' | 'edit' | 'delete';
+
+/**
+ * Owner-only pairing status. Deliberately has no `Debug` implementation: the
+ * QR and pairing code are secrets for the duration of the transaction.
+ */
+export type LinkedPairState = {
+    /**
+     * WhatsApp's WebAuthn request options while the state is `passkey`; the
+     * native authenticator answers through the passkey route.
+     */
+    challenge?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Pairing code to type on the phone, when phone-number pairing is used.
+     */
+    code?: string | null;
+    /**
+     * Same owner-bound deadline.
+     */
+    expiresAt: string;
+    /**
+     * Verified identity once paired.
+     */
+    identityJid?: string | null;
+    /**
+     * Current QR content; rotates while the transaction waits.
+     */
+    qr?: string | null;
+    /**
+     * Current state.
+     */
+    state: LinkedPairingState;
+};
+
+/**
+ * Owner-bound pairing transaction, without its QR or pairing code.
+ */
+export type LinkedPairing = {
+    /**
+     * Account being connected.
+     */
+    accountId: string;
+    /**
+     * Database-assigned deadline.
+     */
+    expiresAt: string;
+    /**
+     * One-use transaction id.
+     */
+    id: string;
+    /**
+     * Current state.
+     */
+    state: LinkedPairingState;
+};
+
+/**
+ * Pairing transaction state.
+ */
+export type LinkedPairingState = 'waiting' | 'qr' | 'passkey' | 'success' | 'expired' | 'cancelled' | 'failed';
+
+/**
+ * Why the viewer cannot send now.
+ */
+export type LinkedReplyBlock = 'sending_disabled' | 'no_account' | 'disconnected' | 'not_observing' | 'not_allowed_in_group' | 'group_unavailable';
+
+/**
+ * Content of a deliberate send.
+ */
+export type LinkedReplyContent = {
+    /**
+     * Group participants the text @-mentions, by their WhatsApp id
+     * (`jid` of a roster participant); the text must contain
+     * `@<digits before the @ of the id>` for each.
+     */
+    mentions?: Array<string>;
+    /**
+     * UTF-8 text, at most [`TEXT_LIMIT_BYTES`] bytes.
+     */
+    text: string;
+    type: 'text';
+} | {
+    /**
+     * Optional caption; audio has none.
+     */
+    caption?: string | null;
+    type: 'media';
+    /**
+     * The staged upload, which becomes the message's private document.
+     */
+    uploadId: string;
+} | {
+    /**
+     * Existing group message, resolved to its WhatsApp source by the server.
+     */
+    messageId: string;
+    /**
+     * Explicit operation.
+     */
+    operation: LinkedMutation;
+    /**
+     * Replacement text or emoji; absent for delete, empty to remove a reaction.
+     */
+    text?: string | null;
+    type: 'mutation';
+};
+
+/**
+ * Durable result of a deliberate send.
+ */
+export type LinkedSendProgress = {
+    /**
+     * Intent creation time.
+     */
+    createdAt: string;
+    /**
+     * Sanitized failure code.
+     */
+    errorCode?: string | null;
+    /**
+     * Group entity.
+     */
+    groupId: string;
+    /**
+     * Stable intent id.
+     */
+    id: string;
+    /**
+     * Group message, once WhatsApp accepted it.
+     */
+    messageId?: string | null;
+    /**
+     * The original request, so a failed draft can be recovered.
+     */
+    payload: LinkedSendReply;
+    /**
+     * Current state.
+     */
+    state: LinkedDeliveryState;
+    /**
+     * Person who submitted it.
+     */
+    userId: string;
+};
+
+/**
+ * Explicit send action from a person. Only deliberate sends reach WhatsApp.
+ */
+export type LinkedSendReply = {
+    /**
+     * Stable client intent key. A changed payload with this key is a conflict.
+     */
+    idempotencyKey: string;
+    /**
+     * Content.
+     */
+    message: LinkedReplyContent;
+    /**
+     * Group message being quoted, within this group.
+     */
+    replyTo?: string | null;
+};
+
+/**
+ * Another person's group entity the caller can view.
+ */
+export type LinkedSharedGroupReference = {
+    /**
+     * Group entity id.
+     */
+    id: string;
+    /**
+     * Display name, following WhatsApp.
+     */
+    name: string;
+    /**
+     * Macro user who added the group and shared it.
+     */
+    ownerId: string;
+};
+
+/**
+ * Multipart body of the attachments route.
+ */
+export type LinkedUploadRequest = {
+    /**
+     * One supported image, audio, video, PDF or text file.
+     */
+    file: Blob | File;
+};
+
+/**
+ * A staged attachment, sent only by a later deliberate send.
+ */
+export type LinkedUploadedAttachment = {
+    /**
+     * Display filename.
+     */
+    filename: string;
+    /**
+     * Category.
+     */
+    kind: LinkedMediaKind;
+    /**
+     * Use as `upload_id` in a media send; also the future document id.
+     */
+    uploadId: string;
+};
+
+/**
  * A database's webhooks.
  */
 export type ListDatabaseWebhooksResponse = {
@@ -8598,6 +9629,16 @@ export type LocationResponseV3 = {
 export type MacroUserIdStr = string;
 
 /**
+ * Mark messages through this message read.
+ */
+export type MarkRead = {
+    /**
+     * Message in the addressed group.
+     */
+    messageId: string;
+};
+
+/**
  * Persistent meeting metadata. No channel contents or archived media are exposed.
  */
 export type Meeting = {
@@ -8680,7 +9721,8 @@ export type MeetingPreparation = {
 };
 
 /**
- * A bearer capability that grants access only to a meeting's RTC room.
+ * An invitation capability for joining a meeting's RTC room. Chat additionally
+ * requires the resulting participant credential and current guest membership.
  */
 export type MeetingToken = string;
 
@@ -8719,6 +9761,10 @@ export type Message = {
      * Last content edit, if any.
      */
     edited_at?: string | null;
+    /**
+     * Display name of a verified call guest, retained after the call ends.
+     */
+    guest_name?: string | null;
     /**
      * Message UUID.
      */
@@ -8910,6 +9956,7 @@ export type MessageChange = {
      * Whether the user is currently typing.
      */
     active: boolean;
+    agent?: null | AgentTyping;
     /**
      * Root being replied to, or no root for the parent composer.
      */
@@ -9719,6 +10766,11 @@ export type OpResult = {
 export type Operator = 'add' | 'subtract' | 'multiply' | 'divide';
 
 /**
+ * Identifier of an option of a select or tag column.
+ */
+export type OptionId = string;
+
+/**
  * A select option, by its id or by its label.
  */
 export type OptionRef = {
@@ -10433,6 +11485,13 @@ export type PropertyValue = {
      */
     value: string;
 } | {
+    type: 'DateRange';
+    /**
+     * Date range value
+     * Serializes as: {"type": "DateRange", "value": {"start": "2025-01-01T00:00:00Z", "end": "2025-01-31T00:00:00Z"}}
+     */
+    value: DateRange;
+} | {
     type: 'SelectOption';
     /**
      * Select option(s) - always an array (check is_multi_select to determine if single or multi)
@@ -10631,6 +11690,25 @@ export type ReplaceCrmStagesRequest = {
 };
 
 /**
+ * Requester submission; an existing pending request requires its revision.
+ */
+export type RequestAccess = {
+    /**
+     * Desired View, Comment, or Edit permission.
+     */
+    requestedLevel: AccessLevel;
+    /**
+     * Last observed revision; omitted only for the first request.
+     */
+    revision?: number | null;
+};
+
+/**
+ * Durable outcome; reading a notification never changes it.
+ */
+export type RequestStatus = 'pending' | 'granted' | 'denied' | 'cancelled';
+
+/**
  * The ownership scope a daemon's config asks for.
  *
  * Advisory, not binding: the approving user confirms it in the dialog, which
@@ -10639,7 +11717,8 @@ export type ReplaceCrmStagesRequest = {
 export type RequestedHarnessScope = 'private' | 'team';
 
 /**
- * A layout as an op asks for it: a board may leave its card title out.
+ * A layout as an op asks for it: a board or timeline may leave its title
+ * out.
  */
 export type RequestedLayout = {
     /**
@@ -10672,6 +11751,41 @@ export type RequestedLayout = {
      * title it has, and a new board takes the table's first column.
      */
     title?: string;
+} | {
+    /**
+     * The columns a bar shows after its title, in order.
+     */
+    barFields?: Array<string>;
+    /**
+     * The select or tag column whose options color the bars, if any.
+     */
+    colorBy: string | null;
+    /**
+     * The single-select or single-person column grouping the bars, if
+     * any.
+     */
+    groupBy: string | null;
+    kind: 'timeline';
+    /**
+     * The date-range column whose cells are the bars.
+     */
+    range: string;
+    /**
+     * The column a bar is labelled by. Left out, a timeline keeps the
+     * title it has, and a new timeline takes the table's first column.
+     */
+    title?: string;
+};
+
+/**
+ * Owner's decision; omission of a granted level means deny.
+ */
+export type ResolveRequest = {
+    grantedLevel?: null | AccessLevel;
+    /**
+     * Request revision being reviewed.
+     */
+    revision: number;
 };
 
 /**
@@ -10699,6 +11813,46 @@ export type ResponseSummary = {
      * Responses saved.
      */
     submitted: number;
+};
+
+/**
+ * One result column, with what its cells mean.
+ */
+export type ResultColumn = {
+    /**
+     * What its cells hold.
+     */
+    kind: SqlOutcomeKind;
+    /**
+     * The name or alias the statement gave it.
+     */
+    name: string;
+    /**
+     * For a select column, its options: its cells hold their ids.
+     */
+    options?: Array<SqlSelectOption>;
+    relatedTable?: null | TableId;
+    target?: null | SqlEntityKind;
+};
+
+/**
+ * A `SELECT`'s rows, as the engine's typed cells.
+ */
+export type ResultSet = {
+    /**
+     * The columns, in select-list order.
+     */
+    columns: Array<ResultColumn>;
+    /**
+     * For a row-shaped result, the id of the row behind each result row;
+     * empty for an aggregate.
+     */
+    rowIds: Array<RowId>;
+    /**
+     * One cell per column per row; `null` is an empty cell.
+     */
+    rows: Array<Array<null | SqlCell>>;
+    sourceTable?: null | TableId;
 };
 
 /**
@@ -11054,6 +12208,11 @@ export type SessionIdentity = {
      * User-facing session name at the time of the event.
      */
     session_name: string;
+    /**
+     * Who started the session. Events from before it was recorded say
+     * nothing and read as a person.
+     */
+    source?: SessionSource;
 };
 
 /**
@@ -11122,6 +12281,12 @@ export type SessionSettledMetadata = {
     identity: SessionIdentity;
     last_turn?: null | TurnSummary;
 };
+
+/**
+ * Who started a session. Stored on the session and carried by its lifecycle
+ * events, so lists and notifications can treat unattended runs differently.
+ */
+export type SessionSource = 'user' | 'agent' | 'routine';
 
 /**
  * The session's live actor is gone: idle teardown, transport loss, or crash.
@@ -11213,6 +12378,13 @@ export type SetContactNameRequest = {
 };
 
 /**
+ * Direct-grant change. A null level removes only that direct grant.
+ */
+export type SetDirectAccess = {
+    accessLevel?: null | AccessLevel;
+};
+
+/**
  * Request body for setting a document's team-share state.
  */
 export type SetDocumentTeamShareRequest = {
@@ -11253,6 +12425,9 @@ export type SetPropertyValue = {
     type: 'date';
     value: string;
 } | {
+    type: 'date_range';
+    value: DateRange;
+} | {
     type: 'number';
     value: number;
 } | {
@@ -11282,6 +12457,25 @@ export type SetPropertyValue = {
  * SHA-256 encoded as exactly 64 lowercase hexadecimal characters.
  */
 export type Sha256Digest = string;
+
+/**
+ * A validated shared-entity address.
+ */
+export type ShareEntity = {
+    /**
+     * Entity identifier.
+     */
+    entityId: string;
+    /**
+     * Canonical entity kind.
+     */
+    entityType: ShareEntityType;
+};
+
+/**
+ * An entity type with an existing Share surface.
+ */
+export type ShareEntityType = 'document' | 'chat' | 'project' | 'initiative' | 'database' | 'call' | 'email_thread' | 'agent_session' | 'whatsapp_group';
 
 export type SharePermissionV2 = {
     /**
@@ -11490,6 +12684,10 @@ export type SoupAgentSessionSoupPropertiesField = {
      */
     repoUrl?: string | null;
     /**
+     * Who started the session
+     */
+    source?: AgentSessionSource;
+    /**
      * The session's last known status.
      *
      * `no_messages` until the first system event arrives, `disconnected` if
@@ -11513,6 +12711,10 @@ export type SoupAgentSessionSoupPropertiesField = {
      * The time the session was last viewed by the requesting user
      */
     viewedAt?: string | null;
+    /**
+     * Where the session is shown
+     */
+    visibility?: AgentSessionVisibility;
     /**
      * Last captured working branch, when the runtime has reported one.
      */
@@ -12806,6 +14008,202 @@ export type SourceIdentity = {
 };
 
 /**
+ * A cell as fetched. An absent cell is `NULL`; an absent multi-valued cell
+ * is the empty set.
+ */
+export type SqlCell = {
+    type: 'text';
+    /**
+     * Text or link.
+     */
+    value: string;
+} | {
+    type: 'number';
+    /**
+     * A number.
+     */
+    value: number;
+} | {
+    type: 'bool';
+    /**
+     * A checkbox.
+     */
+    value: boolean;
+} | {
+    type: 'date';
+    /**
+     * A date-time.
+     */
+    value: string;
+} | {
+    type: 'dateRange';
+    /**
+     * A span from one date-time to another.
+     */
+    value: DateRange;
+} | {
+    type: 'options';
+    /**
+     * The selected option ids; one for single-select columns.
+     */
+    value: Array<OptionId>;
+} | {
+    type: 'entities';
+    /**
+     * The referenced entity ids; one for single-valued columns.
+     */
+    value: Array<string>;
+} | {
+    type: 'row';
+    /**
+     * A table row's own id, the `row_id` column.
+     */
+    value: RowId;
+};
+
+/**
+ * What an entity column's references point at: a kind of Macro entity, or
+ * the rows of another table for a relation.
+ *
+ * Spelled as the properties system spells entity types (`USER`,
+ * `DATABASE_ROW`), on the wire and in SQL, where it parses
+ * case-insensitively.
+ */
+export type SqlEntityKind = 'USER' | 'DOCUMENT' | 'TASK' | 'COMPANY' | 'CONTACT' | 'CALL_RECORD' | 'CHANNEL' | 'CHAT' | 'PROJECT' | 'THREAD' | 'CALENDAR_EVENT' | 'INITIATIVE' | 'DATABASE_ROW';
+
+/**
+ * The answer to one statement.
+ */
+export type SqlOutcome = {
+    /**
+     * How many rows a write changed.
+     */
+    changesApplied: number;
+    /**
+     * The rows an `INSERT` created, in statement order.
+     */
+    insertedRowIds: Array<RowId>;
+    /**
+     * The new version of every table written.
+     */
+    newVersions: {
+        [key: string]: TableVersion;
+    };
+    /**
+     * The version of every table read, for a follow-up write to guard on.
+     */
+    readVersions: {
+        [key: string]: TableVersion;
+    };
+    result?: null | ResultSet;
+    /**
+     * What kind of statement ran, and what it wrote.
+     */
+    statement: SqlStatement;
+    /**
+     * Owning database of each visible table referenced by this outcome.
+     */
+    tableDatabases: {
+        [key: string]: DatabaseId;
+    };
+    /**
+     * Every table the statement read, when any read hit the engine's row
+     * cap: the engine reports the cap per statement, so aggregates over any
+     * of them may be partial.
+     */
+    truncatedTables: Array<string>;
+};
+
+/**
+ * The value kind of a result column.
+ */
+export type SqlOutcomeKind = 'text' | 'number' | 'boolean' | 'date' | 'dateRange' | 'select' | 'entity' | 'row';
+
+/**
+ * One option of a select column.
+ */
+export type SqlSelectOption = {
+    /**
+     * The option id.
+     */
+    id: OptionId;
+    /**
+     * The label users type in SQL.
+     */
+    label: string;
+};
+
+/**
+ * The statement that ran: a read, or the table (and for a type change, the
+ * column) it wrote.
+ */
+export type SqlStatement = {
+    /**
+     * Owning database.
+     */
+    databaseId: DatabaseId;
+    kind: 'schema';
+    /**
+     * What changed and how to read the resulting schema.
+     */
+    summary: string;
+} | {
+    kind: 'select';
+} | {
+    kind: 'insert';
+    /**
+     * The table written.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+} | {
+    kind: 'update';
+    /**
+     * The table written.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+} | {
+    kind: 'delete';
+    /**
+     * The table written.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+} | {
+    /**
+     * The column placement; its id survives the change.
+     */
+    columnId: ColumnId;
+    /**
+     * The column's name.
+     */
+    columnName: string;
+    kind: 'alterColumnType';
+    /**
+     * The table.
+     */
+    tableId: TableId;
+    /**
+     * Its name.
+     */
+    tableName: string;
+    /**
+     * The type it became, as SQL spells it, e.g. `select[]`.
+     */
+    to: string;
+};
+
+/**
  * Starter result. A missing database means the user already started or removed it.
  */
 export type StarterDatabase = {
@@ -13196,6 +14594,11 @@ export type TableDetail = {
      */
     views: Array<DatabaseView>;
 };
+
+/**
+ * Identifier of one table (tab) within a database.
+ */
+export type TableId = string;
 
 /**
  * What happened to a table.
@@ -14470,6 +15873,30 @@ export type ViewLayout = {
      * the cards by the table's first remaining column.
      */
     title: string;
+} | {
+    /**
+     * The columns a bar shows after its title, in order.
+     */
+    barFields?: Array<string>;
+    /**
+     * The select or tag column whose options color the bars, if any.
+     */
+    colorBy: string | null;
+    /**
+     * The single-select or single-person column whose values group the
+     * bars, if any; moving a bar to another group sets this column.
+     */
+    groupBy: string | null;
+    kind: 'timeline';
+    /**
+     * The date-range column whose cells are the bars.
+     */
+    range: string;
+    /**
+     * The column a bar is labelled by, of any type. Removing it labels
+     * the bars by the table's first remaining column.
+     */
+    title: string;
 };
 
 export type ViewPatch = {
@@ -14539,6 +15966,37 @@ export type ViewResult = {
      * The positions written, the moved card's last.
      */
     positions: Array<CardPosition>;
+};
+
+/**
+ * What the viewing requester may do with an event.
+ */
+export type ViewerCapabilities = {
+    /**
+     * Change the event's details (title, time, description, conference).
+     */
+    editDetails: boolean;
+    /**
+     * Add guests.
+     */
+    inviteGuests: boolean;
+    /**
+     * Act as the event's organizer: replace its whole guest list and manage
+     * its conferencing.
+     */
+    organize: boolean;
+    /**
+     * Remove guests.
+     */
+    removeGuests: boolean;
+    /**
+     * Answer the invitation.
+     */
+    rsvp: boolean;
+    /**
+     * Change the event's guest policy, which only Google calendars have.
+     */
+    setGuestPolicy: boolean;
 };
 
 export type ViewsResponse = {
@@ -14690,9 +16148,464 @@ export type WebhookValidationTestEvent = {
 };
 
 /**
+ * A call in the group.
+ */
+export type WhatsAppCall = {
+    /**
+     * Length, when it connected.
+     */
+    durationSeconds?: number | null;
+    /**
+     * How it went for the account that saw it.
+     */
+    outcome: WhatsAppCallOutcome;
+    /**
+     * Video rather than voice.
+     */
+    video: boolean;
+};
+
+/**
+ * How a call went.
+ */
+export type WhatsAppCallOutcome = 'answered' | 'missed' | 'rejected' | 'other';
+
+/**
+ * One contact card, from its vCard.
+ */
+export type WhatsAppContactCard = {
+    /**
+     * Display name.
+     */
+    name: string;
+    /**
+     * Phone numbers as written on the card.
+     */
+    phones: Array<string>;
+};
+
+/**
+ * Contact cards.
+ */
+export type WhatsAppContacts = {
+    /**
+     * The cards, in order.
+     */
+    contacts: Array<WhatsAppContactCard>;
+};
+
+/**
+ * A WhatsApp event.
+ */
+export type WhatsAppEvent = {
+    /**
+     * Canceled by its organizer.
+     */
+    canceled?: boolean;
+    /**
+     * Description.
+     */
+    description?: string | null;
+    /**
+     * End.
+     */
+    endAt?: string | null;
+    /**
+     * Call link for an online event.
+     */
+    joinLink?: string | null;
+    /**
+     * Place name or address.
+     */
+    location?: string | null;
+    /**
+     * Title.
+     */
+    name: string;
+    /**
+     * Start.
+     */
+    startAt?: string | null;
+};
+
+/**
+ * Full group detail and current viewer capabilities.
+ */
+export type WhatsAppGroupDetail = WhatsAppGroupSummary & {
+    /**
+     * Caller's effective permission.
+     */
+    accessLevel: AccessLevel;
+    /**
+     * WhatsApp's disappearing-messages timer in seconds while it is on;
+     * Macro keeps the messages anyway. `null` when off or unknown.
+     */
+    disappearingSeconds?: number | null;
+    /**
+     * Size and mutation limits.
+     */
+    limits: LinkedCapabilities;
+    roster?: null | WhatsAppRoster;
+    /**
+     * Caller's own phone identity, never another account's identity.
+     */
+    sendingIdentity?: string | null;
+    /**
+     * Owner-controlled standard sharing configuration.
+     */
+    sharePermission: SharePermissionV2;
+};
+
+/**
+ * One message in an adopted group.
+ */
+export type WhatsAppGroupMessage = {
+    /**
+     * Imported or pending attachments.
+     */
+    attachments: Array<LinkedAttachment>;
+    /**
+     * Plain WhatsApp text.
+     */
+    body: string;
+    /**
+     * Deleted for everyone.
+     */
+    deleted: boolean;
+    deliveryState?: null | LinkedDeliveryState;
+    /**
+     * Last edit timestamp.
+     */
+    editedAt?: string | null;
+    /**
+     * Forwarded from another chat.
+     */
+    forwarded: boolean;
+    /**
+     * Stable message id.
+     */
+    id: string;
+    /**
+     * A message, or a system line.
+     */
+    kind: WhatsAppMessageKind;
+    /**
+     * People the body @-mentions.
+     */
+    mentions: Array<WhatsAppMention>;
+    /**
+     * Reactions grouped by emoji.
+     */
+    reactions: Array<WhatsAppGroupReaction>;
+    /**
+     * Timestamp first received by Macro.
+     */
+    receivedAt: string;
+    /**
+     * Message quoted by this one.
+     */
+    replyTo?: string | null;
+    rich?: null | WhatsAppRichContent;
+    /**
+     * Sender.
+     */
+    sender: WhatsAppGroupSender;
+    /**
+     * Timestamp assigned by WhatsApp.
+     */
+    sentAt: string;
+    /**
+     * Sent as view-once in WhatsApp; Macro shows it like any media.
+     */
+    viewOnce: boolean;
+};
+
+/**
+ * Newest-first timeline page; `before` is the last returned message id.
+ */
+export type WhatsAppGroupMessages = {
+    /**
+     * Messages in descending sent_at, id order.
+     */
+    messages: Array<WhatsAppGroupMessage>;
+    /**
+     * Cursor for older messages.
+     */
+    nextCursor?: string | null;
+};
+
+/**
+ * Grouped reactions.
+ */
+export type WhatsAppGroupReaction = {
+    /**
+     * Number of reacting people.
+     */
+    count: number;
+    /**
+     * Emoji.
+     */
+    emoji: string;
+    /**
+     * Caller has this reaction.
+     */
+    mine: boolean;
+};
+
+/**
+ * Message sender from protocol-verified identity evidence.
+ */
+export type WhatsAppGroupSender = {
+    /**
+     * Display name, never authentication evidence.
+     */
+    name: string;
+    /**
+     * External person identity.
+     */
+    personId: string;
+    /**
+     * Verified Macro user association, if present.
+     */
+    userId?: string | null;
+};
+
+/**
+ * Adopted group visible through ordinary entity sharing.
+ */
+export type WhatsAppGroupSummary = {
+    backfill?: null | LinkedBackfill;
+    /**
+     * Caller may currently send from their own account.
+     */
+    canSend: boolean;
+    community?: null | LinkedCommunityReference;
+    /**
+     * Entity identifier.
+     */
+    id: string;
+    /**
+     * A group, or a direct chat with one person (only its owner sends).
+     */
+    kind: LinkedChatKind;
+    /**
+     * Latest message timestamp.
+     */
+    lastMessageAt?: string | null;
+    /**
+     * Display name: the group's, or a direct chat's other person.
+     */
+    name: string;
+    sendReason?: null | LinkedReplyBlock;
+    /**
+     * Unread live messages for this viewer, counted up to
+     * [`UNREAD_COUNT_CAP`].
+     */
+    unreadCount: number;
+    /**
+     * Actual entity owner.
+     */
+    userId: string;
+};
+
+/**
+ * A shared place.
+ */
+export type WhatsAppLocation = {
+    /**
+     * Street address.
+     */
+    address?: string | null;
+    /**
+     * Caption or comment.
+     */
+    comment?: string | null;
+    /**
+     * Degrees.
+     */
+    latitude: number;
+    /**
+     * Shared as a live location (this is where it started).
+     */
+    live?: boolean;
+    /**
+     * Degrees.
+     */
+    longitude: number;
+    /**
+     * Place name.
+     */
+    name?: string | null;
+    /**
+     * Link the sender attached.
+     */
+    url?: string | null;
+};
+
+/**
+ * An @-mention in a message body.
+ */
+export type WhatsAppMention = WhatsAppPersonRef & {
+    /**
+     * What follows the `@` in the body (the digits of the person's WhatsApp
+     * id); replace `@<token>` with the name.
+     */
+    token: string;
+};
+
+/**
+ * What a timeline entry is.
+ */
+export type WhatsAppMessageKind = 'message' | 'system';
+
+/**
+ * Someone in a WhatsApp chat; Macro access is a separate grant.
+ */
+export type WhatsAppParticipant = {
+    /**
+     * Group admin.
+     */
+    admin: boolean;
+    /**
+     * The other address WhatsApp verified for them.
+     */
+    alternateJid?: string | null;
+    /**
+     * Their WhatsApp name, untrusted.
+     */
+    displayName?: string | null;
+    /**
+     * Phone-number or LID JID.
+     */
+    jid: string;
+};
+
+/**
+ * A person named in a message: a Macro user when verified, else their
+ * WhatsApp name, else their phone number.
+ */
+export type WhatsAppPersonRef = {
+    /**
+     * Display name, never authentication evidence.
+     */
+    name: string;
+    /**
+     * Verified Macro user, if any.
+     */
+    userId?: string | null;
+};
+
+/**
+ * A poll, read-only in Macro.
+ */
+export type WhatsAppPoll = {
+    /**
+     * Options in order, with tallies.
+     */
+    options: Array<WhatsAppPollOption>;
+    /**
+     * The question.
+     */
+    question: string;
+    /**
+     * How many options one person may choose; 0 means any number.
+     */
+    selectableCount: number;
+    /**
+     * People who voted for anything.
+     */
+    voters: number;
+};
+
+/**
+ * One option of a poll with its votes.
+ */
+export type WhatsAppPollOption = {
+    /**
+     * The caller chose it.
+     */
+    mine: boolean;
+    /**
+     * Option text.
+     */
+    name: string;
+    /**
+     * Who chose it.
+     */
+    voters: Array<WhatsAppPersonRef>;
+    /**
+     * People who chose it.
+     */
+    votes: number;
+};
+
+/**
+ * Structured content of a message besides its body.
+ */
+export type WhatsAppRichContent = (WhatsAppPoll & {
+    type: 'poll';
+}) | (WhatsAppLocation & {
+    type: 'location';
+}) | (WhatsAppContacts & {
+    type: 'contacts';
+}) | (WhatsAppEvent & {
+    type: 'event';
+}) | (WhatsAppSystemLine & {
+    type: 'system';
+});
+
+/**
+ * A chat's WhatsApp metadata as the caller's account last read it.
+ */
+export type WhatsAppRoster = {
+    /**
+     * Only admins may post.
+     */
+    announce: boolean;
+    /**
+     * WhatsApp subject.
+     */
+    name: string;
+    /**
+     * When this was read from WhatsApp.
+     */
+    observedAt: string;
+    /**
+     * Everyone in the chat.
+     */
+    participants: Array<WhatsAppParticipant>;
+};
+
+/**
+ * Kinds of system lines.
+ */
+export type WhatsAppSystemAction = 'group_created' | 'participants_added' | 'participants_removed' | 'participants_left' | 'participants_joined' | 'participants_promoted' | 'participants_demoted' | 'subject_changed' | 'icon_changed' | 'description_changed' | 'disappearing_changed' | 'message_pinned' | 'message_unpinned' | 'call';
+
+/**
+ * Something that happened in the group.
+ */
+export type WhatsAppSystemLine = {
+    /**
+     * What happened.
+     */
+    action: WhatsAppSystemAction;
+    actor?: null | WhatsAppPersonRef;
+    call?: null | WhatsAppCall;
+    /**
+     * Who it happened to (added, removed, promoted, …).
+     */
+    participants: Array<WhatsAppPersonRef>;
+    /**
+     * New subject or description; disappearing-messages timer in seconds
+     * (`"0"` is off).
+     */
+    value?: string | null;
+};
+
+/**
  * How a question is asked. Each column kind takes a few, the first its
- * default; kinds asked one way only (numbers, checkboxes, entity and row
- * pickers) take none.
+ * default; kinds asked one way only (numbers, checkboxes, date ranges,
+ * entity and row pickers) take none.
  */
 export type Widget = 'short' | 'paragraph' | 'datetime' | 'date' | 'url' | 'file' | 'choice' | 'dropdown' | 'checkboxes';
 
@@ -15160,6 +17073,122 @@ export type ListTeamOutOfOfficeResponses = {
 
 export type ListTeamOutOfOfficeResponse = ListTeamOutOfOfficeResponses[keyof ListTeamOutOfOfficeResponses];
 
+export type EventIcsData = {
+    body?: never;
+    path: {
+        /**
+         * Calendar event entity id
+         */
+        event_id: string;
+    };
+    query?: never;
+    url: '/calendar-events/{event_id}/ics';
+};
+
+export type EventIcsErrors = {
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Event not found or not visible to the requester
+     */
+    404: unknown;
+    /**
+     * Calendar query failed
+     */
+    500: unknown;
+};
+
+export type EventIcsResponses = {
+    /**
+     * The event as an iCalendar document
+     */
+    200: string;
+};
+
+export type EventIcsResponse = EventIcsResponses[keyof EventIcsResponses];
+
+export type ListJoinRequestsData = {
+    body?: never;
+    path: {
+        /**
+         * Calendar event entity id
+         */
+        event_id: string;
+    };
+    query?: never;
+    url: '/calendar-events/{event_id}/join-requests';
+};
+
+export type ListJoinRequestsErrors = {
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Event not found or not editable by the requester
+     */
+    404: CalendarJoinRequestApiError;
+    /**
+     * Listing failed
+     */
+    500: CalendarJoinRequestApiError;
+};
+
+export type ListJoinRequestsError = ListJoinRequestsErrors[keyof ListJoinRequestsErrors];
+
+export type ListJoinRequestsResponses = {
+    /**
+     * Pending join requests, oldest first
+     */
+    200: CalendarJoinRequestsResponse;
+};
+
+export type ListJoinRequestsResponse = ListJoinRequestsResponses[keyof ListJoinRequestsResponses];
+
+export type RequestToJoinData = {
+    body?: never;
+    path: {
+        /**
+         * Shared calendar event entity id
+         */
+        event_id: string;
+    };
+    query?: never;
+    url: '/calendar-events/{event_id}/join-requests';
+};
+
+export type RequestToJoinErrors = {
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Event not found or not shared with the requester
+     */
+    404: CalendarJoinRequestApiError;
+    /**
+     * Already on the requester's calendar, the sharer cannot add guests, or the sharer declined the requester's earlier request
+     */
+    409: CalendarJoinRequestApiError;
+    /**
+     * Join request failed
+     */
+    500: CalendarJoinRequestApiError;
+};
+
+export type RequestToJoinError = RequestToJoinErrors[keyof RequestToJoinErrors];
+
+export type RequestToJoinResponses = {
+    /**
+     * The requester's join request
+     */
+    200: CalendarJoinRequest;
+};
+
+export type RequestToJoinResponse = RequestToJoinResponses[keyof RequestToJoinResponses];
+
 export type GetActiveCallsData = {
     body?: never;
     path?: never;
@@ -15179,6 +17208,44 @@ export type GetActiveCallsResponses = {
 };
 
 export type GetActiveCallsResponse = GetActiveCallsResponses[keyof GetActiveCallsResponses];
+
+export type GuestCallChatReadData = {
+    body?: never;
+    path: {
+        call_id: string;
+    };
+    query?: never;
+    url: '/call/guest-chat/{call_id}';
+};
+
+export type GuestCallChatReadErrors = {
+    403: unknown;
+};
+
+export type GuestCallChatReadResponses = {
+    200: GuestChatPage;
+};
+
+export type GuestCallChatReadResponse = GuestCallChatReadResponses[keyof GuestCallChatReadResponses];
+
+export type GuestCallChatPostData = {
+    body: GuestChatPost;
+    path: {
+        call_id: string;
+    };
+    query?: never;
+    url: '/call/guest-chat/{call_id}';
+};
+
+export type GuestCallChatPostErrors = {
+    403: unknown;
+};
+
+export type GuestCallChatPostResponses = {
+    200: GuestChatMessage;
+};
+
+export type GuestCallChatPostResponse = GuestCallChatPostResponses[keyof GuestCallChatPostResponses];
 
 export type MeetingLookupData = {
     body?: never;
@@ -17615,6 +19682,30 @@ export type GetDatabaseQueryResponses = {
 
 export type GetDatabaseQueryResponse = GetDatabaseQueryResponses[keyof GetDatabaseQueryResponses];
 
+export type QueryDatabasesData = {
+    body: DatabaseQueryRequest;
+    path?: never;
+    query?: never;
+    url: '/databases/query';
+};
+
+export type QueryDatabasesErrors = {
+    400: ErrorResponse;
+    401: ErrorResponse;
+    403: ErrorResponse;
+    404: ErrorResponse;
+    409: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type QueryDatabasesError = QueryDatabasesErrors[keyof QueryDatabasesErrors];
+
+export type QueryDatabasesResponses = {
+    200: SqlOutcome;
+};
+
+export type QueryDatabasesResponse = QueryDatabasesResponses[keyof QueryDatabasesResponses];
+
 export type EnsureStarterHandlerData = {
     body?: never;
     path?: never;
@@ -17894,6 +19985,7 @@ export type UpdateDatabasePermissionsErrors = {
     401: ErrorResponse;
     403: ErrorResponse;
     404: ErrorResponse;
+    409: ErrorResponse;
     500: ErrorResponse;
 };
 
@@ -18358,6 +20450,44 @@ export type CreateDocumentResponses = {
 };
 
 export type CreateDocumentResponse = CreateDocumentResponses[keyof CreateDocumentResponses];
+
+export type CreateCanvasHandlerData = {
+    body: CreateCanvasDocumentRequest;
+    path?: never;
+    query?: never;
+    url: '/documents/create_canvas';
+};
+
+export type CreateCanvasHandlerErrors = {
+    400: ErrorResponse;
+    401: ErrorResponse;
+    409: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type CreateCanvasHandlerError = CreateCanvasHandlerErrors[keyof CreateCanvasHandlerErrors];
+
+export type CreateCanvasHandlerResponses = {
+    /**
+     * Response for creating a native Canvas.
+     */
+    200: {
+        /**
+         * The document ID of the created native Canvas
+         */
+        documentId: string;
+        /**
+         * Metadata for the created document
+         */
+        documentMetadata: DocumentResponseMetadata;
+        /**
+         * A pre-generated permission token that you can use for SS
+         */
+        token: string;
+    };
+};
+
+export type CreateCanvasHandlerResponse = CreateCanvasHandlerResponses[keyof CreateCanvasHandlerResponses];
 
 export type CreateMarkdownHandlerData = {
     body: CreateMarkdownDocumentRequest;
@@ -18913,6 +21043,10 @@ export type ExportDocumentData = {
 export type ExportDocumentErrors = {
     401: GenericErrorResponse;
     404: GenericErrorResponse;
+    /**
+     * DOCX upload is still processing; retry the export.
+     */
+    409: ErrorResponse;
     500: GenericErrorResponse;
 };
 
@@ -19246,6 +21380,43 @@ export type SetDocumentTeamShareResponses = {
 
 export type SetDocumentTeamShareResponse = SetDocumentTeamShareResponses[keyof SetDocumentTeamShareResponses];
 
+export type GetDocumentTextContentData = {
+    body?: never;
+    path: {
+        /**
+         * Document identity
+         */
+        document_id: string;
+    };
+    query?: never;
+    url: '/documents/{document_id}/text-content';
+};
+
+export type GetDocumentTextContentErrors = {
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Document access denied
+     */
+    403: unknown;
+    /**
+     * Document not found
+     */
+    404: unknown;
+    /**
+     * Document text unavailable
+     */
+    500: unknown;
+};
+
+export type GetDocumentTextContentResponses = {
+    200: DocumentTextContent;
+};
+
+export type GetDocumentTextContentResponse = GetDocumentTextContentResponses[keyof GetDocumentTextContentResponses];
+
 export type GetDocumentViewsHandlerData = {
     body?: never;
     path: {
@@ -19302,6 +21473,188 @@ export type GetDocumentVersionResponses = {
 
 export type GetDocumentVersionResponse = GetDocumentVersionResponses[keyof GetDocumentVersionResponses];
 
+export type AccessRequestsStateData = {
+    body?: never;
+    path: {
+        entity_type: ShareEntityType;
+        entity_id: string;
+    };
+    query?: {
+        /**
+         * Offset into pending requests; page size is bounded by the service.
+         */
+        offset?: number;
+    };
+    url: '/entities/{entity_type}/{entity_id}/access-requests';
+};
+
+export type AccessRequestsStateErrors = {
+    400: unknown;
+    403: unknown;
+    404: unknown;
+    409: unknown;
+    429: unknown;
+    500: unknown;
+};
+
+export type AccessRequestsStateResponses = {
+    200: AccessRequestState;
+};
+
+export type AccessRequestsStateResponse = AccessRequestsStateResponses[keyof AccessRequestsStateResponses];
+
+export type AccessRequestsCancelData = {
+    body?: never;
+    path: {
+        entity_type: ShareEntityType;
+        entity_id: string;
+    };
+    query: {
+        /**
+         * Last observed request revision.
+         */
+        revision: number;
+    };
+    url: '/entities/{entity_type}/{entity_id}/access-requests/mine';
+};
+
+export type AccessRequestsCancelErrors = {
+    400: unknown;
+    403: unknown;
+    404: unknown;
+    409: unknown;
+    429: unknown;
+    500: unknown;
+};
+
+export type AccessRequestsCancelResponses = {
+    200: unknown;
+};
+
+export type AccessRequestsSubmitData = {
+    body: RequestAccess;
+    path: {
+        entity_type: ShareEntityType;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/entities/{entity_type}/{entity_id}/access-requests/mine';
+};
+
+export type AccessRequestsSubmitErrors = {
+    400: unknown;
+    403: unknown;
+    404: unknown;
+    409: unknown;
+    429: unknown;
+    500: unknown;
+};
+
+export type AccessRequestsSubmitResponses = {
+    200: AccessRequest;
+};
+
+export type AccessRequestsSubmitResponse = AccessRequestsSubmitResponses[keyof AccessRequestsSubmitResponses];
+
+export type AccessRequestsResolveData = {
+    body: ResolveRequest;
+    path: {
+        entity_type: ShareEntityType;
+        entity_id: string;
+        request_id: string;
+    };
+    query?: never;
+    url: '/entities/{entity_type}/{entity_id}/access-requests/{request_id}/resolve';
+};
+
+export type AccessRequestsResolveErrors = {
+    400: unknown;
+    403: unknown;
+    404: unknown;
+    409: unknown;
+    429: unknown;
+    500: unknown;
+};
+
+export type AccessRequestsResolveResponses = {
+    200: AccessRequest;
+};
+
+export type AccessRequestsResolveResponse = AccessRequestsResolveResponses[keyof AccessRequestsResolveResponses];
+
+export type AccessRequestsDirectData = {
+    body?: never;
+    path: {
+        entity_type: ShareEntityType;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/entities/{entity_type}/{entity_id}/direct-access';
+};
+
+export type AccessRequestsDirectErrors = {
+    400: unknown;
+    403: unknown;
+    404: unknown;
+    409: unknown;
+    429: unknown;
+    500: unknown;
+};
+
+export type AccessRequestsDirectResponses = {
+    200: Array<DirectAccess>;
+};
+
+export type AccessRequestsDirectResponse = AccessRequestsDirectResponses[keyof AccessRequestsDirectResponses];
+
+export type AccessRequestsRemoveDirectData = {
+    body?: never;
+    path: {
+        entity_type: ShareEntityType;
+        entity_id: string;
+        user_id: string;
+    };
+    query?: never;
+    url: '/entities/{entity_type}/{entity_id}/direct-access/{user_id}';
+};
+
+export type AccessRequestsRemoveDirectErrors = {
+    400: unknown;
+    403: unknown;
+    404: unknown;
+    409: unknown;
+    429: unknown;
+    500: unknown;
+};
+
+export type AccessRequestsRemoveDirectResponses = {
+    200: unknown;
+};
+
+export type AccessRequestsSetDirectData = {
+    body: SetDirectAccess;
+    path: {
+        entity_type: ShareEntityType;
+        entity_id: string;
+        user_id: string;
+    };
+    query?: never;
+    url: '/entities/{entity_type}/{entity_id}/direct-access/{user_id}';
+};
+
+export type AccessRequestsSetDirectErrors = {
+    400: unknown;
+    403: unknown;
+    404: unknown;
+    409: unknown;
+    429: unknown;
+    500: unknown;
+};
+
+export type AccessRequestsSetDirectResponses = {
+    200: unknown;
+};
+
 export type GetEntityPermissionData = {
     body?: never;
     path: {
@@ -19346,7 +21699,7 @@ export type ListFavoritesData = {
         /**
          * Restrict to favorites whose entity is one of these types.
          */
-        entityType?: Array<'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form'>;
+        entityType?: Array<'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group'>;
         /**
          * Restrict to favorites whose entity is one of these ids.
          */
@@ -19415,7 +21768,7 @@ export type RemoveFavoriteByEntityData = {
         /**
          * The type of an entity in Macro
          */
-        entity_type: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form';
+        entity_type: 'user' | 'chat' | 'channel' | 'channel_message' | 'document' | 'project' | 'email_thread' | 'calendar_event' | 'team' | 'call' | 'foreign_entity' | 'static_file' | 'crm_company' | 'crm_contact' | 'crm_pipeline' | 'reminder' | 'skill' | 'agent_session' | 'scheduled_action' | 'initiative' | 'database' | 'database_row' | 'form' | 'whatsapp_group';
         /**
          * The id of the favorited entity.
          */
@@ -20885,6 +23238,341 @@ export type EntityMessageTypingResponses = {
 };
 
 export type EntityMessageTypingResponse = EntityMessageTypingResponses[keyof EntityMessageTypingResponses];
+
+export type LinkedAccountData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/account';
+};
+
+export type LinkedAccountResponses = {
+    200: LinkedAccountView;
+};
+
+export type LinkedAccountResponse = LinkedAccountResponses[keyof LinkedAccountResponses];
+
+export type LinkedChatsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/chats';
+};
+
+export type LinkedChatsResponses = {
+    200: LinkedChats;
+};
+
+export type LinkedChatsResponse = LinkedChatsResponses[keyof LinkedChatsResponses];
+
+export type LinkedConfigurationData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/configuration';
+};
+
+export type LinkedConfigurationResponses = {
+    200: LinkedFeatures;
+};
+
+export type LinkedConfigurationResponse = LinkedConfigurationResponses[keyof LinkedConfigurationResponses];
+
+export type LinkedConnectData = {
+    body: LinkedConnect;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/connect';
+};
+
+export type LinkedConnectResponses = {
+    200: LinkedPairing;
+};
+
+export type LinkedConnectResponse = LinkedConnectResponses[keyof LinkedConnectResponses];
+
+export type LinkedDisconnectData = {
+    body: LinkedDisconnectRequest;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/disconnect';
+};
+
+export type LinkedDisconnectResponses = {
+    200: LinkedDisconnect;
+};
+
+export type LinkedDisconnectResponse = LinkedDisconnectResponses[keyof LinkedDisconnectResponses];
+
+export type LinkedAdoptData = {
+    body: LinkedAdoptGroup;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/groups/adopt';
+};
+
+export type LinkedAdoptResponses = {
+    200: AdoptedGroup;
+};
+
+export type LinkedAdoptResponse = LinkedAdoptResponses[keyof LinkedAdoptResponses];
+
+export type LinkedCancelPairingData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/meta/linked/pairing/{id}';
+};
+
+export type LinkedCancelPairingResponses = {
+    204: void;
+};
+
+export type LinkedCancelPairingResponse = LinkedCancelPairingResponses[keyof LinkedCancelPairingResponses];
+
+export type LinkedPairingData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/meta/linked/pairing/{id}';
+};
+
+export type LinkedPairingResponses = {
+    200: LinkedPairState;
+};
+
+export type LinkedPairingResponse = LinkedPairingResponses[keyof LinkedPairingResponses];
+
+export type LinkedPasskeyData = {
+    body: {
+        [key: string]: unknown;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/meta/linked/pairing/{id}/passkey';
+};
+
+export type LinkedPasskeyResponses = {
+    204: void;
+};
+
+export type LinkedPasskeyResponse = LinkedPasskeyResponses[keyof LinkedPasskeyResponses];
+
+export type WhatsappGroupsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/meta/linked/whatsapp-groups';
+};
+
+export type WhatsappGroupsResponses = {
+    200: Array<WhatsAppGroupSummary>;
+};
+
+export type WhatsappGroupsResponse = WhatsappGroupsResponses[keyof WhatsappGroupsResponses];
+
+export type LinkedDetachData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}';
+};
+
+export type LinkedDetachResponses = {
+    204: void;
+};
+
+export type LinkedDetachResponse = LinkedDetachResponses[keyof LinkedDetachResponses];
+
+export type WhatsappGroupData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}';
+};
+
+export type WhatsappGroupResponses = {
+    200: WhatsAppGroupDetail;
+};
+
+export type WhatsappGroupResponse = WhatsappGroupResponses[keyof WhatsappGroupResponses];
+
+export type LinkedUploadData = {
+    body: LinkedUploadRequest;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/attachments';
+};
+
+export type LinkedUploadResponses = {
+    200: LinkedUploadedAttachment;
+};
+
+export type LinkedUploadResponse = LinkedUploadResponses[keyof LinkedUploadResponses];
+
+export type LinkedDeliveryData = {
+    body: Array<string>;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/delivery';
+};
+
+export type LinkedDeliveryResponses = {
+    200: Array<LinkedSendProgress>;
+};
+
+export type LinkedDeliveryResponse = LinkedDeliveryResponses[keyof LinkedDeliveryResponses];
+
+export type WhatsappGroupMessagesData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: {
+        /**
+         * Last message id in the previous page.
+         */
+        before?: string | null;
+        /**
+         * Page size, up to [`PAGE_LIMIT`]; [`DEFAULT_PAGE`] when absent.
+         */
+        limit?: number | null;
+    };
+    url: '/meta/linked/whatsapp-groups/{group_id}/messages';
+};
+
+export type WhatsappGroupMessagesResponses = {
+    200: WhatsAppGroupMessages;
+};
+
+export type WhatsappGroupMessagesResponse = WhatsappGroupMessagesResponses[keyof WhatsappGroupMessagesResponses];
+
+export type LinkedMessageAttachmentsData = {
+    body: Array<string>;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/messages/attachments';
+};
+
+export type LinkedMessageAttachmentsResponses = {
+    200: Array<LinkedMessageAttachments>;
+};
+
+export type LinkedMessageAttachmentsResponse = LinkedMessageAttachmentsResponses[keyof LinkedMessageAttachmentsResponses];
+
+export type WhatsappGroupMessageData = {
+    body?: never;
+    path: {
+        group_id: string;
+        message_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/messages/{message_id}';
+};
+
+export type WhatsappGroupMessageResponses = {
+    200: WhatsAppGroupMessage;
+};
+
+export type WhatsappGroupMessageResponse = WhatsappGroupMessageResponses[keyof WhatsappGroupMessageResponses];
+
+export type WhatsappGroupPermissionsData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/permissions';
+};
+
+export type WhatsappGroupPermissionsResponses = {
+    200: SharePermissionV2;
+};
+
+export type WhatsappGroupPermissionsResponse = WhatsappGroupPermissionsResponses[keyof WhatsappGroupPermissionsResponses];
+
+export type WhatsappGroupUpdatePermissionsData = {
+    body: UpdateSharePermissionRequestV2;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/permissions';
+};
+
+export type WhatsappGroupUpdatePermissionsResponses = {
+    204: void;
+};
+
+export type WhatsappGroupUpdatePermissionsResponse = WhatsappGroupUpdatePermissionsResponses[keyof WhatsappGroupUpdatePermissionsResponses];
+
+export type WhatsappGroupReadData = {
+    body: MarkRead;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/read';
+};
+
+export type WhatsappGroupReadResponses = {
+    204: void;
+};
+
+export type WhatsappGroupReadResponse = WhatsappGroupReadResponses[keyof WhatsappGroupReadResponses];
+
+export type WhatsappGroupSendsData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/sends';
+};
+
+export type WhatsappGroupSendsResponses = {
+    200: Array<LinkedSendProgress>;
+};
+
+export type WhatsappGroupSendsResponse = WhatsappGroupSendsResponses[keyof WhatsappGroupSendsResponses];
+
+export type LinkedReplyData = {
+    body: LinkedSendReply;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/meta/linked/whatsapp-groups/{group_id}/sends';
+};
+
+export type LinkedReplyErrors = {
+    /**
+     * One send request per second per user; Retry-After: 1
+     */
+    429: unknown;
+};
+
+export type LinkedReplyResponses = {
+    200: LinkedSendProgress;
+};
+
+export type LinkedReplyResponse = LinkedReplyResponses[keyof LinkedReplyResponses];
 
 export type GetPinsHandlerData = {
     body?: never;

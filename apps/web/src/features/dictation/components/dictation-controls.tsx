@@ -1,6 +1,7 @@
-import CheckIcon from '@phosphor-icons/core/regular/check.svg?component-solid';
-import MicrophoneIcon from '@phosphor-icons/core/regular/microphone.svg?component-solid';
-import XIcon from '@phosphor-icons/core/regular/x.svg?component-solid';
+import { fireAndForget } from '@core/util/fireAndForget';
+import CheckIcon from '@icon/system/regular/check.svg?component-solid';
+import MicrophoneIcon from '@icon/system/regular/microphone.svg?component-solid';
+import XIcon from '@icon/system/regular/x.svg?component-solid';
 import { Button } from '@ui';
 import { Show } from 'solid-js';
 import { match } from 'ts-pattern';
@@ -21,7 +22,7 @@ export function DictationButton(props: {
         label={props.dictation.label()}
         tooltip={props.dictation.label()}
         disabled={props.disabled || props.dictation.disabled()}
-        onClick={() => void props.dictation.start()}
+        onClick={() => fireAndForget(props.dictation.start(), 'dictation')}
       >
         <MicrophoneIcon />
       </Button>
@@ -81,7 +82,7 @@ export function DictationPanel(props: { dictation: DictationController }) {
             props.dictation.phase() === 'starting' ||
             props.dictation.phase() === 'finishing'
           }
-          onClick={() => void props.dictation.confirm()}
+          onClick={() => fireAndForget(props.dictation.confirm(), 'dictation')}
         >
           <CheckIcon />
         </Button>

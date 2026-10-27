@@ -1,4 +1,5 @@
-import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
+import { fireAndForget } from '@core/util/fireAndForget';
+import ArrowSquareOut from '@icon/system/regular/arrow-square-out.svg';
 import { Button } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import { PollBars, PollResults } from '../components/poll/poll-bars';
@@ -58,7 +59,9 @@ function PollCardBody(props: {
               ? 'Loading results…'
               : 'Only the poll’s editors see the counts.'
         }
-        onVote={(optionId) => void voting.vote(optionId)}
+        onVote={(optionId) =>
+          fireAndForget(voting.vote(optionId), 'poll-voting')
+        }
         results={
           isEditor()
             ? {

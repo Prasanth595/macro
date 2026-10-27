@@ -22,11 +22,13 @@ export function ModelSelector(props: {
   modelRow?: Component<ModelRowProps>;
   pending?: boolean;
   onSelect: (id: string) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   children?: JSX.Element;
   emptyMessage?: string;
 }) {
   return (
     <ModelCatalogPicker
+      onCloseAutoFocus={props.onCloseAutoFocus}
       value={props.model ?? null}
       options={props.options.map((option) => ({
         id: option.id,
@@ -57,6 +59,7 @@ export function SessionModelSelector(props: AgentModelSelectorProps) {
   const shown = () => props.changingTo ?? props.model ?? undefined;
   return (
     <ModelSelector
+      onCloseAutoFocus={props.onCloseAutoFocus}
       model={shown()}
       label={[
         modelLabel(

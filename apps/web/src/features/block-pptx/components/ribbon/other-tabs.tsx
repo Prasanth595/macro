@@ -3,26 +3,27 @@
  */
 
 import type { TransitionKind } from '@core/pptx-engine/types';
-import ArrowDown from '@phosphor/arrow-down.svg';
-import ArrowUp from '@phosphor/arrow-up.svg';
-import ArrowsOut from '@phosphor/arrows-out.svg';
-import EyeSlash from '@phosphor/eye-slash.svg';
-import GearSix from '@phosphor/gear-six.svg';
-import GridFour from '@phosphor/grid-four.svg';
-import Layout from '@phosphor/layout.svg';
-import MagnifyingGlassMinus from '@phosphor/magnifying-glass-minus.svg';
-import MagnifyingGlassPlus from '@phosphor/magnifying-glass-plus.svg';
-import Notepad from '@phosphor/notepad.svg';
-import PaintBucket from '@phosphor/paint-bucket.svg';
-import PenNib from '@phosphor/pen-nib.svg';
-import Play from '@phosphor/play.svg';
-import Presentation from '@phosphor/presentation.svg';
-import ProjectorScreen from '@phosphor/projector-screen.svg';
-import Rectangle from '@phosphor/rectangle.svg';
-import Ruler from '@phosphor/ruler.svg';
-import ShapesIcon from '@phosphor/shapes.svg';
-import SquaresFour from '@phosphor/squares-four.svg';
-import Stack from '@phosphor/stack.svg';
+import { fireAndForget } from '@core/util/fireAndForget';
+import ArrowDown from '@icon/system/regular/arrow-down.svg';
+import ArrowUp from '@icon/system/regular/arrow-up.svg';
+import ArrowsOut from '@icon/system/regular/arrows-out.svg';
+import EyeSlash from '@icon/system/regular/eye-slash.svg';
+import GearSix from '@icon/system/regular/gear-six.svg';
+import GridFour from '@icon/system/regular/grid-four.svg';
+import Layout from '@icon/system/regular/layout.svg';
+import MagnifyingGlassMinus from '@icon/system/regular/magnifying-glass-minus.svg';
+import MagnifyingGlassPlus from '@icon/system/regular/magnifying-glass-plus.svg';
+import Notepad from '@icon/system/regular/notepad.svg';
+import PaintBucket from '@icon/system/regular/paint-bucket.svg';
+import PenNib from '@icon/system/regular/pen-nib.svg';
+import Play from '@icon/system/regular/play.svg';
+import Presentation from '@icon/system/regular/presentation.svg';
+import ProjectorScreen from '@icon/system/regular/projector-screen.svg';
+import Rectangle from '@icon/system/regular/rectangle.svg';
+import Ruler from '@icon/system/regular/ruler.svg';
+import ShapesIcon from '@icon/system/regular/shapes.svg';
+import SquaresFour from '@icon/system/regular/squares-four.svg';
+import Stack from '@icon/system/regular/stack.svg';
 import { For, Show } from 'solid-js';
 import { boxOf } from '../../core/geometry';
 import { swatchCss } from '../../core/palette';
@@ -114,9 +115,12 @@ export function DesignTab() {
                     data-testid={`pptx-theme-colors-${colorSet.name}`}
                     onClick={() => {
                       close();
-                      void env.commands.setThemeColors(
-                        colorSet.colors,
-                        colorSet.name
+                      fireAndForget(
+                        env.commands.setThemeColors(
+                          colorSet.colors,
+                          colorSet.name
+                        ),
+                        'pptx-editor'
                       );
                     }}
                   >
@@ -170,10 +174,13 @@ export function DesignTab() {
                     data-testid={`pptx-theme-fonts-${pair.name}`}
                     onClick={() => {
                       close();
-                      void env.commands.setThemeFonts(
-                        pair.major,
-                        pair.minor,
-                        pair.name
+                      fireAndForget(
+                        env.commands.setThemeFonts(
+                          pair.major,
+                          pair.minor,
+                          pair.name
+                        ),
+                        'pptx-editor'
                       );
                     }}
                   >
@@ -262,7 +269,7 @@ export function SlideShowTab() {
           disabled={env.readonly()}
           onClick={() => {
             const s = env.slide();
-            if (s) void env.commands.toggleHidden(s);
+            if (s) fireAndForget(env.commands.toggleHidden(s), 'pptx-editor');
           }}
         >
           <EyeSlash />
@@ -504,7 +511,7 @@ export function ShapeFormatTab() {
               load={env.presetPaths}
               onPick={(preset) => {
                 close();
-                void c.insertShape(preset);
+                fireAndForget(c.insertShape(preset), 'pptx-editor');
               }}
             />
           )}
@@ -643,7 +650,7 @@ function ShapeStyles() {
                       onClick={() => {
                         close();
                         const v = value(slot);
-                        void c.styleShapes(kind, v);
+                        fireAndForget(c.styleShapes(kind, v), 'pptx-editor');
                       }}
                     >
                       Abc
@@ -841,7 +848,12 @@ export function TransitionsTab() {
                 disabled={ro()}
                 class="flex h-8 w-12 flex-col items-center justify-center rounded-md text-[9px] leading-tight hover:bg-ink/5 disabled:opacity-50"
                 classList={{ 'bg-accent-bg text-accent': kind() === t.kind }}
-                onClick={() => void c.setTransition({ kind: t.kind })}
+                onClick={() =>
+                  fireAndForget(
+                    c.setTransition({ kind: t.kind }),
+                    'pptx-editor'
+                  )
+                }
               >
                 <TransitionIcon kind={t.kind} />
                 {t.label}
@@ -866,7 +878,10 @@ export function TransitionsTab() {
                         active={current()?.direction === direction}
                         onClick={() => {
                           close();
-                          void c.setTransition({ kind: kind(), direction });
+                          fireAndForget(
+                            c.setTransition({ kind: kind(), direction }),
+                            'pptx-editor'
+                          );
                         }}
                       />
                     )}
@@ -890,10 +905,13 @@ export function TransitionsTab() {
           disabled={ro() || kind() === 'none'}
           testId="pptx-transition-duration"
           onCommit={(s) =>
-            void c.setTransition({
-              kind: kind(),
-              durationMs: Math.round(s * 1000),
-            })
+            fireAndForget(
+              c.setTransition({
+                kind: kind(),
+                durationMs: Math.round(s * 1000),
+              }),
+              'pptx-editor'
+            )
           }
         />
         <label class="flex items-center gap-1 px-1 text-xs">
@@ -903,10 +921,13 @@ export function TransitionsTab() {
             disabled={ro()}
             checked={current()?.advanceOnClick ?? true}
             onChange={(e) =>
-              void c.setTransition({
-                kind: kind(),
-                advanceOnClick: e.currentTarget.checked,
-              })
+              fireAndForget(
+                c.setTransition({
+                  kind: kind(),
+                  advanceOnClick: e.currentTarget.checked,
+                }),
+                'pptx-editor'
+              )
             }
           />
           On click
@@ -918,10 +939,13 @@ export function TransitionsTab() {
             disabled={ro()}
             checked={current()?.advanceAfterMs !== undefined}
             onChange={(e) =>
-              void c.setTransition({
-                kind: kind(),
-                advanceAfterMs: e.currentTarget.checked ? 5000 : 0,
-              })
+              fireAndForget(
+                c.setTransition({
+                  kind: kind(),
+                  advanceAfterMs: e.currentTarget.checked ? 5000 : 0,
+                }),
+                'pptx-editor'
+              )
             }
           />
           After
@@ -939,10 +963,13 @@ export function TransitionsTab() {
           precision={2}
           disabled={ro() || current()?.advanceAfterMs === undefined}
           onCommit={(s) =>
-            void c.setTransition({
-              kind: kind(),
-              advanceAfterMs: Math.round(s * 1000),
-            })
+            fireAndForget(
+              c.setTransition({
+                kind: kind(),
+                advanceAfterMs: Math.round(s * 1000),
+              }),
+              'pptx-editor'
+            )
           }
         />
         <RibbonTextButton
@@ -950,7 +977,10 @@ export function TransitionsTab() {
           disabled={ro()}
           data-testid="pptx-transition-all"
           onClick={() =>
-            void c.setTransition({ kind: kind(), applyToAll: true })
+            fireAndForget(
+              c.setTransition({ kind: kind(), applyToAll: true }),
+              'pptx-editor'
+            )
           }
         >
           Apply to all

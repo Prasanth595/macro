@@ -1,10 +1,11 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { downloadFile } from '@filesystem/download';
-import CaretRightIcon from '@phosphor/caret-right.svg';
-import DotsThreeIcon from '@phosphor/dots-three.svg';
-import DownloadIcon from '@phosphor/download-simple.svg';
-import PencilIcon from '@phosphor/pencil-line.svg';
-import TrashIcon from '@phosphor/trash-simple.svg';
-import UploadIcon from '@phosphor/upload-simple.svg';
+import CaretRightIcon from '@icon/system/regular/caret-right.svg';
+import DotsThreeIcon from '@icon/system/regular/dots-three.svg';
+import DownloadIcon from '@icon/system/regular/download-simple.svg';
+import PencilIcon from '@icon/system/regular/pencil-line.svg';
+import TrashIcon from '@icon/system/regular/trash-simple.svg';
+import UploadIcon from '@icon/system/regular/upload-simple.svg';
 import WebhookIcon from '@phosphor/webhooks-logo.svg';
 import type { DatabaseDetail } from '@service-storage/generated/schemas/databaseDetail';
 import type { ImportTable } from '@service-storage/generated/schemas/importTable';
@@ -97,7 +98,11 @@ export function DatabasePageActions(props: {
     const exported = await exportDatabaseTableCsv(props.detail, table);
     setExporting(false);
     exported.match(
-      (blob) => downloadFile(blob, `${table.table.name}.csv`),
+      (blob) =>
+        fireAndForget(
+          downloadFile(blob, `${table.table.name}.csv`),
+          'database-page-actions'
+        ),
       (failure) =>
         toast.failure(
           failure.kind === 'too-large'
@@ -134,7 +139,12 @@ export function DatabasePageActions(props: {
           accept=".csv,text/csv"
           class="hidden"
           aria-label="Choose CSV file"
-          onChange={(event) => void selectFile(event.currentTarget.files?.[0])}
+          onChange={(event) =>
+            fireAndForget(
+              selectFile(event.currentTarget.files?.[0]),
+              'database-page-actions'
+            )
+          }
         />
       </Show>
       <Dropdown>
@@ -190,7 +200,9 @@ export function DatabasePageActions(props: {
               <Dropdown.SubContent class="w-56">
                 <Dropdown.Item
                   disabled={!props.table || exporting()}
-                  onSelect={() => void exportCsv()}
+                  onSelect={() =>
+                    fireAndForget(exportCsv(), 'database-page-actions')
+                  }
                 >
                   Current table as CSV
                 </Dropdown.Item>
@@ -239,7 +251,9 @@ export function DatabasePageActions(props: {
         onOpenChange={setConfirmDelete}
         title="Delete database?"
         pending={deleting()}
-        onDelete={() => void removeDatabase()}
+        onDelete={() =>
+          fireAndForget(removeDatabase(), 'database-page-actions')
+        }
         body={
           <>
             <p>

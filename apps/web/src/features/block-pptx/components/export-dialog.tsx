@@ -5,7 +5,8 @@
  */
 
 import type { DeckOutline } from '@core/pptx-engine/types';
-import X from '@phosphor/x.svg';
+import { fireAndForget } from '@core/util/fireAndForget';
+import X from '@icon/system/regular/x.svg';
 import { Button } from '@ui/components/Button';
 import { Dialog } from '@ui/components/Dialog';
 import { zipSync } from 'fflate';
@@ -196,7 +197,7 @@ export function ExportDialog(props: {
             variant="cta"
             data-testid="pptx-export-run"
             disabled={!!progress() || indexes().length === 0}
-            onClick={() => void run()}
+            onClick={() => fireAndForget(run(), 'pptx-export')}
           >
             Export
           </Button>

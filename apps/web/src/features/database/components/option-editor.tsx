@@ -1,6 +1,7 @@
+import { fireAndForget } from '@core/util/fireAndForget';
+import DotsIcon from '@icon/system/regular/dots-three.svg';
+import TrashIcon from '@icon/system/regular/trash.svg';
 import { Popover } from '@kobalte/core/popover';
-import DotsIcon from '@phosphor/dots-three.svg';
-import TrashIcon from '@phosphor/trash.svg';
 import { ColorSwatches } from '@property/tags/components/color-swatches';
 import { Button } from '@ui/components/Button';
 import type { ResultAsync } from 'neverthrow';
@@ -56,8 +57,9 @@ export function OptionEditor(props: {
       setError('Enter a number.');
       return;
     }
-    void settle(
-      props.editing.update(props.column.id, props.option.id, { label })
+    fireAndForget(
+      settle(props.editing.update(props.column.id, props.option.id, { label })),
+      'database'
     );
   };
   return (
@@ -116,10 +118,13 @@ export function OptionEditor(props: {
             size="sm"
             value={props.option.color}
             onChange={(color) =>
-              void settle(
-                props.editing.update(props.column.id, props.option.id, {
-                  color: color.color,
-                })
+              fireAndForget(
+                settle(
+                  props.editing.update(props.column.id, props.option.id, {
+                    color: color.color,
+                  })
+                ),
+                'database'
               )
             }
           />

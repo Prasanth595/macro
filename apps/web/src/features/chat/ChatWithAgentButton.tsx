@@ -9,7 +9,8 @@ import {
 } from '@core/component/AI/util/chatAttachmentMention';
 import { toast } from '@core/component/Toast/Toast';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
-import AgentIcon from '@phosphor/sparkle.svg';
+import { fireAndForget } from '@core/util/fireAndForget';
+import AgentIcon from '@icon/system/regular/sparkle.svg';
 import type { ChannelType } from '@service-cognition/generated/schemas/channelType';
 import { createSignal } from 'solid-js';
 
@@ -156,7 +157,7 @@ export function ChatWithAgentButton(props: {
       tooltip={props.label ?? 'Chat with Agent'}
       label={props.label ?? 'Chat'}
       icon={<AgentIcon />}
-      onClick={() => void open()}
+      onClick={() => fireAndForget(open(), 'chat-with-agent')}
       disabled={props.disabled || opening()}
       busy={opening()}
     />
