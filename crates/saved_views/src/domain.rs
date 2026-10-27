@@ -62,8 +62,8 @@ pub trait ViewRepository: Send + Sync {
     ) -> impl Future<Output = Result<Vec<View>, Self::Err>> + Send;
     /// Insert once; return the original live record, or None for a deleted ID.
     fn create(&self, view: &View) -> impl Future<Output = Result<Option<View>, Self::Err>> + Send;
-    /// Read a candidate page; visibility is checked against current membership by the service.
-    fn candidates(
+    /// Read owned and team-shared views for the service to check against current membership.
+    fn list_views_for_access_check(
         &self,
         viewer: &str,
         team_ids: &[Uuid],
@@ -146,7 +146,7 @@ pub enum Error {
 pub struct Page {
     /// Visible definitions.
     pub views: Vec<View>,
-    /// Last scanned candidate, only set when more candidates remain.
+    /// Last scanned view, only set when more visible views remain.
     pub next: Option<Cursor>,
 }
 
@@ -256,7 +256,7 @@ impl<R: ViewRepository, M: MembershipPort> SavedViewService<R, M> {
         loop {
             let batch = self
                 .repo
-                .candidates(viewer, &teams, kind, cursor, 100)
+                .list_views_for_access_check(viewer, &teams, kind, cursor, 100)
                 .await
                 .map_err(|e| Error::Internal(rootcause::Report::new(e).into_dynamic()))?;
             let count = batch.len();

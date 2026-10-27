@@ -113,7 +113,7 @@ impl crate::domain::ViewRepository for PgViewStorage {
     }
 
     #[tracing::instrument(skip_all, fields(limit, kind), err)]
-    async fn candidates(
+    async fn list_views_for_access_check(
         &self,
         viewer: &str,
         team_ids: &[Uuid],
