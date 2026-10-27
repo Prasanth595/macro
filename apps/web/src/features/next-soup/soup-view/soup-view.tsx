@@ -1307,7 +1307,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                           fallback={
                                             <Button
                                               variant="outline"
-                                              size="sm"
+                                              size="xs"
                                               class={cn({
                                                 'bg-surface': !highlighted(),
                                                 'border-transparent':
@@ -1322,7 +1322,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                         >
                                           <Button
                                             variant="outline"
-                                            size="sm"
+                                            size="xs"
                                             class={cn({
                                               'bg-surface': !highlighted(),
                                               'border-transparent':

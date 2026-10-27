@@ -639,7 +639,7 @@ export function TaskList(props: TaskListProps) {
                                   fallback={
                                     <Button
                                       variant="outline"
-                                      size="sm"
+                                      size="xs"
                                       class={buttonClass()}
                                       disabled
                                     >
@@ -650,7 +650,7 @@ export function TaskList(props: TaskListProps) {
                                 >
                                   <Button
                                     variant="outline"
-                                    size="sm"
+                                    size="xs"
                                     class={buttonClass()}
                                   >
                                     <CaretDownIcon class="size-2.5" />

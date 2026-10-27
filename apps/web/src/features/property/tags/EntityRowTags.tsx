@@ -249,7 +249,7 @@ function TagOverflow(props: {
           createDocTags={props.createDocTags}
           triggerClass={badgeTriggerClasses({
             variant: 'outline',
-            size: 'sm',
+            size: 'xs',
             class: 'max-w-[14ch] gap-1.5',
           })}
           triggerLabel="Edit tags"
@@ -369,7 +369,7 @@ export function InlineTagsPill(props: {
           onActiveChange={props.onActiveChange}
           triggerClass={badgeTriggerClasses({
             variant: props.variant ?? 'outline',
-            size: props.size ?? 'sm',
+            size: props.size ?? 'xs',
             class: cn(
               // Capped so a long tag label truncates instead of squeezing
               // whatever shares the row with the pill (e.g. a task title).
