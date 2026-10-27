@@ -48,7 +48,10 @@ vi.mock('@solidjs/router', async () => {
   };
 });
 
+import { subscriptionStartTransactionId } from '@app/lib/analytics/subscriptionStart';
 import { useCheckoutCompletionListener } from './use-checkout-completion-listener';
+
+const ADA = 'macro|ada@acme.com';
 
 let dispose: (() => void) | undefined;
 function mount() {
@@ -95,12 +98,15 @@ describe('checkout completion query changes', () => {
       data: { licenseStatus: 'trialing', userId: 'macro|ada@acme.com' },
     });
     await vi.waitFor(() => expect(pending()).toBe(false));
+    await vi.waitFor(() =>
+      expect(mocks.trackGoogleConversion).toHaveBeenCalledOnce()
+    );
     expect(mocks.trackGoogleConversion).toHaveBeenCalledExactlyOnceWith(
       'subscription_start',
       {
         value: 300,
         currency: 'USD',
-        transaction_id: 'subscription_start:macro|ada@acme.com',
+        transaction_id: await subscriptionStartTransactionId(ADA),
       }
     );
 
@@ -115,12 +121,15 @@ describe('checkout completion query changes', () => {
     mocks.setSearch('?subscriptionSuccess=true&type=max');
     const pending = mount();
     await vi.waitFor(() => expect(pending()).toBe(false));
+    await vi.waitFor(() =>
+      expect(mocks.trackGoogleConversion).toHaveBeenCalledOnce()
+    );
     expect(mocks.trackGoogleConversion).toHaveBeenCalledExactlyOnceWith(
       'subscription_start',
       {
         value: 1000,
         currency: 'USD',
-        transaction_id: 'subscription_start:macro|ada@acme.com',
+        transaction_id: await subscriptionStartTransactionId(ADA),
       }
     );
   });
@@ -158,4 +167,10 @@ describe('checkout completion query changes', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(mocks.refetch).toHaveBeenCalledTimes(1);
   });
+});
+
+it('keeps the email in the user id out of the Google Ads transaction id', async () => {
+  const id = await subscriptionStartTransactionId(ADA);
+  expect(id).toMatch(/^[0-9a-f]{64}$/);
+  expect(id).toBe(await subscriptionStartTransactionId(ADA));
 });

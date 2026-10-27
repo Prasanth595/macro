@@ -13,8 +13,23 @@ import {
   SUBSCRIPTION_START_VALUE_DEFAULT,
 } from './leadValues';
 
+/**
+ * Macro user ids embed the email (`macro|<email>`), and Google Ads forbids
+ * customer-identifying data in transaction ids, so send a SHA-256 hex digest.
+ * It is deterministic, so both confirmation paths still dedupe to one.
+ */
+export async function subscriptionStartTransactionId(userId: string) {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`subscription_start:${userId}`)
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('');
+}
+
 /** `tier` is the checkout's `type` return param; unknown tiers use the default value. */
-export function trackSubscriptionStart(
+export async function trackSubscriptionStart(
   analytics: Pick<AnalyticsInterface, 'trackGoogleConversion'>,
   userId: string,
   tier: string | undefined
@@ -26,6 +41,6 @@ export function trackSubscriptionStart(
     currency: 'USD',
     // Onboarding and the in-app paywall can both confirm the same checkout;
     // Google dedupes on transaction_id, so the user counts once.
-    transaction_id: `subscription_start:${userId}`,
+    transaction_id: await subscriptionStartTransactionId(userId),
   });
 }

@@ -35,12 +35,15 @@ export function useCheckoutCompletionListener() {
         const licenseStatus = result.data?.licenseStatus;
         if (licenseStatus === 'active' || licenseStatus === 'trialing') {
           if (result.data)
-            trackSubscriptionStart(
-              analytics,
-              result.data.userId,
-              typeof searchParams.type === 'string'
-                ? searchParams.type
-                : undefined
+            fireAndForget(
+              trackSubscriptionStart(
+                analytics,
+                result.data.userId,
+                typeof searchParams.type === 'string'
+                  ? searchParams.type
+                  : undefined
+              ),
+              'paywall'
             );
           break;
         }

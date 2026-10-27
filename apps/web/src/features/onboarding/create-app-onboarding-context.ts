@@ -295,7 +295,10 @@ export function createAppOnboardingContext(): OnboardingContext {
     },
     track: (event, data) => analytics.track(event, data),
     trackSubscriptionStarted: (viewerId, tier) =>
-      trackSubscriptionStart(analytics, viewerId, tier),
+      fireAndForget(
+        trackSubscriptionStart(analytics, viewerId, tier),
+        'onboarding'
+      ),
     notifyFailure: (message) => toast.failure(message),
   };
 }
