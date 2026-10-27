@@ -107,28 +107,51 @@ function Header(
   );
 }
 
-/**
- * The app's view switcher, shown after every view title. The app chrome
- * supplies it so this shell stays independent of the app's navigation.
- */
-export const ViewSwitcherContext = createContext<Component>();
+export type ViewSwitcherProps = {
+  /** The view or section name; clicking it opens the menu. */
+  children: JSX.Element;
+  /** Shown beside navigation titles; collapsed headers show the name only. */
+  caret?: boolean;
+  /** Rendered instead where the menu is unavailable (touch, popovers). */
+  fallback?: JSX.Element;
+};
 
-function Title(props: JSX.HTMLAttributes<HTMLHeadingElement>) {
-  const [local, rest] = splitProps(props, ['children', 'class']);
+/**
+ * The app's view switcher. The app chrome supplies it so this shell stays
+ * independent of the app's navigation.
+ */
+export const ViewSwitcherContext =
+  createContext<Component<ViewSwitcherProps>>();
+
+/** A view name that opens the view switcher, or plain text without one. */
+export function ViewSwitchTrigger(props: ViewSwitcherProps) {
   const ViewSwitcher = useContext(ViewSwitcherContext);
+  if (!ViewSwitcher) return <>{props.fallback ?? props.children}</>;
+  return <ViewSwitcher {...props} />;
+}
+
+function Title(
+  props: JSX.HTMLAttributes<HTMLHeadingElement> & {
+    /** Navigation titles show a caret; collapsed headers omit it. */
+    caret?: boolean;
+  }
+) {
+  const [local, rest] = splitProps(props, ['caret', 'children', 'class']);
   return (
-    <>
-      <h1
-        {...rest}
-        class={cn(
-          'min-w-0 truncate text-sm font-semibold tracking-[-0.03em] text-ink',
-          local.class
-        )}
+    <h1
+      {...rest}
+      class={cn(
+        'flex min-w-0 items-center text-sm font-semibold tracking-[-0.03em] text-ink',
+        local.class
+      )}
+    >
+      <ViewSwitchTrigger
+        caret={local.caret ?? true}
+        fallback={<span class="truncate">{local.children}</span>}
       >
         {local.children}
-      </h1>
-      {ViewSwitcher && <ViewSwitcher />}
-    </>
+      </ViewSwitchTrigger>
+    </h1>
   );
 }
 

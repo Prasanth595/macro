@@ -1,6 +1,12 @@
 import type { SplitPanelContextType } from '@components/app/split-layout/context';
 import { SplitPanelContext } from '@components/app/split-layout/context';
-import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@solidjs/testing-library';
 import type { ParentProps } from 'solid-js';
 import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -85,7 +91,9 @@ function renderSplits(options: { popover?: boolean } = {}) {
         value={{ handle: split } as unknown as SplitPanelContextType}
       >
         <section aria-label={split.id}>
-          <ViewSwitcher />
+          <ViewSwitcher caret>
+            {split.id === 'left' ? 'Home' : 'Email'}
+          </ViewSwitcher>
         </section>
       </SplitPanelContext.Provider>
     ))
@@ -93,10 +101,13 @@ function renderSplits(options: { popover?: boolean } = {}) {
   return splits;
 }
 
+/** The view's name is the trigger. */
 function openMenu(split: string) {
-  const trigger = screen
-    .getByRole('region', { name: split })
-    .querySelector<HTMLElement>('[data-view-switcher]')!;
+  const name = split === 'left' ? 'Home' : 'Email';
+  const trigger = within(screen.getByRole('region', { name: split })).getByRole(
+    'button',
+    { name }
+  );
   fireEvent.keyDown(trigger, { key: 'Enter' });
 }
 
@@ -150,14 +161,16 @@ describe('ViewSwitcher', () => {
     );
   });
 
-  it('is absent on touch devices and in popovers', () => {
+  it('shows the plain name on touch devices and in popovers', () => {
     mocks.touch = true;
     renderSplits();
-    expect(document.querySelector('[data-view-switcher]')).toBeNull();
+    expect(screen.getByText('Email')).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
     cleanup();
 
     mocks.touch = false;
     renderSplits({ popover: true });
-    expect(document.querySelector('[data-view-switcher]')).toBeNull();
+    expect(screen.getByText('Email')).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

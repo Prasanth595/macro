@@ -1,3 +1,4 @@
+import type { ViewSwitcherProps } from '@app/components/view-shell';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import {
   navigateToSidebarView,
@@ -19,14 +20,16 @@ import {
 import { useNavItemGates } from './use-nav-item-gates';
 
 /**
- * A caret after a view's title listing the rail's destinations. Picking one
+ * Turns a view's name into a menu of the rail's destinations. Picking one
  * replaces the view in this split, so a split can change apps without first
  * being focused for the rail. Shift opens the destination in a new split.
  */
-export function ViewSwitcher() {
+export function ViewSwitcher(props: ViewSwitcherProps) {
   const panel = useContext(SplitPanelContext);
   // Touch devices navigate with the dock, and popovers can't replace content.
-  if (!panel || isTouchDevice() || panel.handle.isPopover()) return null;
+  if (!panel || isTouchDevice() || panel.handle.isPopover()) {
+    return <>{props.fallback ?? props.children}</>;
+  }
 
   const gates = useNavItemGates();
   const layout = useSplitLayout();
@@ -81,12 +84,16 @@ export function ViewSwitcher() {
     <Dropdown placement="bottom-start">
       <Dropdown.Trigger
         variant="ghost"
-        size="icon-sm"
-        class="shrink-0"
-        label="Switch view"
+        size="sm"
+        class="-ml-2 min-w-0 max-w-[calc(100%+0.5rem)] shrink"
         data-view-switcher=""
       >
-        <CaretDownIcon class="size-3 transition-transform in-data-expanded:rotate-180" />
+        <span class="truncate text-sm font-semibold tracking-[-0.03em] text-ink">
+          {props.children}
+        </span>
+        <Show when={props.caret}>
+          <CaretDownIcon class="size-3 transition-transform in-data-expanded:rotate-180" />
+        </Show>
       </Dropdown.Trigger>
       <Dropdown.Content class="min-w-[14rem]">
         <Dropdown.Group>
