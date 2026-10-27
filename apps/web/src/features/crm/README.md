@@ -75,6 +75,16 @@ links; Notes excludes task, snippet and skill Markdown subtypes. Email matches
 visible company domains/contact addresses in the viewer's own mailbox, without
 team-scope widening or requiring a property link on the email.
 
+Activity rows show clickable Companies and Contacts beneath the shared Soup row.
+Explicit property links say **Linked to**; exact participant-address matches in
+Email say **Email match** and do not create a property link. Two records remain
+visible, with additional records in a keyboard- and touch-accessible menu.
+`queries/activity-associations.ts` resolves only the loaded rows' references and
+participant addresses in bounded batches. It keeps exact contact IDs separate
+from email-deduplicated discovery, omits inaccessible/hidden records, and shares
+Soup invalidation. Metadata failures do not block the feed; the view offers Retry.
+Record-detail lists and activity membership/pagination remain unchanged.
+
 Activity extends the existing authorized CRM association path rather than
 splitting the feed into independent client queries. This preserves one sorted
 cursor and a complete scope without raising GraphQL's filter safety limits.

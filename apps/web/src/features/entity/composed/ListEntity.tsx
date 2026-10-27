@@ -72,6 +72,8 @@ interface ListEntityProps extends BaseListEntityProps {
   showUnrollNotifications?: boolean;
   /** Collection-owned schedule metadata for the original entity row. */
   scheduleStatus?: JSX.Element;
+  /** Caller-owned supporting content below every responsive row layout. */
+  footer?: JSX.Element;
 }
 
 export function MaybeEntityRow(props: {
@@ -344,6 +346,8 @@ export function ListEntity(props: ListEntityProps) {
           </MaybeEntityRow>
         </Match>
       </Switch>
+
+      {props.footer}
 
       <Show when={hasNotifications() && !isTouchDevice()}>
         <div class="px-2 pb-1.5 -mt-1 min-w-0 overflow-hidden">

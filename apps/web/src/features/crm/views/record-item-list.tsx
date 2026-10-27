@@ -1,4 +1,5 @@
 import { fireAndForget } from '@core/util/fireAndForget';
+import type { EntityData } from '@entity';
 import {
   ListEntity,
   ListEntityMetadataQueryProvider,
@@ -33,6 +34,7 @@ export function RecordItemList(props: {
   search?: string;
   /** Row layout when the list is narrow, e.g. in the information panel. */
   narrowLayout?: NarrowLayoutVariant;
+  rowFooter?: (entity: EntityData) => JSX.Element;
 }) {
   const { openEntity } = useCrmContext().createNavigation();
   // Reading `data` before the first page resolves would suspend the tab.
@@ -92,6 +94,7 @@ export function RecordItemList(props: {
                     hideCheckbox
                     timestamp={entity.updatedAt}
                     onClick={() => openEntity(entity)}
+                    footer={props.rowFooter?.(entity)}
                   />
                 )}
               </For>
