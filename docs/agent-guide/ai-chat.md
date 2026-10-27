@@ -2187,6 +2187,10 @@ Failures and unconfirmed outcomes use the error tone. Review events refresh
 the existing card without adding a second timeline row when that card is
 already in the thread. Import reviews add "Import plan ready" with the plan's
 counts once planning finishes, and settle as "Import finished", "Import
-failed" or "Import cancelled" with imported, failed and by-hand counts; the
-row never shows the report's error text. The row stays on one line and
+failed" or "Import cancelled" with imported, failed and by-hand counts.
+Linear and Jira imports name their tracker ("Linear import plan ready · 40
+tasks · 3 projects", "Jira import finished"). The row never shows the
+report's error text. The row stays on one line and
 truncates on phones.
+
+The desktop Agents sidebar New menu offers Conversation, Work agent, Coding agent, and Routine, with short descriptions. Conversation opens the existing composer; Work agent and Coding agent open the agent editor with that kind preselected, including when a runtime setup page was previously open. Routine opens its unsaved composer. Canceling creation returns to the existing management flow.
