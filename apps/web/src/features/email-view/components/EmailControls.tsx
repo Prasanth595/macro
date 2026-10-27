@@ -2,7 +2,7 @@ import { ListFilterDropdown } from '@app/components/view-shell';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import ColumnsIcon from '@phosphor/columns.svg';
+import ColumnsIcon from '@icon/system/regular/columns.svg';
 import { ButtonGroup } from '@ui';
 import { Show } from 'solid-js';
 import { useEmailView } from '../email-view-context';
@@ -50,8 +50,6 @@ export function EmailControls(props: EmailControlsProps) {
           <ButtonGroup.Button aria-label={readingPane() ? 'Hide reading pane' : 'Show reading pane'} tooltip={{ content: readingPane() ? 'Hide reading pane' : 'Show reading pane', hotkey: TOKENS.email.toggleReadingPane }}
             variant="ghost"
             size="icon-md"
-            
-            
             aria-pressed={readingPane()}
             class={readingPane() ? 'text-ink' : 'text-ink-muted'}
             onClick={() => setReadingPane(!readingPane())}

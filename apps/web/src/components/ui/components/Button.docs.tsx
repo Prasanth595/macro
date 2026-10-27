@@ -1,8 +1,8 @@
 import { HeaderActionButton } from '@components/app/HeaderActionButton';
 import { defineDoc } from '@app/features/ui-gallery/types';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import ArrowRightIcon from '@phosphor/arrow-right.svg';
-import PlusIcon from '@phosphor/plus.svg';
+import ArrowRightIcon from '@icon/system/regular/arrow-right.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
 import { macroDarkTheme } from '@theme/themes/macro-dark';
 import { macroLightTheme } from '@theme/themes/macro-light';
 import { themeCssVars } from '@theme/utils/themeCssVars';

@@ -15,7 +15,7 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
 
 | Role | Use | Never |
 | --- | --- | --- |
-| Switch a view, section, or one of a few values (`wrap` for preset chips in forms) | `Tabs` | Buttons, a ButtonGroup, or an island acting as tabs |
+| Switch a view, section, or one of a few values (`wrap` for separate preset chips in forms) | `Tabs` (desktop pill within a pill) | Buttons, a ButtonGroup, or an island acting as tabs |
 | Tabs that own panels or a dynamic collection (tables, form pages, rename, add) | `TabSelector` (`Root`, `List`, `Tab`, `Panel`, `AddMenu`) | `@kobalte/core/tabs` in a feature |
 | Related header actions (filters, view options, sharing, navigation) | `HeaderActionGroup` | A hand-built bordered row |
 | One on/off toggle, or an icon-only layout choice | `Button` with `aria-pressed` | A custom active tint |
@@ -52,7 +52,7 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   sizing on the rendered icon, not on Button or ancestor SVG selectors. Enforced
   for wrappers by ast-grep `tsx-no-descendant-button-styles`, warning.
 - Use `variant="accent"` for the main create, save, submit, send, invite, approve, or continue action; keep the shared New launcher (`ViewCreateButton`) neutral with `variant="secondary" finish="raised"`, and retain neutral, ghost, and danger variants for their own roles.
-- **FE-64** Components own their state treatments: Tabs use their selected fill;
+- **FE-64** Components own their state treatments: desktop Tabs share a flat rounded track with an inset selected pill;
   Button uses the semantic pressed fill for its variant. Mark action toggles with
   `aria-pressed`, and expansion triggers with `aria-expanded`. Do not restyle
   buttons as tabs. The agent composer's Chat/Code switch remains

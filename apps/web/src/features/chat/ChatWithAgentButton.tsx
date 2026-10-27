@@ -10,7 +10,7 @@ import {
 import { toast } from '@core/component/Toast/Toast';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { fireAndForget } from '@core/util/fireAndForget';
-import AgentIcon from '@phosphor/sparkle.svg';
+import AgentIcon from '@icon/system/regular/sparkle.svg';
 import type { ChannelType } from '@service-cognition/generated/schemas/channelType';
 import type { ButtonSize } from '@ui';
 import { createSignal } from 'solid-js';

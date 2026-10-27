@@ -7,9 +7,9 @@ import {
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import GanttIcon from '@phosphor/chart-bar-horizontal.svg';
-import BoardIcon from '@phosphor/kanban.svg';
-import ListIcon from '@phosphor/list-bullets.svg';
+import GanttIcon from '@icon/system/regular/chart-gantt.svg';
+import BoardIcon from '@icon/system/regular/kanban.svg';
+import ListIcon from '@icon/system/regular/list-bullets.svg';
 import { ButtonGroup } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, Show } from 'solid-js';
@@ -108,7 +108,6 @@ function DesktopTasksControls() {
         <ButtonGroup.Button aria-label={"List"} tooltip={"List"}
           variant="ghost"
           size="icon-sm"
-          
           aria-pressed={state.layout === 'list'}
           onClick={() => setState('layout', 'list')}
         >
@@ -117,7 +116,6 @@ function DesktopTasksControls() {
         <ButtonGroup.Button aria-label={"Board"} tooltip={"Board"}
           variant="ghost"
           size="icon-sm"
-          
           aria-pressed={state.layout === 'board'}
           onClick={() => setState('layout', 'board')}
         >
@@ -127,7 +125,6 @@ function DesktopTasksControls() {
           <ButtonGroup.Button aria-label={"Gantt"} tooltip={"Gantt"}
             variant="ghost"
             size="icon-sm"
-            
             aria-pressed={state.layout === 'gantt'}
             onClick={() => setState('layout', 'gantt')}
           >

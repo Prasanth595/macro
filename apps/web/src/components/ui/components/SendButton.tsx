@@ -1,5 +1,5 @@
-import ArrowUp from '@phosphor/arrow-up.svg';
-import SpinnerIcon from '@phosphor/spinner-gap.svg';
+import ArrowUp from '@icon/system/bold/arrow-up-bold.svg';
+import SpinnerIcon from '@icon/system/regular/spinner-gap.svg';
 import { children, Show, splitProps } from 'solid-js';
 import { cn } from '../utils/classname';
 import { Button, type ButtonProps } from './Button';

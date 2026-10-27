@@ -12,6 +12,7 @@ type PropertyValuePillProps = Pick<
   variant?: ComponentProps<typeof Property.Pill>['variant'];
   size?: ComponentProps<typeof Property.Pill>['size'];
   hoverActions?: JSX.Element;
+  hoverTrailingAction?: JSX.Element;
   entitySelfFilter?: ComponentProps<
     typeof Property.PopoverEditor
   >['entitySelfFilter'];
@@ -33,7 +34,11 @@ export function PropertyValuePill(props: PropertyValuePillProps) {
       onRefresh={props.onRefresh}
       onEdit={props.onEdit}
     >
-      <Property.Tooltip property={props.property} actions={props.hoverActions}>
+      <Property.Tooltip
+        property={props.property}
+        actions={props.hoverActions}
+        trailingAction={props.hoverTrailingAction}
+      >
         <Property.Pill
           class={props.class}
           variant={props.variant ?? 'outline'}

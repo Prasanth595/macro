@@ -16,9 +16,9 @@ import { PR_ORIGIN_LABELS, PR_ORIGIN_TOOLS } from '@block-pr/data/pr-origin';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
+import BoardIcon from '@icon/system/regular/kanban.svg';
+import ListIcon from '@icon/system/regular/list-bullets.svg';
 import { Accordion } from '@kobalte/core/accordion';
-import BoardIcon from '@phosphor/kanban.svg';
-import ListIcon from '@phosphor/list-bullets.svg';
 import { ButtonGroup } from '@ui';
 import { createSignal, For } from 'solid-js';
 import { UNKNOWN_ORIGIN } from '../reviews-filter';
@@ -208,7 +208,6 @@ export function ReviewsControls(
         <ButtonGroup.Button aria-label={"List"} tooltip={"List"}
           variant="ghost"
           size="icon-sm"
-          
           aria-pressed={props.layout === 'list'}
           onClick={() => props.onLayoutChange('list')}
         >
@@ -217,7 +216,6 @@ export function ReviewsControls(
         <ButtonGroup.Button aria-label={"Board"} tooltip={"Board"}
           variant="ghost"
           size="icon-sm"
-          
           aria-pressed={props.layout === 'board'}
           onClick={() => props.onLayoutChange('board')}
         >

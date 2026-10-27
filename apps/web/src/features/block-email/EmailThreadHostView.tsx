@@ -27,6 +27,8 @@ export type EmailThreadHostViewContext = {
 
 export type EmailThreadHostViewProps = {
   title: string;
+  /** Host control after the subject's last word, in place of Copy subject. */
+  titleTrailing?: JSX.Element;
   threadId: Accessor<string>;
   source: EmailThreadSource;
   threadTransport: EmailThreadProps['threadTransport'];
@@ -61,6 +63,7 @@ export function EmailThreadHostView(props: EmailThreadHostViewProps) {
   return (
     <EmailThread
       title={props.title}
+      titleTrailing={props.titleTrailing}
       threadId={props.threadId}
       source={props.source}
       threadTransport={props.threadTransport}

@@ -4703,6 +4703,7 @@ export type ChannelShareEntityType =
   | 'call'
   | 'thread'
   | 'agent_session'
+  | 'whatsapp_group'
   | 'chat';
 /**
  * Content of a text editor code execution response - either a result or an error
@@ -4886,7 +4887,7 @@ export type ReadThreadReadContent =
  *
  * The copy is a snapshot, not an invitation: it keeps the real organizer and lists the user, accepted, as its only guest, while the meeting's other guests and its join link stay out. Nobody is notified, and the copy does not change when the organizer changes the meeting. The user can change only its reminders and availability, or delete it. To be added to the meeting itself, the user asks the person who shared it from the event's card.
  *
- * Only Google calendars take a copy. When the user has one writable Google calendar the copy goes there; when they have several, ask which one and pass its `calendarId` from ListCalendars. The result is the user's copy, whose `eventId` UpdateCalendarEvent and DeleteCalendarEvent accept.
+ * Only Google calendars take a copy. When the user has one writable Google calendar the copy goes there; when they have several, ask which one and pass its `calendarId` from ListCalendars. The result is the user's copy, whose `eventId` UpdateCalendarEvent and DeleteCalendarEvent accept. A meeting already on any of the user's calendars is refused on every calendar, so never offer to add it to another one.
  */
 export interface AddSharedCalendarEvent {
   /**
@@ -8186,6 +8187,25 @@ export interface RoutineConfiguration {
   instructions: string;
   target: RoutineTarget;
   schedule: RoutineSchedule;
+  /**
+   * Apps every run needs, on top of the target's own. The user must already
+   * have each one connected (offer a connect link via DiscoverConnectors if
+   * not). Updates replace the list: restate it to keep the apps.
+   */
+  requiredApps?: RoutineApp[];
+}
+/**
+ * A Pipedream app a routine requires.
+ */
+export interface RoutineApp {
+  /**
+   * Pipedream app slug, e.g. `linear`.
+   */
+  appSlug: string;
+  /**
+   * Display name, e.g. `Linear`.
+   */
+  name: string;
 }
 /**
  * Compact routine details returned to the caller.
@@ -15359,7 +15379,7 @@ export interface SetSenderPolicyResponse {
   summary: string;
 }
 /**
- * Share an item with the current members of a channel by writing a channel entity-access grant. Call it only after the user agrees to share that item, or when they already asked you to share it. entityType is the stored type: calendar_event for a calendar chip, document, project, database, form, call, thread, or agent_session. entityId is that item's id. A calendar event can be shared only by someone who holds it on their own calendar, and private or confidential events are refused. Sharing again is safe when a grant already exists.
+ * Share an item with the current members of a channel by writing a channel entity-access grant. Call it only after the user agrees to share that item, or when they already asked you to share it. entityType is the stored type: calendar_event for a calendar chip, document, project, database, form, call, thread, agent_session, or whatsapp_group. entityId is that item's id. A calendar event can be shared only by someone who holds it on their own calendar, and private or confidential events are refused. Sharing again is safe when a grant already exists.
  */
 export interface ShareWithChannel {
   /**

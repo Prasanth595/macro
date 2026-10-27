@@ -1,9 +1,9 @@
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
-import CheckIcon from '@phosphor/check.svg';
-import EnvelopeSimpleIcon from '@phosphor/envelope-simple.svg';
-import EnvelopeSimpleOpenIcon from '@phosphor/envelope-simple-open.svg';
-import CheckBoldIcon from '@phosphor-icons/core/bold/check-bold.svg?component-solid';
+import CheckBoldIcon from '@icon/system/bold/check-bold.svg?component-solid';
+import CheckIcon from '@icon/system/regular/check.svg';
+import EnvelopeSimpleIcon from '@icon/system/regular/envelope-simple.svg';
+import EnvelopeSimpleOpenIcon from '@icon/system/regular/envelope-simple-open.svg';
 import { Button, ButtonGroup } from '@ui';
 import { type JSX, Show } from 'solid-js';
 
@@ -30,8 +30,6 @@ export function EmailThreadControls(props: {
                 ? TOKENS.entity.action.markRead
                 : TOKENS.entity.action.markUnread }}
             size="icon-md"
-            
-            
             onClick={props.onToggleUnread}
             // Keep focus (and the hotkey scope cmd-K reads) in the thread
             // content: focusing the header would hide its commands.
@@ -50,8 +48,6 @@ export function EmailThreadControls(props: {
                 ? TOKENS.entity.action.markNotDone
                 : TOKENS.entity.action.markDone }}
             size="icon-md"
-            
-            
             onClick={props.onToggleDone}
             // Same focus-preservation as the read-state toggle above.
             onMouseDown={(e) => e.preventDefault()}
