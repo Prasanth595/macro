@@ -26,6 +26,7 @@ const editorMocks = vi.hoisted(() => ({
   onEnter: undefined as (() => boolean) | undefined,
   inlineMenuOpen: false,
   onEscape: undefined as ((event?: KeyboardEvent) => boolean) | undefined,
+  ignoredActions: [] as string[],
 }));
 
 vi.mock(
@@ -161,34 +162,31 @@ vi.mock('@core/constant/allBlocks', () => ({
   fileTypeToBlockName: (type?: string | null) => type ?? 'unknown',
 }));
 
-vi.mock('@phosphor-icons/core/regular/paperclip.svg?component-solid', () => ({
+vi.mock('@icon/system/regular/paperclip.svg?component-solid', () => ({
   default: () => <span data-testid="paperclip-icon" />,
 }));
 
-vi.mock('@phosphor/text-aa.svg', () => ({
+vi.mock('@icon/system/regular/text-aa.svg', () => ({
   default: () => <span data-testid="format-icon" />,
 }));
 
-vi.mock('@phosphor/trash.svg', () => ({
+vi.mock('@icon/system/regular/trash.svg', () => ({
   default: () => <span data-testid="trash-icon" />,
 }));
 
-vi.mock('@phosphor/x.svg', () => ({
+vi.mock('@icon/system/regular/x.svg', () => ({
   default: () => <span data-testid="close-icon" />,
 }));
 
-vi.mock('@phosphor/arrow-up.svg', () => ({
+vi.mock('@icon/system/bold/arrow-up-bold.svg', () => ({
   default: () => <span data-testid="send-icon" />,
 }));
 
-vi.mock(
-  '@phosphor-icons/core/regular/paper-plane-right.svg?component-solid',
-  () => ({
-    default: () => <span data-testid="paper-plane-icon" />,
-  })
-);
+vi.mock('@icon/system/regular/paper-plane-right.svg?component-solid', () => ({
+  default: () => <span data-testid="paper-plane-icon" />,
+}));
 
-vi.mock('@phosphor/spinner-gap.svg', () => ({
+vi.mock('@icon/system/regular/spinner-gap.svg', () => ({
   default: () => <span data-testid="spinner-icon" />,
 }));
 
@@ -279,7 +277,10 @@ vi.mock(
           return builder;
         },
         withEmojis: () => builder,
-        withActions: () => builder,
+        withActions: (options?: { ignoreActionIds?: string[] }) => {
+          editorMocks.ignoredActions.push(...(options?.ignoreActionIds ?? []));
+          return builder;
+        },
         withLinks: () => builder,
         withHistory: () => builder,
         withCode: () => builder,
@@ -411,6 +412,7 @@ describe('Input slots', () => {
     editorMocks.inlineMenuOpen = false;
     editorMocks.onEscape = undefined;
     editorMocks.mentionUsers = undefined;
+    editorMocks.ignoredActions = [];
     vi.mocked(isMobile).mockReturnValue(false);
   });
 
@@ -712,6 +714,29 @@ describe('Input slots', () => {
     expect(onToggleFormatRibbon).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledOnce();
     expect(onSend.mock.calls[0]?.[0]?.value).toBe('reply');
+  });
+
+  it('offers only text, formatting and files when a host switches features off', async () => {
+    const user = userEvent.setup();
+    render(() => (
+      <ChannelInput
+        input={baseInput}
+        features={{
+          mentions: false,
+          createItems: false,
+          gifs: false,
+          richBlocks: false,
+        }}
+      />
+    ));
+    expect(editorMocks.mentionUsers).toBeUndefined();
+    expect(editorMocks.ignoredActions).toEqual(
+      expect.arrayContaining(['task', 'document', 'gif', 'table', 'heading1'])
+    );
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(
+      screen.getAllByRole('menuitem').map((item) => item.textContent)
+    ).toEqual(['Attach files']);
   });
 
   it('omits the reply action for channel mode', () => {

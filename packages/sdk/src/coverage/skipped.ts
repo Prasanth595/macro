@@ -177,9 +177,11 @@ export const cognitionExcluded = [
   // Channel discovery shares the app-only import workflow below.
   'discoverHandler',
   'runImportHandler',
-  // The Notion import report and cancel back the in-chat import review card.
+  // Workspace reports and cancel routes back the in-chat import review card.
   'notionReportHandler',
   'cancelNotionHandler',
+  'cancelWorkspaceHandler',
+  'workspaceReportHandler',
   'getStateHandler',
   'getStateHandler2',
   'completeHandler',
@@ -355,6 +357,13 @@ export const storageExcluded = [
   'jobProcessingResultHandler',
   'joinChannelByCode',
   'leaveOrEndCall',
+  // Pairing, passkey handoff, and rollout configuration belong to the app session.
+  'linkedCancelPairing',
+  'linkedConfiguration',
+  'linkedConnect',
+  'linkedDisconnect',
+  'linkedPairing',
+  'linkedPasskey',
   // Live meeting admission and participant previews are app session flows.
   'meetingGuestJoin',
   // Browser setup reserves an empty RTC room before creating a meeting.

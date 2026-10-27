@@ -1853,7 +1853,8 @@
           "initiative",
           "database",
           "database_row",
-          "form"
+          "form",
+          "whatsapp_group"
         ]
       },
       "ErrorResponse": {
@@ -2291,6 +2292,10 @@
             "$ref": "#/components/schemas/InviteePlan",
             "description": "What the invitee gets by joining, as the team stood when the invite was sent."
           },
+          "reminder": {
+            "type": "boolean",
+            "description": "Whether this email reminds the invitee of an invite they have not answered."
+          },
           "role": {
             "type": ["string", "null"],
             "description": "Role/permission level in the team"
@@ -2706,6 +2711,21 @@
               "tag": {
                 "type": "string",
                 "enum": ["reminder"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A live message in a shared WhatsApp group.",
+            "required": ["content", "tag"],
+            "properties": {
+              "content": {
+                "$ref": "#/components/schemas/WhatsappGroupMessageMetadata",
+                "description": "A live message in a shared WhatsApp group."
+              },
+              "tag": {
+                "type": "string",
+                "enum": ["whatsapp_group_message"]
               }
             }
           },
@@ -3260,6 +3280,22 @@
             "type": ["string", "null"],
             "format": "date-time",
             "description": "None for permanent mutes; notifications resume automatically at this deadline."
+          }
+        }
+      },
+      "WhatsappGroupMessageMetadata": {
+        "type": "object",
+        "description": "A live message in an independently shared WhatsApp group.",
+        "required": ["groupName", "messageId"],
+        "properties": {
+          "groupName": {
+            "type": "string",
+            "description": "Group name, independent of its remote subject."
+          },
+          "messageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable message id; retries use it as their notification id."
           }
         }
       }

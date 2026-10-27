@@ -14,8 +14,8 @@ import {
   useIsConnectedSecondaryInbox,
 } from '@core/user';
 import { fireAndForget } from '@core/util/fireAndForget';
-import RobotIcon from '@phosphor/robot.svg';
-import Trash from '@phosphor-icons/core/regular/trash.svg?component-solid';
+import RobotIcon from '@icon/system/regular/robot.svg';
+import Trash from '@icon/system/regular/trash.svg?component-solid';
 import { getOrCreateDirectMessage } from '@queries/channel/get-or-create-dm';
 import { Avatar, type AvatarSize, cn } from '@ui';
 import { createMemo, Match, Show, Switch } from 'solid-js';
