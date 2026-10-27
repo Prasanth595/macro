@@ -211,26 +211,24 @@ export function PrDetailActions(props: {
   return (
     <div class="ml-auto flex shrink-0 items-center gap-2">
       <Show when={props.detail}>
-        <>
-          <HeaderActionGroup label="Sharing">
-            <Tooltip label="Share pull request">
-              <HeaderActionButton
-                label="Share"
-                icon={<IconShared />}
-                onClick={openShare}
-              />
-            </Tooltip>
-            <CopyButton
-              variant="ghost"
-              tooltip="Copy Share Link"
-              size="icon-md"
-              onClick={copyLink}
-            >
-              <IconLink class="size-3.5!" />
-            </CopyButton>
-          </HeaderActionGroup>
-          <PullRequestActionsButton actions={props.actions} />
-        </>
+        <HeaderActionGroup label="Sharing">
+          <Tooltip label="Share pull request">
+            <HeaderActionButton
+              label="Share"
+              icon={<IconShared />}
+              onClick={openShare}
+            />
+          </Tooltip>
+          <CopyButton
+            variant="ghost"
+            tooltip="Copy Share Link"
+            size="icon-md"
+            onClick={copyLink}
+          >
+            <IconLink class="size-3.5!" />
+          </CopyButton>
+        </HeaderActionGroup>
+        <PullRequestActionsButton actions={props.actions} />
       </Show>
       <ChangesToggle />
       <SidePanel.Toggle />
