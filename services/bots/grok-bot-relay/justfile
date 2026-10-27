@@ -6,6 +6,3 @@ check:
 
 test:
   bun test
-
-setup:
-  bun run scripts/setup.ts

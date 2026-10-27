@@ -82,18 +82,18 @@ async function storage<T>(
 
 type Bot = { id: string; handle: string; owner?: unknown };
 
-function bareBotId(id: string): string {
-  return id.replace(/^bot\|/, '');
-}
-
-async function setup() {
-  const macro = new Macro({
+function client(): Macro {
+  return new Macro({
     env: macroEnv(),
     auth: { type: 'user', apiKey: required('MACRO_API_KEY') },
     hosts: process.env.MACRO_STORAGE_URL
       ? { storage: process.env.MACRO_STORAGE_URL }
       : undefined,
   });
+}
+
+async function setup() {
+  const macro = client();
   const vars = readDevVars();
   const handle = required('GROK_BOT_HANDLE');
 
@@ -117,7 +117,7 @@ async function setup() {
     });
     console.log(`Created bot @${handle}`);
   }
-  const botId = bareBotId(bot.id);
+  const botId = bot.id.replace(/^bot\|/, '');
 
   // 2. A token for the relay and the Grok Bot.
   if (!vars.get('MACRO_BOT_TOKEN')) {
@@ -203,13 +203,7 @@ async function setup() {
 }
 
 async function validate() {
-  const macro = new Macro({
-    env: macroEnv(),
-    auth: { type: 'user', apiKey: required('MACRO_API_KEY') },
-    hosts: process.env.MACRO_STORAGE_URL
-      ? { storage: process.env.MACRO_STORAGE_URL }
-      : undefined,
-  });
+  const macro = client();
   const id = readDevVars().get('MACRO_WEBHOOK_ID');
   if (!id) throw new Error('Run `bun run setup` first');
   const result = await macro.webhooks.byId(id).validate();

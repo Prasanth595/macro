@@ -5,7 +5,7 @@ import type {
 import { verifySignature } from '../../../../packages/sdk/src/events/verify';
 
 /** Deliveries signed longer ago than this are refused as replays. */
-export const MAX_SIGNATURE_AGE_SECONDS = 300;
+const MAX_SIGNATURE_AGE_SECONDS = 300;
 
 /** Macro's ping when a webhook is registered or re-validated. */
 export const VALIDATION_EVENT = 'webhook.validation.test';
