@@ -1,7 +1,9 @@
 # Documents
 
 For gateway sync rollout checks, use PostHog flag `sync-via-gateway` (dev and
-production) and reload the app after changing it. Off or unavailable uses a
+production) and recreate document sessions after the client receives the updated
+flag. A reload can initially read PostHog's cached value; open sessions do not
+change transport when the remote value changes. Off or unavailable uses a
 direct sync-service WebSocket per document; on multiplexes document frames over
 the connection gateway. Confirm the hosted `sync_router` is provisioned before
 enabling. Local stacks can override with `VITE_SYNC_VIA_GATEWAY=true` or `false`.
