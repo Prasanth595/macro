@@ -88,7 +88,7 @@ export const useItemOperations = createSingletonRoot(() => {
         toast.success(`${args.name} copied`);
       } else if (args.itemType === 'project') {
         toast.failure(t('entityActions.toastDuplicateFolderFailed'), {
-          subtext: t('entityActions.folderDuplicateLimit'),
+          subtext: t('entityActions.folderDuplicateLimitHint'),
         });
       } else {
         toast.failure(t('entityActions.toastCopyFailed', { count: 1 }));

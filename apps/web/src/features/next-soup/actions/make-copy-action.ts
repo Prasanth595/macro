@@ -25,7 +25,7 @@ export const makeCopyAction = () => {
       toast.failure(
         t('entityActions.toastCopyFailed', { count: entities.length }),
         entities.some((entity) => entity.type === 'project')
-          ? { subtext: t('entityActions.folderDuplicateLimit') }
+          ? { subtext: t('entityActions.folderDuplicateLimitHint') }
           : undefined
       );
       return;

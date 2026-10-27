@@ -155,7 +155,7 @@ export function createPrActions(
           checks: pullRequest.checks,
         })
           ? undefined
-          : t('entityActions.prMergeWaitsOnChecks'),
+          : t('entityActions.prMergeWaitsOnChecksTooltip'),
       });
     }
     // Draft state unknown: offer neither direction rather than guess.

@@ -206,7 +206,7 @@ export default {
     other: 'Unable to copy items',
   },
   toastDuplicateFolderFailed: 'Unable to duplicate folder',
-  folderDuplicateLimit:
+  folderDuplicateLimitHint:
     'Folders with more than 100 files, chats, and subfolders can’t be duplicated.',
   toastGithubLinkCopied: 'GitHub link copied to clipboard',
   toastBranchNameCopied: 'Branch name copied to clipboard',
@@ -214,7 +214,7 @@ export default {
   copyGithubLink: 'Copy GitHub Link',
   prMerge: 'Merge',
   prMerging: 'Merging…',
-  prMergeWaitsOnChecks: 'Merge is available once every check passes',
+  prMergeWaitsOnChecksTooltip: 'Merge is available once every check passes',
   prReadyForReview: 'Ready for review',
   prConvertToDraft: 'Convert to draft',
   prClose: 'Close pull request',
