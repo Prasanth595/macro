@@ -2080,102 +2080,6 @@ describe('createGraphqlSoupAstItemsQuery', () => {
     }
   });
 
-  it('keeps a paged Mail list as deep on engines without row positions', async () => {
-    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    const fake = makeFakeClient();
-    getGraphqlSoupClientMock.mockReturnValue(fake.client);
-    let revision = REVISION_0;
-    let notifyCacheChanged: (revision: string) => void = () => undefined;
-    getGraphqlSoupCacheHostMock.mockReturnValue({
-      currentRevision: async () => revision,
-      entityFilter: entityFilterMock,
-      onCacheChanged: (callback: (revision: string) => void) => {
-        notifyCacheChanged = callback;
-        return () => undefined;
-      },
-      onCacheGenerationChanged: () => () => {},
-    });
-    const all = ['a', 'b', 'c', 'd', 'e', 'f'].map(
-      (id) => `GraphqlSoupEmailThread:${id}`
-    );
-    // The index's cursor is a position at a revision; any write stales it.
-    entityFilterMock.mockImplementation(
-      async (args: { limit: number; mail: { cursor?: string } }) => {
-        const [position, cursorRevision] = (args.mail.cursor ?? '0@').split(
-          '@'
-        );
-        if (args.mail.cursor && cursorRevision !== revision)
-          return { kind: 'stale-cursor', revision };
-        const start = Number(position);
-        const keys = all.slice(start, start + args.limit);
-        const end = start + keys.length;
-        return {
-          kind: 'mail-page',
-          revision,
-          keys,
-          sortTimestamps: keys.map(() => '2025-01-01T00:00:00.000001Z'),
-          nextCursor: end < all.length ? `${end}@${revision}` : null,
-          optimistic: false,
-        };
-      }
-    );
-    readRecordsByKeysMock.mockImplementation(
-      async (_host, _selection, requested: string[]) => ({
-        revision,
-        records: mailThreadRecords(requested),
-      })
-    );
-    let dispose!: () => void;
-    let query!: ReturnType<typeof createGraphqlSoupAstItemsQuery>;
-    createRoot((d) => {
-      dispose = d;
-      makeGraphqlSoupInputMock.mockReturnValue({
-        initial: {
-          emailView: 'INBOX',
-          sortMethod: 'UPDATED_AT',
-          limit: 2,
-          filters: {},
-        },
-      });
-      query = createGraphqlSoupAstItemsQuery(
-        () => ({ params: {}, body: {} }) as never,
-        () => ({ enabled: true })
-      );
-    });
-    const ids = () => query.data()?.entities.map((entity) => entity.id);
-    try {
-      await vi.waitFor(() => expect(ids()).toEqual(['a', 'b']));
-      const requestsBeforePage = entityFilterMock.mock.calls.length;
-      await query.fetchNextPage();
-      expect(ids()).toEqual(['a', 'b', 'c', 'd']);
-      // A write re-evaluates the page; it must not fall back to the first page.
-      revision = REVISION_1;
-      notifyCacheChanged(REVISION_1);
-      await vi.waitFor(() =>
-        expect(entityFilterMock.mock.calls.at(-1)?.[0]).toMatchObject({
-          limit: 4,
-          mail: { view: 'INBOX' },
-        })
-      );
-      expect(ids()).toEqual(['a', 'b', 'c', 'd']);
-      // Loading the page read only that page, and the write one evaluation:
-      // the deeper list the page left was already current, so nothing
-      // evaluated it again in between.
-      expect(entityFilterMock.mock.calls.length - requestsBeforePage).toBe(2);
-
-      // A write between evaluating and paging stales the cursor: the next
-      // page still arrives, read deeper at the new revision.
-      revision = REVISION_2;
-      await query.fetchNextPage();
-      await vi.waitFor(() =>
-        expect(ids()).toEqual(['a', 'b', 'c', 'd', 'e', 'f'])
-      );
-    } finally {
-      dispose();
-      online.mockRestore();
-    }
-  });
-
   it('keeps a paged Mail list ending at the same row when mail arrives above it', async () => {
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     const fake = makeFakeClient();
@@ -2193,18 +2097,29 @@ describe('createGraphqlSoupAstItemsQuery', () => {
     });
     const key = (id: string) => `GraphqlSoupEmailThread:${id}`;
     let all = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(key);
-    // Like the engine's, a position names a row and outlives writes.
+    let generation = 'first';
+    // Like the engine's, a position names a row of one engine generation and
+    // outlives writes.
+    const row = (position: string) => {
+      const [positionGeneration, rowKey] = position.split('|');
+      return positionGeneration === generation ? rowKey : undefined;
+    };
     entityFilterMock.mockImplementation(
       async (args: {
         limit: number;
         mail: { cursor?: string; through?: string };
       }) => {
-        const start = args.mail.cursor ? all.indexOf(args.mail.cursor) + 1 : 0;
+        const position = args.mail.cursor ?? args.mail.through;
+        const rowKey = position === undefined ? undefined : row(position);
+        if (position !== undefined && rowKey === undefined)
+          return { kind: 'stale-cursor', revision };
+        const index = rowKey === undefined ? -1 : all.indexOf(rowKey);
+        const start = args.mail.cursor ? index + 1 : 0;
         const end = args.mail.through
-          ? Math.max(all.indexOf(args.mail.through) + 1, args.limit)
+          ? Math.max(index + 1, args.limit)
           : start + args.limit;
         const keys = all.slice(start, end);
-        const last = keys.at(-1) ?? null;
+        const last = keys.length ? `${generation}|${keys.at(-1)}` : null;
         return {
           kind: 'mail-page',
           revision,
@@ -2246,15 +2161,14 @@ describe('createGraphqlSoupAstItemsQuery', () => {
       expect(ids()).toEqual(['a', 'b', 'c', 'd']);
 
       // New mail lands above the list: it re-reads through its last row,
-      // which a row count would have pushed off the bottom, and at least
-      // as many rows as are loaded.
+      // which a row count would have pushed off the bottom.
       all = [key('z'), ...all];
       revision = REVISION_1;
       notifyCacheChanged(REVISION_1);
       await vi.waitFor(() => expect(ids()).toEqual(['z', 'a', 'b', 'c', 'd']));
       expect(entityFilterMock.mock.calls.at(-1)?.[0]).toMatchObject({
-        limit: 4,
-        mail: { view: 'INBOX', through: key('d') },
+        limit: 2,
+        mail: { view: 'INBOX', through: `first|${key('d')}` },
       });
 
       // The next page continues after the same row, with no re-read.
@@ -2271,8 +2185,21 @@ describe('createGraphqlSoupAstItemsQuery', () => {
         expect(ids()).toEqual(['z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'])
       );
       expect(entityFilterMock.mock.calls.at(-1)?.[0]).toMatchObject({
-        mail: { through: key('h') },
+        mail: { through: `first|${key('h')}` },
       });
+
+      // A replaced engine no longer knows the position: read from the top.
+      generation = 'second';
+      revision = '3';
+      notifyCacheChanged('3');
+      await vi.waitFor(() => expect(ids()).toEqual(['z', 'a']));
+      expect(entityFilterMock.mock.calls.at(-1)?.[0]).toMatchObject({
+        limit: 2,
+        mail: { view: 'INBOX' },
+      });
+      expect(entityFilterMock.mock.calls.at(-1)?.[0].mail.through).toBe(
+        undefined
+      );
     } finally {
       dispose();
       online.mockRestore();

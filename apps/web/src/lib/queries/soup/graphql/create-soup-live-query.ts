@@ -21,7 +21,6 @@ import { normalizedCacheResultMetadata } from '../../../graphql-cache/exchange/n
 import { selectRecords } from '../../../graphql-cache/exchange/record-selection';
 import {
   type CacheRevision,
-  type EntityFilterCacheResult,
   MAX_MAIL_THROUGH_ROWS,
 } from '../../../graphql-cache/protocol';
 import {
@@ -48,7 +47,6 @@ import type { UrqlInfiniteData } from '../../../urql-solid/types';
 import { registerChannelNotificationRefresh } from '../../channel/register-notification-refresh';
 import { registerGraphqlSoupRevalidations } from './active-queries';
 import { createPredicateQuery } from './create-predicate-query';
-import { readMailDepth } from './mail-depth';
 import { isCachedMailView } from './mail-view';
 import {
   usePendingGraphqlSoupDeleteIds,
@@ -95,16 +93,12 @@ export function createSoupLiveQuery(
   const pendingDeleteIds = usePendingGraphqlSoupDeleteIds();
   const offline = createBrowserOfflineSignal();
   const [fetchingMailPage, setFetchingMailPage] = createSignal(false);
-  // Where a local Mail page must end: at the last row the user has loaded so
-  // far. Cache writes re-evaluate the page; evaluating only the first page
-  // would collapse a scrolled list and lose its position. Engines that report
-  // `endCursor` read through the last row's position, which stays put when
-  // mail arrives above it, and at least as many rows as are loaded. Native
-  // engines that predate it read as many rows.
-  const [localMailDepth, setLocalMailDepth] = createSignal(0);
-  const [localMailThrough, setLocalMailThrough] = createSignal<string | null>(
-    null
-  );
+  // The position of the last local Mail row loaded (a page's `endCursor`).
+  // Cache writes re-read the page through it, so a scrolled list neither
+  // collapses to its first page nor loses its last row when mail arrives
+  // above it. Native engines that predate positions report none and re-read
+  // the first page.
+  const [localMailEdge, setLocalMailEdge] = createSignal<string | null>(null);
   // The last local Mail evaluation for this input succeeded, so cache writes
   // keep the page current; incomplete or failed ones leave the network page.
   const [localMailCurrent, setLocalMailCurrent] = createSignal(false);
@@ -647,20 +641,21 @@ export function createSoupLiveQuery(
     if (input !== previousInitialInput) {
       previousInitialInput = input;
       setLocalProjection(undefined);
-      setLocalMailDepth(0);
-      setLocalMailThrough(null);
+      setLocalMailEdge(null);
       setLocalMailCurrent(false);
     }
-    const depth = Math.max(localMailDepth(), definition?.records.length ?? 0);
-    const through = localMailThrough();
+    // Server pages loaded while the network was authoritative.
+    const loaded = definition?.records.length ?? 0;
+    const edge = localMailEdge();
     const existing = untrack(localProjection);
     if (
       existing?.mail &&
       existing.input === input &&
       existing.generation === cacheGeneration &&
       existing.mail.revision === revision &&
-      existing.mail.edge === through &&
-      (existing.displayedKeys.size >= depth || existing.mail.nextCursor == null)
+      existing.mail.edge === edge &&
+      (existing.displayedKeys.size >= loaded ||
+        existing.mail.nextCursor == null)
     )
       return;
     const host = getGraphqlSoupCacheHost();
@@ -697,50 +692,39 @@ export function createSoupLiveQuery(
         let retryCount = 0;
         let discarded = false;
         let outcome: 'success' | 'incomplete' | 'error' = 'incomplete';
+        let through = edge;
         try {
           for (let attempt = 0; attempt < 3; attempt += 1) {
             if (requestId !== localRequest) {
               discarded = true;
               return;
             }
-            const mailRequest = mailView && {
+            let result = await host.entityFilter({
               filters,
               sortMethod,
               sortDirection,
-              mail: { view: mailView },
-            };
-            let result: EntityFilterCacheResult;
-            if (mailRequest) {
-              const wanted = Math.max(limit, depth);
-              const window =
-                through === null
-                  ? undefined
-                  : await host.entityFilter({
-                      ...mailRequest,
-                      limit: Math.min(wanted, MAX_MAIL_THROUGH_ROWS),
-                      mail: { ...mailRequest.mail, through },
-                    });
-              // A position from an earlier engine generation reads by count.
-              const byPosition = window && window.kind !== 'stale-cursor';
-              if (byPosition) {
-                result = window;
-                span.setAttr('evaluation.depth_requests', 1);
-              } else {
-                const read = await readMailDepth(host, mailRequest, wanted);
-                result = read.result;
-                span.setAttr('evaluation.depth_requests', read.requests);
-              }
-              span.setAttr('evaluation.edge', byPosition ? 'through' : 'count');
+              ...(!mailView
+                ? { limit, baseline }
+                : through
+                  ? {
+                      // At least as deep as the server pages already shown.
+                      limit: Math.min(
+                        Math.max(limit, loaded),
+                        MAX_MAIL_THROUGH_ROWS
+                      ),
+                      mail: { view: mailView, through },
+                    }
+                  : { limit, mail: { view: mailView } }),
+            });
+            // A position from a replaced engine: read from the top instead.
+            if (result.kind === 'stale-cursor' && through) {
+              through = null;
+              continue;
+            }
+            if (mailView) {
+              span.setAttr('evaluation.through', Boolean(through));
               if (result.kind === 'mail-page')
                 span.setAttr('evaluation.depth', result.keys.length);
-            } else {
-              result = await host.entityFilter({
-                filters,
-                sortMethod,
-                sortDirection,
-                limit,
-                baseline,
-              });
             }
             if (
               mailView &&
@@ -804,7 +788,7 @@ export function createSoupLiveQuery(
               });
               // The next evaluation reads through this one's last row.
               if (result.kind === 'mail-page')
-                setLocalMailThrough(result.endCursor ?? null);
+                setLocalMailEdge(result.endCursor ?? null);
               // The filter, fragments, and final revision agree. A newer coherent
               // page is valid even if hydration advanced past the initial read.
               // Publish both result kinds' watermarks: the Mail guard avoids a
@@ -1001,19 +985,10 @@ export function createSoupLiveQuery(
           limit: initial.limit ?? 20,
           mail: { view: initial.emailView, cursor: local.mail.nextCursor },
         });
-        // A cache write raced the page. Read the list again at the new
-        // revision, through the page's last row (or one page deeper on
-        // engines without positions) instead of dropping back to the first
-        // page, which would collapse the list.
-        const deepen = (through: string | null) =>
-          batch(() => {
-            setLocalMailDepth(local.displayedKeys.size + (initial.limit ?? 20));
-            setLocalMailThrough(through);
-            setLocalEvaluationTrigger((value) => value + 1);
-          });
         if (displayLocalProjection() !== local) return;
         if (result.kind === 'stale-cursor') {
-          deepen(null);
+          setLocalProjection(undefined);
+          setLocalEvaluationTrigger((value) => value + 1);
           return;
         }
         if (result.kind !== 'mail-page') return;
@@ -1030,15 +1005,19 @@ export function createSoupLiveQuery(
           result.revision !== local.mail.revision ||
           selected.kind === 'stale'
         ) {
-          deepen(result.endCursor ?? null);
+          // A cache write raced the page: read the list again through the
+          // page's last row, at the new revision.
+          batch(() => {
+            setLocalMailEdge(result.endCursor ?? null);
+            setLocalEvaluationTrigger((value) => value + 1);
+          });
           return;
         }
         const records = selected.records;
-        const through = result.endCursor ?? null;
+        const edge = result.endCursor ?? null;
         // Together, so the evaluation sees the new edge already displayed.
         batch(() => {
-          setLocalMailDepth(keys.length);
-          setLocalMailThrough(through);
+          setLocalMailEdge(edge);
           setLocalProjection({
             ...local,
             displayedKeys: new Set(keys),
@@ -1048,7 +1027,7 @@ export function createSoupLiveQuery(
               // Pending writes shown on earlier pages are still pending.
               optimistic:
                 (local.mail?.optimistic ?? false) || result.optimistic,
-              edge: through,
+              edge,
             },
             records,
           });
