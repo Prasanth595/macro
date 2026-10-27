@@ -55,7 +55,7 @@ use crate::domain::models::{
     STATUS_PROPERTY_ID,
 };
 
-use super::branch_name::{build_task_branch_name, user_branch_prefix};
+use super::branch_name::{build_task_branch_name, github_task_reference, user_branch_prefix};
 use super::content::{DocumentContent, DocumentContentLocation, DocumentContentState};
 use super::events::{
     DocumentCopiedMetadata, DocumentCreatedMetadata, DocumentDeletedMetadata,
@@ -1291,6 +1291,7 @@ impl<
         );
 
         Ok(TaskBranchName {
+            task_reference: github_task_reference(team_slug.as_deref(), team_task_id, &short_id),
             short_id,
             branch_name,
         })

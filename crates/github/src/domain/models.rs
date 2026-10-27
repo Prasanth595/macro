@@ -37,10 +37,10 @@ pub use link::{
 pub use repository::{GithubRepository, PullRequestIndexPage, PullRequestIndexRequest};
 pub use sync::{
     GithubAppInstallationSource, GithubAuthenticatedUser, GithubInstallationAccessToken,
-    GithubInstallationSetupAction, GithubSetupAccessToken, GithubUserInstallation,
-    GithubUserInstallationsPage, GithubWebhookEventType, MacroTaskId, ResolvedTeamTaskReference,
-    TeamTaskReference, ValidatedGithubWebhookEvent, extract_github_mentions,
-    pull_request_task_reference, strip_markdown_code,
+    GithubInstallationSetupAction, GithubSetupAccessToken, GithubTaskStatusPolicy,
+    GithubUserInstallation, GithubUserInstallationsPage, GithubWebhookEventType, MacroTaskId,
+    ResolvedTeamTaskReference, TeamTaskReference, ValidatedGithubWebhookEvent,
+    extract_github_mentions, pull_request_task_reference, strip_markdown_code,
 };
 /// Errors that can occur during github operations.
 #[derive(Debug, thiserror::Error)]

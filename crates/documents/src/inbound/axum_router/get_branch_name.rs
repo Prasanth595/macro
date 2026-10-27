@@ -22,6 +22,8 @@ pub struct BranchNameResponse {
     pub short_id: String,
     /// The git branch name for the task document.
     pub branch_name: String,
+    /// The id to paste into GitHub so the pull request links to this task.
+    pub task_reference: String,
 }
 
 /// Handler for `GET /documents/{document_id}/branch_name`.
@@ -70,6 +72,7 @@ pub async fn get_branch_name_handler<
             Ok(Json(BranchNameResponse {
                 short_id: task_branch_name.short_id,
                 branch_name: task_branch_name.branch_name,
+                task_reference: task_branch_name.task_reference,
             }))
         }
         Some(

@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT review_on_open, complete_on_merge, reset_on_close\n            FROM team_github_task_automation\n            WHERE team_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "review_on_open",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 1,
+        "name": "complete_on_merge",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 2,
+        "name": "reset_on_close",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6784c2926c7d47820f4067f183fb3c86838fae5cfda2005fc8cf0b5ea4197c38"
+}

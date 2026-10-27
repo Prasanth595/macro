@@ -144,6 +144,40 @@ pub trait GithubSyncRepo: Send + Sync + 'static {
         &self,
         github_user_id: &str,
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
+
+    /// Saved status policies for the given task documents.
+    ///
+    /// A document absent from the map has no saved row and keeps the default
+    /// policy, which allows every automatic status move.
+    fn task_status_policies(
+        &self,
+        _document_ids: &[String],
+    ) -> impl Future<
+        Output = Result<
+            std::collections::HashMap<String, crate::domain::models::GithubTaskStatusPolicy>,
+            Self::Err,
+        >,
+    > + Send {
+        async { Ok(std::collections::HashMap::new()) }
+    }
+
+    /// The team's saved GitHub task status policy, or the default when unset.
+    fn get_task_status_policy(
+        &self,
+        _team_id: uuid::Uuid,
+    ) -> impl Future<Output = Result<crate::domain::models::GithubTaskStatusPolicy, Self::Err>> + Send
+    {
+        async { Ok(crate::domain::models::GithubTaskStatusPolicy::default()) }
+    }
+
+    /// Replace the team's GitHub task status policy.
+    fn upsert_task_status_policy(
+        &self,
+        _team_id: uuid::Uuid,
+        _policy: crate::domain::models::GithubTaskStatusPolicy,
+    ) -> impl Future<Output = Result<(), Self::Err>> + Send {
+        async { Ok(()) }
+    }
 }
 
 /// Client interface for making GitHub sync API calls.
@@ -299,6 +333,25 @@ pub trait GithubSyncService: Send + Sync + 'static {
         &self,
         installation_id: u64,
     ) -> impl Future<Output = Result<GithubInstallationAccessToken, GithubError>> + Send;
+
+    /// The team's saved GitHub task status policy, or the default when unset.
+    fn get_task_status_policy(
+        &self,
+        _team_id: uuid::Uuid,
+    ) -> impl Future<Output = Result<crate::domain::models::GithubTaskStatusPolicy, GithubError>> + Send
+    {
+        async { Ok(crate::domain::models::GithubTaskStatusPolicy::default()) }
+    }
+
+    /// Replace the team's GitHub task status policy and return the saved value.
+    fn set_task_status_policy(
+        &self,
+        _team_id: uuid::Uuid,
+        policy: crate::domain::models::GithubTaskStatusPolicy,
+    ) -> impl Future<Output = Result<crate::domain::models::GithubTaskStatusPolicy, GithubError>> + Send
+    {
+        async move { Ok(policy) }
+    }
 }
 
 /// Publishes persisted PR mappings to users allowed to view their source.

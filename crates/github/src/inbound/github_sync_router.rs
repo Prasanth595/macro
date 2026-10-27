@@ -11,14 +11,17 @@ mod test;
 use std::sync::Arc;
 
 use axum::{
-    Router,
+    Json, Router,
     extract::{FromRef, FromRequest, Query, Request, State},
     response::Redirect,
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use entity_access::{
-    domain::{models::MemberTeamRole, ports::EntityAccessService},
-    inbound::axum_extractors::OptionalMacroUserTeamExtractorV2,
+    domain::{
+        models::{AdminTeamRole, MemberTeamRole},
+        ports::EntityAccessService,
+    },
+    inbound::axum_extractors::{MacroUserTeamExtractorV2, OptionalMacroUserTeamExtractorV2},
 };
 use macro_authorization::{
     MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState, UserOnly,
@@ -28,7 +31,7 @@ use reqwest::StatusCode;
 use uuid::Uuid;
 
 use crate::domain::{
-    models::{GithubError, InstallationState, ValidatedGithubWebhookEvent},
+    models::{GithubError, GithubTaskStatusPolicy, InstallationState, ValidatedGithubWebhookEvent},
     ports::GithubSyncService,
 };
 
@@ -85,6 +88,11 @@ where
         .route(
             "/webhook",
             axum::routing::post(github_webhook_event_handler::<T, Eas, Auth>),
+        )
+        .route(
+            "/task-status-automation",
+            axum::routing::get(get_task_status_automation::<T, Eas, Auth>)
+                .put(put_task_status_automation::<T, Eas, Auth>),
         )
         .with_state(state)
 }
@@ -267,4 +275,69 @@ where
     ctx.service.process_webhook_event(&event).await?;
 
     Ok(StatusCode::OK)
+}
+
+fn team_id_from_receipt(entity_id: &str) -> Result<Uuid, GithubError> {
+    Uuid::parse_str(entity_id).map_err(|error| GithubError::Internal(error.into()))
+}
+
+/// The team's GitHub task status automation. A team that has never saved a
+/// policy gets every switch on.
+#[utoipa::path(
+    get,
+    path = "/github/task-status-automation",
+    operation_id = "get_github_task_status_automation",
+    tag = "github",
+    responses(
+        (status = 200, description = "The team's GitHub task status automation", body = GithubTaskStatusPolicy),
+        (status = 401, description = "Authentication failed"),
+        (status = 403, description = "The caller is not a member of a team"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
+#[tracing::instrument(skip(ctx, team), err)]
+pub async fn get_task_status_automation<T, Eas, Auth>(
+    State(ctx): State<GithubSyncRouterState<T, Eas, Auth>>,
+    team: MacroUserTeamExtractorV2<MemberTeamRole, Eas, Auth>,
+) -> Result<Json<GithubTaskStatusPolicy>, GithubError>
+where
+    T: GithubSyncService,
+    Eas: EntityAccessService,
+    Auth: MacroAuthorizationService,
+{
+    let team_id = team_id_from_receipt(&team.entity_access_receipt.entity().entity_id)?;
+    Ok(Json(ctx.service.get_task_status_policy(team_id).await?))
+}
+
+/// Replace the team's GitHub task status automation. Linking pull requests is
+/// unchanged; only the automatic status moves follow these switches. Requires
+/// a team admin or owner.
+#[utoipa::path(
+    put,
+    path = "/github/task-status-automation",
+    operation_id = "put_github_task_status_automation",
+    tag = "github",
+    request_body = GithubTaskStatusPolicy,
+    responses(
+        (status = 200, description = "The saved GitHub task status automation", body = GithubTaskStatusPolicy),
+        (status = 401, description = "Authentication failed"),
+        (status = 403, description = "The caller is not a team admin"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
+#[tracing::instrument(skip(ctx, team, body), err)]
+pub async fn put_task_status_automation<T, Eas, Auth>(
+    State(ctx): State<GithubSyncRouterState<T, Eas, Auth>>,
+    team: MacroUserTeamExtractorV2<AdminTeamRole, Eas, Auth>,
+    Json(body): Json<GithubTaskStatusPolicy>,
+) -> Result<Json<GithubTaskStatusPolicy>, GithubError>
+where
+    T: GithubSyncService,
+    Eas: EntityAccessService,
+    Auth: MacroAuthorizationService,
+{
+    let team_id = team_id_from_receipt(&team.entity_access_receipt.entity().entity_id)?;
+    Ok(Json(
+        ctx.service.set_task_status_policy(team_id, body).await?,
+    ))
 }

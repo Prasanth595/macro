@@ -7,8 +7,8 @@ use crate::domain::{
         GithubAppInstallationSource, GithubAuthenticatedUser, GithubError,
         GithubInstallationAccessToken, GithubKey, GithubPullRequestCheckRun,
         GithubPullRequestComment, GithubPullRequestDetails, GithubPullRequestStatus,
-        GithubSetupAccessToken, GithubUserInstallation, MacroTaskId, ResolvedTeamTaskReference,
-        TeamTaskReference, ValidatedGithubWebhookEvent,
+        GithubSetupAccessToken, GithubTaskStatusPolicy, GithubUserInstallation, MacroTaskId,
+        ResolvedTeamTaskReference, TeamTaskReference, ValidatedGithubWebhookEvent,
     },
     ports::{GithubSyncClient, GithubSyncRepo, GithubSyncService},
 };
@@ -355,6 +355,8 @@ struct StubSyncRepo {
     installation_sources: Mutex<Vec<(String, Vec<GithubAppInstallationSource>)>>,
     /// Pending installation requests keyed by requester github user id.
     installation_requests: Mutex<HashMap<String, GithubAppInstallationSource>>,
+    /// Saved GitHub status policies keyed by task document id.
+    status_policies: Mutex<HashMap<String, GithubTaskStatusPolicy>>,
 }
 
 impl StubSyncRepo {
@@ -369,7 +371,16 @@ impl StubSyncRepo {
             installation_source_rows: Mutex::new(HashMap::new()),
             installation_sources: Mutex::new(Vec::new()),
             installation_requests: Mutex::new(HashMap::new()),
+            status_policies: Mutex::new(HashMap::new()),
         }
+    }
+
+    fn with_status_policy(self, document_id: &str, policy: GithubTaskStatusPolicy) -> Self {
+        self.status_policies
+            .lock()
+            .unwrap()
+            .insert(document_id.to_string(), policy);
+        self
     }
 
     fn with_github_link(self, github_user_id: &str, macro_id: &str) -> Self {
@@ -645,6 +656,22 @@ impl GithubSyncRepo for StubSyncRepo {
             .unwrap()
             .push((installation_id.to_string(), sources.to_vec()));
         Ok(())
+    }
+
+    async fn task_status_policies(
+        &self,
+        document_ids: &[String],
+    ) -> Result<HashMap<String, GithubTaskStatusPolicy>, Self::Err> {
+        let policies = self.status_policies.lock().unwrap();
+        Ok(document_ids
+            .iter()
+            .filter_map(|document_id| {
+                policies
+                    .get(document_id)
+                    .copied()
+                    .map(|policy| (document_id.clone(), policy))
+            })
+            .collect())
     }
 
     async fn delete_installation_sources(&self, installation_id: &str) -> Result<(), Self::Err> {
@@ -1305,6 +1332,38 @@ fn make_sync_service_with_repo_and_notification_ingress(
         service,
         foreign_entity_service,
     }
+}
+
+fn make_sync_service_with_repo_and_doc_service(
+    repo: StubSyncRepo,
+) -> (TestGithubSyncService, Arc<StubDocumentService>) {
+    let doc_service = Arc::new(StubDocumentService::new());
+    let foreign_entity_service = StubForeignEntityService::new();
+
+    let service = GithubSyncServiceImpl::new(
+        GithubSyncConfig {
+            webhook_secret: "test-webhook-secret".to_string(),
+            github_sync_app_url: "https://github.com/apps/test/installations/new?existing=1"
+                .to_string(),
+            sync_app_pem: TEST_PEM.to_string(),
+            sync_app_client_id: "test-sync-app-client-id".to_string(),
+            sync_app_client_secret: "test-sync-app-client-secret".to_string(),
+            installation_state_secret: "test-installation-state-secret".to_string(),
+        },
+        doc_service.clone(),
+        pull_request_service(&foreign_entity_service),
+        StubNotificationIngress::new(),
+        repo,
+        StubSyncClient::new(),
+        StubRealtime::default(),
+    );
+    (
+        TestGithubSyncService {
+            service,
+            foreign_entity_service,
+        },
+        doc_service,
+    )
 }
 
 fn make_sync_service_with_doc_service() -> (TestGithubSyncService, Arc<StubDocumentService>) {
@@ -2281,6 +2340,77 @@ async fn pr_opened_sets_task_status_in_review() {
     assert_eq!(status_calls.len(), 1);
     assert_eq!(status_calls[0].entity_id, KNOWN_TASK_UUID);
     assert_eq!(status_calls[0].status, "In Review");
+}
+
+#[tokio::test]
+async fn disabled_status_policy_still_links_the_pull_request() {
+    let repo = StubSyncRepo::new().with_status_policy(
+        KNOWN_TASK_UUID,
+        GithubTaskStatusPolicy {
+            review_on_open: false,
+            complete_on_merge: false,
+            reset_on_close: false,
+        },
+    );
+    let (service, doc_service) = make_sync_service_with_repo_and_doc_service(repo);
+    let event = ValidatedGithubWebhookEvent::new(
+        "pull_request".to_string(),
+        serde_json::json!({
+            "action": "opened",
+            "pull_request": {
+                "number": 42,
+                "title": "fixes MACRO-2BuyvtY3aeEvHx4uG8iD51",
+                "body": null,
+                "head": { "ref": "feature/some-branch" },
+                "merged": false
+            },
+            "repository": {
+                "name": "my-repo",
+                "owner": { "login": "my-org" }
+            },
+            "installation": { "id": 12345 }
+        }),
+    );
+
+    service.process_webhook_event(&event).await.unwrap();
+
+    assert!(doc_service.task_status_calls().is_empty());
+    assert_eq!(service.client.pr_comments().len(), 1);
+}
+
+#[tokio::test]
+async fn disabled_complete_on_merge_leaves_the_task_status() {
+    let repo = StubSyncRepo::new().with_status_policy(
+        KNOWN_TASK_UUID,
+        GithubTaskStatusPolicy {
+            review_on_open: true,
+            complete_on_merge: false,
+            reset_on_close: true,
+        },
+    );
+    let (service, doc_service) = make_sync_service_with_repo_and_doc_service(repo);
+    let event = ValidatedGithubWebhookEvent::new(
+        "pull_request".to_string(),
+        serde_json::json!({
+            "action": "closed",
+            "pull_request": {
+                "number": 42,
+                "title": "fixes MACRO-2BuyvtY3aeEvHx4uG8iD51",
+                "body": null,
+                "head": { "ref": "feature/some-branch" },
+                "merged": true
+            },
+            "repository": {
+                "name": "my-repo",
+                "owner": { "login": "my-org" }
+            },
+            "installation": { "id": 12345 }
+        }),
+    );
+
+    service.process_webhook_event(&event).await.unwrap();
+
+    assert!(doc_service.task_status_calls().is_empty());
 }
 
 #[tokio::test]

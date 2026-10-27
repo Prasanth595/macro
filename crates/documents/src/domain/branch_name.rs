@@ -3,6 +3,25 @@
 /// Maximum allowed length of a generated branch name.
 const MAX_BRANCH_LENGTH: usize = 200;
 
+/// The text to mention on GitHub so a pull request links to this task.
+///
+/// A team task is `{TEAM_SLUG}-{number}` (for example `ENG-42`). A task
+/// without a team number is `MACRO-{short_id}`. Either form is enough on its
+/// own in a branch name, pull request title, description, or comment.
+pub fn github_task_reference(
+    team_slug: Option<&str>,
+    team_task_id: Option<i32>,
+    short_id: &str,
+) -> String {
+    match (
+        team_slug.map(str::trim).filter(|slug| !slug.is_empty()),
+        team_task_id.filter(|id| *id > 0),
+    ) {
+        (Some(slug), Some(task_num)) => format!("{}-{task_num}", slug.to_ascii_uppercase()),
+        _ => format!("MACRO-{short_id}"),
+    }
+}
+
 /// Convert a task title into a slug suitable for a git branch name.
 pub fn slugify(name: &str) -> String {
     let mut result = String::with_capacity(name.len());

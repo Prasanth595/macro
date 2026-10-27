@@ -17,9 +17,9 @@ use crate::domain::{
         GithubInstallationAccessToken, GithubInstallationSetupAction, GithubKey,
         GithubPullRequestDetails, GithubPullRequestLabel, GithubPullRequestReview,
         GithubPullRequestReviewState, GithubPullRequestStatus, GithubPullRequestUser,
-        GithubWebhookEventType, InstallationState, MacroTaskId, ResolvedTeamTaskReference,
-        TeamTaskReference, ValidatedGithubWebhookEvent, latest_reviews, sign_installation_state,
-        verify_installation_state,
+        GithubTaskStatusPolicy, GithubWebhookEventType, InstallationState, MacroTaskId,
+        ResolvedTeamTaskReference, TeamTaskReference, ValidatedGithubWebhookEvent, latest_reviews,
+        sign_installation_state, verify_installation_state,
     },
     ports::{GithubSyncClient, GithubSyncRealtime, GithubSyncRepo, GithubSyncService},
 };
@@ -828,12 +828,39 @@ impl<
             .ok();
     }
 
-    /// Update task statuses for all resolved task doc IDs.
+    /// Update task statuses for all resolved task doc IDs whose team still
+    /// allows that move. A missing policy, or a failed policy read, keeps the
+    /// historical default and still writes the status.
     #[tracing::instrument(skip(self, doc_ids))]
     async fn update_task_statuses(&self, doc_ids: &[String], status: &str) {
         tracing::trace!(doc_count = doc_ids.len(), status, "updating task statuses");
 
+        let policies = match self.repo.task_status_policies(doc_ids).await {
+            Ok(policies) => policies,
+            Err(error) => {
+                tracing::error!(
+                    error=?error,
+                    "failed to read GitHub task status policies; applying the default"
+                );
+                HashMap::new()
+            }
+        };
+
         for doc_id in doc_ids {
+            if !policies
+                .get(doc_id)
+                .copied()
+                .unwrap_or_default()
+                .allows(status)
+            {
+                tracing::trace!(
+                    doc_id,
+                    status,
+                    "skipping task status update disabled by team policy"
+                );
+                continue;
+            }
+
             tracing::trace!(doc_id, status, "updating task status");
 
             let entity_access = entity_access::domain::models::EntityAccessReceipt::<
@@ -1148,6 +1175,30 @@ impl<
         self.client
             .generate_installation_access_token(&jwt, installation_id)
             .await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_task_status_policy(
+        &self,
+        team_id: uuid::Uuid,
+    ) -> Result<GithubTaskStatusPolicy, GithubError> {
+        self.repo
+            .get_task_status_policy(team_id)
+            .await
+            .map_err(|error| GithubError::Internal(error.into()))
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn set_task_status_policy(
+        &self,
+        team_id: uuid::Uuid,
+        policy: GithubTaskStatusPolicy,
+    ) -> Result<GithubTaskStatusPolicy, GithubError> {
+        self.repo
+            .upsert_task_status_policy(team_id, policy)
+            .await
+            .map_err(|error| GithubError::Internal(error.into()))?;
+        Ok(policy)
     }
 }
 

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT tt.document_id AS \"document_id!\",\n                   a.review_on_open,\n                   a.complete_on_merge,\n                   a.reset_on_close\n            FROM team_task tt\n            INNER JOIN team_github_task_automation a ON a.team_id = tt.team_id\n            WHERE tt.document_id = ANY($1)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "review_on_open",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 2,
+        "name": "complete_on_merge",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "reset_on_close",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2a105e332d81ba261fa4191581353bed605306096e84060564fef7b4cfd51182"
+}

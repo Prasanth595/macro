@@ -135,6 +135,8 @@ pub struct TaskBranchName {
     pub short_id: String,
     /// The generated branch name.
     pub branch_name: String,
+    /// The id to paste into GitHub (`ENG-42` or `MACRO-{short_id}`).
+    pub task_reference: String,
 }
 
 /// A comment associated with a GitHub pull request.

@@ -1,4 +1,4 @@
-use super::{build_task_branch_name, slugify, user_branch_prefix};
+use super::{build_task_branch_name, github_task_reference, slugify, user_branch_prefix};
 
 #[test]
 fn strips_brackets_and_special_chars() {
@@ -118,4 +118,24 @@ fn truncates_at_hyphen_boundary() {
     for segment in slug_portion.split('-') {
         assert_eq!(segment, "longword", "found partial word: {segment}");
     }
+}
+
+#[test]
+fn task_reference_uses_the_team_slug_and_number() {
+    assert_eq!(
+        github_task_reference(Some("eng"), Some(42), "short"),
+        "ENG-42"
+    );
+}
+
+#[test]
+fn task_reference_falls_back_to_the_short_id() {
+    assert_eq!(
+        github_task_reference(None, None, "2BuyvtY3aeEvHx4uG8iD51"),
+        "MACRO-2BuyvtY3aeEvHx4uG8iD51"
+    );
+    assert_eq!(
+        github_task_reference(Some("eng"), None, "2BuyvtY3aeEvHx4uG8iD51"),
+        "MACRO-2BuyvtY3aeEvHx4uG8iD51"
+    );
 }

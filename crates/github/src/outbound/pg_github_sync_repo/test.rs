@@ -3,8 +3,8 @@ use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
 use crate::domain::models::{
-    GithubAppInstallationSource, GithubKey, MacroTaskId, ResolvedTeamTaskReference,
-    TeamTaskReference,
+    GithubAppInstallationSource, GithubKey, GithubTaskStatusPolicy, MacroTaskId,
+    ResolvedTeamTaskReference, TeamTaskReference,
 };
 use crate::domain::ports::GithubSyncRepo;
 use crate::outbound::pg_github_sync_repo::PgGithubSyncRepo;
@@ -979,5 +979,45 @@ async fn test_installation_requests_are_scoped_by_github_user(pool: Pool<Postgre
         Some(GithubAppInstallationSource::User(
             "macro|user@user.com".to_string()
         ))
+    );
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("github_team_task_test_data"))
+)]
+async fn test_task_status_policy_round_trip(pool: Pool<Postgres>) {
+    let repo = PgGithubSyncRepo::new(pool);
+    let team_id: Uuid = "dddddddd-dddd-dddd-dddd-dddddddddddd".parse().unwrap();
+    let document_id = "0d0dc589-f301-43f1-8b11-4ab448ca4bb4";
+    let policy = GithubTaskStatusPolicy {
+        review_on_open: true,
+        complete_on_merge: false,
+        reset_on_close: false,
+    };
+
+    assert_eq!(
+        repo.get_task_status_policy(team_id).await.unwrap(),
+        GithubTaskStatusPolicy::default()
+    );
+    assert!(
+        repo.task_status_policies(&[document_id.to_string()])
+            .await
+            .unwrap()
+            .is_empty()
+    );
+
+    repo.upsert_task_status_policy(team_id, policy)
+        .await
+        .unwrap();
+
+    assert_eq!(repo.get_task_status_policy(team_id).await.unwrap(), policy);
+    assert_eq!(
+        repo.task_status_policies(&[document_id.to_string()])
+            .await
+            .unwrap()
+            .get(document_id)
+            .copied(),
+        Some(policy)
     );
 }

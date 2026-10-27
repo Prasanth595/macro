@@ -23,6 +23,9 @@ link flow, following the hexagonal architecture pattern.
 
 - Owns: account linking (`link` feature), the App installation/webhook sync
   (`sync` feature), and the Axum router/webhook verification for both.
+- Webhook text that contains a team task id (`ENG-42`) or `MACRO-{short id}`
+  links that pull request. `team_github_task_automation` decides whether the
+  same event also moves task status. A missing row leaves every move on.
 - Not here: the pull request model, merge rules, and PR listing/service →
   `crates/github_pull_requests`, which this crate re-exports and calls into.
 

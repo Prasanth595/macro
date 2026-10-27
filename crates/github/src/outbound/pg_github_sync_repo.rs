@@ -3,15 +3,15 @@
 #[cfg(test)]
 mod test;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use macro_user_id::user_id::MacroUserIdStr;
 use sqlx::PgPool;
 
 use crate::domain::{
     models::{
-        GithubAppInstallationSource, GithubKey, MacroTaskId, ResolvedTeamTaskReference,
-        TeamTaskReference,
+        GithubAppInstallationSource, GithubKey, GithubTaskStatusPolicy, MacroTaskId,
+        ResolvedTeamTaskReference, TeamTaskReference,
     },
     ports::{GithubInstallationLister, GithubSyncRepo},
 };
@@ -507,6 +507,99 @@ impl GithubSyncRepo for PgGithubSyncRepo {
     }
 
     #[tracing::instrument(skip(self), err)]
+    #[tracing::instrument(skip(self, document_ids), err)]
+    async fn task_status_policies(
+        &self,
+        document_ids: &[String],
+    ) -> Result<HashMap<String, GithubTaskStatusPolicy>, Self::Err> {
+        if document_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let rows = sqlx::query!(
+            r#"
+            SELECT tt.document_id AS "document_id!",
+                   a.review_on_open,
+                   a.complete_on_merge,
+                   a.reset_on_close
+            FROM team_task tt
+            INNER JOIN team_github_task_automation a ON a.team_id = tt.team_id
+            WHERE tt.document_id = ANY($1)
+            "#,
+            document_ids,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                (
+                    row.document_id,
+                    GithubTaskStatusPolicy {
+                        review_on_open: row.review_on_open,
+                        complete_on_merge: row.complete_on_merge,
+                        reset_on_close: row.reset_on_close,
+                    },
+                )
+            })
+            .collect())
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_task_status_policy(
+        &self,
+        team_id: uuid::Uuid,
+    ) -> Result<GithubTaskStatusPolicy, Self::Err> {
+        let row = sqlx::query!(
+            r#"
+            SELECT review_on_open, complete_on_merge, reset_on_close
+            FROM team_github_task_automation
+            WHERE team_id = $1
+            "#,
+            team_id,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row
+            .map(|row| GithubTaskStatusPolicy {
+                review_on_open: row.review_on_open,
+                complete_on_merge: row.complete_on_merge,
+                reset_on_close: row.reset_on_close,
+            })
+            .unwrap_or_default())
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn upsert_task_status_policy(
+        &self,
+        team_id: uuid::Uuid,
+        policy: GithubTaskStatusPolicy,
+    ) -> Result<(), Self::Err> {
+        sqlx::query!(
+            r#"
+            INSERT INTO team_github_task_automation (
+                team_id, review_on_open, complete_on_merge, reset_on_close
+            )
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (team_id) DO UPDATE
+            SET review_on_open = EXCLUDED.review_on_open,
+                complete_on_merge = EXCLUDED.complete_on_merge,
+                reset_on_close = EXCLUDED.reset_on_close,
+                updated_at = NOW()
+            "#,
+            team_id,
+            policy.review_on_open,
+            policy.complete_on_merge,
+            policy.reset_on_close,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     async fn delete_installation_request(&self, github_user_id: &str) -> Result<(), Self::Err> {
         sqlx::query!(
             r#"

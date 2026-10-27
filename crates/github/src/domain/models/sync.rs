@@ -585,6 +585,45 @@ pub fn extract_github_mentions(text: &str) -> Vec<String> {
     logins.into_iter().collect()
 }
 
+/// Whether GitHub pull request events may move a team's tasks.
+///
+/// A team with no saved row uses [`GithubTaskStatusPolicy::default`], which
+/// keeps every automatic move on. Linking a pull request does not consult
+/// this policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct GithubTaskStatusPolicy {
+    /// Move a newly linked task to "In Review" when its pull request is open.
+    pub review_on_open: bool,
+    /// Move linked tasks to "Completed" when a pull request merges.
+    pub complete_on_merge: bool,
+    /// Move linked tasks to "Not Started" when a pull request closes unmerged.
+    pub reset_on_close: bool,
+}
+
+impl Default for GithubTaskStatusPolicy {
+    fn default() -> Self {
+        Self {
+            review_on_open: true,
+            complete_on_merge: true,
+            reset_on_close: true,
+        }
+    }
+}
+
+impl GithubTaskStatusPolicy {
+    /// Whether this policy allows writing `status` onto a linked task.
+    pub fn allows(self, status: &str) -> bool {
+        match status {
+            "In Review" => self.review_on_open,
+            "Completed" => self.complete_on_merge,
+            "Not Started" => self.reset_on_close,
+            _ => true,
+        }
+    }
+}
+
 /// A team-scoped task reference in the form `{team_slug}-{team_task_id}`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TeamTaskReference {

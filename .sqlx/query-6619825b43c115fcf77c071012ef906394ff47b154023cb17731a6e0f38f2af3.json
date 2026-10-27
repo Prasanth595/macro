@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO team_github_task_automation (\n                team_id, review_on_open, complete_on_merge, reset_on_close\n            )\n            VALUES ($1, $2, $3, $4)\n            ON CONFLICT (team_id) DO UPDATE\n            SET review_on_open = EXCLUDED.review_on_open,\n                complete_on_merge = EXCLUDED.complete_on_merge,\n                reset_on_close = EXCLUDED.reset_on_close,\n                updated_at = NOW()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bool",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6619825b43c115fcf77c071012ef906394ff47b154023cb17731a6e0f38f2af3"
+}
