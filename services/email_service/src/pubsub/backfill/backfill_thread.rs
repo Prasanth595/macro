@@ -55,24 +55,26 @@ pub async fn backfill_thread(
 
     let fetched = fetch_thread(ctx, link, &thread_provider_id).await?;
     let (mut messages, calendar_parts) = prepare_messages(fetched).await;
-    enqueue_threads_crm_contacts(ctx, link, &messages).await?;
 
     // The priority pass and the normal sweep both enqueue a thread, and both
     // copies can pass the check above while they wait for Gmail. Only the copy
     // that inserts the thread finishes it; the other just counts it as done.
     let slot = write_slot::acquire(ctx).await?;
     let inserted = slot
-        .hold(email_db_client::threads::insert::insert_backfilled_thread(
-            &ctx.db,
-            &thread_provider_id,
-            link.id,
-            &mut messages,
-            is_unstorable,
-        ))
-        .await;
-    let Some((thread_db_id, skipped)) = inserted
-        .map_err(|e| map_db_error(e, format!("Failed to insert thread {}", thread_provider_id)))?
-    else {
+        .hold(async {
+            enqueue_threads_crm_contacts(ctx, link, &messages).await?;
+            email_db_client::threads::insert::insert_backfilled_thread(
+                &ctx.db,
+                &thread_provider_id,
+                link.id,
+                &mut messages,
+                is_unstorable,
+            )
+            .await
+            .map_err(|e| map_db_error(e, format!("Failed to insert thread {}", thread_provider_id)))
+        })
+        .await?;
+    let Some((thread_db_id, skipped)) = inserted else {
         return incr_completed_threads(ctx, link, scope.job_id).await;
     };
 
@@ -140,26 +142,29 @@ async fn refresh_existing_thread(
     }
 
     let (mut messages, calendar_parts) = prepare_messages(missing).await;
-    enqueue_threads_crm_contacts(ctx, link, &messages).await?;
     let slot = write_slot::acquire(ctx).await?;
     let skipped = slot
-        .hold(email_db_client::messages::insert::insert_thread_messages(
-            &ctx.db,
-            thread_db_id,
-            link.id,
-            &mut messages,
-            is_unstorable,
-        ))
-        .await
-        .map_err(|e| {
-            map_db_error(
-                e,
-                format!(
-                    "Failed to insert missing messages of thread {}",
-                    p.thread_provider_id
-                ),
+        .hold(async {
+            enqueue_threads_crm_contacts(ctx, link, &messages).await?;
+            email_db_client::messages::insert::insert_thread_messages(
+                &ctx.db,
+                thread_db_id,
+                link.id,
+                &mut messages,
+                is_unstorable,
             )
-        })?;
+            .await
+            .map_err(|e| {
+                map_db_error(
+                    e,
+                    format!(
+                        "Failed to insert missing messages of thread {}",
+                        p.thread_provider_id
+                    ),
+                )
+            })
+        })
+        .await?;
 
     finish_written_thread(
         ctx,
@@ -207,8 +212,10 @@ async fn prepare_messages(
 }
 
 /// Enqueues the CRM contact updates of every message in the thread. This runs
-/// before the thread is written, while a failure can still be retried: after
-/// the commit a retry would skip the thread. Duplicate enqueues are harmless.
+/// just before the thread is written, while a failure can still be retried:
+/// after the commit a retry would skip the thread. It runs once a write slot is
+/// held, so an operation deferred for a busy slot doesn't repeat it each time.
+/// The rare duplicate from a retried write is harmless.
 async fn enqueue_threads_crm_contacts(
     ctx: &PubSubContext,
     link: &link::Link,
