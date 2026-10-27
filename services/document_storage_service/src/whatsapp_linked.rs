@@ -463,6 +463,7 @@ impl DocumentStore for DssDocumentStore {
                         team_id: None,
                         share_with_team: false,
                         created_at: None,
+                        updated_at: None,
                         sub_type: None,
                         skip_history: true,
                         initial_link_share: InitialLinkShare::Exact(LinkShareState::Off),

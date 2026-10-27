@@ -1557,11 +1557,17 @@ impl ToolEntityCreator {
         content: ImportedContent,
         subtype: documents::domain::create::MarkdownSubtype,
         folder: Option<uuid::Uuid>,
+        dates: Option<import::domain::ports::SourceDates>,
     ) -> anyhow::Result<String> {
         use std::str::FromStr as _;
         let mut metadata = documents::domain::create::NewDocumentMetadata::builder(name);
         if let Some(id) = id {
             metadata = metadata.id(id);
+        }
+        if let Some(dates) = dates {
+            metadata = metadata
+                .created_at(dates.created)
+                .updated_at(dates.last_edited);
         }
         if let Some(folder) = folder {
             self.authorize_folder(user, folder).await?;
@@ -1641,7 +1647,7 @@ impl ToolEntityCreator {
     /// `share_with_team`, then apply its properties best-effort.
     #[expect(
         clippy::too_many_arguments,
-        reason = "a task carries its id, content, properties, folder and sharing"
+        reason = "a task carries its id, content, properties, folder, dates and sharing"
     )]
     pub(crate) async fn create_imported_task(
         &self,
@@ -1651,6 +1657,7 @@ impl ToolEntityCreator {
         content: ImportedContent,
         properties: &import::domain::ports::ImportedTaskProperties,
         folder: Option<uuid::Uuid>,
+        dates: Option<import::domain::ports::SourceDates>,
         share_with_team: bool,
     ) -> anyhow::Result<String> {
         // Same team resolution as the CreateDocument tool, so imported tasks
@@ -1663,15 +1670,19 @@ impl ToolEntityCreator {
             team_id,
         };
         let task_id = self
-            .create_doc(user, id, name, content, subtype, folder)
+            .create_doc(user, id, name, content, subtype, folder, dates)
             .await?;
         self.apply_task_properties(user, &task_id, properties, &roster)
             .await;
         Ok(task_id)
     }
 
-    /// Create an imported markdown document, in `folder` when given, then
-    /// apply its properties best-effort.
+    /// Create an imported markdown document, in `folder` when given and with
+    /// its source's `dates` when known, then apply its properties best-effort.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "an imported document carries its id, name, content, properties, folder and dates"
+    )]
     pub(crate) async fn create_imported_document(
         &self,
         user: &MacroUserIdStr<'static>,
@@ -1680,6 +1691,7 @@ impl ToolEntityCreator {
         notion: documents::domain::notion_markdown::NotionMarkdown,
         properties: &import::domain::ports::ImportedDocumentProperties,
         folder: Option<uuid::Uuid>,
+        dates: Option<import::domain::ports::SourceDates>,
     ) -> anyhow::Result<String> {
         let document_id = self
             .create_doc(
@@ -1689,6 +1701,7 @@ impl ToolEntityCreator {
                 ImportedContent::Notion(notion),
                 documents::domain::create::MarkdownSubtype::Note,
                 folder,
+                dates,
             )
             .await?;
         let access = match self
@@ -1839,6 +1852,7 @@ impl import::domain::ports::EntityCreator for ToolEntityCreator {
             ImportedContent::Markdown(markdown.to_string()),
             properties,
             None,
+            None,
             // Single tracked tasks (Linear) are shared with the team, as
             // tasks the user makes are.
             true,
@@ -1860,6 +1874,7 @@ impl import::domain::ports::EntityCreator for ToolEntityCreator {
             name,
             crate::import_workspace::notion_markdown(notion_markdown, links),
             properties,
+            None,
             None,
         )
         .await
