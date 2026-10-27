@@ -3,10 +3,10 @@ import { createRoot, createSignal } from 'solid-js';
 import { describe, expect, it } from 'vitest';
 import { createTemplateActivation } from './template-activation';
 
-const doc =
+const DOC =
   '<m-document-mention>{"documentId":"doc-1","documentName":"Acme account","blockName":"md"}</m-document-mention>';
 
-const template: RoutineTemplate = {
+const TEMPLATE: RoutineTemplate = {
   id: 'template-1',
   author: 'macro|eric@macro.com',
   name: 'Weekly digest',
@@ -15,7 +15,7 @@ const template: RoutineTemplate = {
   created_at: '2026-10-20T00:00:00Z',
   updated_at: '2026-10-20T00:00:00Z',
   trigger: { type: 'cron', schedule: '0 0 9 * * 2', timezone: 'UTC' },
-  task: { model: 'model', prompt: '', user_prompt: `Read ${doc}` },
+  task: { model: 'model', prompt: '', user_prompt: `Read ${DOC}` },
   variables: [
     {
       kind: 'item',
@@ -28,7 +28,7 @@ const template: RoutineTemplate = {
   ],
 };
 
-const activator = {
+const ACTIVATOR = {
   userId: 'macro|jun@macro.com',
   email: 'jun@macro.com',
   timezone: 'America/New_York',
@@ -41,8 +41,8 @@ describe('createTemplateActivation', () => {
         new Map([['doc-1', true]])
       );
       const activation = createTemplateActivation({
-        template: () => template,
-        activator: () => activator,
+        template: () => TEMPLATE,
+        activator: () => ACTIVATOR,
         access,
       });
       expect(activation.request()).toEqual({
@@ -53,7 +53,7 @@ describe('createTemplateActivation', () => {
           timezone: 'America/New_York',
         },
         kind: 'Agent',
-        task: { model: 'model', prompt: '', user_prompt: `Read ${doc}` },
+        task: { model: 'model', prompt: '', user_prompt: `Read ${DOC}` },
         enabled: true,
         run_visibility: 'unlisted',
       });

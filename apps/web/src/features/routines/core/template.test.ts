@@ -5,24 +5,24 @@ import {
   fillTemplateTrigger,
 } from './template';
 
-const author =
+const AUTHOR =
   '<m-user-mention>{"userId":"macro|eric@macro.com","email":"eric@macro.com","displayName":"Eric"}</m-user-mention>';
-const teammate =
+const TEAMMATE =
   '<m-user-mention>{"userId":"macro|priya@macro.com","email":"priya@macro.com","displayName":"Priya Shah"}</m-user-mention>';
-const channel =
+const CHANNEL =
   '<m-document-mention>{"documentId":"channel-1","documentName":"customer-success","blockName":"channel"}</m-document-mention>';
-const doc =
+const DOC =
   '<m-document-mention>{"documentId":"doc-1","documentName":"Acme account","blockName":"md"}</m-document-mention>';
 
-const prompt = `Post the digest to ${channel}. Pull renewal dates from ${doc}. Assign follow-ups to ${teammate} and DM ${author} a summary. Repeat in ${channel}.`;
+const PROMPT = `Post the digest to ${CHANNEL}. Pull renewal dates from ${DOC}. Assign follow-ups to ${TEAMMATE} and DM ${AUTHOR} a summary. Repeat in ${CHANNEL}.`;
 
-const cron = {
+const CRON = {
   type: 'cron' as const,
   schedule: '0 0 9 * * 2',
   timezone: 'America/Los_Angeles',
 };
 
-const activator = {
+const ACTIVATOR = {
   userId: 'macro|jun@macro.com',
   email: 'jun@macro.com',
   displayName: 'Jun',
@@ -33,8 +33,8 @@ describe('extractTemplateVariables', () => {
   it('fills the author and time zone as the activator and keeps other references', () => {
     expect(
       extractTemplateVariables({
-        prompt,
-        timezone: cron.timezone,
+        prompt: PROMPT,
+        timezone: CRON.timezone,
         authorId: 'macro|eric@macro.com',
       })
     ).toEqual([
@@ -81,26 +81,26 @@ describe('extractTemplateVariables', () => {
 
 describe('fillTemplatePrompt', () => {
   const variables = extractTemplateVariables({
-    prompt,
-    timezone: cron.timezone,
+    prompt: PROMPT,
+    timezone: CRON.timezone,
     authorId: 'macro|eric@macro.com',
   });
 
   it('names the activator in place of the author and leaves out dropped references as text', () => {
     const filled = fillTemplatePrompt({
-      prompt,
+      prompt: PROMPT,
       variables,
-      activator,
+      activator: ACTIVATOR,
       choices: new Map([['doc-1', 'leave_out']]),
     });
     expect(filled).toBe(
-      `Post the digest to ${channel}. Pull renewal dates from Acme account. Assign follow-ups to ${teammate} and DM <m-user-mention>{"userId":"macro|jun@macro.com","email":"jun@macro.com","displayName":"Jun"}</m-user-mention> a summary. Repeat in ${channel}.`
+      `Post the digest to ${CHANNEL}. Pull renewal dates from Acme account. Assign follow-ups to ${TEAMMATE} and DM <m-user-mention>{"userId":"macro|jun@macro.com","email":"jun@macro.com","displayName":"Jun"}</m-user-mention> a summary. Repeat in ${CHANNEL}.`
     );
   });
 
   it('leaves out an unchosen per-person reference', () => {
     const filled = fillTemplatePrompt({
-      prompt: `Read ${doc}`,
+      prompt: `Read ${DOC}`,
       variables: [
         {
           kind: 'item',
@@ -110,7 +110,7 @@ describe('fillTemplatePrompt', () => {
           fill: 'choice',
         },
       ],
-      activator,
+      activator: ACTIVATOR,
       choices: new Map(),
     });
     expect(filled).toBe('Read Acme account');
@@ -121,20 +121,20 @@ describe('fillTemplateTrigger', () => {
   it('moves every schedule to the activator time zone', () => {
     const trigger = {
       type: 'multiple' as const,
-      triggers: [cron, { type: 'events' as const, filters: [] }],
+      triggers: [CRON, { type: 'events' as const, filters: [] }],
     };
     expect(
       fillTemplateTrigger({
         trigger,
         variables: [
-          { kind: 'time_zone', timezone: cron.timezone, fill: 'activator' },
+          { kind: 'time_zone', timezone: CRON.timezone, fill: 'activator' },
         ],
-        activator,
+        activator: ACTIVATOR,
       })
     ).toEqual({
       type: 'multiple',
       triggers: [
-        { ...cron, timezone: 'America/New_York' },
+        { ...CRON, timezone: 'America/New_York' },
         { type: 'events', filters: [] },
       ],
     });
@@ -143,12 +143,12 @@ describe('fillTemplateTrigger', () => {
   it('keeps the author time zone when it is shared', () => {
     expect(
       fillTemplateTrigger({
-        trigger: cron,
+        trigger: CRON,
         variables: [
-          { kind: 'time_zone', timezone: cron.timezone, fill: 'shared' },
+          { kind: 'time_zone', timezone: CRON.timezone, fill: 'shared' },
         ],
-        activator,
+        activator: ACTIVATOR,
       })
-    ).toEqual(cron);
+    ).toEqual(CRON);
   });
 });
