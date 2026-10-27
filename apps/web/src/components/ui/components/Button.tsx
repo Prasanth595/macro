@@ -115,7 +115,6 @@ function buttonFinishClasses(variant: ButtonVariant, finish?: ButtonFinish) {
 
   return cn(
     raisedButtonStyles,
-    variant === 'secondary' && 'not-touch:dark-mode:shadow-button',
     variant === 'outline' && raisedBorderButtonStyles
   );
 }

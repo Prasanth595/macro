@@ -741,7 +741,6 @@ body.tauri-ios {
 
   /* Negative spread keeps the faint contact shadow beneath the button. */
   --button-shadow: 0 2px 1px -1px oklch(0 0 0 / 10%);
-  --button-raised-shadow: 0 0 0 0.4px oklch(0 0 0 / 16%), inset 0 0.4px 0 oklch(1 0 0 / 4.8%), inset 0 0 0 0.4px oklch(1 0 0 / 3.2%), 0 1px 2px oklch(0 0 0 / 6%);
 }
 
 [data-theme-light='true'] {
@@ -760,7 +759,6 @@ body.tauri-ios {
   --button-success-pressed: oklch(from var(--color-success) l c h / 32%);
 
   --button-shadow: 0 2px 1px -1px oklch(0 0 0 / 5%);
-  --button-raised-shadow: 0 0 0 1px var(--border-secondary), inset 0 1px 0 oklch(1 0 0 / 90%), inset 0 0 0 1px oklch(1 0 0 / 60%), 0 1px 2px oklch(0 0 0 / 6%);
 }
 @theme inline {
   --color-border-primary: var(--border-primary);
@@ -787,7 +785,6 @@ body.tauri-ios {
   --color-button-success-pressed: var(--button-success-pressed);
   --color-button-focus: var(--button-focus);
   --shadow-button: var(--button-shadow);
-  --shadow-button-raised: var(--button-raised-shadow);
   --spacing-button-control: 2rem;
 }
 
