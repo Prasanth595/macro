@@ -72,6 +72,7 @@ function TooltipRoot(props: TooltipRootProps) {
         ignoreSafeArea
         overflowPadding={16}
         fitViewport
+        hideWhenDetached
         openDelay={400}
         closeDelay={0}
         flip
@@ -105,7 +106,8 @@ function TooltipContent(props: ComponentProps<typeof KobalteTooltip.Content>) {
       <KobalteTooltip.Content
         {...rest}
         class={cn(
-          'pointer-events-none z-tool-tip max-w-[calc(100vw-32px)]',
+          // Kobalte mutates inline pointer-events as its layer stack changes.
+          'pointer-events-none! z-tool-tip max-w-[calc(100vw-32px)]',
           local.class
         )}
       >
