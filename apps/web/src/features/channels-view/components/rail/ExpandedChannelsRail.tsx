@@ -430,6 +430,7 @@ function ExpandedHeader(props: { search: ChannelRailSearch }) {
         <ViewSidebar.Toolbar class={!isTouchDevice() ? 'px-0' : undefined}>
           <Tabs
             aria-label="Chat sidebar views"
+            size="sm"
             fullWidth={!isTouchDevice()}
             options={
               rail.threadsEnabled() ? CHANNEL_TABS_WITH_THREADS : CHANNEL_TABS

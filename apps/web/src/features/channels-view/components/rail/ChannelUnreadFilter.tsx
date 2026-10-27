@@ -1,6 +1,6 @@
 import { ViewSidebar } from '@app/components/view-shell';
 import EmptyStateChannelsGraphic from '@design/empty-state-channels.svg';
-import FunnelIcon from '@icon/system/regular/funnel-simple.svg';
+import EyeIcon from '@icon/system/regular/eye.svg';
 import { EmptyStatePanel } from '@ui';
 import { useChannelsRail } from './ChannelsRailContext';
 
@@ -13,7 +13,7 @@ export function ChannelUnreadFilterToggle() {
       aria-pressed={rail.unreadOnly()}
       onClick={() => rail.setUnreadOnly(!rail.unreadOnly())}
     >
-      <FunnelIcon class="size-3.5" />
+      <EyeIcon class="size-3.5" />
     </ViewSidebar.Control>
   );
 }
