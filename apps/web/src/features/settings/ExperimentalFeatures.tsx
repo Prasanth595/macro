@@ -22,9 +22,9 @@ export function ExperimentalFeatures() {
               label="God Mode"
               description={
                 <>
-                  Command Menu (<code>cmd + k</code>) prompts automatically turn
-                  into tasks, events, emails, and more. Powered by Jev-ian
-                  technology.
+                  Command Menu (<code>cmd + k</code>) and mobile Search prompts
+                  automatically turn into tasks, events, emails, and more.
+                  Powered by Jev-ian technology.
                 </>
               }
             >

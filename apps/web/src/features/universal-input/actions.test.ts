@@ -291,7 +291,11 @@ describe('destination adapters', () => {
     expect(mocks.chat).not.toHaveBeenCalled();
   });
   it('opens global search with the extracted query', async () => {
-    await execute(input('search', { query: 'quarterly budget' }));
+    const result = await execute(
+      input('search', { query: 'quarterly budget' })
+    );
+    expect(mocks.replace).not.toHaveBeenCalled();
+    result.open?.();
     expect(mocks.replace).toHaveBeenCalledWith({
       next: expect.objectContaining({
         id: 'search',
@@ -305,7 +309,10 @@ describe('destination adapters', () => {
       type: 'channels',
       channels: { in: ['julia-dm'], from: ['John'] },
     });
-    await execute(input('search', { query: 'budget', searchFilters }));
+    const result = await execute(
+      input('search', { query: 'budget', searchFilters })
+    );
+    result.open?.();
     expect(mocks.replace).toHaveBeenCalledWith({
       next: expect.objectContaining({
         id: 'search',

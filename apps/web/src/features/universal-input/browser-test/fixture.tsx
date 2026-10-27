@@ -1,3 +1,5 @@
+import { FloatRegion } from '@components/app/mobile/float-regions/FloatRegion';
+import { FloatRegionHost } from '@components/app/mobile/float-regions/FloatRegionHost';
 import type { EditorControls } from '@core/component/LexicalMarkdown/builder/types';
 import type {
   Bucket,
@@ -15,10 +17,12 @@ import type { TagSetResponse } from '@service-properties/generated/schemas/tagSe
 import { ComposerSurface } from '@ui';
 import { $createParagraphNode, $createTextNode, $getRoot } from 'lexical';
 import type { ComponentProps } from 'solid-js';
-import { createEffect } from 'solid-js';
+import { createEffect, on, onCleanup } from 'solid-js';
 import { buildAgentRoster } from '../../agents-view/core/roster';
 import { createDocumentComposerTags } from '../../block-md/util/documentComposerProperties';
 import { CommandMenu } from '../../command/CommandMenu';
+import { MobileSearchInput } from '../../command/mobile/MobileSearchInput';
+import { SearchState } from '../../command/mobile/mobileSearchState';
 import { CommandState } from '../../command/state';
 import type { CommandMenuItem } from '../../command/useCommandItems';
 import { CommandResults } from '../../command/views/command-results';
@@ -50,7 +54,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { createSignal, Show } from 'solid-js';
 import { DraftEditor } from '../components/draft-editor';
 import type { InputDisplay } from '../context/capabilities';
-import type { CommandInputSession } from '../context/command-input';
+import type { InputSession } from '../context/input-session';
 import {
   emptyDraft,
   type Intent,
@@ -181,7 +185,7 @@ function CompactSubjectFixture() {
 
 function FixtureComposer(
   props: Omit<ComponentProps<typeof UniversalComposer>, 'layout'> & {
-    command?: CommandInputSession;
+    command?: InputSession;
   }
 ) {
   const tags = createDocumentComposerTags(
@@ -203,6 +207,7 @@ function FixtureComposer(
           actions={props.actions}
           scopeId={scopeId}
           onOpen={(entity, newSplit, location) => {
+            props.command?.onNavigate();
             setOpenedSearchResult({
               content: {
                 type:
@@ -215,7 +220,6 @@ function FixtureComposer(
                 location,
               },
             });
-            props.command?.onNavigate();
           }}
         />
       )}
@@ -225,7 +229,7 @@ function FixtureComposer(
 
 /** Real view and controller with deterministic inference and recording-only writes. */
 export function UniversalInputFixture(
-  props: { embedded?: boolean; command?: CommandInputSession } = {}
+  props: { embedded?: boolean; command?: InputSession } = {}
 ) {
   const [searchQueries, setSearchQueries] = createSignal<string[]>([]);
   const records: QuickAccessItem[] = ['Investor update', 'Hiring plan'].map(
@@ -579,6 +583,17 @@ export function UniversalInputFixture(
       ? { ...emptyDraft(), text: props.command.text }
       : undefined,
   });
+  createEffect(
+    on(
+      () => props.command?.text,
+      (text) => {
+        if (text !== undefined && text !== state.draft().text)
+          state.setText(text);
+      }
+    )
+  );
+  createEffect(() => props.command?.onSendingChange?.(state.sending()));
+  onCleanup(() => props.command?.onSendingChange?.(false));
   return (
     <QueryClientProvider client={queryClient}>
       <UserContextProvider>
@@ -591,9 +606,44 @@ export function UniversalInputFixture(
                     ? 'contents'
                     : props.embedded
                       ? 'min-w-0'
-                      : 'min-h-screen bg-page p-12 text-ink'
+                      : params.has('mobile-search')
+                        ? 'relative h-[calc(var(--dvh,1dvh)*100)] overflow-hidden bg-page text-ink'
+                        : 'min-h-screen bg-page p-12 text-ink'
                 }
               >
+                <Show when={!props.embedded && params.has('mobile-search')}>
+                  <button
+                    onClick={() => {
+                      SearchState.open();
+                      document.getElementById('mobile-search-input')?.focus();
+                    }}
+                  >
+                    Open mobile search
+                  </button>
+                  <FloatRegionHost />
+                  <output hidden data-testid="mobile-query">
+                    {SearchState.query()}
+                  </output>
+                  <output hidden data-testid="command-submission-count">
+                    {commandSubmissions().length}
+                  </output>
+                  <output hidden data-testid="last-command-submission">
+                    {JSON.stringify(commandSubmissions().at(-1))}
+                  </output>
+                  <output hidden data-testid="global-search-requests">
+                    {JSON.stringify(globalSearchRequests())}
+                  </output>
+                  <output hidden data-testid="opened-search-result">
+                    {JSON.stringify(openedSearchResult())}
+                  </output>
+                  <Show when={SearchState.isOpen()}>
+                    <FloatRegion region="dock">
+                      <div class="flex px-(--mobile-chrome-gutter)">
+                        <MobileSearchInput />
+                      </div>
+                    </FloatRegion>
+                  </Show>
+                </Show>
                 <Show when={!props.embedded && params.has('searchbar')}>
                   <SearchbarFixture />
                 </Show>
@@ -624,71 +674,79 @@ export function UniversalInputFixture(
                     {JSON.stringify(commandSubmissions().at(-1))}
                   </output>
                 </Show>
-                <div
-                  class={props.command ? 'contents' : 'mx-auto max-w-180'}
-                  data-split-id="fixture"
-                >
-                  <FixtureComposer
-                    command={props.command}
-                    state={state}
-                    actions={actions}
-                    editor={
-                      <DraftEditor
-                        config={buildConfig('chat')
-                          .withHistory()
-                          .withFloatingFormatMenu()}
-                        text={state.draft().text}
-                        disabled={state.sending()}
-                        initialSelection={props.command?.selection}
-                        onChange={(text) => {
-                          if (state.sending()) return;
-                          state.setText(text);
-                          props.command?.onTextChange(text);
-                        }}
-                        onSubmit={() =>
-                          fireAndForget(state.submit(), 'universal-input')
-                        }
-                        registerFocus={(callback) => {
-                          focus = callback;
-                        }}
-                      />
-                    }
-                    taskFields={<span>Task properties</span>}
-                  />
-                  <Show when={!props.embedded}>
-                    <output data-testid="global-search-requests">
-                      {JSON.stringify(globalSearchRequests())}
-                    </output>
-                    <output data-testid="search-queries">
-                      {JSON.stringify(searchQueries())}
-                    </output>
-                    <output data-testid="opened-search-result">
-                      {JSON.stringify(openedSearchResult())}
-                    </output>
-                    <output data-testid="agent-action">{agentAction()}</output>
-                    <output data-testid="submission-count">
-                      {sent().length}
-                    </output>
-                    <output data-testid="email-draft-count">
-                      {savedEmailDrafts().length}
-                    </output>
-                    <pre data-testid="last-email-draft">
-                      {JSON.stringify(savedEmailDrafts().at(-1))}
-                    </pre>
-                    <output data-testid="classification-count">
-                      {classifications()}
-                    </output>
-                    <output data-testid="extraction-count">
-                      {extractions()}
-                    </output>
-                    <output data-testid="connection-count">
-                      {connections()}
-                    </output>
-                    <pre data-testid="last-submission">
-                      {JSON.stringify(sent().at(-1))}
-                    </pre>
-                  </Show>
-                </div>
+                <Show when={!params.has('mobile-search') || props.embedded}>
+                  <div
+                    class={props.command ? 'contents' : 'mx-auto max-w-180'}
+                    data-split-id="fixture"
+                  >
+                    <FixtureComposer
+                      command={props.command}
+                      state={state}
+                      actions={actions}
+                      editor={
+                        props.command?.editor !== undefined ? (
+                          props.command.editor
+                        ) : (
+                          <DraftEditor
+                            config={buildConfig('chat')
+                              .withHistory()
+                              .withFloatingFormatMenu()}
+                            text={state.draft().text}
+                            disabled={state.sending()}
+                            initialSelection={props.command?.selection}
+                            onChange={(text) => {
+                              if (state.sending()) return;
+                              state.setText(text);
+                              props.command?.onTextChange(text);
+                            }}
+                            onSubmit={() =>
+                              fireAndForget(state.submit(), 'universal-input')
+                            }
+                            registerFocus={(callback) => {
+                              focus = callback;
+                            }}
+                          />
+                        )
+                      }
+                      taskFields={<span>Task properties</span>}
+                    />
+                    <Show when={!props.embedded}>
+                      <output data-testid="global-search-requests">
+                        {JSON.stringify(globalSearchRequests())}
+                      </output>
+                      <output data-testid="search-queries">
+                        {JSON.stringify(searchQueries())}
+                      </output>
+                      <output data-testid="opened-search-result">
+                        {JSON.stringify(openedSearchResult())}
+                      </output>
+                      <output data-testid="agent-action">
+                        {agentAction()}
+                      </output>
+                      <output data-testid="submission-count">
+                        {sent().length}
+                      </output>
+                      <output data-testid="email-draft-count">
+                        {savedEmailDrafts().length}
+                      </output>
+                      <pre data-testid="last-email-draft">
+                        {JSON.stringify(savedEmailDrafts().at(-1))}
+                      </pre>
+                      <output data-testid="classification-count">
+                        {classifications()}
+                      </output>
+                      <output data-testid="extraction-count">
+                        {extractions()}
+                      </output>
+                      <output data-testid="connection-count">
+                        {connections()}
+                      </output>
+                      <pre data-testid="last-submission">
+                        {JSON.stringify(sent().at(-1))}
+                      </pre>
+                    </Show>
+                  </div>
+                </Show>
               </main>
             </ChannelsContextProvider>
           </EmailLinksContextProvider>

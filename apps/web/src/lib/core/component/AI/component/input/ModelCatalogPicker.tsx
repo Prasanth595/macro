@@ -371,7 +371,7 @@ function ModelCatalogSheet(
         <MobileDrawer.Overlay />
         <MobileDrawer.Content
           aria-label="Choose a model"
-          on:keydown={(event) => {
+          on:keydown={(event: KeyboardEvent) => {
             if (event.key !== 'Escape' || event.isComposing) return;
             // Corvu and Kobalte have separate dismissal stacks. Consume the
             // sheet's Escape before it can dismiss a surrounding dialog.

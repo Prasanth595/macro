@@ -27,3 +27,11 @@ export async function createDatabase(): Promise<never> {
 export function useAnalytics() {
   return { track: () => {} };
 }
+
+export function useForegroundMobileView() {
+  return () => 'search';
+}
+
+export function useMobileNavNavigate() {
+  return (view: string) => setOpenedSearchResult({ view });
+}

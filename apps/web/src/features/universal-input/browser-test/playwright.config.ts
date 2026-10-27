@@ -17,6 +17,9 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${port}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    launchOptions: {
+      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+    },
   },
   webServer: {
     command: `bunx vite --config src/features/universal-input/browser-test/vite.config.ts --port ${port}`,
@@ -28,12 +31,30 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: 'mobile-input.browser.e2e.ts',
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1000, height: 1000 },
-        launchOptions: {
-          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-        },
+      },
+    },
+    {
+      name: 'phone',
+      testMatch: 'mobile-input.browser.e2e.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
+      name: 'tablet',
+      testMatch: 'mobile-input.browser.e2e.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1024, height: 768 },
+        isMobile: true,
+        hasTouch: true,
       },
     },
   ],

@@ -13,7 +13,10 @@ import { plainTextToHtml } from '@app/features/email-compose/core/plain-text-to-
 import { prepareEmailBody } from '@app/features/email-compose/primitives/prepare-email-body';
 import { parsePropertyDraft } from '@app/features/property/utils/parse-property-draft';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import type { SplitContent } from '@components/app/split-layout/layoutManager';
+import type {
+  ReferredFrom,
+  SplitContent,
+} from '@components/app/split-layout/layoutManager';
 import type { PromptSubmitSurface } from '@core/agent-session/prompt-telemetry';
 import { useHasPaidAccess } from '@core/auth';
 import {
@@ -69,10 +72,13 @@ export function createInputActions(
     navigate: (content: SplitContent) => void;
     onNoteTagsChange?: (value: string) => void;
     submitSurface?: PromptSubmitSurface;
+    referredFrom?: ReferredFrom;
   }
 ) {
   const { openSettings } = useSettingsState();
-  const openSearch = createGlobalSearchOpener('kommand-menu');
+  const openSearch = createGlobalSearchOpener(
+    host.referredFrom ?? 'kommand-menu'
+  );
   const chat = useChatInputContext();
   const agents = useFeatureFlag(enableChatV3Agents);
   const paid = useHasPaidAccess();
@@ -343,15 +349,15 @@ export function createInputActions(
           people(),
           searchChannels()
         );
-        openSearch({
+        const search = {
           query: f.query.trim(),
           filters: compileSearchQuery(state),
           clientFilters: {
-            and: ['search-supported'],
+            and: ['search-supported' as const],
             or: state.type === 'all' ? [] : [state.type],
           },
-        });
-        return { message: 'Search opened' };
+        };
+        return { message: 'Search opened', open: () => openSearch(search) };
       })
       .with('note', async () => {
         const created = await createDocumentWithTags(

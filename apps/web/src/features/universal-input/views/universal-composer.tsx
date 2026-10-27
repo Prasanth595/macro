@@ -1,5 +1,6 @@
 import { IS_MAC } from '@core/constant/isMac';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Button, Select, Tooltip } from '@ui';
 import {
@@ -69,13 +70,15 @@ function ComposerFooter(props: {
           onClick={() => fireAndForget(s.submit(), 'universal-input')}
         >
           {action()}
-          <kbd
-            aria-hidden="true"
-            data-testid="submit-shortcut"
-            class="ml-2 font-sans text-xs opacity-70"
-          >
-            {IS_MAC ? '⌘' : 'Ctrl'} ↵
-          </kbd>
+          <Show when={!isTouchDevice()}>
+            <kbd
+              aria-hidden="true"
+              data-testid="submit-shortcut"
+              class="ml-2 font-sans text-xs opacity-70"
+            >
+              {IS_MAC ? '⌘' : 'Ctrl'} ↵
+            </kbd>
+          </Show>
         </Button>
       </div>
     </div>
@@ -205,7 +208,7 @@ export function UniversalComposer(props: {
           <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-panel px-3 py-2.5">
             <p class="text-xs text-ink-muted">
               Connect Google to send email and create calendar events. Then
-              reopen Command K to compose.
+              return here to compose.
             </p>
             <Button
               size="sm"
@@ -251,9 +254,18 @@ export function UniversalComposer(props: {
         <Show when={type() === 'calendar'}>
           <CalendarDraft state={s} actions={a} />
         </Show>
-        <div class="border-t border-edge-muted pt-4">
-          <ComposerFooter state={s} statusId={`${listId}-status`} />
-        </div>
+        <Show
+          when={type() !== 'search' || !isTouchDevice()}
+          fallback={
+            <p role="status" class="text-xs text-ink-muted">
+              {s.validation()}
+            </p>
+          }
+        >
+          <div class="border-t border-edge-muted pt-4">
+            <ComposerFooter state={s} statusId={`${listId}-status`} />
+          </div>
+        </Show>
         <Show when={s.error()}>
           <p role="alert" class="text-sm text-failure">
             {s.error()}

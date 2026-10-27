@@ -570,10 +570,10 @@ uses an open envelope, calendar invitations use a calendar, and pull requests
 retain their open/merged/closed glyphs and status colors. Direct messages may
 show the other participant's avatar instead of a glyph.
 
-### Universal Input in Command K (God Mode)
+### Universal Input in Command K and mobile Search (God Mode)
 
 Home always uses its usual agent or classic chat composer and suggestions.
-Universal Input is available only inside Command K. **God Mode** is on by default
+Universal Input is available inside Command K and the mobile Search bar. **God Mode** is on by default
 for eligible staff with **enable-universal-input**, unless they have explicitly turned it off
 in **Settings → Experimental Features**. The Settings page and its search result
 require a signed-in `@macro.com` account plus PostHog **enable-experimental-features**.

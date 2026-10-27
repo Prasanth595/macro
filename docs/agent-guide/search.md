@@ -42,8 +42,19 @@ verifying a local iOS build without PostHog configuration, enable that path with
 the build-time `VITE_ENABLE_GRAPHQL_SOUP=true` override; see the
 [cache guide](../../apps/web/docs/graphql-normalized-cache-plan.md#cached-email-quick-access).
 
-Category/mode changes keep the same input mounted and focused. Enter dismisses
-the keyboard without ending search. Opening a result hides search chrome while
+Category/mode changes keep the same input mounted and focused. Return inserts
+a newline and keeps the keyboard open; the Search bar expands with the text.
+For eligible users with God Mode enabled, three words or 24 characters reveal
+Universal Input's suggested form above the bar. The editor stays mounted while
+classification and extraction update the form. Shorter edits keep the form until
+the input is cleared. Forms scroll within the space above the keyboard; use their
+explicit action button to create or send, or **Save as draft** to save an email.
+Manual field edits keep precedence over later predictions. The same PostHog gates
+and account preference as Command K apply; turning God Mode off keeps normal
+live search. Closing Search clears the input and its unsent suggested form.
+For Search intent, the shared global-search filters and results update live above
+the bar. Open a filtered result directly; there is no separate Search submit action.
+Opening a result hides search chrome while
 preserving that Search history entry's query, category, mode, result order, and
 scroll position. Opening a result does not promote it within that saved list,
 even when its last-viewed time changes. Swiping back, pressing the native Back control, or using browser Back

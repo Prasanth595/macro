@@ -7,7 +7,7 @@ import { useEmail, useUserId } from '@core/context/user';
 import { experimentalFeaturesAvailable } from './core/access';
 import { createExperimentalPreferences } from './primitives/preferences';
 
-/** Gate experimental settings and Command K through the same account preference. */
+/** Gate experimental settings, Command K and mobile Search with one account preference. */
 export function useExperimentalFeatures() {
   const flag = useFeatureFlag(enableExperimentalFeatures);
   const universal = useFeatureFlag(enableUniversalInput);

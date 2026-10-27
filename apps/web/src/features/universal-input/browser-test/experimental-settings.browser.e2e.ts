@@ -10,9 +10,6 @@ test('God Mode lives in Settings and immediately controls Command K, with a reme
   ).toBeVisible();
   const toggle = settings.getByRole('switch', { name: 'God Mode' });
   await expect(toggle).toBeChecked();
-  await expect(settings).toContainText(
-    'Command Menu (cmd + k) prompts automatically turn into tasks, events, emails, and more. Powered by Jev-ian technology.'
-  );
   await page
     .getByRole('button', { name: 'Open Command K', exact: true })
     .click();

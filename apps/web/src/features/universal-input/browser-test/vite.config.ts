@@ -19,6 +19,12 @@ export default defineConfig({
       name: 'composer-test-adapters',
       enforce: 'pre',
       resolveId(source, importer) {
+        if (importer?.endsWith('/mobile/MobileSearchInput.tsx')) {
+          if (source === '@components/app/mobile/use-mobile-nav')
+            return `${directory}/search-app-fixture.ts`;
+          if (source === '../../universal-input/universal-input')
+            return `${directory}/command-input-fixture.tsx`;
+        }
         if (
           source === '@components/app/split-layout/layout' &&
           importer?.endsWith('/next-soup/open-search.ts')
