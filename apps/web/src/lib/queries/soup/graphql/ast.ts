@@ -781,10 +781,8 @@ function mapSortMethod(
       return unsupported('sort_method touched_by_me');
     case 'notified_at':
       return unsupported('sort_method notified_at');
-    case 'property_date_earliest':
-      return 'PROPERTY_DATE_EARLIEST';
-    case 'property_date_latest':
-      return 'PROPERTY_DATE_LATEST';
+    case 'property':
+      return 'PROPERTY';
     case undefined:
       return undefined;
   }
@@ -974,6 +972,7 @@ export function makeGraphqlGroupedSoupInput(args: {
       limit: args.params.limit ?? undefined,
       sortMethod: mapSortMethod(args.params.sort_method),
       sortPropertyDefinitionId: args.params.sort_property_definition_id,
+      sortDirection: mapSortDirection(args.params.sort_direction),
       filters: makeGraphqlFilters(body),
     },
   };

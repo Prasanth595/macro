@@ -36,6 +36,8 @@ const taskSortSchema = z.array(
       'updated_at',
       'created_at',
       'viewed_at',
+      'status',
+      'priority',
       'due_date_earliest',
       'due_date_latest',
     ]),

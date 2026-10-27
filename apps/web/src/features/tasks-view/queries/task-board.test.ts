@@ -5,7 +5,10 @@ import {
 } from '@app/features/soup/collection/rows';
 import { PROPERTY_OPTION_IDS } from '@property/constants';
 import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
+import { propertySortKey } from '@property/utils/sort';
+import { toPropertyDefinitionDomain } from '@property/utils/transforms';
 import { describe, expect, it } from 'vitest';
+import { sortTasks } from '../constants';
 import {
   createDateBucketBoundaries,
   TASK_DUE_DATE_BUCKETS,
@@ -281,5 +284,110 @@ describe('board task drafts', () => {
       expect(draft(after).key).toBe(draft(before).key);
       expect(draft(utc).key).toBe(draft(later).key);
     }
+  });
+});
+
+describe('property sorting', () => {
+  it('keeps missing and wrong-type dates last and breaks date ties by update then descending id', () => {
+    const property = (date: string) =>
+      boardProperty(
+        SYSTEM_PROPERTY_IDS.DUE_DATE,
+        { type: 'Date', value: date },
+        'DATE'
+      );
+    const older = {
+      ...boardEntity('a', [property('2026-10-28T00:00:00Z')]),
+      updatedAt: '2026-10-01T00:00:00Z',
+    };
+    const newer = {
+      ...boardEntity('b', older.properties),
+      updatedAt: '2026-10-02T00:00:00Z',
+    };
+    const tied = { ...newer, id: 'c' };
+    const later = {
+      ...boardEntity('later', [property('2026-10-29T00:00:00Z')]),
+      updatedAt: '2026-10-03T00:00:00Z',
+    };
+    const absent = {
+      ...boardEntity('missing'),
+      updatedAt: '2026-10-02T00:00:00Z',
+    };
+    const wrongType = {
+      ...boardEntity('wrong', [
+        boardProperty(
+          SYSTEM_PROPERTY_IDS.DUE_DATE,
+          { type: 'Number', value: 0 },
+          'DATE'
+        ),
+      ]),
+      updatedAt: '2026-10-01T00:00:00Z',
+    };
+    const rows = [absent, older, wrongType, later, newer, tied];
+    expect(
+      sortTasks(rows, [{ id: 'due_date_earliest' }]).map((row) => row.id)
+    ).toEqual(['c', 'b', 'a', 'later', 'missing', 'wrong']);
+    expect(
+      sortTasks(rows, [{ id: 'due_date_latest' }]).map((row) => row.id)
+    ).toEqual(['later', 'c', 'b', 'a', 'missing', 'wrong']);
+    expect(propertySortKey(property('2026-10-28T00:00:00.000001Z'))).toBe(
+      1793145600000001
+    );
+    expect(propertySortKey(property('1969-12-31T23:59:59.999999Z'))).toBe(-1);
+    expect(propertySortKey(property('2026-02-30T00:00:00Z'))).toBeUndefined();
+  });
+
+  it('uses cached option display order rather than option labels or identifiers', () => {
+    const id = SYSTEM_PROPERTY_IDS.PRIORITY;
+    const high = boardProperty(
+      id,
+      { type: 'SelectOption', value: ['custom-first', 'custom-second'] },
+      'SELECT_STRING'
+    );
+    const low = boardProperty(
+      id,
+      { type: 'SelectOption', value: ['custom-first'] },
+      'SELECT_STRING'
+    );
+    const definition = toPropertyDefinitionDomain(high.definition, [
+      {
+        id: 'custom-first',
+        property_definition_id: id,
+        display_order: 0,
+        value: { type: 'string', value: 'Urgent' },
+        color: null,
+        created_at: '',
+        updated_at: '',
+      },
+      {
+        id: 'custom-second',
+        property_definition_id: id,
+        display_order: 3,
+        value: { type: 'string', value: 'Low' },
+        color: null,
+        created_at: '',
+        updated_at: '',
+      },
+    ]);
+    // Multi-select uses the lowest option order, not the highest.
+    expect(propertySortKey(high, definition.options)).toBe(0);
+    const second = boardProperty(
+      id,
+      { type: 'SelectOption', value: ['custom-second'] },
+      'SELECT_STRING'
+    );
+    const rows = [
+      boardEntity('a', [low]),
+      boardEntity('b', [second]),
+      boardEntity('missing'),
+    ];
+    const definitions = new Map([[id, definition]]);
+    expect(
+      sortTasks(rows, [{ id: 'priority' }], definitions).map((row) => row.id)
+    ).toEqual(['b', 'a', 'missing']);
+    expect(
+      sortTasks(rows, [{ id: 'priority', reversed: true }], definitions).map(
+        (row) => row.id
+      )
+    ).toEqual(['a', 'b', 'missing']);
   });
 });

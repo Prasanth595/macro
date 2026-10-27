@@ -4,7 +4,7 @@ import { queryClient } from '@queries/client';
 import { type Client, gql } from '@urql/core';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { soupKeys } from '../keys';
-import { refreshDatePropertyQueries } from '../property-dates';
+import { refreshPropertyQueries } from '../property-queries';
 
 import {
   getActiveGraphqlSoupRevalidations,
@@ -310,7 +310,7 @@ it.each([undefined, SYSTEM_PROPERTY_IDS.DUE_DATE])(
     onTestFinished(() => queryClient.clear());
     const dueKey = soupKeys.astItems({
       params: {
-        sort_method: 'property_date_earliest',
+        sort_method: 'property',
         sort_property_definition_id: SYSTEM_PROPERTY_IDS.DUE_DATE,
       },
       body: { df: { l: { dst: 'task' } } },
@@ -328,7 +328,7 @@ it.each([undefined, SYSTEM_PROPERTY_IDS.DUE_DATE])(
       refresh: dueRefresh,
       body: () => ({
         params: {
-          sort_method: 'property_date_earliest',
+          sort_method: 'property',
           sort_property_definition_id: SYSTEM_PROPERTY_IDS.DUE_DATE,
         },
       }),
@@ -339,7 +339,7 @@ it.each([undefined, SYSTEM_PROPERTY_IDS.DUE_DATE])(
       body: () => ({ params: { sort_method: 'updated_at' } }),
     });
 
-    await refreshDatePropertyQueries(definitionId);
+    await refreshPropertyQueries(definitionId);
 
     expect(queryClient.getQueryState(dueKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(ordinaryKey)?.isInvalidated).toBe(false);
@@ -347,3 +347,51 @@ it.each([undefined, SYSTEM_PROPERTY_IDS.DUE_DATE])(
     expect(ordinaryRefresh).not.toHaveBeenCalled();
   }
 );
+
+it('matches selected sort/group definitions and date predicates, not ordinary option filters', async () => {
+  onTestFinished(() => queryClient.clear());
+  const id = SYSTEM_PROPERTY_IDS.STATUS;
+  const matching = [
+    { params: { sort_method: 'property', sort_property_definition_id: id } },
+    { initial: { sortMethod: 'PROPERTY', sortPropertyDefinitionId: id } },
+    { groupBy: { type: 'property', propertyDefinitionId: id } },
+    { initial: { groupBy: { field: 'PROPERTY', propertyDefinitionId: id } } },
+    { params: { group_by: { property: { property_definition_id: id } } } },
+    { propf: { '!': { l: { pd: id, v: 'dp' } } } },
+    { propf: { l: { pd: id, v: { dr: { start: '2026-01-01T00:00:00Z' } } } } },
+    {
+      filters: {
+        propertiesFilter: {
+          literal: { propertyDefinitionId: id, value: { hasDate: false } },
+        },
+      },
+    },
+  ].map((body) => {
+    const refresh = vi.fn(async () => {});
+    register({ isEnabled: () => true, refresh, body: () => body });
+    return refresh;
+  });
+  const unrelated = [
+    { propf: { l: { pd: id, v: { so: 'option' } } } },
+    { propf: { l: { pd: id, v: { er: 'user' } } } },
+    {
+      params: {
+        sort_method: 'property',
+        sort_property_definition_id: `${id}-other`,
+      },
+    },
+    { groupBy: { type: 'property', propertyDefinitionId: `${id}-other` } },
+  ].map((body) => {
+    const refresh = vi.fn(async () => {});
+    register({ isEnabled: () => true, refresh, body: () => body });
+    return refresh;
+  });
+  await refreshPropertyQueries(id);
+  for (const refresh of matching) expect(refresh).toHaveBeenCalledOnce();
+  for (const refresh of unrelated) expect(refresh).not.toHaveBeenCalled();
+  await refreshPropertyQueries();
+  expect(unrelated[2]).toHaveBeenCalledOnce();
+  expect(unrelated[3]).toHaveBeenCalledOnce();
+  expect(unrelated[0]).not.toHaveBeenCalled();
+  expect(unrelated[1]).not.toHaveBeenCalled();
+});

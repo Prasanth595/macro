@@ -4,6 +4,7 @@ import type {
   GroupSoupQuery,
   SoupItemFieldsFragment,
 } from '../../../service-clients/service-storage/graphql/generated/graphql';
+import { propertyDateGroupKey } from '../grouped/date-ranges';
 import { reconcileGroupedSoup } from '../grouped/reconciliation';
 import type { LiveQuerySnapshot } from './create-predicate-query';
 import { soupItemKey } from './reconciliation';
@@ -28,7 +29,6 @@ export function localSoupGroupKeys(
         return undefined;
       })
       .with('PROPERTY', () => {
-        if (input.groupBy.bucketing) return undefined;
         if (!('properties' in item)) return undefined;
         const entityType = match(item)
           .with({ __typename: 'GraphqlSoupDocument' }, (item) =>
@@ -41,12 +41,22 @@ export function localSoupGroupKeys(
           .with({ __typename: 'GraphqlSoupCall' }, () => 'CALL_RECORD')
           .otherwise((item) => item.entityType);
         if (input.groupBy.entityType && input.groupBy.entityType !== entityType)
-          return [''];
+          return input.groupBy.bucketing ? [] : [''];
         const property = item.properties.find(
           (property) =>
             property.propertyDefinitionId === input.groupBy.propertyDefinitionId
         );
         const value = property?.value;
+        if (input.groupBy.bucketing) {
+          return [
+            propertyDateGroupKey(
+              value?.__typename === 'GraphqlDatePropertyValue'
+                ? value.dateValue
+                : undefined,
+              input.groupBy.bucketing
+            ),
+          ];
+        }
         if (!value) return [''];
         const keys = match(value)
           .with(

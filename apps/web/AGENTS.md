@@ -298,9 +298,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   [choosing a reactive read](docs/graphql-normalized-cache-plan.md#choosing-a-reactive-read).
 - When adding or changing a feature flag, follow the `feature-flags` skill.
 - When adding or changing a view's feature tour, follow the `add-tour` skill.
-- Keep Tasks due-date ranges on the view-owned date-bucket boundaries in `features/tasks-view/core/task-due-date.ts`; send `property_date_earliest`/`property_date_latest` with `sort_property_definition_id` set to Due Date and generic keyed `date_ranges` property grouping, freeze ranges across continuation pages, refresh after midnight/timezone changes/resume, and retain existing text-search ordering.
+- Keep Tasks date ranges on view-owned date-bucket boundaries in `features/tasks-view/core/task-due-date.ts`; send `sort_method=property` with the selected definition and direction, use keyed `date_ranges` grouping, and restart pages when midnight/timezone/resume changes the query key; preserve text-search ordering.
 - Render Tasks due dates in an editable list-property column with a calendar icon only when a date is set; show only the urgency-colored icon on phones and narrow panes, keep the current date visible in its dropdown, and limit warning urgency to today and tomorrow.
-- Revalidate property-dependent Soup and search membership after any DATE edit, including empty queries and unloaded grouped counts; entity-only cache invalidation cannot admit previously excluded entities. Date-range group membership remains server-owned, and `missingValueBucketKey` names the no-value bucket.
+- Revalidate Soup queries whose selected sort/group property or date predicate matches an edited definition; compute loaded date-group movement in TypeScript, then refetch authoritative counts and unloaded rows. Keep property sorts and date filters out of the timestamp-only WASM projection.
 - Keep REST grouped Soup item pools and `itemIds` keyed by raw entity IDs, matching Tasks readers and the normalized cache.
 
 ## Rules

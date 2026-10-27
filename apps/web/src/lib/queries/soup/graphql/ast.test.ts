@@ -559,7 +559,8 @@ it('maps open-ended property date ranges and explicit no-date negation', () => {
   const propertyDefinitionId = '00000001-0000-0000-0000-000000000004';
   const range = makeGraphqlSoupInput({
     params: {
-      sort_method: 'property_date_earliest',
+      sort_method: 'property',
+      sort_direction: 'asc',
       sort_property_definition_id: propertyDefinitionId,
     },
     body: {
@@ -574,7 +575,8 @@ it('maps open-ended property date ranges and explicit no-date negation', () => {
   });
   expect(range).toMatchObject({
     initial: {
-      sortMethod: 'PROPERTY_DATE_EARLIEST',
+      sortMethod: 'PROPERTY',
+      sortDirection: 'ASC',
       sortPropertyDefinitionId: propertyDefinitionId,
       filters: {
         propertiesFilter: {
@@ -617,14 +619,15 @@ it('maps open-ended property date ranges and explicit no-date negation', () => {
 });
 
 it.each([
-  ['property_date_earliest', 'PROPERTY_DATE_EARLIEST'],
-  ['property_date_latest', 'PROPERTY_DATE_LATEST'],
+  ['asc', 'ASC'],
+  ['desc', 'DESC'],
 ] as const)(
-  'maps %s consistently for flat and grouped requests',
-  (sort, expected) => {
+  'maps property sort %s consistently for flat and grouped requests',
+  (direction, expected) => {
     const propertyDefinitionId = '00000001-0000-0000-0000-000000000004';
     const params = {
-      sort_method: sort,
+      sort_method: 'property' as const,
+      sort_direction: direction,
       sort_property_definition_id: propertyDefinitionId,
     };
     const body = { df: { l: { dst: 'task' } } };
@@ -637,8 +640,10 @@ it.each([
         propertyDefinitionId: '00000001-0000-0000-0000-000000000002',
       },
     });
-    expect(flat.initial?.sortMethod).toBe(expected);
-    expect(grouped.initial?.sortMethod).toBe(expected);
+    expect(flat.initial?.sortMethod).toBe('PROPERTY');
+    expect(grouped.initial?.sortMethod).toBe('PROPERTY');
+    expect(flat.initial?.sortDirection).toBe(expected);
+    expect(grouped.initial?.sortDirection).toBe(expected);
     expect(flat.initial?.sortPropertyDefinitionId).toBe(propertyDefinitionId);
     expect(grouped.initial?.sortPropertyDefinitionId).toBe(
       propertyDefinitionId

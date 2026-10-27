@@ -5,8 +5,9 @@ import {
 } from '@app/features/soup/collection/transforms';
 import { compareDateDesc } from '@core/util/date';
 import type { TaskEntityWithProperties } from '@entity';
-import { getTaskDueDate } from '@entity/utils/task-properties';
-import { compareTaskDueDates } from './core/task-due-date';
+import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
+import type { PropertyDefinitionDomain } from '@property/types';
+import { propertyDateSortKey, propertySortKey } from '@property/utils/sort';
 import type { TaskGroupBy, TaskSortId, TasksTab } from './types';
 
 export type TaskTabItem = {
@@ -77,48 +78,96 @@ export const TASK_SORT_DEFINITIONS: SortDefinition<
         right.sortTs ?? right.viewedAt
       ),
   },
-  {
-    id: 'due_date_earliest',
-    compare: (left, right) =>
-      compareTaskDueDates(
-        { id: left.id, dueDate: getTaskDueDate(left) },
-        { id: right.id, dueDate: getTaskDueDate(right) }
-      ),
-  },
-  {
-    id: 'due_date_latest',
-    compare: (left, right) =>
-      compareTaskDueDates(
-        { id: left.id, dueDate: getTaskDueDate(left) },
-        { id: right.id, dueDate: getTaskDueDate(right) },
-        true
-      ),
-  },
 ];
+
+export type TaskPropertySort = {
+  propertyDefinitionId: string;
+  direction: 'asc' | 'desc';
+};
 
 export const TASK_SORT_OPTIONS: {
   id: TaskSortId;
   label: string;
+  property?: TaskPropertySort;
 }[] = [
   { id: 'viewed_at', label: 'Viewed' },
   { id: 'updated_at', label: 'Updated' },
   { id: 'created_at', label: 'Created' },
-  { id: 'due_date_earliest', label: 'Due soonest' },
-  { id: 'due_date_latest', label: 'Due furthest away' },
+  {
+    id: 'status',
+    label: 'Status',
+    property: {
+      propertyDefinitionId: SYSTEM_PROPERTY_IDS.STATUS,
+      direction: 'asc',
+    },
+  },
+  {
+    id: 'priority',
+    label: 'Priority',
+    property: {
+      propertyDefinitionId: SYSTEM_PROPERTY_IDS.PRIORITY,
+      direction: 'desc',
+    },
+  },
+  {
+    id: 'due_date_earliest',
+    label: 'Due soonest',
+    property: {
+      propertyDefinitionId: SYSTEM_PROPERTY_IDS.DUE_DATE,
+      direction: 'asc',
+    },
+  },
+  {
+    id: 'due_date_latest',
+    label: 'Due furthest away',
+    property: {
+      propertyDefinitionId: SYSTEM_PROPERTY_IDS.DUE_DATE,
+      direction: 'desc',
+    },
+  },
 ];
 
-/** Due-date directions are separate options; reversal never moves nulls first. */
+export function taskPropertySort(id: TaskSortId): TaskPropertySort | undefined {
+  return TASK_SORT_OPTIONS.find((option) => option.id === id)?.property;
+}
+
+/** Property order matches Soup: missing last, then newest update and descending ID. */
 export function sortTasks(
   items: TaskEntityWithProperties[],
-  selections: SortSelection<TaskSortId>[]
+  selections: SortSelection<TaskSortId>[],
+  definitions?: ReadonlyMap<string, PropertyDefinitionDomain>
 ): TaskEntityWithProperties[] {
-  return sortItems(
-    items,
-    selections.map((selection) =>
-      selection.id.startsWith('due_date_')
-        ? { ...selection, reversed: false }
-        : selection
-    ),
-    TASK_SORT_DEFINITIONS
-  );
+  const selection = selections[0];
+  const propertySort = selection && taskPropertySort(selection.id);
+  if (!propertySort) return sortItems(items, selections, TASK_SORT_DEFINITIONS);
+  const definition = definitions?.get(propertySort.propertyDefinitionId);
+  // Keep server order until selectable option metadata is available.
+  if (selection.id === 'status' || selection.id === 'priority') {
+    if (!definition?.options) return items;
+  }
+  let ascending = propertySort.direction === 'asc';
+  if (selection.reversed && !selection.id.startsWith('due_date_'))
+    ascending = !ascending;
+  const key = (item: TaskEntityWithProperties) =>
+    propertySortKey(
+      item.properties?.find(
+        (property) =>
+          property.definition.id === propertySort.propertyDefinitionId
+      ),
+      definition?.options
+    );
+  return [...items].sort((left, right) => {
+    const a = key(left);
+    const b = key(right);
+    if (a === undefined && b !== undefined) return 1;
+    if (a !== undefined && b === undefined) return -1;
+    if (a !== undefined && b !== undefined && a !== b)
+      return ascending ? a - b : b - a;
+    const updated =
+      (propertyDateSortKey(right.updatedAt) ?? 0) -
+      (propertyDateSortKey(left.updatedAt) ?? 0);
+    if (updated) return updated;
+    if (left.id === right.id) return 0;
+    return left.id > right.id ? -1 : 1;
+  });
 }

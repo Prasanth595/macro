@@ -11,6 +11,7 @@ import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import type { GroupByField } from '@queries/soup/grouped/types';
 import type { SoupAstBody, SoupAstItemsQueryArgs } from '@queries/soup/items';
 import { match } from 'ts-pattern';
+import { taskPropertySort } from '../constants';
 import type {
   DateBucketBoundaries,
   TaskDatePredicate,
@@ -189,12 +190,14 @@ export function buildTaskQuery(
     requestedSort.startsWith('due_date_')
       ? 'updated_at'
       : requestedSort;
-  const sortsByDueDate = featureSort.startsWith('due_date_');
-  const sortDirection = primarySort?.reversed ? 'asc' : 'desc';
+  const propertySort = taskPropertySort(featureSort);
+  let sortDirection: 'asc' | 'desc' = propertySort?.direction ?? 'desc';
+  if (primarySort?.reversed && !featureSort.startsWith('due_date_')) {
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+  }
   const sortMethod = match(featureSort)
-    .with('due_date_earliest', () => 'property_date_earliest' as const)
-    .with('due_date_latest', () => 'property_date_latest' as const)
-    .otherwise((sort) => sort);
+    .with('updated_at', 'created_at', 'viewed_at', (sort) => sort)
+    .otherwise(() => 'property' as const);
   const compiledFacets = compileFacets(
     options.facets,
     TASK_FACETS,
@@ -234,10 +237,8 @@ export function buildTaskQuery(
       expand: true,
       limit: 100,
       sort_method: sortMethod,
-      sort_property_definition_id: sortsByDueDate
-        ? SYSTEM_PROPERTY_IDS.DUE_DATE
-        : undefined,
-      sort_direction: sortsByDueDate ? undefined : sortDirection,
+      sort_property_definition_id: propertySort?.propertyDefinitionId,
+      sort_direction: sortDirection,
     },
     body,
     groupBy:

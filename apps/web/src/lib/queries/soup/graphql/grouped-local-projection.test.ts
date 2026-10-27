@@ -88,7 +88,7 @@ describe('loaded grouped pages', () => {
 });
 
 describe('local grouped Soup projection', () => {
-  it('keeps date-range membership server-owned while removing known filter nonmatches', () => {
+  it('moves loaded date values between half-open ranges while preserving unloaded counts', () => {
     const dateInput: GroupedSoupInitialInput = {
       groupBy: {
         field: 'PROPERTY',
@@ -105,8 +105,34 @@ describe('local grouped Soup projection', () => {
       sortMethod: 'UPDATED_AT',
     };
     const a = groupedDocument('a');
-    const b = groupedDocument('b');
-    expect(localSoupGroupKeys(a, dateInput, now)).toBeUndefined();
+    a.properties[0] = {
+      ...a.properties[0],
+      propertyDefinitionId: 'review-date',
+      dataType: 'DATE',
+      isMultiSelect: false,
+      value: {
+        __typename: 'GraphqlDatePropertyValue',
+        dateValue: '2026-10-31T23:59:59Z',
+      },
+    };
+    const b = { ...a, id: 'b' };
+    const moved = {
+      ...a,
+      properties: [
+        {
+          ...a.properties[0],
+          value: {
+            __typename: 'GraphqlDatePropertyValue' as const,
+            dateValue: '2026-11-01T00:00:00Z',
+          },
+        },
+      ],
+    };
+    expect(localSoupGroupKeys(a, dateInput, now)).toEqual(['review_soon']);
+    expect(localSoupGroupKeys(moved, dateInput, now)).toEqual(['review_later']);
+    expect(
+      localSoupGroupKeys({ ...a, properties: [] }, dateInput, now)
+    ).toEqual(['no_review_date']);
     expect(
       projectLocalGroupedSoup(
         [
@@ -116,14 +142,26 @@ describe('local grouped Soup projection', () => {
             totalCount: 30,
             nextCursor: 'more',
           },
+          {
+            key: 'review_later',
+            items: [],
+            totalCount: 4,
+            nextCursor: 'later',
+          },
         ],
         new Map(),
-        snapshot([a]),
+        snapshot([moved, b]),
         dateInput,
         now
       )
     ).toEqual([
-      { key: 'review_soon', items: [a], totalCount: 29, nextCursor: 'more' },
+      { key: 'review_soon', items: [b], totalCount: 29, nextCursor: 'more' },
+      {
+        key: 'review_later',
+        items: [moved],
+        totalCount: 5,
+        nextCursor: 'later',
+      },
     ]);
   });
 

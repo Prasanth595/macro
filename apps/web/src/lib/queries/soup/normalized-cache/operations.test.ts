@@ -956,6 +956,86 @@ describe('removeSoupEntities — grouped cache', () => {
 });
 
 describe('optimisticUpdateSoupEntity — cross-group move', () => {
+  it.each([
+    ['2026-11-01T00:00:00Z', 'later'],
+    [null, 'missing'],
+  ])(
+    'moves a loaded date property to %s before refetch',
+    (value, destination) => {
+      const initial = mockTaskItem('date-item', 'unused');
+      if (initial.tag !== 'document')
+        throw new Error('Expected document fixture');
+      const property = initial.data.properties?.[0];
+      if (!property) throw new Error('Expected property fixture');
+      const item: SoupApiItem = {
+        ...initial,
+        data: {
+          ...initial.data,
+          properties: [
+            {
+              ...property,
+              value: { type: 'Date', value: '2026-10-31T23:59:59Z' },
+            },
+          ],
+        },
+      };
+      const groupBy: GroupByField = {
+        type: 'property',
+        propertyDefinitionId: STATUS_DEF,
+        bucketing: {
+          type: 'date_ranges',
+          ranges: [
+            { key: 'soon', start: null, end: '2026-11-01T00:00:00Z' },
+            { key: 'later', start: '2026-11-01T00:00:00Z', end: null },
+          ],
+          missingValueBucketKey: 'missing',
+        },
+      };
+      const key = [...soupKeys.astItems._def, {}, {}, groupBy];
+      const data = mockGroupedParentCache(
+        [item],
+        [
+          buildGroup('soon', ['date-item'], 8),
+          buildGroup('later', [], 5),
+          buildGroup('missing', [], 2),
+        ]
+      );
+      testQueryClient.setQueryDefaults(key, { meta: { groupBy } });
+      testQueryClient.setQueryData(key, data);
+      const updated: SoupApiItem = {
+        ...item,
+        data: {
+          ...item.data,
+          properties: [
+            {
+              ...property,
+              value: value === null ? null : { type: 'Date', value },
+            },
+          ],
+        },
+      };
+      mockNormalizer.getObjectById.mockReturnValue(updated);
+      testQueryClient.setQueryData(key, {
+        ...data,
+        pages: [{ ...data.pages[0], items: { 'date-item': updated } }],
+      });
+      optimisticUpdateSoupEntity(updated);
+      const page =
+        testQueryClient.getQueryData<
+          InfiniteData<SoupAstItemsGroupedPage, unknown>
+        >(key)!.pages[0];
+      expect(page.groups.find((group) => group.key === 'soon')).toMatchObject({
+        itemIds: [],
+        totalCount: 7,
+      });
+      expect(
+        page.groups.find((group) => group.key === destination)
+      ).toMatchObject({
+        itemIds: ['date-item'],
+        totalCount: destination === 'later' ? 6 : 3,
+      });
+    }
+  );
   it('moves item id between groups via itemIds mutations only', () => {
     const items = [
       mockTaskItem('a-1', 'in_progress'),

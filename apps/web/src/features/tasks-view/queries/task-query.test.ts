@@ -1,3 +1,4 @@
+import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createDateBucketBoundaries,
@@ -125,11 +126,11 @@ it('combines an exclusive overdue bound with status independently and freezes de
     dueDate,
     calendar,
   });
-  expect(query.params.sort_method).toBe('property_date_earliest');
+  expect(query.params.sort_method).toBe('property');
+  expect(query.params.sort_direction).toBe('asc');
   expect(query.params.sort_property_definition_id).toBe(
     '00000001-0000-0000-0000-000000000004'
   );
-  expect(query.params.sort_direction).toBeUndefined();
   expect(query.groupBy).toMatchObject({
     type: 'property',
     propertyDefinitionId: '00000001-0000-0000-0000-000000000004',
@@ -198,17 +199,34 @@ it.each(['due_date_earliest', 'due_date_latest'] as const)(
       expect(query.params).toEqual({
         expand: true,
         limit: 100,
-        sort_method:
-          sort === 'due_date_earliest'
-            ? 'property_date_earliest'
-            : 'property_date_latest',
+        sort_method: 'property',
         sort_property_definition_id: '00000001-0000-0000-0000-000000000004',
-        sort_direction: undefined,
+        sort_direction: sort === 'due_date_earliest' ? 'asc' : 'desc',
       });
       // Exclude the project entity itself, not children of a nil parent.
       expect(query.body.pf).toEqual({
         l: { pids: '00000000-0000-0000-0000-000000000000' },
       });
     }
+  }
+);
+
+it.each([
+  ['status', SYSTEM_PROPERTY_IDS.STATUS, 'asc', 'desc'],
+  ['priority', SYSTEM_PROPERTY_IDS.PRIORITY, 'desc', 'asc'],
+] as const)(
+  'uses stored option order and reversible default direction for %s',
+  (id, property, direction, reversed) => {
+    expect(buildTaskQuery({ ...options, sort: [{ id }] }).params).toMatchObject(
+      {
+        sort_method: 'property',
+        sort_property_definition_id: property,
+        sort_direction: direction,
+      }
+    );
+    expect(
+      buildTaskQuery({ ...options, sort: [{ id, reversed: true }] }).params
+        .sort_direction
+    ).toBe(reversed);
   }
 );

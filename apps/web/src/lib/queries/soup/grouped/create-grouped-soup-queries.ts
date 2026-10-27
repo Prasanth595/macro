@@ -95,6 +95,7 @@ function groupPageQueryFn(input: {
           sort_method: groupedSortMethod(input.soupParams.sort_method),
           sort_property_definition_id:
             input.soupParams.sort_property_definition_id,
+          sort_direction: input.soupParams.sort_direction,
         },
         body: input.soupBody,
       })

@@ -187,6 +187,7 @@ async function fetchRestSoupAstItemsPage(
             per_group_limit: params.limit,
             sort_method,
             sort_property_definition_id: params.sort_property_definition_id,
+            sort_direction: params.sort_direction,
           },
           body,
           signal,

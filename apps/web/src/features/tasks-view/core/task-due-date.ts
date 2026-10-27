@@ -182,18 +182,3 @@ export function taskDueDatePickerBounds(
 export function isTaskDueDateBucket(value: string): value is TaskDueDateBucket {
   return TASK_DUE_DATE_BUCKETS.some((bucket) => bucket.id === value);
 }
-
-/** Missing dates stay last in both directions; ties always use ascending IDs. */
-export function compareTaskDueDates(
-  left: { id: string; dueDate?: string },
-  right: { id: string; dueDate?: string },
-  latest = false
-): number {
-  const a = left.dueDate ? Date.parse(left.dueDate) : NaN;
-  const b = right.dueDate ? Date.parse(right.dueDate) : NaN;
-  if (!Number.isFinite(a) && Number.isFinite(b)) return 1;
-  if (Number.isFinite(a) && !Number.isFinite(b)) return -1;
-  const delta = Number.isFinite(a) && Number.isFinite(b) ? a - b : 0;
-  if (!delta) return left.id.localeCompare(right.id);
-  return latest ? -delta : delta;
-}

@@ -18,7 +18,6 @@ import type {
   TaskBoardTask,
 } from '../core/task-board';
 import {
-  compareTaskDueDates,
   type DateBucketBoundaries,
   isTaskDueDateBucket,
   type TaskDatePredicate,
@@ -62,15 +61,6 @@ export function createTaskBoardQueries(options: {
     return result;
   });
 
-  const ranks = createMemo(() => {
-    const values = [...entities().values()];
-    const ordered = options.searching()
-      ? values
-      : sortTasks(values, options.sort?.() ?? [{ id: 'updated_at' }]);
-
-    return new Map(ordered.map((entity, index) => [entity.id, index]));
-  });
-
   const definitions = useListPropertiesQuery(() => ({
     scope: 'system',
     includeOptions: true,
@@ -91,6 +81,18 @@ export function createTaskBoardQueries(options: {
         return [definition.id, property];
       })
     );
+  });
+
+  const ranks = createMemo(() => {
+    const values = [...entities().values()];
+    const ordered = options.searching()
+      ? values
+      : sortTasks(
+          values,
+          options.sort?.() ?? [{ id: 'updated_at' }],
+          properties()
+        );
+    return new Map(ordered.map((entity, index) => [entity.id, index]));
   });
 
   const allColumns = createMemo(() =>
@@ -296,12 +298,6 @@ export function createTaskBoardQueries(options: {
     actions,
     columns,
     compareTasks: (left: TaskBoardTask, right: TaskBoardTask) => {
-      const sort = options.sort?.()[0]?.id;
-      if (
-        !options.searching() &&
-        (sort === 'due_date_earliest' || sort === 'due_date_latest')
-      )
-        return compareTaskDueDates(left, right, sort === 'due_date_latest');
       return (
         (ranks().get(left.id) ?? Infinity) - (ranks().get(right.id) ?? Infinity)
       );

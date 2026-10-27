@@ -5,6 +5,7 @@ import type { ApiGroupMeta } from '@service-storage/generated/schemas/apiGroupMe
 import type { Params } from '@service-storage/generated/schemas/params';
 import type { SoupApiItem } from '@service-storage/generated/schemas/soupApiItem';
 import { match } from 'ts-pattern';
+import { propertyDateGroupKey } from './date-ranges';
 import { type GroupByField, type GroupMeta, NOT_SET_GROUP_KEY } from './types';
 
 /** Sort methods the grouped soup endpoints accept. */
@@ -274,8 +275,7 @@ export function makeGroupComparator(
 
 /**
  * Compute the group keys an item belongs to under the given grouping.
- * Returns `undefined` when bucketing can't be reproduced client-side
- * (date, non-categorical property) — caller should invalidate.
+ * Returns `undefined` when membership cannot be reproduced from loaded values.
  */
 export function computeGroupKeysForItem(
   item: SoupApiItem,
@@ -293,11 +293,23 @@ export function computeGroupKeysForItem(
       return [projectId ?? NOT_SET_GROUP_KEY];
     })
     .with({ type: 'property' }, (propertyGroupBy) => {
-      // Date buckets use authoritative server membership, including unloaded rows.
-      if (propertyGroupBy.bucketing) return;
       if (!hasProperties(item)) return;
 
       const properties = item.data.properties;
+      if (propertyGroupBy.bucketing) {
+        if (!properties) return;
+        const property = properties.find(
+          (property) =>
+            property.definition.id === propertyGroupBy.propertyDefinitionId
+        );
+        const value = property?.value;
+        return [
+          propertyDateGroupKey(
+            value?.type === 'Date' ? value.value : undefined,
+            propertyGroupBy.bucketing
+          ),
+        ];
+      }
 
       if (!properties) return [NOT_SET_GROUP_KEY];
 

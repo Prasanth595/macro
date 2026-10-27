@@ -21,6 +21,8 @@ import {
   type TaskEntityWithProperties,
 } from '@entity';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
+import { toPropertyDefinitionDomain } from '@property/utils/transforms';
+import { useListPropertiesQuery } from '@queries/properties/definitions';
 import { createGroupedSoupQueries } from '@queries/soup/grouped/create-grouped-soup-queries';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import { mapApiSoupItemToEntity } from '@queries/soup/transform-utils';
@@ -199,11 +201,34 @@ export function useTasksDataSource(
     }
     return selected;
   };
+  const definitions = useListPropertiesQuery(
+    () => ({ scope: 'system', includeOptions: true }),
+    () =>
+      facetOptionsReady() && ['status', 'priority'].includes(state.sort[0]?.id)
+  );
+  const propertyDefinitions = createMemo(
+    () =>
+      new Map(
+        (definitions.isSuccess ? definitions.data : []).map((item) => {
+          const definition = 'definition' in item ? item.definition : item;
+          const options =
+            'property_options' in item ? item.property_options : [];
+          return [
+            definition.id,
+            toPropertyDefinitionDomain(definition, options),
+          ];
+        })
+      )
+  );
 
   const baseTasks = createMemo<TaskEntityWithProperties[]>((previous) => {
     if (query.isLoading) return previous;
     if (query.isPlaceholderData && previous.length > 0) return previous;
-    return sortTasks(transformEntities(query.data?.entities ?? []), state.sort);
+    return sortTasks(
+      transformEntities(query.data?.entities ?? []),
+      state.sort,
+      propertyDefinitions()
+    );
   }, []);
 
   const { entityPool } = useSearchContext();
@@ -378,7 +403,8 @@ export function useTasksDataSource(
           );
         const entities = sortTasks(
           deduplicateSoupEntities([...initialTasks, ...continuationTasks]),
-          state.sort
+          state.sort,
+          propertyDefinitions()
         );
         const taskGroup: SoupGroup<TaskEntityWithProperties> = {
           id: group.key,

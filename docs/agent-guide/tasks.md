@@ -129,8 +129,10 @@ the optimistic tag. Repeat with an existing assignment and with removal.
 
 ## Due dates
 
-Tasks lists and boards offer **Due soonest** and **Due furthest away** sorting.
-Undated tasks stay last in either direction, with stable task-ID ordering for ties.
+Tasks lists and boards offer **Status**, **Priority**, **Due soonest**, and
+**Due furthest away** sorting alongside Viewed, Updated, and Created. Status
+follows stored option order; Priority puts urgent tasks first. Missing values
+stay last. Property-sort ties use newest update, then descending task ID.
 Text search retains its existing ordering and flat list results; clear search to sort.
 Boards group the loaded search results as before, without complete counts or grouped-search requests.
 
@@ -145,7 +147,7 @@ The mobile controls use the same options and date-range dialog in the sliders dr
 Overdue is before today's midnight; Today and Tomorrow cover those entire days;
 Next 7 days covers D+2 through D+7; Later starts at D+8; No due date includes
 missing and cleared dates. Relative filters and groups refresh at local midnight,
-timezone changes, and app resume. Continuation pages keep their original boundaries.
+timezone changes, and app resume. Changed boundaries start fresh continuation pages.
 Task lists show an editable **Due date** property column with a calendar icon
 only when a date is set; click its header to switch between Due soonest and Due
 furthest away. Phones and narrow panes show only the urgency-colored icon for
@@ -161,8 +163,9 @@ Date selections persist with the navigation entry and round-trip through
 
 Verify dates around midnight and a daylight-saving transition. Check both sort
 directions with tied and undated tasks. Filter during local and service search,
-then edit or clear a due date: membership and grouped totals must refresh even
-when the task was previously absent. Gantt's saved-date semantics do not change.
+then edit or clear a due date: loaded rows move between buckets immediately,
+and refetches correct complete counts and previously absent tasks. Gantt's
+saved-date semantics do not change.
 
 ## Gantt layout
 
@@ -332,8 +335,8 @@ mouse button held to start dragging to another column; holding still does not
 start a drag. Property pills remain interactive and do not start a drag.
 A new destination column highlights once movement slows
 or pauses for about 100 ms. Fast travel suppresses activation of new columns.
-A valid hover shows **Board sorted by Updated**, **Created**, **Viewed**, or the
-active due-date sort label. The drop does not choose a pointer insertion slot:
+A valid hover shows **Board sorted by Updated**, **Created**, **Viewed**,
+**Status**, **Priority**, or the active due-date sort label. The drop does not choose a pointer insertion slot:
 its card takes its place in the current sort (or existing text-search order).
 Same-column moves and column reordering remain disabled.
 Layout, primary sort, sort direction, and grouping are reflected in `tasks.layout`,
@@ -414,7 +417,7 @@ write. A failed save restores the prior placement and counts. Existing property
 permissions and pending states apply, and the destination uses the active sort.
 A due-date filter also hides buckets that cannot contain a matching date;
 **Reveal hidden columns** removes only that date filter.
-Priority sorting is not in this version.
+Priority and Status use the same sort choices as the task list.
 The shared board primitives remain independent of Tasks queries and mutations.
 
 ## Cached grouped lists
