@@ -51,8 +51,10 @@ event contract (schema, sanitization, delivery semantics).
 
 ## Gotchas
 
-- A trialing subscription that gains a Max seat ends the trial and starts a
-  new billing cycle immediately. Pro seat changes during a trial keep the trial.
+- A trialing subscription that gains its first Max seat ends the trial and
+  starts a new billing cycle immediately. Every other seat change keeps the
+  trial, including on a subscription already trialing on Max, so its scheduled
+  downgrades still apply at the trial's end.
 
 ## Checks
 

@@ -481,8 +481,8 @@ Team members who cannot manage billing see the notice without its action.
 
 `Team → Members` (`/app/settings/team-members`; on a paid team each row shows the seat's plan,
 and admins/owners can move a seat between Pro and Max with the `Seat plan`
-menu; Max upgrades are immediate and prorated, except a seat moved onto Max
-during a trial, which ends the trial and bills Max for a new cycle today.
+menu; Max upgrades are immediate and prorated, except the first Max seat on a
+trialing team, which ends the trial and bills Max for a new cycle today.
 Pro downgrades start at renewal.
 **Keep Max** appears only for a confirmed pending downgrade and cancels it;
 failed scheduled-plan reads offer **Try again**, while teams without applicable

@@ -317,15 +317,15 @@ impl CustomerRepositoryImpl {
             .await
             .map_err(storage)?;
         let end_trial = subscription.status == stripe::SubscriptionStatus::Trialing
-            && self.keeps_max_seat(&subscription, &items)?;
+            && self.adds_first_max_seat(&subscription, &items)?;
         if let Some(schedule_id) = subscription.schedule.as_ref().map(|s| s.id()) {
             let schedule = stripe::SubscriptionSchedule::retrieve(&self.client, &schedule_id, &[])
                 .await
                 .map_err(storage)?;
             require_owned_schedule(&schedule)?;
             let pending = self.pending_changes(&schedule, &subscription).await?;
-            // A Max seat cannot stay on a trial. Release the schedule and bill
-            // the new cycle directly; a pending downgrade does not carry over.
+            // A Pro trial gaining Max ends now. With no Max seat before, no seat
+            // is waiting to downgrade, so release the schedule and bill directly.
             if !end_trial && pending.at > subscription.current_period_start {
                 let current = current_phase(&schedule, &subscription)?;
                 let mut phase = phase_parameters(current)?;
@@ -389,8 +389,10 @@ impl CustomerRepositoryImpl {
         Ok(())
     }
 
-    /// Whether the seat update leaves at least one Max seat on the subscription.
-    fn keeps_max_seat(
+    /// Whether the seat update gives a subscription without Max seats its first
+    /// one. A subscription already trialing on Max keeps its trial terms, and
+    /// its scheduled downgrades, through other seat changes.
+    fn adds_first_max_seat(
         &self,
         subscription: &stripe::Subscription,
         items: &[UpdateSubscriptionItems],
@@ -412,6 +414,9 @@ impl CustomerRepositoryImpl {
             .iter()
             .map(|item| item.quantity.unwrap_or(1))
             .sum::<u64>();
+        if quantity > 0 {
+            return Ok(false);
+        }
         for update in items {
             if let Some(price) = &update.price {
                 if price.as_str() == max {
