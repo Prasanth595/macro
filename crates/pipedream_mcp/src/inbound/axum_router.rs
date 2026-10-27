@@ -223,8 +223,7 @@ async fn pipedream_webhook(
     let account_id = str_at("/account/id");
     let app_slug = str_at("/account/app/name_slug");
     let connect_session_id = payload.get("connect_session_id").map(ToString::to_string);
-    let failed =
-        error.is_some() || event.is_some_and(|e| e.to_ascii_uppercase().contains("ERROR"));
+    let failed = error.is_some() || event.is_some_and(|e| e.to_ascii_uppercase().contains("ERROR"));
 
     if failed {
         tracing::warn!(

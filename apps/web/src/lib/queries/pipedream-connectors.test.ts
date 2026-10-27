@@ -144,7 +144,9 @@ describe('verified Pipedream connection completion', () => {
   it.each([false, true])(
     'registers an account the Connect UI never reported (native=%s)',
     async (native) => {
-      mocks.recover.mockResolvedValue(ok({ app_slug: 'linear', enabled: true }));
+      mocks.recover.mockResolvedValue(
+        ok({ app_slug: 'linear', enabled: true })
+      );
       const { pending, event } = await connect(native);
       event({ type: 'close' });
       expect(await pending).toBe('connected');

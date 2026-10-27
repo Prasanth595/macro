@@ -261,19 +261,21 @@ async function connectPipedreamAccount(
     : openPipedreamConnectUI;
   if (currentUserId() !== userId) return 'closed';
   let ui: PipedreamConnectUI | undefined;
-  const consented = await span.span('pipedream.consent', async () =>
-    new Promise<ConsentResult>((resolve) => {
-      ui = openConnectUI({
-        token: token.value.token,
-        app: args.appSlug,
-        container: args.container,
-        // 'error' events are shown inside the Connect UI itself; the user
-        // can retry there or close, so they don't settle the flow.
-        onEvent: (event) => {
-          if (event.type !== 'error') resolve(event);
-        },
+  const consented = await span.span(
+    'pipedream.consent',
+    async () =>
+      new Promise<ConsentResult>((resolve) => {
+        ui = openConnectUI({
+          token: token.value.token,
+          app: args.appSlug,
+          container: args.container,
+          // 'error' events are shown inside the Connect UI itself; the user
+          // can retry there or close, so they don't settle the flow.
+          onEvent: (event) => {
+            if (event.type !== 'error') resolve(event);
+          },
+        });
       })
-    })
   );
   try {
     if (currentUserId() !== userId) return 'closed';

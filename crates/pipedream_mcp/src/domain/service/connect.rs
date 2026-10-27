@@ -121,7 +121,11 @@ where
         .await
         .map_err(anyhow::Error::from)?;
     if existing.is_some_and(|record| record.account_id == newest.id) {
-        tracing::info!(found = true, already_stored = true, "Pipedream account already stored");
+        tracing::info!(
+            found = true,
+            already_stored = true,
+            "Pipedream account already stored"
+        );
         return Ok(None);
     }
 

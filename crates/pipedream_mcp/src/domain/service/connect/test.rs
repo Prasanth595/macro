@@ -119,11 +119,7 @@ fn now() -> chrono::DateTime<chrono::Utc> {
     "2026-10-27T18:00:00Z".parse().unwrap()
 }
 
-fn created(
-    id: &str,
-    external_user_id: &str,
-    minutes_ago: i64,
-) -> PipedreamAccount {
+fn created(id: &str, external_user_id: &str, minutes_ago: i64) -> PipedreamAccount {
     PipedreamAccount {
         created_at: Some(now() - chrono::TimeDelta::minutes(minutes_ago)),
         ..account(id, Some(external_user_id), "linear")
