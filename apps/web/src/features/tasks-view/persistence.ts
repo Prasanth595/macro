@@ -130,7 +130,10 @@ function selectEntryState(state: TasksViewState): TasksEntryState {
       state.savedViewActive ? DEFAULT_TASK_FACET_SELECTION : state.facets
     ),
     collapsedGroupIds: [...state.collapsedGroupIds],
-    dueDate: state.dueDate ? { ...state.dueDate } : undefined,
+    dueDate:
+      !state.savedViewActive && state.dueDate
+        ? { ...state.dueDate }
+        : undefined,
   };
 }
 

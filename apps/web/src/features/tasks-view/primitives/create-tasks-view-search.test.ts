@@ -11,6 +11,10 @@ import {
   readTaskSavedView,
   taskSavedViewsEqual,
 } from '../filters/task-saved-view';
+import {
+  createTasksViewPersistence,
+  TASKS_ENTRY_STATE_KEY,
+} from '../persistence';
 import type { TasksTabSearchParams } from '../tasks-tab-search';
 import type { TasksTab, TasksViewState } from '../types';
 import { createTaskSavedViewDraft } from './create-task-saved-view-draft';
@@ -556,4 +560,36 @@ it('rejects invalid saved ranges but keeps other supported settings on read', ()
     decodeTaskSavedView({ ...valid.value, dueDate: undefined }).isOk()
   ).toBe(true);
   expect(taskSavedViewsEqual(valid.value, config)).toBe(false);
+});
+
+it('keeps saved-view date filters out of built-in entry snapshots', () => {
+  const { state, setState } = setup({
+    state: { savedViewActive: true, dueDate: { type: 'overdue' } },
+  });
+  const captors = new Map<string, () => unknown>();
+  const persistence = createTasksViewPersistence({
+    handle: {
+      currentEntryState: () => undefined,
+      registerEntryStateCaptor: (key, capture) => {
+        captors.set(key, capture);
+        return () => captors.delete(key);
+      },
+    },
+    userId: () => undefined,
+  });
+  const storages = Array.isArray(persistence.storages)
+    ? persistence.storages
+    : [persistence.storages];
+  for (const storage of storages) storage.write(state);
+  expect(captors.get(TASKS_ENTRY_STATE_KEY)?.()).toMatchObject({
+    tab: 'my-tasks',
+    dueDate: undefined,
+  });
+
+  setState('savedViewActive', false);
+  for (const storage of storages) storage.write(state);
+  expect(captors.get(TASKS_ENTRY_STATE_KEY)?.()).toMatchObject({
+    dueDate: { type: 'overdue' },
+  });
+  for (const storage of storages) storage.dispose?.();
 });
