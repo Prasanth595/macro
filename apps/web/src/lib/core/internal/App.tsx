@@ -72,7 +72,8 @@ const App: Component = () => {
         center={
           <Center>
             <Button variant="ghost" onClick={togglePublicPermissions}>
-              {documentAccess()} <CaretDown />
+              {documentAccess()}{' '}
+              <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           </Center>
         }
@@ -81,7 +82,9 @@ const App: Component = () => {
         <For each={Themes}>
           {() => (
             <Button variant="outline">
-              <Subtract /> Button Text <CaretDown />
+              <Subtract class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />{' '}
+              Button Text{' '}
+              <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           )}
         </For>
@@ -90,7 +93,9 @@ const App: Component = () => {
         <Index each={ThemesWithSeparator}>
           {() => (
             <Button variant="outline">
-              <Subtract /> Button Text <CaretDown />
+              <Subtract class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />{' '}
+              Button Text{' '}
+              <CaretDown class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           )}
         </Index>
@@ -99,7 +104,7 @@ const App: Component = () => {
         <Index each={Themes}>
           {() => (
             <Button variant="outline" size="icon-md">
-              <Acorn />
+              <Acorn class="size-4 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           )}
         </Index>
@@ -108,8 +113,8 @@ const App: Component = () => {
         <Index each={ThemesWithSeparator}>
           {() => (
             <Button variant="outline" size="icon-md">
-              <Acorn />
-              <CaretDown />
+              <Acorn class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+              <CaretDown class="size-4 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           )}
         </Index>
@@ -118,8 +123,8 @@ const App: Component = () => {
         <Index each={ThemesWithSeparator}>
           {() => (
             <Button variant="outline" size="icon-md">
-              <Acorn />
-              <CaretDown />
+              <Acorn class="size-4 touch:size-6 shrink-0 pointer-events-none" />
+              <CaretDown class="size-4 touch:size-6 shrink-0 pointer-events-none" />
             </Button>
           )}
         </Index>

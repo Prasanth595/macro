@@ -36,7 +36,7 @@ import ArrowLeftIcon from '@icon/system/regular/arrow-left.svg';
 import FileCsvIcon from '@icon/system/regular/file-csv.svg';
 import ListIcon from '@icon/system/regular/list.svg';
 import PlusIcon from '@icon/system/regular/plus.svg';
-import { Button, Dropdown, Tooltip } from '@ui';
+import { Button, ButtonGroup, Dropdown, Tooltip } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import {
   createEffect,
@@ -96,9 +96,10 @@ function NavigationToggle(props: {
           fallback={
             <Tooltip label="Expand CRM sidebar">
               <Button
+                aria-label="Expand CRM sidebar"
+                tooltip="Expand CRM sidebar"
                 variant="ghost"
                 size="icon-sm"
-                label="Expand CRM sidebar"
                 ref={toggleTarget}
                 onClick={props.onExpand}
               >
@@ -535,9 +536,10 @@ export function CrmWorkspaceView(props: {
                 </NavigationToggle>
                 <Tooltip label="Back">
                   <Button
+                    aria-label="Close CRM settings"
+                    tooltip="Close CRM settings"
                     variant="ghost"
                     size="icon-sm"
-                    label="Close CRM settings"
                     onClick={settings.close}
                   >
                     <ArrowLeftIcon class="size-4" />
@@ -726,20 +728,19 @@ export function CrmWorkspaceView(props: {
               >
                 <Show when={!peopleActive()}>
                   <HeaderActionGroup label="Company filters">
-                    <UnifiedFilterDropdown hideLabel variant="ghost" />
+                    <UnifiedFilterDropdown grouped hideLabel variant="ghost" />
                   </HeaderActionGroup>
                   <HeaderActionGroup label="Company view options">
-                    <SoupViewContextSort />
-                    <SoupViewContextGroup hideLabel variant="ghost" />
-                    <CompanyDisplayMenu />
+                    <SoupViewContextSort grouped />
+                    <SoupViewContextGroup grouped hideLabel variant="ghost" />
+                    <CompanyDisplayMenu grouped />
                     <Suspense>
-                      <CompanyViewsMenu hideLabel />
+                      <CompanyViewsMenu grouped hideLabel />
                     </Suspense>
                     <Show when={listsEnabled() && activeList()}>
                       {(list) => (
-                        <Button
+                        <ButtonGroup.Button
                           variant="ghost"
-                          size="md"
                           onClick={() =>
                             setEditing({
                               id: list().id,
@@ -749,7 +750,7 @@ export function CrmWorkspaceView(props: {
                           }
                         >
                           Edit list
-                        </Button>
+                        </ButtonGroup.Button>
                       )}
                     </Show>
                   </HeaderActionGroup>

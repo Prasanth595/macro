@@ -330,7 +330,7 @@ function DownloadOnly(props: { onDownload: () => void }): JSX.Element {
     <div class="flex size-full flex-col items-center justify-center gap-3 p-6 text-ink-muted text-sm">
       Figma files can't be previewed here yet.
       <Button variant="outline" size="sm" onClick={props.onDownload}>
-        <DownloadSimple />
+        <DownloadSimple class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         Download
       </Button>
     </div>

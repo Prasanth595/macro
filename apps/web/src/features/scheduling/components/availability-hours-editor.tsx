@@ -93,9 +93,10 @@ export function AvailabilityHoursEditor(props: {
                           onChange={(mode) => update(index, { mode })}
                         />
                         <Button
+                          aria-label={`Remove range ${index + 1}`}
+                          tooltip={`Remove range ${index + 1}`}
                           variant="ghost"
                           size="icon-sm"
-                          label={`Remove range ${index + 1}`}
                           onClick={() => remove(index)}
                         >
                           <Trash class="size-4" />

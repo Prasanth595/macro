@@ -146,7 +146,7 @@ export function BookingReceiptView(props: {
                   </Button>
                   <Show when={confirm()}>
                     <Button
-                      variant="strong"
+                      variant="secondary"
                       disabled={busy()}
                       onClick={() => fireAndForget(cancel(), 'scheduling')}
                     >

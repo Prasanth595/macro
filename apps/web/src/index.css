@@ -696,6 +696,126 @@ body.tauri-ios {
   --sidepanel-label-width: 5.5rem;
 }
 
+/* Shared neutral borders. Focus, status, and glass edges stay independent. */
+:root,
+[data-theme-light] {
+  --border-primary: oklch(1 0 0 / 16%);
+  --border-secondary: oklch(1 0 0 / 12%);
+  --border-tertiary: oklch(1 0 0 / 8%);
+  --divider: oklch(1 0 0 / 4%);
+}
+
+[data-theme-light='true'] {
+  --border-primary: oklch(0 0 0 / 16%);
+  --border-secondary: oklch(0 0 0 / 12%);
+  --border-tertiary: oklch(0 0 0 / 8%);
+  --divider: oklch(0 0 0 / 4%);
+}
+
+/* Shared Button roles. Other app colors keep their current meaning. */
+/* Reset on each theme scope so previews resolve their own palette inputs. */
+:root,
+[data-theme-light] {
+  --button-primary-bg: color-mix(in oklch, white 90%, var(--color-panel));
+  --button-primary-hover: color-mix(in srgb, var(--button-primary-bg) 82%, var(--color-panel));
+  --button-primary-pressed: color-mix(in srgb, var(--button-primary-bg) 72%, var(--color-panel));
+  --button-primary-ink: var(--color-page);
+  --button-focus: var(--color-edge-focus, var(--color-accent));
+
+  --button-secondary-bg: oklch(1 0 0 / 8%);
+  --button-secondary-hover: oklch(1 0 0 / 12%);
+  --button-secondary-pressed: oklch(1 0 0 / 16%);
+  --button-outline-hover: oklch(1 0 0 / 8%);
+  --button-outline-pressed: oklch(1 0 0 / 10%);
+  --button-tertiary-bg: transparent;
+  --button-tertiary-hover: oklch(1 0 0 / 10%);
+  --button-tertiary-pressed: oklch(1 0 0 / 14%);
+
+  /* JavaScript selects only the contrasting accent ink and its inverse tint. */
+  --button-accent-ink: white;
+  --button-accent-state-mix: black;
+  --button-accent-hover: color-mix(in srgb, var(--color-accent) 82%, var(--button-accent-state-mix));
+  --button-accent-pressed: color-mix(in srgb, var(--color-accent) 72%, var(--button-accent-state-mix));
+  --button-danger-bg: oklch(from var(--color-failure) l c h / 10%);
+  --button-danger-hover: oklch(from var(--color-failure) l c h / 26%);
+  --button-danger-pressed: oklch(from var(--color-failure) l c h / 32%);
+  --button-success-bg: oklch(from var(--color-success) l c h / 8%);
+  --button-success-hover: oklch(from var(--color-success) l c h / 16%);
+  --button-success-pressed: oklch(from var(--color-success) l c h / 22%);
+
+  /* Negative spread keeps the faint contact shadow beneath the button. */
+  --button-shadow: 0 2px 1px -1px oklch(0 0 0 / 10%);
+  --button-raised-shadow: 0 0 0 0.4px oklch(0 0 0 / 16%), inset 0 0.4px 0 oklch(1 0 0 / 4.8%), inset 0 0 0 0.4px oklch(1 0 0 / 3.2%), 0 1px 2px oklch(0 0 0 / 6%);
+  --button-outline-highlight: oklch(1 0 0 / 28%);
+  --button-gradient-raised: linear-gradient(180deg, transparent, oklch(0 0 0 / 12%));
+}
+
+[data-theme-light='true'] {
+  --button-primary-bg: color-mix(in oklch, black 90%, var(--color-panel));
+
+  /* White neutral faces retain black shading for hover and pressed states. */
+  --button-secondary-bg: white;
+  --button-secondary-hover: color-mix(in srgb, white, black 4%);
+  --button-secondary-pressed: color-mix(in srgb, white, black 8%);
+  --button-outline-hover: oklch(0 0 0 / 4%);
+  --button-outline-pressed: oklch(0 0 0 / 8%);
+  --button-tertiary-hover: oklch(0 0 0 / 4%);
+  --button-tertiary-pressed: oklch(0 0 0 / 8%);
+
+  --button-danger-bg: oklch(from var(--color-failure) l c h / 20%);
+  --button-success-bg: oklch(from var(--color-success) l c h / 20%);
+  --button-success-hover: oklch(from var(--color-success) l c h / 26%);
+  --button-success-pressed: oklch(from var(--color-success) l c h / 32%);
+
+  --button-shadow: 0 2px 1px -1px oklch(0 0 0 / 5%);
+  --button-raised-shadow: 0 0 0 1px var(--border-secondary), inset 0 1px 0 oklch(1 0 0 / 90%), inset 0 0 0 1px oklch(1 0 0 / 60%), 0 1px 2px oklch(0 0 0 / 6%);
+  --button-outline-highlight: oklch(1 0 0 / 75%);
+  --button-gradient-raised: linear-gradient(180deg, transparent, oklch(0 0 0 / 8%));
+}
+@theme inline {
+  --color-border-primary: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+  --color-border-tertiary: var(--border-tertiary);
+  --color-divider: var(--divider);
+  --color-button-primary-bg: var(--button-primary-bg);
+  --color-button-primary-hover: var(--button-primary-hover);
+  --color-button-primary-pressed: var(--button-primary-pressed);
+  --color-button-primary-ink: var(--button-primary-ink);
+  --color-button-secondary-bg: var(--button-secondary-bg);
+  --color-button-secondary-hover: var(--button-secondary-hover);
+  --color-button-secondary-pressed: var(--button-secondary-pressed);
+  --color-button-outline-hover: var(--button-outline-hover);
+  --color-button-outline-pressed: var(--button-outline-pressed);
+  --color-button-tertiary-bg: var(--button-tertiary-bg);
+  --color-button-tertiary-hover: var(--button-tertiary-hover);
+  --color-button-tertiary-pressed: var(--button-tertiary-pressed);
+  --color-button-accent-ink: var(--button-accent-ink);
+  --color-button-accent-hover: var(--button-accent-hover);
+  --color-button-accent-pressed: var(--button-accent-pressed);
+  --color-button-danger-bg: var(--button-danger-bg);
+  --color-button-danger-hover: var(--button-danger-hover);
+  --color-button-danger-pressed: var(--button-danger-pressed);
+  --color-button-success-bg: var(--button-success-bg);
+  --color-button-success-hover: var(--button-success-hover);
+  --color-button-success-pressed: var(--button-success-pressed);
+  --color-button-focus: var(--button-focus);
+  --color-button-outline-highlight: var(--button-outline-highlight);
+  --shadow-button: var(--button-shadow);
+  --shadow-button-raised: var(--button-raised-shadow);
+  --spacing-button-control: 2rem;
+}
+
+@utility button-outline-reflection-top {
+  mask-image: radial-gradient(ellipse 80% 120% at 12% 0%, oklch(0 0 0) 0%, transparent 72%);
+}
+
+@utility button-outline-reflection-bottom {
+  mask-image: radial-gradient(ellipse 65% 120% at 88% 100%, oklch(0 0 0) 0%, transparent 72%);
+}
+
+@utility button-gradient-raised {
+  background-image: var(--button-gradient-raised);
+}
 /* Interface languages whose scripts Inter doesn't cover. Latin text keeps the
    default faces; the script's glyphs come from each platform's native UI font
    (macOS, Windows, then Noto on Linux/Android), and `lang` on <html> (set by
@@ -783,18 +903,7 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
   --color-control-raised: color-mix(in oklch, var(--color-surface-2) 98%, var(--color-content-0));
 }
 
-/* Right-side header actions share a quiet, hover-only background. Touch header
-   islands own their controls' chrome (the compose island's filled send button,
-   say), so the flattening stops at an island boundary. */
-@utility header-actions {
-  & [data-button]:is([data-variant="ghost"], [data-variant="outline"]):not([data-header-island] *) {
-    @apply glass-none border-0 bg-transparent;
-
-    &:not(:hover):not(:active) {
-      background-image: none;
-    }
-  }
-}
+/* Header Button presentation belongs to the shared Button recipes. */
 
 /* Floating "island" chrome shared by the mobile dock buttons, header islands,
    and other floating mobile controls. Consumers add their own shape classes
@@ -1831,8 +1940,10 @@ html:not([data-touch-device="true"]) [data-message][data-targeted]:hover{
   transition: none;
 }
 
-:focus-visible {
-  outline: none;
+@layer base {
+  :focus-visible {
+    outline: none;
+  }
 }
 
 input[type="time"]::-webkit-calendar-picker-indicator {

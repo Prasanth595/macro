@@ -430,7 +430,7 @@ function PlanContents(
             Dismiss
           </Button>
           <Button
-            variant="cta"
+            variant="accent"
             size="sm"
             disabled={!props.editable || props.count === 0}
             onClick={() => props.onApprove()}

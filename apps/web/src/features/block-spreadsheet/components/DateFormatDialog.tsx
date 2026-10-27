@@ -129,7 +129,7 @@ function DateFormatForm(props: {
         <Button variant="ghost" type="button" onClick={props.onClose}>
           Cancel
         </Button>
-        <Button type="submit" variant="strong" disabled={!preview()}>
+        <Button type="submit" variant="accent" disabled={!preview()}>
           Apply
         </Button>
       </div>

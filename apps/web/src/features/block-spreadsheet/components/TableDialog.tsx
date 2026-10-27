@@ -81,7 +81,7 @@ function TableForm(props: {
         <Button variant="ghost" type="button" onClick={props.onClose}>
           Cancel
         </Button>
-        <Button type="submit" variant="strong">
+        <Button type="submit" variant="accent">
           Save
         </Button>
       </div>

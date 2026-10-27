@@ -165,7 +165,6 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
               <Button
                 variant="outline"
                 size="sm"
-                depth={3}
                 onClick={() => catalog.query.refetch()}
                 class="ml-2"
               >

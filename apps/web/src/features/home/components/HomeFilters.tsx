@@ -218,13 +218,13 @@ export function HomeFilterDropdown() {
         label="Filter Home"
         customTrigger={
           <Dropdown.Trigger
+            aria-label="Filter Home"
+            tooltip="Filter Home"
             ref={tourTarget(HOME_TOUR.filter)}
             variant="ghost"
-            size="sm"
-            square
-            label="Filter Home"
+            size="icon-sm"
           >
-            <FilterIcon />
+            <FilterIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
           </Dropdown.Trigger>
         }
         groups={HOME_FILTER_GROUPS}

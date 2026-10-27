@@ -107,7 +107,7 @@ export function ManageMeetingsDialog(props: { onClose: () => void }) {
             </Switch>
           </div>
           <div class="flex justify-end pt-4">
-            <Button variant="strong" onClick={props.onClose}>
+            <Button variant="secondary" onClick={props.onClose}>
               Done
             </Button>
           </div>

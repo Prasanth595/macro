@@ -89,7 +89,6 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                   <Button
                     class="self-start"
                     variant="outline"
-                    depth={3}
                     onClick={props.context.refresh}
                   >
                     Try again
@@ -138,7 +137,6 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                   >
                     <Button
                       variant="accent"
-                      depth={3}
                       size="sm"
                       onClick={props.context.openPlans}
                     >
@@ -196,7 +194,6 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                                   purchaseTrigger = button;
                                 }}
                                 variant="outline"
-                                depth={3}
                                 size="sm"
                                 class="rounded-full px-4"
                                 onClick={() => setPurchaseOpen(true)}
@@ -283,7 +280,6 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                   {(open) => (
                     <Button
                       variant="accent"
-                      depth={3}
                       size="sm"
                       class="self-start"
                       onClick={open()}
@@ -297,7 +293,6 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                     variant={
                       developer().plan() === 'free' ? 'accent' : 'outline'
                     }
-                    depth={3}
                     size="sm"
                     aria-pressed={developer().plan() === 'free'}
                     onClick={() => developer().previewPlan('free')}
@@ -308,7 +303,6 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                     variant={
                       developer().plan() === 'paid' ? 'accent' : 'outline'
                     }
-                    depth={3}
                     size="sm"
                     aria-pressed={developer().plan() === 'paid'}
                     onClick={() => developer().previewPlan('paid')}
@@ -317,7 +311,6 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                   </Button>
                   <Button
                     variant="outline"
-                    depth={3}
                     size="sm"
                     disabled={developer().beforeLaunch()}
                     onClick={() => developer().openLimitDialog('free')}
@@ -326,7 +319,6 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                   </Button>
                   <Button
                     variant="outline"
-                    depth={3}
                     size="sm"
                     disabled={developer().beforeLaunch()}
                     onClick={() => developer().openLimitDialog('paid')}
@@ -335,7 +327,6 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                   </Button>
                   <Button
                     variant={developer().beforeLaunch() ? 'accent' : 'outline'}
-                    depth={3}
                     size="sm"
                     aria-pressed={developer().beforeLaunch()}
                     onClick={developer().previewBeforeLaunch}
@@ -344,7 +335,6 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                   </Button>
                   <Button
                     variant="ghost"
-                    depth={3}
                     size="sm"
                     disabled={!developer().active()}
                     onClick={developer().reset}

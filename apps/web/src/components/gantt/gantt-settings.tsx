@@ -21,7 +21,6 @@ export function GanttSettings() {
   return (
     <Dropdown placement="bottom-end">
       <Dropdown.Trigger
-        depth={2}
         variant="outline"
         size="icon-md"
         class="bg-surface shadow-sm"

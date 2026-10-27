@@ -21,7 +21,7 @@ export function SectionMenu(props: {
   return (
     <Dropdown>
       <Dropdown.Trigger variant="ghost" size="icon-sm" aria-label={props.label}>
-        <DotsThree />
+        <DotsThree class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
       </Dropdown.Trigger>
       <Dropdown.Content class="w-52">
         <Dropdown.Item disabled={!props.canMoveUp} onSelect={props.onMoveUp}>

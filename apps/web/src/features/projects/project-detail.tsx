@@ -351,6 +351,7 @@ function ProjectDetailHost(props: ProjectDetailProps) {
                   longer have access.
                 </p>
                 <Button
+                  variant="ghost"
                   onClick={() => fireAndForget(source.refresh(), 'projects')}
                 >
                   Try again

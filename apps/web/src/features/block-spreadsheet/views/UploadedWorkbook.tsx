@@ -56,6 +56,7 @@ export default function UploadedWorkbook() {
                 : 'Unable to open this workbook.'}
             </span>
             <Button
+              variant="ghost"
               size="sm"
               onClick={() =>
                 fireAndForget(query.refetch(), 'uploaded-workbook')

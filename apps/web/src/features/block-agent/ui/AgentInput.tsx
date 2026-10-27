@@ -467,9 +467,10 @@ export function AgentInput(props: AgentInputProps) {
                           }
                         >
                           <Button
-                            variant={isTouchDevice() ? 'ghost' : 'strong'}
-                            size="icon-composer"
-                            label="Stop"
+                            aria-label="Stop"
+                            tooltip="Stop"
+                            variant={isTouchDevice() ? 'ghost' : 'secondary'}
+                            size="icon-md"
                             disabled={props.disabled || props.readOnly}
                             onClick={() => props.onStop?.()}
                             class={
@@ -487,8 +488,10 @@ export function AgentInput(props: AgentInputProps) {
                         appearance="composer"
                         intent="flush"
                         aria-label="Flush queued messages"
-                        tooltip="Flush queued messages"
-                        shortcut="Enter"
+                        tooltip={{
+                          content: 'Flush queued messages',
+                          shortcut: 'Enter',
+                        }}
                         onClick={sendNext}
                         disabled={!canSendNext()}
                       />

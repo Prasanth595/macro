@@ -26,12 +26,13 @@ export function SpellingPane(props: {
       <div class="flex h-9 items-center justify-between border-edge-muted border-b px-3">
         <span class="font-semibold text-ink text-sm">Spelling</span>
         <Button
+          aria-label="Close"
+          tooltip="Close"
           size="icon-sm"
           variant="ghost"
-          label="Close"
           onClick={props.onClose}
         >
-          <X />
+          <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>
       <Show

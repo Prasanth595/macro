@@ -90,7 +90,6 @@ export function ReactionChip(props: ReactionChipProps) {
             data-emoji={props.emoji}
             data-user-reacted={props.selected ? '' : undefined}
             aria-pressed={!!props.selected}
-            noTouchResize
             ref={(el) =>
               touchHandler(el, () => ({
                 onLongPress: () => {

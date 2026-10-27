@@ -75,7 +75,6 @@ export function PipedreamAppPicker(props: {
               <Button
                 variant="outline"
                 size="sm"
-                depth={3}
                 onClick={() => catalog.query.refetch()}
                 class="ml-2"
               >
@@ -116,7 +115,6 @@ export function PipedreamAppPicker(props: {
                 <Button
                   variant="outline"
                   size="sm"
-                  depth={3}
                   disabled={catalog.query.isFetchingNextPage}
                   onClick={() =>
                     fireAndForget(
@@ -255,7 +253,7 @@ function SelectedAppRow(props: {
         aria-label={`Remove ${props.server.server_name}`}
         onClick={() => props.onRemove()}
       >
-        <XIcon />
+        <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
       </Button>
     </IntegrationRow>
   );

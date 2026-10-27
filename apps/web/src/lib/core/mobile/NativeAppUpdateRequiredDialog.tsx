@@ -53,7 +53,7 @@ export function NativeAppUpdateRequiredDialog(props: {
           <div class="flex justify-end gap-2">
             <Show when={platform}>
               <Button
-                variant="strong"
+                variant="secondary"
                 size="sm"
                 disabled={opening()}
                 onClick={() => fireAndForget(openStore(), 'native-update-link')}
@@ -70,7 +70,7 @@ export function NativeAppUpdateRequiredDialog(props: {
                 Restart to update
               </Button>
             </Show>
-            <Button onClick={props.onClose} variant="strong" size="sm">
+            <Button onClick={props.onClose} variant="secondary" size="sm">
               OK
             </Button>
           </div>

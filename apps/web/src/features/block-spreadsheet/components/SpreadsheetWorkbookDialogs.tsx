@@ -73,7 +73,7 @@ export function SpreadsheetSheetDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant="strong"
+            variant={props.dialog?.kind === 'delete' ? 'danger' : 'accent'}
             type="submit"
             disabled={!canConfirm()}
           >
@@ -210,7 +210,7 @@ export function SpreadsheetImportDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant="strong"
+            variant="accent"
             disabled={props.readonly || props.importing}
             onClick={props.onConfirm}
           >

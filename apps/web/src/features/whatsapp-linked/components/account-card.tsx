@@ -44,7 +44,7 @@ export function ConnectCard(props: {
         <Item.Actions class="self-center">
           <Button
             type="button"
-            variant="strong"
+            variant="accent"
             disabled={props.unavailable || props.pending}
             tooltip={
               props.unavailable ? 'Linking WhatsApp is turned off' : undefined

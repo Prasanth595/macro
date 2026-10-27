@@ -406,6 +406,7 @@ export function IntegrationRow(props: {
 export function SettingsButton(props: ButtonProps) {
   return (
     <Button
+      variant="ghost"
       {...props}
       class={cn('rounded-full font-normal gap-1.5', props.class)}
     />

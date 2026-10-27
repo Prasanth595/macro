@@ -101,7 +101,7 @@ export function ToolApprovalCard(props: ToolApprovalCardProps) {
           <Button
             type="button"
             size="md"
-            variant="strong"
+            variant="accent"
             disabled={props.disabled}
             onClick={() => props.onApprove()}
           >

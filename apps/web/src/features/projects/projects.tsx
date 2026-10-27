@@ -85,7 +85,10 @@ function ProjectsContent(props: ParentProps) {
     <ErrorBoundary
       fallback={(_, reset) => (
         <div role="alert" class="p-4">
-          Could not load projects. <Button onClick={reset}>Try again</Button>
+          Could not load projects.{' '}
+          <Button variant="ghost" onClick={reset}>
+            Try again
+          </Button>
         </div>
       )}
     >

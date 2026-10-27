@@ -16,15 +16,15 @@ export function DictationButton(props: {
   return (
     <Show when={isFeatureEnabled(enableDictation)}>
       <Button
+        aria-label={props.dictation.label()}
         variant="ghost"
-        size="icon-composer"
+        size="icon-md"
         class="text-ink not-touch:text-composer-ink"
-        label={props.dictation.label()}
         tooltip={props.dictation.label()}
         disabled={props.disabled || props.dictation.disabled()}
         onClick={() => fireAndForget(props.dictation.start(), 'dictation')}
       >
-        <MicrophoneIcon />
+        <MicrophoneIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
       </Button>
     </Show>
   );
@@ -60,10 +60,11 @@ export function DictationPanel(props: { dictation: DictationController }) {
           </span>
         </div>
         <Button
+          aria-label="Cancel dictation"
+          tooltip="Cancel dictation"
           variant="ghost"
-          size="icon-composer"
+          size="icon-md"
           class="text-composer-ink touch:bg-ink/5 touch:text-ink-muted"
-          label="Cancel dictation"
           ref={(element) =>
             queueMicrotask(() => {
               if (element.isConnected) element.focus();
@@ -71,22 +72,23 @@ export function DictationPanel(props: { dictation: DictationController }) {
           }
           onClick={props.dictation.cancel}
         >
-          <XIcon />
+          <XIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
         {/* Confirm is the composer's primary action while recording, so on
             touch it borrows the send button's filled circle. */}
         <Button
+          aria-label="Use dictation"
+          tooltip="Use dictation"
           variant="ghost"
-          size="icon-composer"
+          size="icon-md"
           class="text-composer-ink touch:bg-ink touch:text-surface-4"
-          label="Use dictation"
           disabled={
             props.dictation.phase() === 'starting' ||
             props.dictation.phase() === 'finishing'
           }
           onClick={() => fireAndForget(props.dictation.confirm(), 'dictation')}
         >
-          <CheckIcon />
+          <CheckIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>
     </Show>

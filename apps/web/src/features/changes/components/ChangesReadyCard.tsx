@@ -37,7 +37,7 @@ export function ChangesReadyCard(props: {
           tooltip="Dismiss"
           onClick={() => props.onDismiss()}
         >
-          <XIcon />
+          <XIcon class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>
       <div class="flex items-center gap-2 font-mono text-[11px] text-ink-placeholder">

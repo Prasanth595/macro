@@ -57,13 +57,14 @@ export function DriveHeader() {
           <Show when={state.value().location.kind === 'tab'}>
             <HeaderActionGroup label="File filters">
               <Suspense>
-                <DriveFilterMenu />
+                <DriveFilterMenu grouped />
               </Suspense>
             </HeaderActionGroup>
           </Show>
           <Show when={!isRecent()}>
             <HeaderActionGroup label="File view options">
               <ListSortDropdown
+                grouped
                 label="Sort files"
                 value={state.value().sort}
                 onChange={state.setSort}

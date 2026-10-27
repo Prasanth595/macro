@@ -168,28 +168,31 @@ export function FindReplace(props: {
             : ''}
         </span>
         <Button
+          aria-label="Previous"
+          tooltip="Previous"
           size="icon-xs"
           variant="ghost"
-          label="Previous"
           onClick={() => step(-1)}
         >
-          <CaretUp />
+          <CaretUp class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
         <Button
+          aria-label="Next"
+          tooltip="Next"
           size="icon-xs"
           variant="ghost"
-          label="Next"
           onClick={() => step(1)}
         >
-          <CaretDown />
+          <CaretDown class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
         <Button
+          aria-label="Close"
+          tooltip="Close"
           size="icon-xs"
           variant="ghost"
-          label="Close"
           onClick={props.onClose}
         >
-          <X />
+          <X class="size-3 touch:size-6 shrink-0 pointer-events-none" />
         </Button>
       </div>
       <Show when={props.replace && !props.readonly}>

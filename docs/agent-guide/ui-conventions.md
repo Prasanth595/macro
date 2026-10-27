@@ -21,10 +21,12 @@ semantic control islands on the right. Collection headers use `ListHeader`:
 filters, view options, New, then expandable Search. Related detail actions share
 a `HeaderActionGroup`; keep sharing, item navigation, and detail/view toggles in
 separate groups. View tabs (channel, CRM record, and project sections, Signal and
-Noise) are `Tabs`: separate 32px pills, never inside a group. Groups use the
-canonical elevated surface, fully rounded ends, 32px controls, and 8px gaps.
-A group owns its frame; its child buttons stay flat and do not get extra borders
-or shadows. Nested shared actions reuse the containing group rather than adding
+Noise) are `Tabs`: separate 32px pills, never inside a group. Action groups use
+`variant="secondary" finish="raised"`, fully rounded ends, `sm`/`icon-sm` segments
+(28px controls), and 8px gaps. Tabs, New, and Search retain `md` sizing.
+Compose their actions with `ButtonGroup.Button`; the group shares Button's frame
+materials while each segment keeps its own interaction states. Standalone Buttons
+remain independent. Nested shared actions reuse the containing group rather than adding
 another frame, and a group with no visible actions renders nothing. Keep
 tooltips on icon-only controls and collapse labels as a pane narrows (`Tabs
 iconOnly`, then a menu). Preserve specialized editor toolbars and touch
@@ -37,16 +39,16 @@ lists which control to use for each role.
 On touch devices, low-emphasis header actions remain borderless with their
 existing hover and pressed states. Emphasized variants retain their treatment,
 including an active call's green ink. Button size does not change variant colors
-or framing. Use `glass={false}` for an explicitly flat frame. Inline
-calendar-invitation text actions remove the transparent border to keep alignment.
+or framing. Button finishes are opt-in through `finish`, not `glass`.
+Inline calendar-invitation text actions remove the transparent border to keep alignment.
 
 ## Canonical desktop surfaces
 
-Use `not-touch:elevated` for desktop control surfaces. Buttons, button groups,
-inputs, and unselected tab pills share the same `shadow-elevated` treatment as
-composers, menus, settings cards, and dialogs: a fine outer outline, faint inner
-edge, brighter top edge, and compact shadow. Keep semantic fills and component
-geometry; a button group owns the frame so its child buttons remain flat.
+Use `not-touch:elevated` for existing desktop control surfaces other than Button
+and ButtonGroup. Button owns its semantic materials and optional `raised`,
+`gradient-raised`, and `glass-outline` finishes; ButtonGroup reuses those materials
+for its frame. Neither inherits the global elevation recipe. Inputs and unselected
+tab pills retain their existing surfaces. Group segments have no individual shadow.
 In dark mode, compact controls use thinner, lower-opacity edges than composers
 and floating panels. Keep desktop shadows close and faint, with only a slight top
 highlight, and define the border with subtle edge contrast.
@@ -59,7 +61,11 @@ draw a full 1px frame edge, menus keep the glass cast shadow, and
 `ComposerSurface` (composers and settings cards) keeps the wide `composer-shadow`
 halo. Touch surfaces retain their existing shadows.
 
-Desktop view tabs share one rounded track, with a small inset and a fully rounded selected pill. The selected pill uses the pressed fill and a subtle edge; tabs have no internal dividers. Wrapping preset choices can remain separate pills. Keep the existing touch-specific tab treatment and the agent composer's sliding track.
+Desktop view tabs share one flat rounded track, with a small inset and a fully
+rounded selected pill. Use borders and selected fills without raised edges,
+gradients, or shadows. Buttons use variant-specific pressed fills. Wrapping
+preset choices can remain separate pills. Keep each surface's existing touch
+treatment and the agent composer's sliding track (`variant="track"`).
 
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Every menu,
@@ -121,10 +127,10 @@ single-select rows keep their rounded shape.
 
 ## Dialog actions
 
-Cancel uses a ghost button. Confirm, save, and create actions use strong: the
-outline surface and border with semibold text, without inverted colors. Disabled
-and pending primary actions retain the strong variant. Mobile confirmation drawers
-use the same action hierarchy.
+Cancel uses a ghost button. Existing confirm, save, and create actions use
+secondary; primary provides the higher-emphasis neutral fill, and accent is
+solid accent. Loading actions use `loading`. Mobile confirmation drawers use
+the same action hierarchy.
 
 ## List-item sharing
 

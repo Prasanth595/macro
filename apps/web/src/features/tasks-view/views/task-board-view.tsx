@@ -195,6 +195,7 @@ export function TaskBoardView(props: {
         >
           Could not load all tasks.
           <Button
+            variant="ghost"
             size="sm"
             onClick={() => fireAndForget(read(source.refresh), 'tasks-view')}
           >
@@ -206,6 +207,7 @@ export function TaskBoardView(props: {
         <div role="alert" class="px-4 py-2 text-sm text-failure">
           Could not load task properties. Moving tasks is unavailable.
           <Button
+            variant="ghost"
             size="sm"
             onClick={() =>
               fireAndForget(read(props.data.retryDefinitions), 'tasks-view')
@@ -255,12 +257,13 @@ export function TaskBoardView(props: {
                 <Show when={props.onCreate}>
                   <div class="ml-auto flex shrink-0">
                     <Button
+                      aria-label={`Add task to ${column().label}`}
+                      tooltip={`Add task to ${column().label}`}
                       size="icon-sm"
                       variant="ghost"
-                      label={`Add task to ${column().label}`}
                       onClick={() => props.onCreate?.(column().id)}
                     >
-                      <PlusIcon />
+                      <PlusIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
                     </Button>
                   </div>
                 </Show>
@@ -279,6 +282,7 @@ export function TaskBoardView(props: {
                     <div class="py-3">
                       <Button
                         size="sm"
+                        variant="outline"
                         disabled={column().loadingMore}
                         onClick={() =>
                           fireAndForget(
@@ -318,6 +322,7 @@ export function TaskBoardView(props: {
         <div class="p-3">
           <Button
             size="sm"
+            variant="outline"
             disabled={source.isLoadingMore()}
             onClick={() =>
               fireAndForget(

@@ -562,9 +562,18 @@ export function ViewSidebarToggle(props: { action: 'collapse' | 'expand' }) {
     (props.action === 'expand'
       ? ws.aside.isCollapsed() || ws.aside.isOverlay()
       : !ws.aside.isCollapsed());
+  // Show and Hide are separate actions, not a persistently pressed toggle.
   return (
     <Show when={visible()}>
       <Button
+        aria-label={
+          props.action === 'expand' ? 'Show navigation' : 'Hide navigation'
+        }
+        tooltip={{
+          content:
+            props.action === 'expand' ? 'Show navigation' : 'Hide navigation',
+          hotkey: TOKENS.workspace.toggleNavigation,
+        }}
         variant="ghost"
         size="icon-sm"
         class={cn(
@@ -574,11 +583,6 @@ export function ViewSidebarToggle(props: { action: 'collapse' | 'expand' }) {
             ws?.aside.isOverlay() &&
             'motion-safe:animate-[dialog-overlay-open_60ms_ease-out_80ms_both]'
         )}
-        label={
-          props.action === 'expand' ? 'Show navigation' : 'Hide navigation'
-        }
-        hotkey={TOKENS.workspace.toggleNavigation}
-        aria-expanded={props.action !== 'expand'}
         ref={(element) => {
           if (props.action === 'expand') toggleTarget(element);
         }}

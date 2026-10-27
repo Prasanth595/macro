@@ -277,7 +277,7 @@ export function CreateRailAction(props: {
   onClick: () => void;
 }) {
   return (
-    <ViewSidebar.Control label={props.label} onClick={props.onClick}>
+    <ViewSidebar.Control aria-label={props.label} onClick={props.onClick}>
       <PlusIcon class="size-3.5" />
     </ViewSidebar.Control>
   );

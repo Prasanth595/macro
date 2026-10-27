@@ -184,7 +184,7 @@ export function ConversionNotice(props: {
         answer that fits, and the current column keeps all of them.
       </p>
       <div class="flex gap-2">
-        <Button size="sm" variant="strong" onClick={props.onConvert}>
+        <Button size="sm" variant="secondary" onClick={props.onConvert}>
           Convert into a new question
         </Button>
         <Button size="sm" variant="ghost" onClick={props.onDismiss}>

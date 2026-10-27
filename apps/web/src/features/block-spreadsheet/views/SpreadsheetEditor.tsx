@@ -929,7 +929,7 @@ export function SpreadsheetEditor(props: {
             >
               Cancel
             </Button>
-            <Button type="submit" variant="strong">
+            <Button type="submit" variant="secondary">
               Apply
             </Button>
           </div>
@@ -953,8 +953,10 @@ export function SpreadsheetEditor(props: {
           >
             <span>Calculation is unavailable: {error()}</span>
             <Button
+              variant="ghost"
+              aria-label="Retry calculation"
+              tooltip="Retry calculation"
               size="sm"
-              label="Retry calculation"
               onClick={() => {
                 calculation.retry();
               }}
@@ -1324,9 +1326,11 @@ export function SpreadsheetEditor(props: {
           when={editable() && props.store.rowCount() < SPREADSHEET_MAX_ROWS}
         >
           <Button
+            variant="ghost"
+            aria-label={`Add ${Math.min(100, SPREADSHEET_MAX_ROWS - props.store.rowCount())} rows`}
+            tooltip={`Add ${Math.min(100, SPREADSHEET_MAX_ROWS - props.store.rowCount())} rows`}
             size="sm"
             class="max-sm:hidden touch:min-h-[44px]"
-            label={`Add ${Math.min(100, SPREADSHEET_MAX_ROWS - props.store.rowCount())} rows`}
             onClick={() => {
               grid.commit();
               props.store.appendRows(100);
@@ -1342,9 +1346,11 @@ export function SpreadsheetEditor(props: {
           }
         >
           <Button
+            variant="ghost"
+            aria-label="Add 26 columns"
+            tooltip="Add 26 columns"
             size="sm"
             class="max-sm:hidden touch:min-h-[44px]"
-            label="Add 26 columns"
             onClick={() => {
               grid.commit();
               props.store.appendColumns(26);

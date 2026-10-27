@@ -369,12 +369,13 @@ vi.mock('@ui', async () => {
     children?: JSX.Element;
     disabled?: boolean;
     tooltip?: string;
+    'aria-label'?: string;
     onClick?: () => void;
   }) => (
     <button
       disabled={props.disabled}
       onClick={props.onClick}
-      aria-label={props.tooltip}
+      aria-label={props['aria-label'] ?? props.tooltip}
     >
       {props.children}
     </button>
@@ -420,7 +421,7 @@ vi.mock('@ui', async () => {
       ItemIndicator: Container,
       Group: Container,
     }),
-    ButtonGroup: Object.assign(Container, { Divider: () => null }),
+    ButtonGroup: Object.assign(Container, { Button, Divider: () => null }),
     Tabs: (props: {
       'aria-label'?: string;
       onChange?: (value: string) => void;

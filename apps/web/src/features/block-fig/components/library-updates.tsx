@@ -83,13 +83,14 @@ export function LibraryUpdatesDialog(props: {
                 Library updates
               </Dialog.Title>
               <Dialog.CloseButton
+                aria-label="Close"
+                tooltip="Close"
                 as={Button}
                 variant="ghost"
                 size="icon-sm"
-                label="Close"
                 tabIndex={-1}
               >
-                <XIcon />
+                <XIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
               </Dialog.CloseButton>
             </div>
             <For each={libraries()}>
@@ -152,7 +153,7 @@ export function LibraryUpdatesDialog(props: {
             <Show when={props.canEdit}>
               <div class="flex justify-end">
                 <Button
-                  variant="cta"
+                  variant="accent"
                   size="sm"
                   data-testid="fig-library-update-all"
                   disabled={props.updating || props.updates.length === 0}

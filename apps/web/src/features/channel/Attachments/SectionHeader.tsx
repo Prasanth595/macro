@@ -42,7 +42,6 @@ export function LoadMoreButton(props: {
     <Button
       variant="outline"
       size="sm"
-      depth={4}
       class="justify-self-center mt-2 bg-surface"
       onClick={() => props.onLoadMore()}
       disabled={props.isFetching()}

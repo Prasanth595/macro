@@ -81,6 +81,7 @@ export function CallDetailActions(props: {
       <Show when={!isMobile() && !props.record.isActive && canCallAgain()}>
         <HeaderActionGroup label="Call actions">
           <HeaderActionButton
+            grouped
             label="Call Again"
             icon={<PhoneCallIcon class="size-3.5 touch:size-4" />}
             onClick={callAgain}

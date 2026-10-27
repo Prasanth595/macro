@@ -63,7 +63,7 @@ export function RequestAccessView(props: {
             />
           </div>
           <Button
-            variant="cta"
+            variant="accent"
             size="sm"
             disabled={
               props.source.busy() ||

@@ -72,7 +72,7 @@ function Header(
           <div class="ml-auto flex shrink-0 items-center gap-1">
             <Show when={!isTouchDevice() && local.search}>
               <Control
-                label={local.searchLabel ?? 'Search'}
+                aria-label={local.searchLabel ?? 'Search'}
                 aria-expanded={searchOpen()}
                 onClick={toggleSearch}
               >
@@ -282,7 +282,7 @@ function TreeItem(props: {
         <span class="absolute right-(--sidebar-action-inset) top-1/2 flex -translate-y-1/2">
           <Control
             class="rounded-md"
-            label={`${props.expanded ? 'Collapse' : 'Expand'} ${props.label}`}
+            aria-label={`${props.expanded ? 'Collapse' : 'Expand'} ${props.label}`}
             aria-expanded={props.expanded}
             onClick={props.onToggle}
           >
@@ -325,6 +325,7 @@ function Action(props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) {
   const [local, rest] = splitProps(props, ['children', 'class']);
   return (
     <Button
+      variant="outline"
       type="button"
       {...rest}
       class={cn(

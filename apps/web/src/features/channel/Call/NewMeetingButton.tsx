@@ -62,10 +62,11 @@ function NewMeetingMenu(props: NewMeetingActions) {
           when={props.presentation}
           fallback={
             <Dropdown.Trigger
+              aria-label="New call"
+              tooltip="New call"
               variant="accent"
               size="sm"
               class="gap-1.5 px-2"
-              label="New call"
             >
               <VideoCameraIcon class="size-3.5" />
               <span>New call</span>

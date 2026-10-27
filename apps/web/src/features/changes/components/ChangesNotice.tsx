@@ -34,7 +34,11 @@ export function ChangesNotice(props: {
           onClick={() => props.onRefresh?.()}
         >
           <ArrowsClockwiseIcon
-            class={props.refreshing ? 'animate-spin' : undefined}
+            class={
+              props.refreshing
+                ? 'size-3 shrink-0 touch:size-6 animate-spin'
+                : 'size-3 shrink-0 touch:size-6'
+            }
           />
           <span>Refresh changes</span>
         </Button>

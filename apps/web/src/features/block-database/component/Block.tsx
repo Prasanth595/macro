@@ -427,6 +427,7 @@ const Block: Component = () => {
                                   {databaseOpMessage(failure(), 'this view')}
                                 </span>
                                 <Button
+                                  variant="accent"
                                   size="sm"
                                   onClick={() =>
                                     creations.retry(shown().view.id)
@@ -435,6 +436,7 @@ const Block: Component = () => {
                                   Retry
                                 </Button>
                                 <Button
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => {
                                     creations.discard(shown().view.id);

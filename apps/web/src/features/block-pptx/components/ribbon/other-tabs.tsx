@@ -78,7 +78,7 @@ export function DesignTab() {
           )}
         </RibbonPopover>
         <RibbonTextButton
-          label="Format background"
+          aria-label="Format background"
           disabled={ro()}
           onClick={() => env.openFormatPane('background')}
         >
@@ -237,7 +237,7 @@ export function SlideShowTab() {
     <>
       <RibbonGroup label="Start slide show">
         <RibbonTextButton
-          label="From beginning"
+          aria-label="From beginning"
           tooltip="From beginning (F5)"
           data-testid="pptx-present-start"
           onClick={() => env.present(false)}
@@ -246,7 +246,7 @@ export function SlideShowTab() {
           From beginning
         </RibbonTextButton>
         <RibbonTextButton
-          label="From current slide"
+          aria-label="From current slide"
           tooltip="From current slide (⇧F5)"
           onClick={() => env.present(true)}
         >
@@ -254,7 +254,7 @@ export function SlideShowTab() {
           From current slide
         </RibbonTextButton>
         <RibbonTextButton
-          label="Presenter view"
+          aria-label="Presenter view"
           tooltip="Presenter view: notes, next slide, and timer here; the show in a separate window (⌥F5)"
           data-testid="pptx-present-presenter"
           onClick={() => env.present(true, true)}
@@ -265,7 +265,7 @@ export function SlideShowTab() {
       </RibbonGroup>
       <RibbonGroup label="Set up">
         <RibbonTextButton
-          label="Hide slide"
+          aria-label="Hide slide"
           disabled={env.readonly()}
           onClick={() => {
             const s = env.slide();
@@ -291,7 +291,7 @@ export function ViewTab() {
     <>
       <RibbonGroup label="Presentation views">
         <RibbonTextButton
-          label="Normal"
+          aria-label="Normal"
           aria-pressed={!env.sorter()}
           variant={env.sorter() ? 'ghost' : 'accent'}
           onClick={() => env.setSorter(false)}
@@ -300,7 +300,7 @@ export function ViewTab() {
           Normal
         </RibbonTextButton>
         <RibbonTextButton
-          label="Slide Sorter"
+          aria-label="Slide Sorter"
           aria-pressed={env.sorter()}
           variant={env.sorter() ? 'accent' : 'ghost'}
           data-testid="pptx-tab-view-sorter"
@@ -314,7 +314,7 @@ export function ViewTab() {
         {(open) => (
           <RibbonGroup label="Master views">
             <RibbonTextButton
-              label="Slide Master"
+              aria-label="Slide Master"
               tooltip="Slide Master: edit the slide masters and layouts"
               data-testid="pptx-view-slide-master"
               onClick={() => open()()}
@@ -327,7 +327,7 @@ export function ViewTab() {
       </Show>
       <RibbonGroup label="Zoom">
         <RibbonButton
-          label="Zoom out"
+          aria-label="Zoom out"
           tooltip="Zoom out (⌘−)"
           onClick={() =>
             env.setZoom(Math.max(0.1, (percent() ?? 100) / 100 / 1.25))
@@ -346,7 +346,7 @@ export function ViewTab() {
           onCommit={(v) => env.setZoom(v / 100)}
         />
         <RibbonButton
-          label="Zoom in"
+          aria-label="Zoom in"
           tooltip="Zoom in (⌘+)"
           onClick={() =>
             env.setZoom(Math.min(4, ((percent() ?? 100) / 100) * 1.25))
@@ -355,7 +355,7 @@ export function ViewTab() {
           <MagnifyingGlassPlus />
         </RibbonButton>
         <RibbonTextButton
-          label="Fit to window"
+          aria-label="Fit to window"
           variant={env.zoom() === 'fit' ? 'accent' : 'ghost'}
           onClick={() => env.setZoom('fit')}
         >
@@ -365,7 +365,7 @@ export function ViewTab() {
       </RibbonGroup>
       <RibbonGroup label="Show">
         <RibbonTextButton
-          label="Ruler"
+          aria-label="Ruler"
           aria-pressed={view().ruler}
           variant={view().ruler ? 'accent' : 'ghost'}
           data-testid="pptx-view-ruler"
@@ -375,7 +375,7 @@ export function ViewTab() {
           Ruler
         </RibbonTextButton>
         <RibbonTextButton
-          label="Gridlines"
+          aria-label="Gridlines"
           aria-pressed={view().gridlines}
           variant={view().gridlines ? 'accent' : 'ghost'}
           data-testid="pptx-view-gridlines"
@@ -385,7 +385,7 @@ export function ViewTab() {
           Gridlines
         </RibbonTextButton>
         <RibbonTextButton
-          label="Guides"
+          aria-label="Guides"
           tooltip="Guides (⌥F9)"
           aria-pressed={view().drawingGuides}
           variant={view().drawingGuides ? 'accent' : 'ghost'}
@@ -469,7 +469,7 @@ export function ViewTab() {
           )}
         </RibbonPopover>
         <RibbonTextButton
-          label="Notes"
+          aria-label="Notes"
           aria-pressed={env.notesVisible()}
           variant={env.notesVisible() ? 'accent' : 'ghost'}
           onClick={env.toggleNotes}
@@ -545,7 +545,7 @@ export function ShapeFormatTab() {
         </RibbonPopover>
         <ShapeEffectsMenu label="Shape effects" testId="pptx-shape-effects" />
         <RibbonTextButton
-          label="Format pane"
+          aria-label="Format pane"
           disabled={ro()}
           onClick={() => env.openFormatPane('shape')}
         >
@@ -557,7 +557,7 @@ export function ShapeFormatTab() {
       </RibbonGroup>
       <RibbonGroup label="Arrange">
         <RibbonButton
-          label="Bring forward"
+          aria-label="Bring forward"
           tooltip="Bring forward (⌘])"
           disabled={ro()}
           onClick={() => c.arrange('forward')}
@@ -565,7 +565,7 @@ export function ShapeFormatTab() {
           <ArrowUp />
         </RibbonButton>
         <RibbonButton
-          label="Send backward"
+          aria-label="Send backward"
           tooltip="Send backward (⌘[)"
           disabled={ro()}
           onClick={() => c.arrange('backward')}
@@ -973,7 +973,7 @@ export function TransitionsTab() {
           }
         />
         <RibbonTextButton
-          label="Apply to all"
+          aria-label="Apply to all"
           disabled={ro()}
           data-testid="pptx-transition-all"
           onClick={() =>

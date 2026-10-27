@@ -205,14 +205,18 @@ export function PrDetailActions(props: { detail?: PrForeignEntityData }) {
             <HeaderActionGroup label="Sharing">
               <Tooltip label="Share pull request">
                 <HeaderActionButton
+                  grouped
                   label="Share"
-                  icon={<IconShared />}
+                  icon={
+                    <IconShared class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
+                  }
                   onClick={openShare}
                 />
               </Tooltip>
             </HeaderActionGroup>
             <HeaderActionGroup label="Pull request actions">
               <MergePullRequestButton
+                grouped
                 target={{ ...detail().prRef, title: detail().pullRequest.name }}
                 status={detail().pullRequest.status}
                 draft={detail().pullRequest.draft}

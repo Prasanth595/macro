@@ -89,6 +89,7 @@ export function ProjectCollaborators(props: {
               </Button>
               <Button
                 size="sm"
+                variant="accent"
                 disabled={props.pending}
                 onClick={() => fireAndForget(save([...selected()]), 'projects')}
               >

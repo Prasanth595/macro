@@ -324,7 +324,7 @@ export function ReviewStack(props: {
             {progress()}
           </span>
           <Button
-            variant="strong"
+            variant="secondary"
             size="sm"
             class="ml-auto"
             disabled={locked() || pending() === 0}
