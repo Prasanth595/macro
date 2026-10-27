@@ -5,24 +5,14 @@ import {
   SECRETS_MANAGER_REGION,
 } from './consts';
 
-/** A value per deployed config: Doppler's `dev` and `prd`. */
-export type DeployedValue = { dev: string; prd: string };
-
-type Args = {
-  /**
-   * Keys this stack owns in `dev` and `prd`. Values may be Doppler references
-   * (`${global_databases.dev.DATABASE_URL}`). Leave out keys set by hand or
-   * written by the service's own stack.
-   */
-  secrets?: Record<string, DeployedValue>;
-};
+type Args = {};
 
 export class DopplerProject extends pulumi.ComponentResource {
   public project: doppler.Project;
 
   constructor(
     name: string,
-    args: Args,
+    _args: Args,
     opts?: pulumi.ComponentResourceOptions
   ) {
     super(`my:components:DopplerProject:${name}`, name, {}, opts);
@@ -58,7 +48,7 @@ export class DopplerProject extends pulumi.ComponentResource {
       { parent: this }
     );
 
-    const devSync = new doppler.secretssync.AwsSecretsManager(
+    new doppler.secretssync.AwsSecretsManager(
       'dev-sync',
       {
         integration: DOPPLER_SECRETS_MANAGER_INTEGRATION_ID,
@@ -84,7 +74,7 @@ export class DopplerProject extends pulumi.ComponentResource {
       { parent: this }
     );
 
-    const prodSync = new doppler.secretssync.AwsSecretsManager(
+    new doppler.secretssync.AwsSecretsManager(
       'prod-sync',
       {
         integration: DOPPLER_SECRETS_MANAGER_INTEGRATION_ID,
@@ -98,23 +88,5 @@ export class DopplerProject extends pulumi.ComponentResource {
       },
       { parent: this }
     );
-
-    for (const [key, value] of Object.entries(args.secrets ?? {})) {
-      for (const [config, environment, sync] of [
-        ['dev', devEnvironment, devSync],
-        ['prd', prodEnvironment, prodSync],
-      ] as const) {
-        new doppler.Secret(
-          `${config}-${key}`,
-          {
-            project: this.project.name,
-            config: environment.slug,
-            name: key,
-            value: value[config],
-          },
-          { parent: this, dependsOn: [sync] }
-        );
-      }
-    }
   }
 }

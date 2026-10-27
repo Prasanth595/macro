@@ -84,8 +84,7 @@ Follow the [infrastructure guide](../development/infrastructure.md) for the patt
   `Pulumi.prod.yaml`, `package.json`, `tsconfig.json`, `index.ts`, `service.ts`) by
   copying `calendar-service`, and update `infra/bun.lock`.
 - **Doppler project:** add the name to `SERVICE_NAMES` in
-  `infra/stacks/doppler-projects/index.ts`, or declare it with the keys it can
-  own (references and non-secret values; see `whatsapp-session-service`). Until that stack is deployed and the
+  `infra/stacks/doppler-projects/index.ts`. Until that stack is deployed and the
   project has `dev`/`prd` values, a deploy can't read its secret; keep
   `bootstrap_pending` set.
 - **Gateway:** add a `GatewayService` member and a unique priority in
