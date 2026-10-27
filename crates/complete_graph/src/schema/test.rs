@@ -1266,6 +1266,15 @@ impl MacroAuthorizationService for FakeAuthorizationService {
         }
     }
 
+    async fn authorize_identity(
+        &self,
+        jwt: &str,
+    ) -> Result<macro_authorization::ValidatedCredential, Report<MacroAuthorizationError>> {
+        self.authorize(jwt)
+            .await
+            .map(macro_authorization::ValidatedCredential::session)
+    }
+
     async fn authorize_internal(
         &self,
         provided_key: &str,
@@ -1533,10 +1542,12 @@ impl TestHarness {
             ))
             .data(graphql_email::email_thread_metadata_loader(
                 user_id.clone(),
+                None,
                 self.email_content_reader.clone(),
             ))
             .data(graphql_email::email_thread_mail_projection_loader(
                 user_id,
+                None,
                 self.email_content_reader.clone(),
             ))
             .data(NoOpEntityFavoriteEdgeReader)
