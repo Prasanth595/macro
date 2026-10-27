@@ -400,10 +400,15 @@ function TaskSavedViewRows(props: {
             </p>
           </Show>
           <Show when={empty()}>
-            <div class="flex flex-col items-start gap-1.5 px-3 py-1 group-data-closed/sidebar-section:invisible">
-              <p class="text-xs text-ink-muted">
-                {t('viewMenus.noSavedViews')}
-              </p>
+            <div class="flex flex-col items-start gap-2 px-3 py-1 group-data-closed/sidebar-section:invisible">
+              <div class="space-y-1">
+                <p class="text-xs font-medium text-ink">
+                  {t('viewMenus.savedViewsEmptyTitle')}
+                </p>
+                <p class="text-xs text-ink-muted">
+                  {t('viewMenus.savedViewsEmptyDescription')}
+                </p>
+              </div>
               <Button
                 ref={attachCreateHotkeys}
                 size="sm"
