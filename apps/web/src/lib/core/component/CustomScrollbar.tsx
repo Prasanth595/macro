@@ -82,6 +82,22 @@ function InnerCustomScrollbar(props: CustomScrollbarProps) {
     }
   };
 
+  // Read the metrics once per frame, from its animation-frame callbacks. A
+  // scroll or resize can arrive just after content changed, and reading there
+  // forces a layout of everything that changed; the frame's own layout runs
+  // once all of those callbacks have had their turn.
+  let metricsFrame: number | undefined;
+  const scheduleScrollMetrics = () => {
+    if (metricsFrame !== undefined) return;
+    metricsFrame = requestAnimationFrame(() => {
+      metricsFrame = undefined;
+      updateScrollMetrics();
+    });
+  };
+  onCleanup(() => {
+    if (metricsFrame !== undefined) cancelAnimationFrame(metricsFrame);
+  });
+
   const maxScroll = () => Math.max(0, scrollSize() - clientSize());
 
   const trackSize = () => Math.max(0, clientSize() - THUMB_INSET * 2);
@@ -117,7 +133,7 @@ function InnerCustomScrollbar(props: CustomScrollbarProps) {
     if (!container) return;
 
     const handleScroll = () => {
-      if (!isDragging()) updateScrollMetrics();
+      if (!isDragging()) scheduleScrollMetrics();
       setIsScrolling(true);
       debouncedHideScrollbar();
       if (props.labelVisibilityDebounceMs !== Infinity) {
@@ -145,10 +161,10 @@ function InnerCustomScrollbar(props: CustomScrollbarProps) {
     });
     container.addEventListener('pointerleave', handleProximityLeave);
 
-    // Observing reports every target once after the next layout, so metrics
-    // are read where layout is already current. Reading them from a mutation
-    // callback instead forces a layout of everything that just changed.
-    const resizeObserver = new ResizeObserver(updateScrollMetrics);
+    // Observing reports every target once after the next layout. Earlier
+    // observers in that delivery can still change content, so the read waits
+    // for the next frame rather than forcing a layout here.
+    const resizeObserver = new ResizeObserver(scheduleScrollMetrics);
     resizeObserver.observe(container);
 
     let mutationObserver: MutationObserver | undefined;
