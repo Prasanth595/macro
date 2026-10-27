@@ -13,6 +13,7 @@ import type { CrmActivityTab } from '../core/navigation';
 import type { Pipeline } from '../core/pipeline';
 import type { CrmRecordScope, CrmTaskRecord } from '../core/record';
 import type {
+  ActivityAssociationsSource,
   CompanyImporter,
   CompanySource,
   ContactSource,
@@ -83,6 +84,9 @@ export type CrmContext = {
   ): ItemListSource;
   /** Paged CRM-wide activity, limited to associated records. */
   createActivity(tab: Accessor<CrmActivityTab>): ItemListSource;
+  createActivityAssociations(
+    entities: Accessor<import('@entity').EntityData[]>
+  ): ActivityAssociationsSource;
   openTaskComposer(): void;
   /** Newest mounted record source wins; cleanup restores the parent record source. */
   registerTaskComposerRecord(
