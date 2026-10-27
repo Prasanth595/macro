@@ -21,11 +21,13 @@ enforced by the ordinary backend APIs.
 - `src/entities/databases/query.ts`: SQL statements, typed table/row references and version guards.
 - `src/entities/crm/pipeline.ts`: pipeline-authorized table/row/view handles;
   `PipelineTable.views()` returns views whose `positions()` reads saved board order.
+- `src/entities/whatsapp/`: owner account, the chat list (`WhatsAppChat`), and added-chat group/message/send/upload/participant handles.
 - `services.ts`, `openapi-ts.config.ts`: generated service contract inputs.
 
 ## Boundaries
 
 - Keep handwritten behavior in `src/`; never edit `generated/` or `specs/`.
+- Keep WhatsApp pairing, passkeys, connection setup/disconnect and rollout configuration out of the handwritten public SDK; operate on accounts linked in the app, with personal bearer sessions for account/access controls. Sends/uploads accept the connection owner's session or own API token; bots never send.
 - Use existing entity handles for reads and mutations. Follow the
   [SDK rule](../../.agents/rules/sdk.md) and `add-sdk-endpoint` skill.
 - `../sdk-docs/` generates the public TypeDoc reference and static docs Worker.

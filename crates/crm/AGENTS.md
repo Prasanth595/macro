@@ -60,6 +60,11 @@ tools/HTTP/GraphQL surfaces over them.
 - Pipeline board-position reads require a pipeline View receipt, hold its live
   lifecycle guard, and scope the view to its backing table/database through
   `DatabaseStorage::storage_view_positions`.
+- `resolve_association` also accepts `CrmAssociation::Activity`: all records in
+  CRM-enabled teams within the viewer/verified-bot scope, excluding hidden rows
+  even for admins. Preserve distinct contact IDs that share an email; returned
+  domains and addresses constrain the viewer's mailbox, not team email access.
+
 - Company names/logos live in the global `crm_domain_directory`. Only the
   email pubsub workers carry a real `CompanyMetadataResolver`; every other
   binary uses `NoOpCompanyMetadataResolver`, which leaves a pending entry
