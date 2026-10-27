@@ -3,6 +3,7 @@ import {
   type EntityActionListState,
   type EntityActionNavigationHandler,
   type EntityActionViewContext,
+  makeArchiveSessionAction,
   makeBlockSenderAction,
   makeChannelPictureAction,
   makeCopyAction,
@@ -12,6 +13,7 @@ import {
   makeCreateReminderAction,
   makeDeleteAction,
   makeFavoriteAction,
+  makeGithubLinkAction,
   makeMarkDoneAction,
   makeMarkNotDoneAction,
   makeMarkNotificationsReadAction,
@@ -29,7 +31,10 @@ import type { MarkDoneDelegate } from '@app/features/next-soup/actions/mark-done
 import {
   markCalendarNotificationSeenOnOpen,
   openEntityInSplitFromUnifiedList,
+  restoreSoupFocus,
 } from '@app/features/next-soup/utils';
+import { useAllProperties } from '@app/features/property/editor/hooks/useAllProperties';
+import { openPropertyEditor } from '@app/features/property/editor/state/propertyEditor';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { globalSplitManager } from '@app/signal/splitLayout';
@@ -40,8 +45,10 @@ import { enableProjects, isFeatureEnabled } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { EntityData } from '@entity';
-import { isEmailEntity, isTaskEntity } from '@entity';
+import { isEmailEntity, isGithubPrEntity, isTaskEntity } from '@entity';
+import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import type { Component, JSX } from 'solid-js';
 
 type SoupEntityActionItem = {
@@ -145,6 +152,13 @@ export function createSoupEntityActions(
   const createReminderAction = makeCreateReminderAction();
   const shareAction = makeShareAction();
   const blockSenderAction = makeBlockSenderAction();
+  const archiveSessionAction = makeArchiveSessionAction({
+    userId: () => userId(),
+  });
+  const githubLinkAction = makeGithubLinkAction();
+  const allProperties = useAllProperties();
+  const taskProperty = (propertyId: string) =>
+    allProperties().find(({ id }) => id === propertyId);
   const markSenderSignalAction = makeMarkSenderSignalAction();
   const markSenderNoiseAction = makeMarkSenderNoiseAction();
 
@@ -245,8 +259,10 @@ export function createSoupEntityActions(
       if (isMobile()) return undefined;
       if (entities.length !== 1) return undefined;
       const entity = entities[0];
-      // TODO(dev-rb/github): Allow GitHub PRs once they map to /pr.
-      if (!entity || entity.type === 'foreign') return undefined;
+      if (!entity) return undefined;
+      // Pull requests open their Reviews detail; other foreign rows don't open.
+      if (entity.type === 'foreign' && !isGithubPrEntity(entity))
+        return undefined;
       const splitManager = globalSplitManager();
       if (!splitManager) return undefined;
       // Reminder route claims perform identity reuse when the action runs.
@@ -293,7 +309,8 @@ export function createSoupEntityActions(
       });
     }
 
-    // Middle group: Rename, Move to folder, Duplicate, Copy Link, Copy Branch Name, Share
+    // Middle group: Rename, Archive, Set status/priority/assignee, Move to
+    // folder, Duplicate, Copy Link, Copy Branch Name, Copy ID, GitHub, Share
     const middleItems: SoupEntityActionItem[] = [];
 
     if (canExecuteAll(renameAction.canExecute)) {
@@ -302,6 +319,16 @@ export function createSoupEntityActions(
         label: 'Rename',
         hotkeyToken: TOKENS.entity.action.rename,
         onClick: handle(renameAction.executeWithSoup),
+      });
+    }
+
+    if (entities.length === 1 && archiveSessionAction.canExecute(entities[0])) {
+      middleItems.push({
+        id: 'archive-session',
+        label: archiveSessionAction.isArchived(entities[0])
+          ? 'Unarchive'
+          : 'Archive',
+        onClick: () => archiveSessionAction.execute(entities),
       });
     }
 
@@ -389,6 +416,40 @@ export function createSoupEntityActions(
       });
     }
 
+    // The task properties the hotkeys and command menu set, as the CRM group
+    // below sets a company's.
+    if (canExecuteAll(isTaskEntity)) {
+      for (const [propertyId, label, hotkeyToken] of [
+        [SYSTEM_PROPERTY_IDS.STATUS, 'Set status', TOKENS.entity.action.status],
+        [
+          SYSTEM_PROPERTY_IDS.PRIORITY,
+          'Set priority',
+          TOKENS.entity.action.priority,
+        ],
+        [
+          SYSTEM_PROPERTY_IDS.ASSIGNEES,
+          'Set assignee',
+          TOKENS.entity.action.assignee,
+        ],
+      ] as const) {
+        const property = taskProperty(propertyId);
+        if (!property) continue;
+        middleItems.push({
+          id: `set-${propertyId}`,
+          label,
+          hotkeyToken,
+          onClick: () =>
+            openPropertyEditor(entities, 'direct', property, {
+              restoreFocus: () =>
+                fireAndForget(
+                  restoreSoupFocus(entities[0]?.id),
+                  'entity-actions'
+                ),
+            }),
+        });
+      }
+    }
+
     if (canExecuteAll(moveToProjectAction.canExecute)) {
       middleItems.push({
         id: 'move-to-folder',
@@ -434,11 +495,29 @@ export function createSoupEntityActions(
         });
       }
 
-      middleItems.push({
-        id: 'copy-entity-id',
-        label: 'Copy ID',
-        onClick: handle(copyEntityIdAction.executeWithSoup),
-      });
+      if (copyEntityIdAction.canExecute(entities[0])) {
+        middleItems.push({
+          id: 'copy-entity-id',
+          label: 'Copy ID',
+          onClick: handle(copyEntityIdAction.executeWithSoup),
+        });
+      }
+
+      const entity = entities[0];
+      if (githubLinkAction.canExecute(entity)) {
+        middleItems.push(
+          {
+            id: 'copy-github-link',
+            label: 'Copy GitHub Link',
+            onClick: () => githubLinkAction.copy(entity),
+          },
+          {
+            id: 'open-on-github',
+            label: 'Open on GitHub',
+            onClick: () => githubLinkAction.open(entity),
+          }
+        );
+      }
 
       if (shareAction.canExecute(entities[0])) {
         middleItems.push({

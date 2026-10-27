@@ -7,7 +7,6 @@ import {
 } from '@app/components/view-shell';
 import { CreateMenuItem } from '@app/components/view-shell/CreateMenuItem';
 import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
-import { changeSessionArchiveState } from '@app/features/block-agent/queries/change-session-archive-state';
 import {
   type EntityActionListState,
   type EntityActionViewContext,
@@ -18,8 +17,6 @@ import {
   SoupEntityContextMenu,
 } from '@app/features/soup';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
-import { MenuItem } from '@core/component/ContextMenu';
-import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { unreadFilterFn } from '@entity/utils/filter';
 import RoutineIcon from '@icon/system/regular/clock-clockwise.svg';
@@ -27,7 +24,6 @@ import CodeIcon from '@icon/system/regular/code.svg';
 import MagnifyingGlassIcon from '@icon/system/regular/magnifying-glass.svg';
 import PlugIcon from '@icon/system/regular/plugs-connected.svg';
 import AgentIcon from '@icon/system/regular/sparkle.svg';
-import TrayIcon from '@icon/system/regular/tray.svg';
 import { Key } from '@solid-primitives/keyed';
 import { cn, Dropdown } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
@@ -102,15 +98,6 @@ function ConversationContextMenu(props: {
   list: EntityActionListState;
   children: JSX.Element;
 }) {
-  const userId = useUserId();
-  const setArchived = async () => {
-    if (props.conversation.type !== 'agent_session') return;
-    await changeSessionArchiveState(
-      props.conversation.id,
-      !props.conversation.isArchived
-    );
-  };
-
   return (
     <SoupEntityContextMenu
       entity={props.conversation}
@@ -121,16 +108,6 @@ function ConversationContextMenu(props: {
       // The nav is a fixed-height flex column, so the trigger's default
       // `h-full` would split that height between the rows; keep rows content-sized.
       class="block h-auto w-full shrink-0"
-      extraItems={
-        props.conversation.type === 'agent_session' &&
-        props.conversation.ownerId === userId() ? (
-          <MenuItem
-            icon={TrayIcon}
-            text={props.conversation.isArchived ? 'Unarchive' : 'Archive'}
-            onClick={setArchived}
-          />
-        ) : undefined
-      }
       onOpenChange={(open) => {
         if (!open) return;
         props.list.focus.set(props.conversation.id);

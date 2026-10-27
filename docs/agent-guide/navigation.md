@@ -582,8 +582,9 @@ uploading or moving anything.
 ## Favorites
 
 Use an entity's command/context menu to add or remove it from Favorites. Documents, chats,
-projects, email threads, channels, calls, CRM companies, and CRM contacts support
-toggling. Individual channel messages are not favoritable.
+projects, email threads, channels, calls, CRM companies, CRM contacts, databases, and
+forms support toggling; database and form favorites appear in Drive's sidebar.
+Individual channel messages and pull requests are not favoritable.
 
 With the GraphQL local cache enabled, cached favorites remain visible when offline
 or when a background refresh fails. Toggle and reorder success while offline means
@@ -1129,6 +1130,25 @@ than creating duplicate panes. If pane-history navigation reaches content owned
 by another pane, it focuses that owner without advancing the requesting pane's
 history cursor. Restoring a saved layout preserves existing duplicate panes;
 search-only updates within those panes do not collapse them.
+
+## Entity menus
+
+List rows (Search, Home, Email, Drive, Tasks, Recent, folders, Agents, Calls)
+share one right-click menu, and the mobile long-press drawer shows the same
+items. It offers an item only where its action works for the row's type:
+Rename for documents, chats, folders, calls, agent sessions, and channels you
+take part in (not DMs); Duplicate for
+documents and chats; Move to folder for documents, chats, folders, and email;
+Delete for email and owned documents, chats, folders, calls, agent sessions, and
+routines. Tasks add **Set status**, **Set priority**, and **Set assignee**,
+which open the property editor like their shortcuts. Agent sessions add
+**Archive** / **Unarchive** for their owner. Calls offer **Share**. Pull
+requests offer **Open in new split**, **Copy GitHub Link**, **Open on GitHub**,
+and **Copy Branch Name** when the head branch is stored. Rows inside a Drive
+folder offer **Remove from folder**, as in a folder's own view. Channel message
+rows have no **Copy ID**. On Home, right-click **Mark Done** moves the preview
+to the next item, like the `e` key. A detail view's "…" menu also offers
+**Snooze notifications…** beside Mute.
 
 ## Entity action dialogs
 

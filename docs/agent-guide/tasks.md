@@ -487,12 +487,12 @@ failing, Conflicts, and Ready to merge take no drops, and merged cards cannot be
 dragged. A refusal shows GitHub's message and the card returns. **Load more pull
 requests** fetches the next page.
 
-PR rows can be added to or removed from Favorites through their context menu or
-bulk entity actions. When at least one accessible PR is favorited, Reviews shows
-a collapsible Favorites section below the views; the section is hidden otherwise.
+Pull requests can no longer be favorited. PRs favorited earlier still appear in
+a collapsible Favorites section below the views (hidden when there are none).
 Favorite rows open the PR in Reviews (Shift-click opens another split), and their
 context menu can remove the favorite. PR favorites also open in Reviews from the
-global Favorites sidebar or command menu.
+global Favorites sidebar or command menu. A PR row's context menu offers **Open
+in new split**, **Copy Link**, and **Open on GitHub**.
 
 Select a PR to open `/app/reviews/pr/<foreignEntityId>` in the Reviews shell.
 Opening a PR refreshes it from GitHub in the background for viewers with a
