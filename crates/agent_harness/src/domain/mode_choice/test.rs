@@ -22,10 +22,13 @@ impl AiAdmissionService for Admission {
     }
 }
 
+/// The usage feature and input each classification was asked with.
+type Asked = Arc<Mutex<Vec<(AiFeature, Value)>>>;
+
 /// Answers with a fixed result and remembers what it was asked.
 struct Classifier {
     answer: Result<f32, JevError>,
-    inputs: Arc<Mutex<Vec<(AiFeature, Value)>>>,
+    inputs: Asked,
 }
 
 impl YesNoClassifier for Classifier {
@@ -48,10 +51,7 @@ impl YesNoClassifier for Classifier {
 fn service(
     answer: Result<f32, JevError>,
     admission: Result<(), AiAdmissionError>,
-) -> (
-    ModeChoiceServiceImpl<Classifier>,
-    Arc<Mutex<Vec<(AiFeature, Value)>>>,
-) {
+) -> (ModeChoiceServiceImpl<Classifier>, Asked) {
     let inputs = Arc::new(Mutex::new(Vec::new()));
     let classifier = Classifier {
         answer,
