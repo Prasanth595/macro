@@ -369,6 +369,8 @@ export function createFakeOnboarding(
     },
     createGithubStars: () => () => world.githubStars,
     track: (event, data) => setEvents((list) => [...list, { event, data }]),
+    trackSubscriptionStarted: (viewerId) =>
+      call(`trackSubscriptionStarted:${viewerId}`),
     notifyFailure: (message) => setNotifications((list) => [...list, message]),
   };
 

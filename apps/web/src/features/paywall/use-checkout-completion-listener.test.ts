@@ -5,13 +5,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   track: vi.fn(),
+  trackGoogleConversion: vi.fn(),
   success: vi.fn(),
   refetch: vi.fn(),
   setSearch: (_value: string) => {},
 }));
 
 vi.mock('@app/lib/analytics/analytics-context', () => ({
-  useAnalytics: () => ({ track: mocks.track }),
+  useAnalytics: () => ({
+    track: mocks.track,
+    trackGoogleConversion: mocks.trackGoogleConversion,
+  }),
 }));
 vi.mock('@core/component/Toast/Toast', () => ({
   toast: { success: mocks.success },
@@ -57,7 +61,9 @@ function mount() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.setSearch('');
-  mocks.refetch.mockResolvedValue({ data: { licenseStatus: 'active' } });
+  mocks.refetch.mockResolvedValue({
+    data: { licenseStatus: 'active', userId: 'macro|ada@acme.com' },
+  });
 });
 afterEach(() => {
   dispose?.();
@@ -67,7 +73,9 @@ afterEach(() => {
 
 describe('checkout completion query changes', () => {
   it('gates a late success immediately, refreshes, and handles it only once', async () => {
-    let finish!: (value: { data: { licenseStatus: string } }) => void;
+    let finish!: (value: {
+      data: { licenseStatus: string; userId: string };
+    }) => void;
     mocks.refetch.mockReturnValue(
       new Promise((resolve) => {
         finish = resolve;
@@ -82,8 +90,19 @@ describe('checkout completion query changes', () => {
     expect(mocks.track).toHaveBeenCalledWith('subscription_success', {
       type: 'pro',
     });
-    finish({ data: { licenseStatus: 'active' } });
+    expect(mocks.trackGoogleConversion).not.toHaveBeenCalled();
+    finish({
+      data: { licenseStatus: 'trialing', userId: 'macro|ada@acme.com' },
+    });
     await vi.waitFor(() => expect(pending()).toBe(false));
+    expect(mocks.trackGoogleConversion).toHaveBeenCalledExactlyOnceWith(
+      'subscription_start',
+      {
+        value: 300,
+        currency: 'USD',
+        transaction_id: 'subscription_start:macro|ada@acme.com',
+      }
+    );
 
     mocks.setSearch('');
     mocks.setSearch('?subscriptionSuccess=true&type=team');

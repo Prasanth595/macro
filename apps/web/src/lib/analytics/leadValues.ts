@@ -19,3 +19,6 @@ export const SIGNUP_LEAD_VALUE_BY_TIER: Record<string, number> = {
 
 /** Fallback used when the tier query param is unrecognized. */
 export const SIGNUP_LEAD_VALUE_DEFAULT = SIGNUP_LEAD_VALUE_BY_TIER.free;
+
+/** Google Ads value of a confirmed trial or paid subscription start. */
+export const SUBSCRIPTION_START_VALUE = SIGNUP_LEAD_VALUE_BY_TIER.premium;
