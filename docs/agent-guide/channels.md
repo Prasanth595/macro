@@ -329,7 +329,10 @@ Closed mention menus do not gather, rank, or paginate candidates. When checking
 channel-switch performance, include touch navigation back to the list and reopening
 a cached channel without typing `@`. Each open records `channel.open.*` measures
 (`timeline`, `rendered`, `painted`) in a DevTools Performance recording, and
-`just test-channel-browser` in `apps/web` checks its requests and forced layouts. Then open mentions, search, close, and reopen:
+`just test-channel-browser` in `apps/web` checks its requests and forced layouts.
+A mouse press on a rail row starts that channel's timeline request before the
+click opens it, so in a recording the request precedes the open, and
+`channel.open.prefetch_lead_ms` says by how much. Then open mentions, search, close, and reopen:
 results must reflect current people and entities, and scrolling or keyboard
 navigation must still load more results. Check both mobile and desktop.
 
