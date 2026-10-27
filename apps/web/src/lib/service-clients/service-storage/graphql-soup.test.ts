@@ -468,7 +468,11 @@ vi.mock('./graphql/generated/graphql', () => ({
   GroupSoupDocument: {},
   SoupDocument: {},
 }));
+vi.mock('./graphql-notification-receipt', () => ({
+  notificationReceiptExchange: () => ({ kind: 'notification-receipt' }),
+}));
 vi.mock('./graphql-soup-websocket', () => ({
+  publishNotificationPatch: vi.fn(),
   SOUP_GRAPHQL_WEBSOCKET_RETRY_ATTEMPTS: 0,
   shouldRetryGraphqlSoupWebSocket: () => false,
   waitToRetryGraphqlSoupWebSocket: vi.fn(),

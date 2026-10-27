@@ -82,6 +82,44 @@ test('delivers a query admitted while parked across replacement without API fall
   expect(after.queue?.map((item) => item.uuid)).toEqual([before.seedUuid]);
 });
 
+test('delivers a background notification before cache persistence without replaying it on resume', async ({
+  page,
+}, info) => {
+  await page.goto(
+    `${path(info.project.name)}?scope=cache-parking-${crypto.randomUUID()}`
+  );
+  await page.evaluate(() => window.cacheParkingHarness.start());
+  await page.evaluate(() => window.cacheParkingHarness.startNotifications());
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.evaluate(() => window.cacheParkingHarness.parked());
+  await page.evaluate(() => window.cacheParkingHarness.emitNotification());
+  expect(
+    await page.evaluate(() => window.cacheParkingHarness.notifications())
+  ).toEqual({ received: ['synthetic-notification'], persisted: [] });
+
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.evaluate(() => window.cacheParkingHarness.notificationPersisted());
+  expect(
+    await page.evaluate(() => window.cacheParkingHarness.notifications())
+  ).toEqual({
+    received: ['synthetic-notification'],
+    persisted: ['synthetic-notification'],
+  });
+  await page.evaluate(() => window.cacheParkingHarness.dispose());
+});
+
 test('settles a response received while parked before a competing expired-lease claim', async ({
   context,
   page,

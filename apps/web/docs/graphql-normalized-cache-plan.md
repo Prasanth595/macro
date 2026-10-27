@@ -254,6 +254,14 @@ second request for this retry, and cache-only/replacement-registration-only read
 never gain a network fallback. The anonymous page-side `graphql_cache.read_retry`
 span times the extra read without exporting query contents or identities.
 
+Live notification receipt must not wait for this storage pause. The
+`notificationReceiptExchange`, placed between the normalized-cache exchange and
+the subscription transport, publishes notification callbacks before persistence
+in both cached and uncached clients. The normalized-cache exchange still applies
+subscription effects serially before cache-dependent channel reconciliation.
+Resuming storage never republishes the notification callback. `notification.receive`
+spans record the notification ID, patch type, and page visibility without content.
+
 Already-sent HTTP mutations may finish while parked. Their local commit, rollback,
 or defer requests wait for storage and retain their position ahead of later
 claims. Accepted settlement requests survive their caller disconnecting; their
@@ -268,7 +276,8 @@ failure/navigation recovery applies. Owner telemetry adds `park-started`, `parke
 `unpark-started`, and `unpark-completed` alongside the `visibility-handoff-*` events.
 The backend-free `parking.browser.e2e.ts` exercises physical release, retained
 clients/storage, a query admitted while parked completing across replacement
-without network fallback, and a response settled after parking.
+without network fallback, a response settled after parking, and notification
+receipt while parked without duplicate delivery when persistence resumes.
 
 Every departure rejects already-routed optimistic enqueues whose replies were
 lost as `admitted-enqueue-uncertain`, including requests from surviving tabs.

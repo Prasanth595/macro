@@ -200,6 +200,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Reject already-routed optimistic enqueues with missing replies as uncertain on
   every owner departure; never forward them through network fallback, because
   their durable queue entries may survive the old engine.
+- Dispatch live GraphQL notification callbacks before cache persistence so hidden
+  tabs can show browser alerts; keep cache-dependent channel reconciliation
+  behind ordered writes and never replay alerts when the cache resumes.
 - Drain browser cache engines when their last visible consumer hides, then park
   without retiring clients; queue background work until a visible owner reopens
   storage, retaining accepted mutation settlements even if their caller leaves.

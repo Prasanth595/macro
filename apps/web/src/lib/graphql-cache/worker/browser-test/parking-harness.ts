@@ -1,8 +1,14 @@
 import {
+  NotificationUpdatesDocument,
+  type NotificationUpdatesSubscription,
+} from '@service-storage/graphql/generated/graphql';
+import { notificationReceiptExchange } from '@service-storage/graphql-notification-receipt';
+import {
   createClient,
   fetchExchange,
   gql,
   stringifyDocument,
+  subscriptionExchange,
 } from '@urql/core';
 import { normalizedCacheExchange } from '../../exchange/normalized-cache-exchange';
 import type { CacheHost } from '../../host/types';
@@ -52,6 +58,11 @@ const settling = Promise.withResolvers<void>();
 let result: Promise<unknown> | undefined;
 let readResult: Promise<{ data: unknown; error: boolean }> | undefined;
 let readApiRequests = 0;
+const receivedNotifications: string[] = [];
+const persistedNotifications: string[] = [];
+const notificationPersisted = Promise.withResolvers<void>();
+let emitNotification: (() => void) | undefined;
+let stopNotifications: (() => void) | undefined;
 function requireHost(): CacheHost {
   if (!host) throw new Error('cache not started');
   return host;
@@ -95,6 +106,73 @@ const api = {
       visibility: document.visibilityState,
     };
   },
+  async startNotifications() {
+    const attached = Promise.withResolvers<void>();
+    const client = createClient({
+      url: 'https://parking.invalid/graphql',
+      exchanges: [
+        normalizedCacheExchange(requireHost()),
+        notificationReceiptExchange((patch) => {
+          if (patch.__typename === 'GraphqlNewNotification')
+            receivedNotifications.push(patch.notification.id);
+        }),
+        subscriptionExchange({
+          forwardSubscription: () => ({
+            subscribe(sink) {
+              emitNotification = () => {
+                const data: NotificationUpdatesSubscription = {
+                  notificationUpdates: {
+                    __typename: 'GraphqlNewNotification',
+                    notification: {
+                      __typename: 'GraphqlNotification',
+                      id: 'synthetic-notification',
+                      entityId: 'synthetic-reminder',
+                      entityType: 'REMINDER',
+                      eventType: 'reminder',
+                      state: 'UNSEEN',
+                      sent: true,
+                      createdAt: '2026-01-01T00:00:00Z',
+                      updatedAt: '2026-01-01T00:00:00Z',
+                      viewedAt: null,
+                      senderId: null,
+                      metadata: {
+                        __typename: 'GraphqlReminderMetadata',
+                        reminderReminderId: 'synthetic-reminder',
+                        reminderDescription: 'Review the document',
+                        reminderScheduledFor: null,
+                      },
+                    },
+                  },
+                };
+                sink.next({ data });
+              };
+              attached.resolve();
+              return { unsubscribe() {} };
+            },
+          }),
+        }),
+      ],
+    });
+    const subscription = client
+      .subscription(NotificationUpdatesDocument, {})
+      .subscribe((result) => {
+        const patch = result.data?.notificationUpdates;
+        if (patch?.__typename !== 'GraphqlNewNotification') return;
+        persistedNotifications.push(patch.notification.id);
+        notificationPersisted.resolve();
+      });
+    stopNotifications = () => subscription.unsubscribe();
+    await attached.promise;
+  },
+  emitNotification() {
+    if (!emitNotification) throw new Error('notifications not started');
+    emitNotification();
+  },
+  notifications: () => ({
+    received: [...receivedNotifications],
+    persisted: [...persistedNotifications],
+  }),
+  notificationPersisted: () => notificationPersisted.promise,
   parked: () => parked.promise,
   async locks() {
     return (await navigator.locks.query()).held?.filter((lock) =>
@@ -195,6 +273,7 @@ const api = {
     );
   },
   dispose() {
+    stopNotifications?.();
     host?.dispose();
   },
 };
