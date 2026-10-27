@@ -212,7 +212,8 @@ function AgendaRow(props: { row: AgendaRowView }) {
             </Show>
           }
         >
-          <span class="truncate text-xs text-warning-ink">
+          {/* A clash is something to act on, so its length is never cut off. */}
+          <span class="text-xs text-warning-ink wrap-anywhere">
             {props.row.clash}
           </span>
         </Show>
