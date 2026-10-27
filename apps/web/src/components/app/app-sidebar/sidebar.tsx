@@ -1,5 +1,9 @@
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
-import { LIST_VIEW_PATHS, type ListView } from '@app/constants/list-views';
+import {
+  EXTERNAL_VIEW_PATH,
+  LIST_VIEW_PATHS,
+  type ListView,
+} from '@app/constants/list-views';
 import { useActivityFeedFlag } from '@app/features/activity/use-activity-feed-flag';
 import { useCalendarUiFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import { calendarPath } from '@app/features/calendar-view/calendar-url';
@@ -27,6 +31,7 @@ import {
   ENABLE_CALLS,
   enableCrm,
   enableTasksReviews,
+  enableWhatsappLinked,
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
 import { getRunnableHotkeys } from '@core/hotkey/getCommands';
@@ -36,11 +41,12 @@ import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { activateClosestDOMScope } from '@core/hotkey/utils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import BellIcon from '@icon/system/regular/bell.svg';
+import HomeIcon from '@icon/system/regular/house.svg';
+import SearchIcon from '@icon/system/regular/magnifying-glass.svg';
+import PlugIcon from '@icon/system/regular/plug.svg';
+import ActivityIcon from '@icon/system/regular/pulse.svg';
 import { ContextMenu } from '@kobalte/core/context-menu';
-import BellIcon from '@phosphor/bell.svg';
-import HomeIcon from '@phosphor/house.svg';
-import SearchIcon from '@phosphor/magnifying-glass.svg';
-import ActivityIcon from '@phosphor/pulse.svg';
 import { debounce } from '@solid-primitives/scheduled';
 import { cn } from '@ui';
 import {
@@ -148,6 +154,7 @@ const SIDEBAR_LINKS = [
   },
 ] satisfies SidebarItem[];
 
+// Global view switches restore session context; explicit split opens stay fresh.
 type OpenWithSplitFn = ReturnType<typeof useSplitLayout>['openWithSplit'];
 
 export function sidebarContent(
@@ -162,9 +169,8 @@ export function sidebarContent(
 }
 
 /**
- * Navigate to a sidebar view by pushing a fresh entry into the active split.
- * Holding shift opens it in a new split. Use in-app back/forward to return to
- * prior entries.
+ * Navigate through the layout, resuming only views that opted into retention.
+ * Holding shift opens a fresh view in a new split.
  */
 export function navigateToSidebarView(args: {
   viewId: SidebarItem['id'];
@@ -172,14 +178,18 @@ export function navigateToSidebarView(args: {
   shiftKey: boolean;
   openWithSplit: OpenWithSplitFn;
   referredFrom?: ReferredFrom;
+  onApplied?: () => void;
 }): SplitHandle | undefined {
-  const { viewId, params, shiftKey, openWithSplit, referredFrom } = args;
+  const { viewId, params, shiftKey, openWithSplit, referredFrom, onApplied } =
+    args;
 
   return openWithSplit(sidebarContent(viewId, params), {
     preferNewSplit: shiftKey,
+    resume: !shiftKey,
     mergeHistory: false,
     allowDuplicate: viewId !== 'calendar',
     referredFrom,
+    onApplied,
   }).split;
 }
 
@@ -219,12 +229,14 @@ export const GoToHotkeys = () => {
   const activityFeedEnabled = useActivityFeedFlag();
   const recentViewEnabled = useRecentViewFlag();
   const reviews = useFeatureFlag(enableTasksReviews);
+  const external = useFeatureFlag(enableWhatsappLinked);
   const links = createMemo((): SidebarItem[] =>
     buildSidebarLinks(
       calendarUiEnabled(),
       activityFeedEnabled(),
       recentViewEnabled(),
-      reviews().enabled
+      reviews().enabled,
+      external().enabled
     )
   );
 
@@ -321,6 +333,14 @@ export const GoToHotkeys = () => {
           params: link.params,
           shiftKey: !!e?.shiftKey,
           openWithSplit,
+          onApplied:
+            link.id === 'search'
+              ? () => {
+                  const split = globalSplitManager()?.activeSplit();
+                  if (split?.content().id === 'search')
+                    requestSearchFocus(split.id);
+                }
+              : undefined,
         });
         if (link.id === 'search' && handle) {
           requestSearchFocus(handle.id);
@@ -398,9 +418,19 @@ const REVIEWS_LINK: SidebarItem = {
   hotkeyToken: TOKENS.sidebar.goTo.reviews,
 };
 
+const EXTERNAL_LINK: SidebarItem = {
+  id: 'external',
+  label: 'External',
+  href: EXTERNAL_VIEW_PATH,
+  icon: PlugIcon,
+  // `e` is Email; `x` is the only free letter of "external".
+  hotkey: 'x',
+  hotkeyToken: TOKENS.sidebar.goTo.external,
+};
+
 /**
  * Assemble the ordered sidebar link list: the static links plus the
- * flag-gated Recent, Activity, Calendar, Calls, Reviews, and CRM
+ * flag-gated Recent, Activity, Calendar, Calls, Reviews, CRM, and External
  * entries in their correct positions.
  * Call from a reactive context — it reads `ENABLE_CALLS` / `isFeatureEnabled(enableCrm)`.
  */
@@ -408,7 +438,8 @@ const buildSidebarLinks = (
   showCalendar: boolean,
   showActivity: boolean,
   showRecent: boolean,
-  showReviews: boolean
+  showReviews: boolean,
+  showExternal: boolean
 ): SidebarItem[] => {
   let links: SidebarItem[] = SIDEBAR_LINKS.filter(
     (link) => showCalendar || link.id !== 'calendar'
@@ -447,6 +478,8 @@ const buildSidebarLinks = (
     // Reviews sits at the end (accessed via More menu but has a hotkey).
     links = [...links, REVIEWS_LINK];
   }
+
+  if (showExternal) links = [...links, EXTERNAL_LINK];
 
   return links;
 };

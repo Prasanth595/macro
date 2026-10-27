@@ -21,6 +21,7 @@ import './synthetics';
 import './monitors/ai-editing';
 import './monitors/channel-open';
 import './monitors/graphql-soup';
+import './monitors/whatsapp-session';
 import { notificationRetentionDashboard } from './monitors/notification-retention';
 
 export const notificationRetentionDashboardUrl =
