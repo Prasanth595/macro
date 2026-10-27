@@ -282,7 +282,10 @@ outside project boards; project boards always retain the current project.
 Each pane or project scope and column keeps a separate composer draft. Project
 boards hide creation actions when the project is read-only.
 
-Click a card's body or title to open the task. Move at least 10 pixels with the
+Click a card's body or title to open the task. Right-click a card, or press
+Shift+F10 on its focused title, for the List row's task menu; it acts on that
+card alone, since the board has no selection. Right presses never start or
+redirect a drag. Move at least 10 pixels with the primary
 mouse button held to start dragging to another column; holding still does not
 start a drag. Property pills remain interactive and do not start a drag.
 A new destination column highlights once movement slows
