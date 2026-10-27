@@ -1,12 +1,11 @@
-//! A fleet-wide cap on concurrent backfill message writes.
+//! A fleet-wide cap on concurrent backfill writes.
 //!
-//! Every backfill worker of every email-service task writes messages straight
-//! to the primary, one transaction per message, and nothing else bounds how
-//! many run at once (25 workers per task, 5 to 10 tasks). Message bodies land
-//! in one TOAST table, so a large backfill queues its writers on that table's
-//! relation-extension lock and slows every other query on the database. A slot
-//! is a Redis lease; at most [`CAPACITY`] backfill writes hold one at a time,
-//! however many tasks are running.
+//! Every backfill worker of every email-service task writes threads straight
+//! to the primary, and nothing else bounds how many run at once (25 workers
+//! per task, 5 to 10 tasks). Message bodies land in one TOAST table, so a large
+//! backfill queues its writers on that table's relation-extension lock and
+//! slows every other query on the database. A slot is a Redis lease; at most
+//! [`CAPACITY`] backfill writes hold one at a time, however many tasks run.
 
 use crate::util::redis::RedisClient;
 use rand::Rng;
@@ -17,10 +16,11 @@ use uuid::Uuid;
 #[cfg(test)]
 mod test;
 
-/// Concurrent backfill message writes across the fleet. A healthy write (the
-/// contacts upsert plus the message transaction) averages about 100 ms, so
-/// twelve slots admit roughly 120 messages a second while the database is
-/// healthy, and fewer as it slows down.
+/// Concurrent backfill writes across the fleet. A healthy single-message write
+/// (the contacts upsert plus its transaction) averages about 100 ms, so twelve
+/// slots admit at least roughly 120 messages a second while the database is
+/// healthy, more when a thread's messages share one transaction, and fewer as
+/// the database slows down.
 const CAPACITY: u32 = 12;
 /// Frees the slot of a crashed worker. Longer than any write a slot covers.
 const LEASE: Duration = Duration::from_secs(120);

@@ -81,7 +81,15 @@ the gateway `/email` prefix.
   would spend the queue's 20 deliveries.
   Inbox sync releases the upload claims of a refused attachment fetch and
   requeues the upsert, because a claimed attachment is never offered again.
-- Backfill message writes hold one of twelve fleet-wide Redis write slots
+- BackfillThread reads a whole thread with one Gmail `threads.get` and writes
+  the thread row and all of its messages in one transaction
+  (`insert_backfilled_thread`), so a failed write leaves nothing for a retry
+  to skip. After that commit, nothing in the handler may request a retry: a
+  retry would find the thread and skip it. The invitation, CRM and attachment
+  fan-outs only log their failures, and the metadata step is enqueued last.
+  BackfillMessage only drains operations enqueued before thread writes.
+- Each backfill thread write, and each BackfillMessage write still draining,
+  holds one of twelve fleet-wide Redis write slots
   (`util/redis/backfill_write_slots.rs`), however many workers and tasks run,
   so a large backfill can't queue enough writers on the primary to slow every
   other query. A write waits up to 10 s for a slot and is then deferred like a

@@ -194,6 +194,46 @@ async fn insert_db_message(
     Ok(existing_id)
 }
 
+/// Upserts the contacts of each message, in order. Contacts are shared across
+/// messages, so callers do this before opening the messages' transaction to
+/// avoid deadlocks.
+pub(crate) async fn upsert_messages_contacts(
+    pool: &PgPool,
+    link_id: Uuid,
+    messages: &[message::Message],
+) -> anyhow::Result<Vec<UpsertedRecipients>> {
+    let mut recipients = Vec::with_capacity(messages.len());
+    for message in messages {
+        recipients.push(
+            contacts::upsert_message::parse_and_upsert_message_contacts(
+                pool,
+                link_id,
+                addresses_from_message(message),
+            )
+            .await?,
+        );
+    }
+    Ok(recipients)
+}
+
+/// Inserts messages into an existing thread in one transaction, leaving its
+/// metadata and `replying_to` links to the caller's later metadata update.
+#[tracing::instrument(skip(pool, messages), fields(message_count = messages.len()), err)]
+pub async fn insert_thread_messages(
+    pool: &PgPool,
+    thread_db_id: Uuid,
+    link_id: Uuid,
+    messages: &mut [message::Message],
+) -> anyhow::Result<()> {
+    let recipients = upsert_messages_contacts(pool, link_id, messages).await?;
+    let mut tx = pool.begin().await?;
+    for (message, recipients) in messages.iter_mut().zip(recipients) {
+        insert_message_with_tx(&mut tx, thread_db_id, message, link_id, recipients, false).await?;
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
 /// Inserts a single message into the database with transaction handling
 #[tracing::instrument(skip(pool, message), fields(link_id = %message.link_id), err)]
 pub async fn insert_message(

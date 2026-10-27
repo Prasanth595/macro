@@ -348,3 +348,103 @@ async fn oversized_provider_values_do_not_block_the_thread_insert(
 
     Ok(())
 }
+
+fn backfilled_messages(link_id: Uuid) -> Vec<message::Message> {
+    use crate::messages::insert::test::{PARENT_GLOBAL_ID, SyncedMessage};
+
+    let parent = SyncedMessage {
+        provider_id: "backfill-parent",
+        global_id: PARENT_GLOBAL_ID,
+        in_reply_to: None,
+        to: &["user1@macro.com"],
+        cc: &[],
+        labels: &[],
+        body: "parent body",
+    };
+    let reply = SyncedMessage {
+        provider_id: "backfill-reply",
+        global_id: "<backfill-reply@macro.com>",
+        in_reply_to: Some(PARENT_GLOBAL_ID),
+        to: &["sender@macro.com"],
+        cc: &["cc@macro.com"],
+        labels: &[],
+        body: "reply body",
+    };
+    // Backfill writes the thread row itself, so the messages' own thread id is unused.
+    let unused_thread_id = Uuid::now_v7();
+    vec![
+        parent.build(link_id, unused_thread_id),
+        reply.build(link_id, unused_thread_id),
+    ]
+}
+
+async fn thread_message_count(pool: &Pool<Postgres>, thread_id: Uuid) -> anyhow::Result<i64> {
+    Ok(sqlx::query_scalar!(
+        r#"SELECT COUNT(*) AS "count!" FROM email_messages WHERE thread_id = $1"#,
+        thread_id
+    )
+    .fetch_one(pool)
+    .await?)
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("links"))
+)]
+async fn a_backfilled_thread_is_written_with_all_of_its_messages(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let link_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")?;
+    let mut messages = backfilled_messages(link_id);
+
+    let thread_id = insert_backfilled_thread(&pool, "backfill-thread", link_id, &mut messages)
+        .await?
+        .expect("the thread is new");
+
+    assert_eq!(thread_message_count(&pool, thread_id).await?, 2);
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("links"))
+)]
+async fn a_thread_another_copy_already_wrote_gets_no_messages_from_this_one(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let link_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")?;
+    let existing_id = insert_blank_thread(&pool, "backfill-thread", link_id)
+        .await?
+        .expect("the thread is new");
+    let mut messages = backfilled_messages(link_id);
+
+    let inserted =
+        insert_backfilled_thread(&pool, "backfill-thread", link_id, &mut messages).await?;
+
+    assert_eq!(
+        inserted, None,
+        "only the copy that wrote the thread finishes it"
+    );
+    assert_eq!(thread_message_count(&pool, existing_id).await?, 0);
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("links"))
+)]
+async fn missing_messages_are_written_into_their_existing_thread(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let link_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")?;
+    let thread_id = insert_blank_thread(&pool, "backfill-thread", link_id)
+        .await?
+        .expect("the thread is new");
+    let mut messages = backfilled_messages(link_id);
+
+    crate::messages::insert::insert_thread_messages(&pool, thread_id, link_id, &mut messages)
+        .await?;
+
+    assert_eq!(thread_message_count(&pool, thread_id).await?, 2);
+    Ok(())
+}
