@@ -84,6 +84,8 @@ unreferenced replicas. These additive tables do not change agent-session claims.
 - Quote and alias camelCase columns to Rust field names
   (`SELECT "userId" AS user_id`); don't guess spelling — check `migrations/`.
 
+- The unmerged WhatsApp migrations define standalone group/message/reaction/attachment/read storage; domain queries live in `whatsapp_linked`.
+
 ## Related
 
 - Rules: `.agents/rules/rust/db.md`, `.agents/rules/rust/architecture.md` ·
@@ -97,3 +99,7 @@ enabling the independent email outbox; old writers do not enforce these fences.
 content. Bypass retention for inboxes marked `deleting_at` and direct inbox
 cascades; other parent cascades must not destroy unresolved delivery state. Deferred markers retain provider identity and
 draft generation so Undo/resend cannot inherit an old deletion.
+
+The import ledger accepts Jira Cloud sources with `jira_issue`, `jira_project`
+and `jira_epic` kinds. Jira has its own concurrent partial team-claim index; source
+and kind constraints expand without rewriting existing rows and validate separately.

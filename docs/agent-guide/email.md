@@ -25,6 +25,9 @@ detail view. See [Email reminders](reminders.md#delivery-and-undo).
 Email's Tags sidebar uses the [nested tag tree](tasks.md#nested-sidebar-tags).
 Carets and folder-only parents expand branches; actual tags select their exact ID
 and switch the mailbox to All. Parent selection does not include descendant tags.
+While tags scope All, the header and breadcrumb show the tag names instead of
+`All`. A narrow pane keeps its short `Email` or `Inbox` breadcrumb label. A tag
+filter on any other tab keeps that tab's title.
 Unlike Calls, it lists only personal tags; team-shared tags are hidden,
 and its `New tag` action creates a personal tag with no Team sharing option.
 
@@ -371,7 +374,9 @@ keyboard back to the list without closing the thread. Narrow email rows here
 stack senders and date, subject, and one preview line beside a slim unread-dot
 gutter (no per-type icon); unread rows are bold, hovering swaps the date for the
 row actions, and hovering the gutter shows the select checkbox. Phones keep
-their own touch email rows, with the sender's picture on the left.
+their own touch email rows, with the sender's picture on the left. Every email
+row titles the thread as its header does: repeated leading `Re:` prefixes are
+dropped, and a blank subject reads `[No subject]`.
 Without room for both (narrow split, collapsed window) the pane folds away and
 a thread replaces the list as usual; the thread remounts, but a reply draft
 survives. The divider can be dragged; the list width is remembered. Verify that
@@ -380,13 +385,15 @@ not replace it), and that after j/k the grid still has focus: the next Enter
 moves into the reader without opening a reply.
 
 In the new Email view, ordinary row activation opens the thread inside
-`/app/component/mail`; the view breadcrumb (for example Inbox) has a hover
-background and returns to the filtered list. Pressing `Escape` in the open thread
+`/app/component/mail`. On desktop the thread's header has a Back arrow instead
+of breadcrumbs; it returns to the filtered list (hidden in the reading pane,
+where the list is already beside the thread). The subject, tags and
+participants stay put while only the messages scroll. Pressing `Escape` in the open thread
 with focus outside any input does the same once there is nothing left to unwind
 (an open reply, an expanded body, or a focused message each take one `Escape`
-first); the list keeps the row you came from focused. The inline header uses the existing
-email title menu: open the menu button beside the subject for **Ask AI**, **Create a
-Task**, and the other thread actions. On desktop, **Mark as unread**, **Mark done**,
+first); the list keeps the row you came from focused. The `⋯` email title menu
+right after the subject's last word, in place of Copy subject, holds **Ask AI**,
+**Create a Task**, and the other thread actions. On desktop, **Mark as unread**, **Mark done**,
 and reminders share one outlined group at the right of that header. Separate
 groups contain **Previous item** / **Next item**, icon-only **Ask Macro** / **Create
 task**, and the **Share** icon and label / copy-link icon. Mobile keeps its existing
@@ -399,8 +406,9 @@ press: a held key auto-repeats, and those repeats are ignored. Mark as unread (i
 the header or title menu) returns to the originating list with its tab, inbox, and
 filters preserved. Mark as not done and Mark as read
 stay on the current thread.
-Opening a saved draft from **Drafts** keeps the subject breadcrumb, title menu,
-and applicable header controls visible above the composer. Verify these remain
+Opening a saved draft from **Drafts** shows the title menu beside Back, since
+the composer has no subject line above it, and keeps the applicable header
+controls. Verify these remain
 available when returning to Drafts and reopening the draft.
 **Delete** in the title menu moves the thread to Trash and returns to the same
 filtered list. Its toast offers **Undo** to restore the email.
@@ -409,7 +417,10 @@ preserve working menu actions and header controls. Repeatedly navigate forward
 and backward, including after returning to the list: the subject and email body
 should remain visible without reloading.
 Shift-click opens a standalone split at `/app/email/<thread-id>`, which remains
-the destination for direct links and legacy surfaces. Click a message header to
+the destination for direct links and legacy surfaces. **Copy Link** on a
+thread copies `/app/mail/<thread-id>` from a row, the title menu, the Share
+dialog, or a reminder notification. The link opens the thread in Mail and
+pastes as an email mention. Click a message header to
 expand or collapse it; `Show N hidden messages` reveals the collapsed middle of
 a longer conversation. A standalone link with
 `?email_message_id=<message-id>` loads older pages as needed, expands the target,
@@ -487,6 +498,10 @@ view-only links instead. Confirming inserts one link per file at the end of the
 written message, above a reply's quoted thread, and the draft autosaves; Cancel
 adds nothing. Files that fit still attach, and the same check covers files
 dropped onto the body.
+With an Outlook From, a subject over Exchange's 255-character limit stays as
+typed, the field is marked invalid, and a hint under it gives the length. Switching
+From to Outlook flags an existing long subject; Gmail senders show no hint. The
+hint does not block saving or Send.
 To forward from another inbox, open Forward, expand the forwarding envelope on
 desktop, and select a different account in From (already visible on mobile).
 Forwarded files must remain attached after switching to an owned or delegated
@@ -1134,3 +1149,5 @@ must resume only after the preserved queue is readable. Repeat while another tab
 holds the cache owner lock; recovery must never steal the lock or erase its queue.
 Storage/schema failures that cannot prove preservation show recovery/update
 instructions instead of repeatedly reopening potentially damaged storage.
+
+Date-grouped email lists start directly with today's messages; Today is not shown as a leading group heading. Older date headings remain visible and ordering still uses the server's thread activity timestamp.

@@ -2,8 +2,10 @@ import { parseAgentsRoute } from '@app/features/agents-view/core/route';
 import { useSpreadsheetAccess } from '@app/features/block-spreadsheet/primitives/use-spreadsheet-access';
 import type { EventEditorInitialValues } from '@app/features/calendar/components/composer/event-form-model';
 import type { CalendarEvent } from '@app/features/calendar/types';
+import { whatsappGroupContent } from '@app/features/external-view/hosted-content';
 import { HomeRouteView } from '@app/features/home/route-views';
 import { parseProjectRoute } from '@app/features/projects/core/route';
+import { parseWhatsAppGroupComponentId } from '@app/features/whatsapp-group/core/route';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { NOT_FOUND_ROUTE_ID } from '@app/routes/app-route';
 import { LoadingBlock } from '@core/component/LoadingBlock';
@@ -100,6 +102,10 @@ const ProjectsListView = lazyNamed(
 const ProjectView = lazyNamed(
   () => import('@app/features/projects/project-view'),
   'ProjectView'
+);
+const ExternalRouteView = lazyNamed(
+  () => import('@app/features/external-view/route-views'),
+  'ExternalRouteView'
 );
 const ReviewsRouteView = lazyNamed(
   () => import('@app/features/reviews-view/route-views'),
@@ -200,6 +206,11 @@ export function resolveComponent(
 ): ResolvedComponent {
   const registration = REGISTRY.get(name);
   if (!registration) {
+    const groupId = parseWhatsAppGroupComponentId(name);
+    if (groupId)
+      return {
+        element: () => <RedirectSplit to={whatsappGroupContent(groupId)} />,
+      };
     if (parseProjectRoute(name)) {
       const base = REGISTRY.get('initiative-view');
       if (base)
@@ -487,6 +498,11 @@ registerComponent(
 registerComponent(
   'booking-links',
   () => <BookingLinksRouteView />,
+  () => composableLayout()
+);
+registerComponent(
+  'external',
+  () => <ExternalRouteView />,
   () => composableLayout()
 );
 
