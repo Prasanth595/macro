@@ -171,10 +171,11 @@ export const enableTasksReviews = defineFlag({
   default: onInDev,
 });
 
-/** Gantt layouts stay hidden until enabled remotely or with a local override. */
+/** Gantt is visible in local previews; deployed apps retain the remote rollout. */
 export const enableGantt = defineFlag({
   key: 'enable-gantt',
   env: 'ENABLE_GANTT',
+  default: LOCAL_ONLY || undefined,
 });
 
 export const ENABLE_PDF_MODIFICATION_DATA_AUTOSAVE = defineFlag({
@@ -203,6 +204,12 @@ export const ENABLE_PDF_MARKUP = defineFlag({
 export const ENABLE_SCRIPTING = defineFlag({
   env: 'ENABLE_SCRIPTING',
   default: false,
+}).enabled;
+
+// Multiplex document sync over the connection gateway.
+export const SYNC_VIA_GATEWAY = defineFlag({
+  env: 'SYNC_VIA_GATEWAY',
+  default: true,
 }).enabled;
 
 export const ENABLE_PDF_MULTISPLIT = defineFlag({
@@ -894,4 +901,16 @@ export const enableAiUsageBilling = defineFlag({
 export const enableInAppTours = defineFlag({
   key: 'enable-in-app-tours',
   env: 'ENABLE_IN_APP_TOURS',
+});
+
+/**
+ * Personal WhatsApp linked devices: the External tab, pairing, adding chats
+ * to Macro and sharing them by mention in channels. Off in dev too: dev has no WhatsApp session
+ * service, so the tab would only show errors. Override locally with
+ * VITE_ENABLE_WHATSAPP_LINKED=true. Backend switches gate each operation
+ * independently.
+ */
+export const enableWhatsappLinked = defineFlag({
+  key: 'enable-whatsapp-linked',
+  env: 'ENABLE_WHATSAPP_LINKED',
 });

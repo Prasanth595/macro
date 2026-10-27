@@ -5,16 +5,27 @@ import {
   enableCalendarScheduling,
   enableCrm,
   enableTasksReviews,
+  enableWhatsappLinked,
 } from '@core/constant/featureFlags';
-import BellIcon from '@phosphor/bell.svg';
-import CalendarCheckIcon from '@phosphor/calendar-check.svg';
-import ChatsCircleIcon from '@phosphor/chats-circle.svg';
-import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
-import BellFillIcon from '@phosphor-fill/bell-fill.svg';
-import CalendarFillIcon from '@phosphor-fill/calendar-fill.svg';
-import ChatsCircleFillIcon from '@phosphor-fill/chats-circle-fill.svg';
-import EmailFillIcon from '@phosphor-fill/envelope-fill.svg';
-import FilesFillIcon from '@phosphor-fill/files-fill.svg';
+import BellFillIcon from '@icon/system/fill/bell-fill.svg';
+import BuildingsFillIcon from '@icon/system/fill/buildings-fill.svg';
+import CalendarBlankFillIcon from '@icon/system/fill/calendar-blank-fill.svg';
+import ChatsCircleFillIcon from '@icon/system/fill/chats-circle-fill.svg';
+import EmailFillIcon from '@icon/system/fill/envelope-fill.svg';
+import FolderSimpleFillIcon from '@icon/system/fill/folder-simple-fill.svg';
+import GitPullRequestFillIcon from '@icon/system/fill/git-pull-request-fill.svg';
+import ListChecksFillIcon from '@icon/system/fill/list-checks-fill.svg';
+import PhoneCallFillIcon from '@icon/system/fill/phone-call-fill.svg';
+import AgentFillIcon from '@icon/system/fill/sparkle-fill.svg';
+import BellIcon from '@icon/system/regular/bell.svg';
+import BuildingsIcon from '@icon/system/regular/buildings.svg';
+import CalendarBlankIcon from '@icon/system/regular/calendar-blank.svg';
+import CalendarCheckIcon from '@icon/system/regular/calendar-check.svg';
+import ChatsCircleIcon from '@icon/system/regular/chats-circle.svg';
+import FolderSimpleIcon from '@icon/system/regular/folder-simple.svg';
+import GitPullRequestIcon from '@icon/system/regular/git-pull-request.svg';
+import PlugIcon from '@icon/system/regular/plug.svg';
+import PlugFillIcon from '@phosphor-fill/plug-fill.svg';
 import { createMemo } from 'solid-js';
 import type { MobileDockIcon } from './MobileDockButton';
 import type { MobileNavViewId } from './mobile-nav-views';
@@ -41,8 +52,8 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
   {
     id: 'calendar',
     label: 'Calendar',
-    icon: getIconConfig('calendar').icon,
-    iconActive: CalendarFillIcon,
+    icon: CalendarBlankIcon,
+    iconActive: CalendarBlankFillIcon,
   },
   {
     id: 'mail',
@@ -56,18 +67,49 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
     icon: ChatsCircleIcon,
     iconActive: ChatsCircleFillIcon,
   },
-  { id: 'agents', label: 'Agents', icon: getIconConfig('agent').icon },
+  {
+    id: 'agents',
+    label: 'Agents',
+    icon: getIconConfig('agent').icon,
+    iconActive: AgentFillIcon,
+  },
   {
     id: 'documents',
     label: 'Files',
-    icon: getIconConfig('files').icon,
-    iconActive: FilesFillIcon,
+    icon: FolderSimpleIcon,
+    iconActive: FolderSimpleFillIcon,
   },
-  { id: 'tasks', label: 'Tasks', icon: getIconConfig('task').icon },
-  { id: 'calls', label: 'Calls', icon: getIconConfig('call').icon },
-  { id: 'companies', label: 'CRM', icon: getIconConfig('company').icon },
-  { id: 'reviews', label: 'Reviews', icon: GitPullRequestIcon },
+  {
+    id: 'tasks',
+    label: 'Tasks',
+    icon: getIconConfig('task').icon,
+    iconActive: ListChecksFillIcon,
+  },
+  {
+    id: 'calls',
+    label: 'Calls',
+    icon: getIconConfig('call').icon,
+    iconActive: PhoneCallFillIcon,
+  },
+  {
+    id: 'companies',
+    label: 'Customers',
+    icon: BuildingsIcon,
+    iconActive: BuildingsFillIcon,
+  },
+  {
+    id: 'reviews',
+    label: 'Reviews',
+    icon: GitPullRequestIcon,
+    iconActive: GitPullRequestFillIcon,
+  },
   { id: 'booking-links', label: 'Scheduling', icon: CalendarCheckIcon },
+  {
+    id: 'external',
+    label: 'External',
+    icon: PlugIcon,
+    iconActive: PlugFillIcon,
+  },
 ];
 
 export function useMobileDockViews() {
@@ -75,6 +117,7 @@ export function useMobileDockViews() {
   const crm = useFeatureFlag(enableCrm);
   const reviews = useFeatureFlag(enableTasksReviews);
   const scheduling = useFeatureFlag(enableCalendarScheduling);
+  const external = useFeatureFlag(enableWhatsappLinked);
   return createMemo(() =>
     MOBILE_DOCK_VIEWS.filter(
       (view) => view.id !== 'calendar' || calendarEnabled()
@@ -82,5 +125,6 @@ export function useMobileDockViews() {
       .filter((view) => view.id !== 'companies' || crm().enabled)
       .filter((view) => view.id !== 'reviews' || reviews().enabled)
       .filter((view) => view.id !== 'booking-links' || scheduling().enabled)
+      .filter((view) => view.id !== 'external' || external().enabled)
   );
 }

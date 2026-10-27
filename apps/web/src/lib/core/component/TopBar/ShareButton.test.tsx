@@ -20,12 +20,13 @@ import {
 vi.mock('@app/features/calendar-notes/document-meeting-notes', () => ({
   DocumentMeetingNotes: (props: {
     documentId: string;
-    onAccessState?: (state: 'shared' | 'none') => void;
+    onAccessState?: (state: 'shared' | 'none', teamIds: string[]) => void;
   }) => {
     mocks.mountMeetingNotes(props.documentId);
     onCleanup(mocks.unmountMeetingNotes);
     props.onAccessState?.(
-      props.documentId === 'meeting-note' ? 'shared' : 'none'
+      props.documentId === 'meeting-note' ? 'shared' : 'none',
+      []
     );
     return (
       <section aria-label="Meeting links">
@@ -52,6 +53,10 @@ vi.mock('@app/features/access-requests/access-requests', async (original) => ({
     busy: () => false,
     error: () => undefined,
   }),
+}));
+// Inviting people by email is covered with the access request views.
+vi.mock('@app/features/access-requests/views/DirectAccessInvite', () => ({
+  DirectAccessInvite: () => null,
 }));
 vi.mock(
   '@app/features/access-requests/share-request-trigger',
@@ -95,6 +100,8 @@ const mocks = vi.hoisted(() => ({
   updateAgentPermissions: vi.fn(),
   getInitiativePermissions: vi.fn(),
   updateInitiativePermissions: vi.fn(),
+  getWhatsappPermissions: vi.fn(),
+  updateWhatsappPermissions: vi.fn(),
   getDocumentPermissions: vi.fn(),
   getDatabasePermissions: vi.fn(),
   updateDatabasePermissions: vi.fn(),
@@ -116,6 +123,7 @@ const mocks = vi.hoisted(() => ({
   blockPermissionsRead: vi.fn(),
   blockEditPermissionEnabled: true,
   inBlock: true,
+  blockId: 'launcher-placeholder',
 }));
 vi.mock('@app/features/crm/sharing-adapter', () => ({
   fetchPipelineSharePermissions: mocks.getPipelinePermissions,
@@ -161,7 +169,7 @@ vi.mock('@core/block', () => ({
   useBlockName: () => 'md',
   useMaybeBlockName: () => 'md',
   useMaybeBlockAliasedName: () => 'md',
-  useMaybeBlockId: () => 'launcher-placeholder',
+  useMaybeBlockId: () => (mocks.inBlock ? mocks.blockId : undefined),
 }));
 vi.mock('@core/component/CustomScrollbar', () => ({
   CustomScrollbar: () => null,
@@ -221,6 +229,12 @@ vi.mock('@queries/initiative/share-permissions', () => ({
     mocks.getInitiativePermissions(...args),
   updateInitiativeSharePermissions: (...args: unknown[]) =>
     mocks.updateInitiativePermissions(...args),
+}));
+vi.mock('@queries/whatsapp-groups/share-permissions', () => ({
+  fetchWhatsappGroupPermissions: (...args: unknown[]) =>
+    mocks.getWhatsappPermissions(...args),
+  updateWhatsappGroupPermissions: (...args: unknown[]) =>
+    mocks.updateWhatsappPermissions(...args),
 }));
 vi.mock('@core/component/SharePermissions', () => ({
   Permissions: { OWNER: 'owner', CAN_EDIT: 'edit', CAN_VIEW: 'view' },
@@ -318,7 +332,7 @@ vi.mock('@queries/call/call', () => ({
 vi.mock('@queries/team/teams', () => ({
   useCurrentTeamQuery: () => ({
     isSuccess: mocks.hasTeam,
-    data: mocks.hasTeam ? { id: 'team-1' } : undefined,
+    data: mocks.hasTeam ? { team: { id: 'team-1', name: 'Macro' } } : undefined,
   }),
 }));
 vi.mock('@solidjs/router', () => ({ useNavigate: () => vi.fn() }));
@@ -432,6 +446,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.meetingNotesFlag = () => ({ enabled: true, loading: false });
   mocks.inBlock = true;
+  mocks.blockId = 'launcher-placeholder';
+  mocks.getDocumentPermissions.mockResolvedValue(
+    ok({ channelSharePermissions: [] })
+  );
   mocks.blockEditPermissionEnabled = true;
   mocks.mobile = false;
   mocks.hasTeam = false;
@@ -469,10 +487,46 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('document meeting-link management', () => {
+  it('loads the linked note’s permissions instead of its enclosing calendar block', async () => {
+    mocks.blockId = 'calendar';
+    mocks.blockEditPermissionEnabled = false;
+    mocks.getDocumentPermissions.mockResolvedValue(
+      ok({
+        linkShare: 'PUBLIC',
+        linkShareAccessLevel: 'view',
+        channelSharePermissions: [],
+      })
+    );
+    render(() => (
+      <ShareModal
+        id="linked-note"
+        name="Linked note"
+        owner={ME}
+        itemType="document"
+        blockAlias="md"
+        userPermissions={Permissions.OWNER}
+        open
+        onOpenChange={vi.fn()}
+      />
+    ));
+    await vi.waitFor(() =>
+      expect(mocks.getDocumentPermissions).toHaveBeenCalledWith({
+        document_id: 'linked-note',
+      })
+    );
+    expect(
+      await screen.findByRole('group', { name: 'Link sharing scope' })
+    ).toBeTruthy();
+    expect(mocks.blockPermissionsRead).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole('button', { name: 'Set option edit' })
+    ).toBeTruthy();
+  });
   it.each([false, true])(
     'gates the meeting source without implying grants were revoked (mobile: %s)',
     async (mobile) => {
       mocks.mobile = mobile;
+      mocks.blockId = 'meeting-note';
       const [flag, setFlag] = createSignal({ enabled: false, loading: true });
       const [documentId, setDocumentId] = createSignal('meeting-note');
       mocks.meetingNotesFlag = flag;
@@ -512,7 +566,7 @@ describe('document meeting-link management', () => {
 
       setDocumentId('another-note');
       expect(screen.queryByText('Shared')).toBeNull();
-      expect(screen.getByText('Restricted')).toBeDefined();
+      expect(await screen.findByText('Restricted')).toBeDefined();
       expect(mocks.mountMeetingNotes).toHaveBeenCalledTimes(1);
       setFlag({ enabled: true, loading: false });
       expect(mocks.mountMeetingNotes).toHaveBeenLastCalledWith('another-note');
@@ -1037,6 +1091,7 @@ describe('share edit availability', () => {
 });
 
 function mountChatShare() {
+  mocks.blockId = 'chat-1';
   mocks.blockPermissionsRead.mockReturnValue({
     isErr: () => false,
     value: {
@@ -1063,6 +1118,7 @@ function mountChatShare() {
 }
 
 function mountCallShare() {
+  mocks.blockId = 'call-1';
   mocks.blockPermissionsRead.mockReturnValue({
     isErr: () => false,
     value: {
@@ -1280,6 +1336,7 @@ describe('chat team sharing', () => {
 });
 
 function mountProjectShare() {
+  mocks.blockId = 'project-1';
   mocks.blockPermissionsRead.mockReturnValue({
     isErr: () => false,
     value: {
@@ -1542,6 +1599,42 @@ describe('native project sharing', () => {
     }
   );
 
+  it('lets the owner of a WhatsApp chat revoke a channel its mention shared it with', async () => {
+    mocks.inBlock = false;
+    mocks.getWhatsappPermissions.mockResolvedValue(
+      ok({
+        id: 'whatsapp-permissions',
+        owner: ME,
+        channelSharePermissions: [
+          { channel_id: 'channel-1', access_level: 'view' },
+        ],
+      })
+    );
+    mocks.updateWhatsappPermissions.mockResolvedValue(ok(undefined));
+    render(() => (
+      <ShareModal
+        id="group-1"
+        name="Family"
+        owner={ME}
+        itemType="whatsapp_group"
+        blockAlias="whatsapp_group"
+        userPermissions={Permissions.OWNER}
+        open
+        onOpenChange={vi.fn()}
+      />
+    ));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Set option none' })
+    );
+    await vi.waitFor(() =>
+      expect(mocks.updateWhatsappPermissions).toHaveBeenCalledWith('group-1', {
+        channelSharePermissions: [
+          { operation: 'remove', channelId: 'channel-1' },
+        ],
+      })
+    );
+  });
+
   it('copies the project route instead of a block URL', () => {
     mocks.inBlock = false;
     render(() => (
@@ -1741,6 +1834,7 @@ describe('pipeline sharing', () => {
 });
 
 it('database sharing reads its block permissions and disables public links', () => {
+  mocks.blockId = 'database-id';
   mocks.blockPermissionsRead.mockReturnValue({
     isErr: () => false,
     value: { id: 'database-id', owner: 'owner', channelSharePermissions: [] },
@@ -1764,6 +1858,7 @@ it('database sharing reads its block permissions and disables public links', () 
 
 describe('database team sharing', () => {
   function mountDatabaseShare() {
+    mocks.blockId = 'database-id';
     mocks.blockPermissionsRead.mockReturnValue({
       isErr: () => false,
       value: {
@@ -1818,6 +1913,9 @@ describe('database team sharing', () => {
 });
 
 describe('form share roles', () => {
+  beforeEach(() => {
+    mocks.blockId = 'form-id';
+  });
   it.each([false, true])(
     'shows form link sharing in the native link area (mobile: %s)',
     async (mobile) => {
@@ -1880,8 +1978,9 @@ describe('form share roles', () => {
     );
   });
 
-  it('offers View and Edit on a form, which has no comments, and every level elsewhere', () => {
+  it('offers View and Edit on a form, which has no comments, View on a WhatsApp chat, and every level elsewhere', () => {
     expect(shareLevelsFor('form')).toEqual(['view', 'edit']);
+    expect(shareLevelsFor('whatsapp_group')).toEqual(['view']);
     expect(shareLevelsFor('document')).toBeUndefined();
     render(() => (
       <ShareOptions
