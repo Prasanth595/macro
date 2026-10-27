@@ -7,9 +7,9 @@ import {
 import { Permissions } from '@core/component/SharePermissions';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { PrForeignEntityData } from '../data/queries';
+import type { PrActions } from '../primitives/create-pr-actions';
 import { usePrFileOperations } from '../primitives/pr-file-operations';
 import { prDisplayName } from '../util/prKey';
-import { confirmMergePullRequest } from './MergePullRequestButton';
 import { PrStatusIcon } from './PrStatus';
 
 /**
@@ -18,13 +18,13 @@ import { PrStatusIcon } from './PrStatus';
  * the legacy BlockLoader supplied by default; GitHub decides whether the
  * menu's changes go through.
  */
-export function PrSplitHeader(props: { detail: PrForeignEntityData }) {
+export function PrSplitHeader(props: {
+  detail: PrForeignEntityData;
+  actions: PrActions;
+}) {
   const title = () =>
     props.detail.pullRequest.name ?? prDisplayName(props.detail.prRef);
-  const operations = usePrFileOperations(
-    () => props.detail,
-    confirmMergePullRequest
-  );
+  const operations = usePrFileOperations(() => props.detail, props.actions);
 
   return (
     <>

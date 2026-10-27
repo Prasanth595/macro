@@ -6,6 +6,7 @@ import { reviewsPrRoute } from '@app/routes/routes';
 import { confirmMergePullRequest } from '@block-pr/component/MergePullRequestButton';
 import { PrChangesProvider } from '@block-pr/component/PrChanges';
 import { PrStatusIcon } from '@block-pr/component/PrStatus';
+import { createPrActions } from '@block-pr/primitives/create-pr-actions';
 import { usePrFileOperations } from '@block-pr/primitives/pr-file-operations';
 import { prDisplayName, prHtmlUrl } from '@block-pr/util/prKey';
 import {
@@ -68,7 +69,8 @@ function ReviewsPrBreadcrumb(props: {
 export function ReviewsPrDetail(props: { foreignEntityId: string }) {
   const analytics = useAnalytics();
   const detail = usePrDetail(() => props.foreignEntityId);
-  const operations = usePrFileOperations(detail.data, confirmMergePullRequest);
+  const actions = createPrActions(detail.data, confirmMergePullRequest);
+  const operations = usePrFileOperations(detail.data, actions);
   const name = () => {
     const data = detail.data();
     return (
@@ -107,7 +109,7 @@ export function ReviewsPrDetail(props: { foreignEntityId: string }) {
             <ViewShell.TopBar class="touch:flex touch:h-auto touch:min-h-12 touch:pt-[calc(var(--mobile-content-inset-top,var(--safe-top,0px))+0.75rem)]">
               <SplitPanel.CloseButton class="hidden shrink-0 touch:flex" />
               <ViewBreadcrumbs.Outlet aria-label="Pull request location" />
-              <PrDetailActions detail={detail.data()} />
+              <PrDetailActions detail={detail.data()} actions={actions} />
             </ViewShell.TopBar>
             <PrDetailContent
               foreignEntityId={props.foreignEntityId}

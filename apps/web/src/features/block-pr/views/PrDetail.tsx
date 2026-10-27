@@ -25,10 +25,7 @@ import {
 import { githubPullRequestChangesKeys } from '@queries/storage/keys';
 import { Button, CopyButton, cn, Layer, Scroll, Tooltip } from '@ui';
 import { type Accessor, createMemo, Show, Suspense } from 'solid-js';
-import {
-  confirmMergePullRequest,
-  MergePullRequestButton,
-} from '../component/MergePullRequestButton';
+import { confirmMergePullRequest } from '../component/MergePullRequestButton';
 import { PrChangesProvider } from '../component/PrChanges';
 import {
   PrDescriptionSkeleton,
@@ -42,15 +39,19 @@ import {
   PrStatusIcon,
 } from '../component/PrStatus';
 import { PrTimeline } from '../component/PrTimeline';
+import { PullRequestActionsButton } from '../component/PullRequestActionsButton';
 import { PrSidePanelSections } from '../component/sidepanel/PrSidePanelSections';
 import { createPrDiscussionSource } from '../data/prDiscussionSource';
 import {
-  invalidatePrForeignEntity,
   type PrForeignEntityData,
   prForeignEntityQueryKey,
   usePrForeignEntityQuery,
 } from '../data/queries';
 import { usePrShare } from '../hooks/usePrShare';
+import {
+  createPrActions,
+  type PrActions,
+} from '../primitives/create-pr-actions';
 import { usePrFileOperations } from '../primitives/pr-file-operations';
 import {
   cleanGithubMarkdown,
@@ -198,7 +199,10 @@ export function PrDetailContent(props: PrDetailBodyProps) {
   );
 }
 
-export function PrDetailActions(props: { detail?: PrForeignEntityData }) {
+export function PrDetailActions(props: {
+  detail?: PrForeignEntityData;
+  actions: PrActions;
+}) {
   const { openShare, copyLink, ShareModal } = usePrShare(
     () => props.detail?.id ?? '',
     () => props.detail?.pullRequest.name ?? 'Pull request'
@@ -207,36 +211,26 @@ export function PrDetailActions(props: { detail?: PrForeignEntityData }) {
   return (
     <div class="ml-auto flex shrink-0 items-center gap-2">
       <Show when={props.detail}>
-        {(detail) => (
-          <>
-            <HeaderActionGroup label="Sharing">
-              <Tooltip label="Share pull request">
-                <HeaderActionButton
-                  label="Share"
-                  icon={<IconShared />}
-                  onClick={openShare}
-                />
-              </Tooltip>
-              <CopyButton
-                variant="ghost"
-                tooltip="Copy Share Link"
-                size="icon-md"
-                onClick={copyLink}
-              >
-                <IconLink class="size-3.5!" />
-              </CopyButton>
-            </HeaderActionGroup>
-            <HeaderActionGroup label="Pull request actions">
-              <MergePullRequestButton
-                target={{ ...detail().prRef, title: detail().pullRequest.name }}
-                status={detail().pullRequest.status}
-                draft={detail().pullRequest.draft}
-                checks={detail().pullRequest.checks}
-                onMerged={() => invalidatePrForeignEntity(detail().id)}
+        <>
+          <HeaderActionGroup label="Sharing">
+            <Tooltip label="Share pull request">
+              <HeaderActionButton
+                label="Share"
+                icon={<IconShared />}
+                onClick={openShare}
               />
-            </HeaderActionGroup>
-          </>
-        )}
+            </Tooltip>
+            <CopyButton
+              variant="ghost"
+              tooltip="Copy Share Link"
+              size="icon-md"
+              onClick={copyLink}
+            >
+              <IconLink class="size-3.5!" />
+            </CopyButton>
+          </HeaderActionGroup>
+          <PullRequestActionsButton actions={props.actions} />
+        </>
       </Show>
       <ChangesToggle />
       <SidePanel.Toggle />
@@ -247,7 +241,8 @@ export function PrDetailActions(props: { detail?: PrForeignEntityData }) {
 
 export function StandalonePrDetail(props: { foreignEntityId: string }) {
   const detail = usePrDetail(() => props.foreignEntityId);
-  const operations = usePrFileOperations(detail.data, confirmMergePullRequest);
+  const actions = createPrActions(detail.data, confirmMergePullRequest);
+  const operations = usePrFileOperations(detail.data, actions);
   const name = () => {
     const data = detail.data();
     return (
@@ -287,7 +282,7 @@ export function StandalonePrDetail(props: { foreignEntityId: string }) {
                   ops={operations()}
                 />
               </div>
-              <PrDetailActions detail={detail.data()} />
+              <PrDetailActions detail={detail.data()} actions={actions} />
             </ViewShell.TopBar>
             <PrDetailContent
               foreignEntityId={props.foreignEntityId}
