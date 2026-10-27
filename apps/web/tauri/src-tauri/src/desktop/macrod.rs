@@ -348,8 +348,8 @@ pub(crate) async fn macrod_start(
         inner.restarts = 0;
     }
     set_autostart(&app, true);
-    let status = launch(&app, &state.inner, &options, None)?
-        .expect("an unconditional launch always spawns");
+    let status =
+        launch(&app, &state.inner, &options, None)?.expect("an unconditional launch always spawns");
     emit_status(&app, &status);
     Ok(status)
 }
@@ -435,7 +435,12 @@ fn schedule_restart(app: AppHandle, state: Arc<Mutex<Inner>>, generation: u64) {
     tracing::warn!(target: "macrod", attempt, ?delay, "macrod exited unexpectedly; restarting");
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(delay).await;
-        match launch(&app, &state, &MacrodStartOptions::default(), Some(generation)) {
+        match launch(
+            &app,
+            &state,
+            &MacrodStartOptions::default(),
+            Some(generation),
+        ) {
             Ok(Some(status)) => emit_status(&app, &status),
             Ok(None) => {}
             Err(error) => {
