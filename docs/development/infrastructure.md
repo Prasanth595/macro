@@ -102,11 +102,15 @@ specifically:
 - **Doppler is the source.** `infra/stacks/doppler-projects` creates one project per
   service with `lcl`, `dev`, and `prd` environments, synced to Secrets Manager at
   `/doppler-sync/<project>/<dev|prod>`. Add the service to `SERVICE_NAMES`, using
-  the Pulumi project name.
+  the Pulumi project name, or declare it with its `secrets` (non-secret values
+  and Doppler references such as `${global_databases.dev.DATABASE_URL}`) so the
+  project needs no hand-set keys, as `whatsapp-session-service` does.
 - **`MacroConfig` reads only `APP_SECRETS_JSON` in ECS.** A plain container
   `environment:` entry is invisible to it. Put values that infra produces (ARNs,
   endpoints) into Doppler with a Pulumi `doppler.Secret`, as
-  `infra/stacks/preview-gateway` does. Plain `environment:` is for `ENVIRONMENT`,
+  `infra/stacks/agent-harness-service` does; that stack then needs
+  `doppler:dopplerToken` as `secure:` config. A value with a stable name (a KMS
+  alias) can be declared in `doppler-projects` instead. Plain `environment:` is for `ENVIRONMENT`,
   `DD_*`, and values read through `macro_env_var` or `OVERRIDE_*`.
 - **Secrets go in Doppler, not Secrets Manager.** Add the value to the service's
   Doppler project; it reaches the task through `DopplerEcsEnvironment` and the

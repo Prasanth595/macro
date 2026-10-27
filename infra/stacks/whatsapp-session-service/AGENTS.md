@@ -17,18 +17,15 @@ no service URL. Egress is 443 (WhatsApp, AWS APIs, Datadog) and 5432 (MacroDB).
 
 | Key | Value |
 | --- | --- |
-| `DATABASE_URL` | Pooled MacroDB URL, as other services. |
-| `WHATSAPP_SESSION_LOCK_DATABASE_URL` | MacroDB **instance** endpoint (`macro-db-<stack>`, the `macrodb` stack's `endpoint` output), never the RDS Proxy (`macrodb-proxy-<stack>`). |
+| `DATABASE_URL` | `${global_databases.<config>.DATABASE_URL}` |
+| `WHATSAPP_SESSION_LOCK_DATABASE_URL` | The same reference: global_databases' URL is the MacroDB **instance** endpoint (`macro-db-<stack>`). Never the RDS Proxy (`macrodb-proxy-<stack>`). |
 | `WHATSAPP_SESSION_KMS_KEY_ID` | `alias/whatsapp-session-service-<stack>` (`sessionKmsKeyAlias` output). |
 | `WHATSAPP_SESSION_MAX_ACCOUNTS` | `500` |
 | `WHATSAPP_SESSION_DRAIN_BATCH` | `20` |
 
-The stack writes `WHATSAPP_SESSION_KMS_KEY_ID` into Doppler itself
-(`doppler.Secret` in `index.ts`), since `MacroConfig` reads only
-`APP_SECRETS_JSON` in ECS; the others are set by hand. The Doppler provider
-needs a token that can write the project: before the first `pulumi up` of a
-stack, `pulumi config set --secret doppler:dopplerToken <token>` (as
-`agent-harness-service` has). Local values come
+`infra/stacks/doppler-projects/index.ts` declares every key, so nothing is
+set by hand and this stack writes nothing to Doppler (no `doppler:dopplerToken`).
+The KMS alias there must match the one `service.ts` creates. Local values come
 from `xtask_local` (`local_env.rs`).
 
 ## Checks
@@ -54,8 +51,10 @@ From `infra/`: `bun run check`, `bunx biome check stacks/whatsapp-session-servic
 - The KMS key only answers calls whose encryption context has
   `macro:purpose = whatsapp-session` (`crates/whatsapp_store_pg/src/kms.rs`).
   Changing that string strands every stored session.
-- `bootstrap_pending` in `.github/services-config.json` keeps it out of
-  deploys until the Doppler project exists and someone enables it.
+- Deploys need the `doppler-projects` stack applied first: `DopplerEcsEnvironment`
+  reads `/doppler-sync/whatsapp-session-service/<stack>`, which its sync writes.
+- To stop all WhatsApp traffic, set `desired_count: 0` (or scale the ECS
+  service to 0); see the service runbook.
 
 ## Related
 
