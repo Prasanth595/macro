@@ -108,8 +108,9 @@ the gateway `/email` prefix.
   (`NewerLabelWritePending`), so bulk writes that are each newer on one of the
   other's messages don't wait on each other. A waiting message sends if the
   newer write is rejected. A permanent failure gives up the write's unaccepted
-  and waiting messages and puts back what the older writes or the original
-  state say. Both label write forms carry the write's `pendingWriteId`; with
+  and waiting messages and puts back what the newest older write still on its
+  way, or the state before the write, says; an expired marker no longer
+  counts. Both label write forms carry the write's `pendingWriteId`; with
   batches off, each message's operation settles only that message's markers.
   Markers expire after 12 hours, which must outlast an operation's redelivery
   through the gmail_ops queues.

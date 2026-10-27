@@ -202,10 +202,12 @@ pub async fn confirm_pending_label_writes(
 
 /// Gives up `write_id`'s rows on `message_ids` because Gmail will never apply
 /// them, and puts each label the write was the newest on back in the state
-/// Gmail will end up with: the next older write's, which may still be on its
-/// way, or the one before the oldest write. Labels a newer write changed keep
-/// that write's state. Returns the messages whose labels were put back.
-/// Callers hold `lock_thread_label_writes` for the messages' threads.
+/// Gmail will end up with: that of the newest older write still on its way,
+/// or the one before this write, which older writes given up pass on. An
+/// older write whose row expired is presumed lost and no longer counts.
+/// Labels a newer write changed keep that write's state. Returns the messages
+/// whose labels were put back. Callers hold `lock_thread_label_writes` for
+/// the messages' threads.
 #[tracing::instrument(skip(tx, message_ids), err)]
 pub async fn abandon_pending_label_writes(
     tx: &mut PgConnection,
@@ -228,7 +230,7 @@ pub async fn abandon_pending_label_writes(
                 (SELECT older.label_present FROM email_gmail_pending_label_writes older
                  WHERE older.message_id = c.message_id
                     AND older.provider_label_id = c.provider_label_id
-                    AND older.seq < c.seq
+                    AND older.seq < c.seq AND older.expires_at > now()
                  ORDER BY older.seq DESC
                  LIMIT 1) AS older_present
             FROM email_gmail_pending_label_writes c

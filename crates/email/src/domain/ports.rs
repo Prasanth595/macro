@@ -441,9 +441,9 @@ pub trait EmailRepo: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Option<StagedLabelChange>, Self::Err>> + Send;
 
     /// Atomically undo a staged label change Gmail will never receive.
-    /// `provider_message_ids` go back to the state Gmail will end up with: the
-    /// next older write's, which may still be on its way, or the one before
-    /// the oldest write; a newer write keeps its own. `local_message_ids`
+    /// `provider_message_ids` go back to the state Gmail will end up with:
+    /// that of the newest older write still on its way, or the one before
+    /// this write; a newer write keeps its own. `local_message_ids`
     /// (Macro-only drafts) lose the change. The thread's state is derived
     /// again, all while holding the thread's label-write lock.
     #[expect(clippy::too_many_arguments, reason = "the parts of one staged change")]

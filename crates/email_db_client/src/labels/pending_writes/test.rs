@@ -277,6 +277,76 @@ async fn writes_newer_than_each_other_on_two_messages_each_have_one_to_send(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("fetch_message_labels_in_bulk"))
 )]
+async fn an_abandoned_write_does_not_bring_back_an_expired_older_write(
+    pool: Pool<Postgres>,
+) -> Result<()> {
+    let archive = Uuid::from_u128(0xaa01);
+    let archive_again = Uuid::from_u128(0xaa02);
+
+    stage_inbox(&pool, false, archive).await?;
+    sqlx::query!(
+        "UPDATE email_gmail_pending_label_writes SET expires_at = now() - interval '1 second' WHERE write_id = $1",
+        archive
+    )
+    .execute(&pool)
+    .await?;
+    // With the marker expired, inbox sync puts Gmail's INBOX back.
+    sqlx::query!(
+        "INSERT INTO email_message_labels (message_id, label_id) VALUES ($1, $2)",
+        MESSAGE,
+        INBOX_LABEL
+    )
+    .execute(&pool)
+    .await?;
+
+    stage_inbox(&pool, false, archive_again).await?;
+    assert_eq!(abandon(&pool, archive_again).await?, [MESSAGE]);
+    assert!(in_inbox(&pool).await?);
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("fetch_message_labels_in_bulk"))
+)]
+async fn writes_abandoned_after_an_older_write_expired_return_to_the_state_before_them(
+    pool: Pool<Postgres>,
+) -> Result<()> {
+    let archive = Uuid::from_u128(0xaa01);
+    let archive_again = Uuid::from_u128(0xaa02);
+    let unarchive = Uuid::from_u128(0xaa03);
+
+    stage_inbox(&pool, false, archive).await?;
+    sqlx::query!(
+        "UPDATE email_gmail_pending_label_writes SET expires_at = now() - interval '1 second' WHERE write_id = $1",
+        archive
+    )
+    .execute(&pool)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO email_message_labels (message_id, label_id) VALUES ($1, $2)",
+        MESSAGE,
+        INBOX_LABEL
+    )
+    .execute(&pool)
+    .await?;
+    stage_inbox(&pool, false, archive_again).await?;
+    stage_inbox(&pool, true, unarchive).await?;
+
+    // The second archive gives up first and passes the state before it on to
+    // the unarchive, which keeps the label meanwhile.
+    assert!(abandon(&pool, archive_again).await?.is_empty());
+    assert!(in_inbox(&pool).await?);
+    assert_eq!(abandon(&pool, unarchive).await?, [MESSAGE]);
+    assert!(in_inbox(&pool).await?);
+    assert!(pending_provider_label_ids(&pool, MESSAGE).await?.is_empty());
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("fetch_message_labels_in_bulk"))
+)]
 async fn expired_changes_no_longer_apply(pool: Pool<Postgres>) -> Result<()> {
     let write_id = Uuid::from_u128(0xaa01);
 
