@@ -1,52 +1,53 @@
 import { match } from 'ts-pattern';
-import type { LinkedSendProgress } from '../../../generated/storage/types.gen';
+import type { ExternalChatSendProgress } from '../../../generated/storage/types.gen';
 import { MacroNotFoundError, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
-import type { WhatsAppGroup, WhatsAppReply } from './group';
-import { WhatsAppMessage } from './message';
-import { WhatsAppParticipant } from './participant';
-import { WhatsAppUpload } from './upload';
+import type { ExternalChat, ExternalChatContent } from './chat';
+import { ExternalChatMessage } from './message';
+import { ExternalChatParticipant } from './participant';
+import { ExternalChatUpload } from './upload';
 
 /** One deliberate send intent. Unknown outcomes must never be automatically resent. */
-export class WhatsAppSend extends MacroEntity<LinkedSendProgress> {
+export class ExternalChatSend extends MacroEntity<ExternalChatSendProgress> {
   private constructor(
     client: MacroClient,
-    /** Group entity containing this send. */
-    readonly group: WhatsAppGroup,
+    /** The chat containing this send. */
+    readonly chat: ExternalChat,
     id: string,
-    seed?: LinkedSendProgress,
+    seed?: ExternalChatSendProgress,
   ) {
     super(client, id, seed);
   }
 
-  /** Reference a send intent within its original group. */
+  /** Reference a send intent within its original chat. */
   static byId(
     client: MacroClient,
-    group: WhatsAppGroup,
+    chat: ExternalChat,
     id: string,
-  ): WhatsAppSend {
-    return new WhatsAppSend(client, group, id);
+  ): ExternalChatSend {
+    return new ExternalChatSend(client, chat, id);
   }
 
   /** Seed a send handle from a server response. */
   static from(
     client: MacroClient,
-    group: WhatsAppGroup,
-    record: LinkedSendProgress,
-  ): WhatsAppSend {
-    return new WhatsAppSend(client, group, record.id, record);
+    chat: ExternalChat,
+    record: ExternalChatSendProgress,
+  ): ExternalChatSend {
+    return new ExternalChatSend(client, chat, record.id, record);
   }
 
-  protected async fetch(): Promise<LinkedSendProgress> {
+  protected async fetch(): Promise<ExternalChatSendProgress> {
     const records = unwrap(
-      await this.client.storage.linkedDelivery({
-        path: { group_id: this.group.id },
+      await this.client.storage.externalChatDelivery({
+        path: { chat_id: this.chat.id },
         body: [this.id],
       }),
     );
     const record = records.find((send) => send.id === this.id);
-    if (!record) throw new MacroNotFoundError('WhatsApp send is not available');
+    if (!record)
+      throw new MacroNotFoundError('External chat send is not available');
     return record;
   }
 
@@ -59,29 +60,33 @@ export class WhatsAppSend extends MacroEntity<LinkedSendProgress> {
   /** When the send intent was created. */
   readonly createdAt = this.field('createdAt');
 
-  /** Group message once WhatsApp accepted the send. */
+  /** Chat message once the provider accepted the send. */
   readonly message = this.mappedField('messageId', (id) =>
-    id ? WhatsAppMessage.byId(this.client, this.group, id) : undefined,
+    id ? ExternalChatMessage.byId(this.client, this.chat, id) : undefined,
   );
 
   /** Inspect the original intent for reconciliation; never resubmit an unknown outcome automatically. */
   async request(): Promise<{
     idempotencyKey: string;
-    message: WhatsAppReply;
-    replyTo?: WhatsAppMessage;
+    message: ExternalChatContent;
+    replyTo?: ExternalChatMessage;
   }> {
     const { payload } = await this.detail.get();
     const wire = payload.message;
     const message = match(wire)
-      .returnType<WhatsAppReply>()
+      .returnType<ExternalChatContent>()
       .with({ type: 'media' }, (wire) => ({
         type: 'media',
-        upload: WhatsAppUpload.byId(this.group, wire.uploadId),
+        upload: ExternalChatUpload.byId(this.chat, wire.uploadId),
         caption: wire.caption ?? undefined,
       }))
       .with({ type: 'mutation' }, (wire) => ({
         type: 'mutation',
-        message: WhatsAppMessage.byId(this.client, this.group, wire.messageId),
+        message: ExternalChatMessage.byId(
+          this.client,
+          this.chat,
+          wire.messageId,
+        ),
         operation: wire.operation,
         text: wire.text ?? undefined,
       }))
@@ -89,7 +94,7 @@ export class WhatsAppSend extends MacroEntity<LinkedSendProgress> {
         type: 'text',
         text: wire.text,
         mentions: (wire.mentions ?? []).map((jid) =>
-          WhatsAppParticipant.byId(this.group, jid),
+          ExternalChatParticipant.byId(this.chat, jid),
         ),
       }))
       .exhaustive();
@@ -97,7 +102,7 @@ export class WhatsAppSend extends MacroEntity<LinkedSendProgress> {
       idempotencyKey: payload.idempotencyKey,
       message,
       replyTo: payload.replyTo
-        ? WhatsAppMessage.byId(this.client, this.group, payload.replyTo)
+        ? ExternalChatMessage.byId(this.client, this.chat, payload.replyTo)
         : undefined,
     };
   }

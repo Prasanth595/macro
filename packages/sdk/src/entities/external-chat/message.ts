@@ -1,52 +1,52 @@
-import type { WhatsAppGroupMessage } from '../../../generated/storage/types.gen';
+import type { ExternalChatMessage as ExternalChatMessageRecord } from '../../../generated/storage/types.gen';
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
-import type { WhatsAppGroup } from './group';
+import type { ExternalChat } from './chat';
 
-/** Message in an independently shared WhatsApp group. */
-export class WhatsAppMessage extends MacroEntity<WhatsAppGroupMessage> {
+/** Message in an added external chat. */
+export class ExternalChatMessage extends MacroEntity<ExternalChatMessageRecord> {
   private constructor(
     client: MacroClient,
     /** The chat this message is in. */
-    readonly group: WhatsAppGroup,
+    readonly chat: ExternalChat,
     id: string,
-    seed?: WhatsAppGroupMessage,
+    seed?: ExternalChatMessageRecord,
   ) {
     super(client, id, seed);
   }
 
-  /** Reference a message within its original group. */
+  /** Reference a message within its original chat. */
   static byId(
     client: MacroClient,
-    group: WhatsAppGroup,
+    chat: ExternalChat,
     id: string,
-  ): WhatsAppMessage {
-    return new WhatsAppMessage(client, group, id);
+  ): ExternalChatMessage {
+    return new ExternalChatMessage(client, chat, id);
   }
 
   /** Seed a message handle from a timeline response. */
   static from(
     client: MacroClient,
-    group: WhatsAppGroup,
-    record: WhatsAppGroupMessage,
-  ): WhatsAppMessage {
-    return new WhatsAppMessage(client, group, record.id, record);
+    chat: ExternalChat,
+    record: ExternalChatMessageRecord,
+  ): ExternalChatMessage {
+    return new ExternalChatMessage(client, chat, record.id, record);
   }
 
-  protected async fetch(): Promise<WhatsAppGroupMessage> {
+  protected async fetch(): Promise<ExternalChatMessageRecord> {
     return unwrap(
-      await this.client.storage.whatsappGroupMessage({
-        path: { group_id: this.group.id, message_id: this.id },
+      await this.client.storage.externalChatMessage({
+        path: { chat_id: this.chat.id, message_id: this.id },
       }),
     );
   }
 
-  /** Plain WhatsApp text. */
+  /** Plain message text. */
   readonly body = this.field('body');
   /** Protocol-verified sender association and display name. */
   readonly sender = this.field('sender');
-  /** WhatsApp timestamp. */
+  /** Provider timestamp. */
   readonly sentAt = this.field('sentAt');
   /** Last edit time. */
   readonly editedAt = this.field('editedAt');
@@ -56,20 +56,20 @@ export class WhatsAppMessage extends MacroEntity<WhatsAppGroupMessage> {
   readonly reactions = this.field('reactions');
   /** Caller-owned send's delivery state, when present. */
   readonly deliveryState = this.field('deliveryState');
-  /** `message`, or `system` for something that happened in the group (see `rich`). */
+  /** `message`, or `system` for something that happened in the chat (see `rich`). */
   readonly kind = this.field('kind');
   /** Forwarded from another chat. */
   readonly forwarded = this.field('forwarded');
-  /** Sent as view-once in WhatsApp; Macro keeps and shows it like any media. */
+  /** Sent as view-once in the provider; Macro keeps and shows it like any media. */
   readonly viewOnce = this.field('viewOnce');
   /** People the body @-mentions: `@<token>` in the body is this person. */
   readonly mentions = this.field('mentions');
   /** Poll (with tallies), location, contact cards, event or system line. */
   readonly rich = this.field('rich');
-  /** Quoted message in this group. */
-  readonly replyTo: () => Promise<WhatsAppMessage | undefined> =
+  /** Quoted message in this chat. */
+  readonly replyTo: () => Promise<ExternalChatMessage | undefined> =
     this.mappedField('replyTo', (id) =>
-      id ? WhatsAppMessage.byId(this.client, this.group, id) : undefined,
+      id ? ExternalChatMessage.byId(this.client, this.chat, id) : undefined,
     );
   /** Attachment states, with the stored file's URL once ready. */
   readonly attachments = this.mappedField('attachments', (records) =>
