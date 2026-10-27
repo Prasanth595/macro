@@ -87,6 +87,16 @@ provider copy before choosing an explicit resend; a resend in flight shows as
 the send button's pending state. Switching the sender
 inbox copies the draft and attachments into the destination; wait for completion
 before sending. If the copy is interrupted, use retry or keep the original.
+A draft the provider could not save can still switch From, which moves it to an
+inbox that may accept it; a draft with an unfinished move or a conflict stays in
+its inbox until that is resolved.
+A draft opened from Drafts then shows its thread in the destination inbox,
+never the not-found page; a draft in compose stays open there. Keep editing
+after the switch and check that no "This draft changed while saving" notice
+appears. Once a new compose's first save is confirmed, the URL carries its
+draft (`s0.email-compose.draft` for the first pane): reloading reopens it with
+its From, including after a From switch. The draft stays in the URL across
+further reloads, even while an offline edit is still queued.
 
 Opening an attachment opens it in a split from its Drive copy, except a
 calendar file: it opens its event (see the calendar invitations section of the
@@ -496,6 +506,26 @@ inbox, saving, and reopening the draft. Send must fetch the original files from
 the receiving inbox while using the selected From inbox for delivery. A scheduled
 cross-inbox forward must not download a source whose inbox access was revoked
 after saving.
+Switch one message's composer between Reply and Forward on Gmail and Outlook.
+A reply sends without the forwarded message, including after a forward from that
+composer failed to send. A reply showing its quoted text sends the forwarded
+message once switched to Forward. A saved forward reopened from its thread, its
+local copy, or Undo still reads **Forwarding** with a `Forward — @mention…`
+placeholder: Forward keeps its recipients, and Reply turns it into a reply
+without the forwarded message. A reply quoting a message that was itself
+forwarded stays a reply. Collapsed content is named: **Show forwarded message**
+on a forward, **Show quoted text** on a reply.
+Check recipient suggestions from a Gmail and an Outlook inbox. Typing a full
+address and pressing Enter commits that address, ahead of longer matches such
+as `teo+123456@macro.com`, whether or not it is a saved contact. A name or
+address word that starts with the query ranks above recent substring matches
+(`gab` finds Gab Birman). Opened empty, the list puts colleagues on the sending
+inbox's domain first. A chip shows the name and its hover card the address.
+Press Send with To empty, then add a recipient: the error clears at once, as a
+missing message or subject error does once filled in. Reply on a bounce from
+`mailer-daemon@`, `postmaster@`, or Outlook's `MicrosoftExchange<hex>@` keeps
+the other participants and leaves the bounce sender out of To and Cc; a
+`noreply@` sender stays.
 When checking draft autosave, edit the body of a draft with uploaded or forwarded
 attachments, wait for the save, and reopen it; the attachments should remain visible.
 In a long thread, scroll away from the bottom while a draft save is pending.

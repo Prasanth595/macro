@@ -8,7 +8,7 @@ import { convertDocumentMentionsToLinks } from '@core/component/LexicalMarkdown/
 import { staticFileReferenceEndpoint } from '@core/constant/servers';
 import { formatEmailDate } from '@core/util/date';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
-import { $createQuoteNode } from '@lexical/rich-text';
+import { $createQuoteNode, $isQuoteNode } from '@lexical/rich-text';
 import { $dfsIterator } from '@lexical/utils';
 import { sanitizeEmailHtml } from '@macro-inc/email-renderer';
 import type { DocumentMentionInfo } from '@macro-inc/lexical-core';
@@ -31,7 +31,7 @@ import {
   type LexicalEditor,
   type LexicalNode,
 } from 'lexical';
-import type { ReplyType } from '../core/reply-type';
+import { FORWARDED_MESSAGE_HEADER, type ReplyType } from '../core/reply-type';
 import { TOGGLE_APPEND_EMAIL_THREAD_COMMAND } from './email-editor-commands';
 import { flattenConsecutiveParagraphs } from './flatten-consecutive-paragraphs';
 
@@ -63,7 +63,7 @@ function buildHeaderDescriptor(
 
   if (replyType === 'forward') {
     const lines: string[] = [];
-    lines.push('---------- Forwarded message ----------');
+    lines.push(FORWARDED_MESSAGE_HEADER);
     const fromName = replyingTo.from?.name ?? replyingTo.from?.email ?? '';
     const fromEmail = replyingTo.from?.email ?? '';
     lines.push(`From: ${fromName} <${fromEmail}>`);
@@ -260,6 +260,25 @@ function removeAppendedThread(
     },
     { discrete: true }
   );
+}
+
+/** Whether the appended thread forwards or quotes, read from its header. */
+export function appendedThreadKind(
+  editor: LexicalEditor,
+  replyingToId: string
+): 'forward' | 'reply' | undefined {
+  return editor.read(() => {
+    for (const node of $findPreviousEmailNode(replyingToId)) {
+      if (!node) continue;
+      const header = node
+        .getChildren()
+        .filter((child) => !$isQuoteNode(child))
+        .map((child) => child.getTextContent())
+        .join('');
+      return header.includes(FORWARDED_MESSAGE_HEADER) ? 'forward' : 'reply';
+    }
+    return undefined;
+  });
 }
 
 export function registerToggleAppendedThread(editor: LexicalEditor) {
