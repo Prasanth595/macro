@@ -12,12 +12,16 @@ import type { OutOfOfficeProperties } from '@service-calendar/generated/schemas/
 import type { EventReminderOverride } from '@service-storage/generated/schemas/eventReminderOverride';
 import type { EventReminders } from '@service-storage/generated/schemas/eventReminders';
 import type { EventType } from '@service-storage/generated/schemas/eventType';
+import type { GuestPolicy } from '@service-storage/generated/schemas/guestPolicy';
 import {
   addDays,
   addHours,
+  addMinutes,
   differenceInCalendarDays,
+  differenceInMinutes,
   endOfDay,
   format,
+  isValid,
   parseISO,
   startOfHour,
 } from 'date-fns';
@@ -36,6 +40,8 @@ import {
   type RecurrenceConfig,
   recurrenceConfigsEqual,
   recurrencePresetsFor,
+  WEEKDAY_CODES,
+  type WeekdayCode,
 } from '../../utils/recurrence';
 import type { EventEditorOutOfOffice } from './out-of-office';
 
@@ -104,6 +110,8 @@ export interface EventEditorInitialValues {
   outOfOffice?: EventEditorOutOfOffice;
   /** Event type of the copy `reminders` belong to. Absent for new events. */
   reminderEventType?: EventType;
+  /** What guests may do; absent means Google's defaults. */
+  guestPolicy?: GuestPolicy;
 }
 
 /** Calendar option displayed by the event editor. */
@@ -132,7 +140,8 @@ type EventEditorField =
   | 'location'
   | 'description'
   | 'conference'
-  | 'reminders';
+  | 'reminders'
+  | 'outOfOffice';
 
 /** Field-level disabled state supplied by a create/edit owner. */
 export type EventEditorDisabledFields = Partial<
@@ -160,6 +169,8 @@ export interface EventEditorSubmitValues {
    * event that already is.
    */
   outOfOffice?: OutOfOfficeProperties;
+  /** Present only when the user changed what guests may do. */
+  guestPolicy?: GuestPolicy;
 }
 
 export function defaultEditorInitialValues(
@@ -228,11 +239,16 @@ function initialConferenceChoice(
  * Guest emails an existing event seeds into the editor: every attendee except
  * the viewer when they are a mere guest. The organizer is kept even when it is
  * the viewer, so a replacement attendee list submitted by the organizer never
- * drops them.
+ * drops them. So is the viewer's own row on an event they organize through a
+ * calendar Google names as the organizer, such as their secondary calendar,
+ * which lists them only as a guest.
  */
 export function eventGuestEmails(event: CalendarEvent): string[] {
   return event.attendees
-    .filter((attendee) => attendee.isOrganizer || !attendee.isSelf)
+    .filter(
+      (attendee) =>
+        attendee.isOrganizer || !attendee.isSelf || event.viewerCan.organize
+    )
     .map((attendee) => attendee.email);
 }
 
@@ -264,6 +280,7 @@ export function calendarEventToEditorInitialValues(
       reminders: event.reminders,
       eventType: event.eventType,
       reminderEventType: event.reminderEventType,
+      guestPolicy: event.guestPolicy,
     };
   }
 
@@ -289,6 +306,7 @@ export function calendarEventToEditorInitialValues(
     reminders: event.reminders,
     eventType: event.eventType,
     reminderEventType: event.reminderEventType,
+    guestPolicy: event.guestPolicy,
   };
 }
 
@@ -431,6 +449,30 @@ export function moveAllDayRange(
   };
 }
 
+/**
+ * Moves a timed range's end with its start, keeping the duration, as Google
+ * Calendar does. A range with no positive duration (incomplete, or already
+ * ending before it starts) keeps its end, since there is nothing to keep.
+ */
+export function moveTimedRange(
+  state: EventEditorInitialValues,
+  nextStart: string
+): EventEditorInitialValues {
+  const start = parseISO(nextStart);
+  const duration = differenceInMinutes(
+    parseISO(state.end),
+    parseISO(state.start)
+  );
+  if (!isValid(start) || !Number.isFinite(duration) || duration <= 0) {
+    return { ...state, start: nextStart };
+  }
+  return {
+    ...state,
+    start: nextStart,
+    end: format(addMinutes(start, duration), DATETIME_VALUE),
+  };
+}
+
 export interface CreateEventEditorStateOptions {
   initialValues: EventEditorInitialValues;
   state: Accessor<EventEditorInitialValues>;
@@ -438,13 +480,38 @@ export interface CreateEventEditorStateOptions {
   isEdit?: boolean;
 }
 
-function recurrenceConfigFor(
-  values: EventEditorInitialValues,
+/** When the event starts, in the zone its recurrence is expressed in. */
+function recurrenceStartOf(
+  values: Pick<EventEditorInitialValues, 'allDay' | 'start'>,
   timeZone?: string
 ) {
-  return values.recurrenceLines.length > 0
-    ? parseRecurrenceConfig(values.recurrenceLines, timeZone)
-    : undefined;
+  const parsed = values.allDay
+    ? parseISO(values.start)
+    : new Date(values.start);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return !values.allDay && timeZone ? TZDateMini.tz(timeZone, parsed) : parsed;
+}
+
+/**
+ * The editable form of the event's rule, read at `start`. A weekly rule
+ * without BYDAY repeats on the start's weekday (RFC 5545), so that weekday
+ * is spelled out, as the weekly preset and the custom editor's day chips
+ * show it.
+ */
+function recurrenceConfigFor(
+  values: EventEditorInitialValues,
+  timeZone?: string,
+  start: Pick<EventEditorInitialValues, 'allDay' | 'start'> = values
+) {
+  if (values.recurrenceLines.length === 0) return undefined;
+  const config = parseRecurrenceConfig(values.recurrenceLines, timeZone);
+  if (config?.frequency !== 'WEEKLY' || config.byDay.length > 0) return config;
+  const startsAt = recurrenceStartOf(start, timeZone);
+  if (!startsAt) return config;
+  return {
+    ...config,
+    byDay: [WEEKDAY_CODES[startsAt.getDay()] as WeekdayCode],
+  };
 }
 
 function recurrenceChoiceFor(
@@ -454,7 +521,7 @@ function recurrenceChoiceFor(
   if (values.recurrenceLines.length === 0) return 'none';
   const config = recurrenceConfigFor(values, timeZone);
   if (!config) return 'existing';
-  const start = values.allDay ? parseISO(values.start) : new Date(values.start);
+  const start = recurrenceStartOf(values, timeZone) ?? new Date();
   const preset = recurrencePresetsFor(start).find((candidate) =>
     recurrenceConfigsEqual(candidate.config, config)
   );
@@ -540,7 +607,13 @@ export function createEventEditorState(options: CreateEventEditorStateOptions) {
         ? customConfig()
         : presets().find((candidate) => candidate.id === choice)?.config;
     if (!config) return undefined;
-    const originalConfig = initialConfig();
+    // What the stored rule means at the current start: a weekly rule without
+    // BYDAY follows the start to another weekday.
+    const originalConfig = recurrenceConfigFor(
+      initialValues(),
+      options.recurrenceTimeZone,
+      options.state()
+    );
     if (
       originalConfig &&
       options.state().allDay === initialValues().allDay &&

@@ -31,6 +31,7 @@ import { UnfurlNamespace } from './entities/unfurls/namespace';
 import { UserNamespace } from './entities/users/namespace';
 import type { User } from './entities/users/user';
 import { WebhooksNamespace } from './entities/webhooks/namespace';
+import { WhatsAppNamespace } from './entities/whatsapp/namespace';
 import { WorkspaceNamespace } from './entities/workspace/namespace';
 import type { MacroEvents } from './events/receiver';
 import { MacroClient } from './utils/client';
@@ -127,6 +128,9 @@ export class Macro<T extends MacroOpts = MacroOpts> {
 
   readonly channels: ChannelNamespace;
 
+  /** Personal WhatsApp groups and shared group operations. */
+  readonly whatsapp: WhatsAppNamespace;
+
   readonly chats: ChatNamespace;
 
   readonly crm: CrmNamespace;
@@ -192,6 +196,7 @@ export class Macro<T extends MacroOpts = MacroOpts> {
     this.calendar = new CalendarNamespace(client);
     this.calls = new CallRecordNamespace(client);
     this.channels = new ChannelNamespace(client);
+    this.whatsapp = new WhatsAppNamespace(client);
     this.chats = new ChatNamespace(client);
     this.crm = new CrmNamespace(client);
     this.databases = new DatabaseNamespace(client);
@@ -244,6 +249,7 @@ export { ReviewItem, SessionReview } from './entities/agent-sessions/review';
 export { ToolApproval } from './entities/agent-sessions/tool-approval';
 export { Agent, type AgentOptions } from './entities/agents/agent';
 export { UserApiKey } from './entities/api-keys/api-key';
+export { CalendarNote } from './entities/calendar/note';
 export { ChannelActivity } from './entities/channels/activity';
 export { ChannelPicture } from './entities/channels/picture';
 export { ChatGeneration, ChatMessage } from './entities/chats/generation';
@@ -296,6 +302,19 @@ export {
 } from './entities/routines/routine';
 export { AccessRequest, EntityAccess } from './entities/sharing/access';
 export type { SharePermissionOptions } from './entities/sharing/permissions';
+export { WhatsAppAccount } from './entities/whatsapp/account';
+export {
+  WhatsAppChat,
+  type WhatsAppCommunity,
+} from './entities/whatsapp/chat';
+export {
+  WhatsAppGroup,
+  type WhatsAppReply,
+} from './entities/whatsapp/group';
+export { WhatsAppMessage } from './entities/whatsapp/message';
+export { WhatsAppParticipant } from './entities/whatsapp/participant';
+export { WhatsAppSend } from './entities/whatsapp/send';
+export { WhatsAppUpload } from './entities/whatsapp/upload';
 export type {
   WorkspaceFilters,
   WorkspaceItem,

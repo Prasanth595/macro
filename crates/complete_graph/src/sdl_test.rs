@@ -138,9 +138,12 @@ fn soup_response_schema_exposes_frontend_fields() {
         "saveEmailDraft(input: SaveEmailDraftInput!): SaveEmailDraftPayload!",
         "sendEmailMessage(input: SendEmailMessageInput!): SendEmailMessagePayload!",
         "input SendEmailMessageInput {",
+        "sendEmailAttempt(input: SendEmailAttemptInput!): SendEmailAttemptPayload!",
+        "input SendEmailAttemptInput {",
         "draft: SaveEmailDraftInput!",
         "includeSignature: Boolean",
         "type SendEmailMessagePayload {",
+        "type SendEmailAttemptPayload {",
         "messageId: ID!",
         "senderEmail: String",
         "deleteEmailDraft(input: DeleteEmailDraftInput!): DeleteEmailDraftPayload!",
@@ -912,5 +915,43 @@ fn assert_sdl_line(sdl: &str, expected: &str) {
     assert!(
         sdl.lines().any(|line| line.trim() == expected),
         "schema missing exact line `{expected}`"
+    );
+}
+
+#[test]
+fn saved_view_contract_is_composed_under_authenticated_user_and_mutations() {
+    let sdl = crate::build_schema().sdl();
+    let user = sdl
+        .split_once("type GraphqlUser {")
+        .expect("user type")
+        .1
+        .split_once('}')
+        .unwrap()
+        .0;
+    assert!(
+        user.contains("savedViews(kind: String, first: Int, after: String): GraphqlSavedViewPage!")
+    );
+    assert!(user.contains("savedView(id: ID!): GraphqlSavedView"));
+    for field in [
+        "createSavedView(input: CreateSavedViewInput!): GraphqlSavedView!",
+        "updateSavedView(input: UpdateSavedViewInput!): GraphqlSavedView!",
+        "deleteSavedView(input: DeleteSavedViewInput!): ID!",
+        "expectedRevision: Int!",
+        "sharing: SavedViewSharingInput",
+        "sharedTeamId: ID",
+        "nextCursor: String",
+    ] {
+        assert!(sdl.contains(field), "missing {field}");
+    }
+    let output = sdl
+        .split_once("type GraphqlSavedView {")
+        .unwrap()
+        .1
+        .split_once('}')
+        .unwrap()
+        .0;
+    assert!(
+        !output.contains("membership"),
+        "membership tokens are internal"
     );
 }

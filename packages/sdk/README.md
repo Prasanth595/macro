@@ -477,6 +477,14 @@ when mutations invalidate metadata. `update`, `cancel`, `invite(email)`,
 `availabilityCalendars`, `calendar.setContributesToAvailability`, `teamSharing` and
 `setTeamSharing` manage availability and sharing preferences.
 
+`calendar.noteDocuments(query)` suggests owned markdown and optional team handles.
+Use `event.linkNote(document, occurrence, { team })` to grant meeting viewers view
+access; omit `team` for meeting access only. One-time notes follow reschedules;
+recurring notes stay on the selected occurrence. `event.notes(occurrence)` returns
+`CalendarNote` handles with `setTeam(team?)` and `unlink()`. Existing editing and
+other document sharing stay unchanged. Owners can discover every durable grant
+through `document.meetingNotes()` and unlink it even when the meeting is unavailable.
+
 ### Document lifecycle and other resources
 
 `documents.createUpload(options)` reserves a binary document and returns upload
@@ -782,3 +790,44 @@ handles with `edit(draft)`, `submit()`, and `dismiss()` methods. `submitAll()` a
 conflict, refresh and inspect the review; never automatically retry a send whose
 outcome is unknown. These SDK methods have the same user authorization as the
 ordinary API: review cards offer a user workflow, not a separate security grant.
+
+### WhatsApp chats
+
+Pair your personal account in Macro's External view first. Your WhatsApp chat
+list (`whatsapp.chats()`) holds groups and direct chats; adding one makes an
+independent `WhatsAppGroup` entity (a group or a direct chat) with its own
+history and ordinary sharing, and its earlier messages are imported from your
+phone. Shared viewers can read without WhatsApp. Sending and media uploads
+require your own connected account in the chat, using your personal session or
+own API credential; only the owner sends in a direct chat, and bots never send.
+Adding and detaching require a personal bearer session. Each user is limited to
+one send request per second across all chats.
+
+```ts
+const personal = new Macro({
+  auth: { type: 'user', token: () => session.accessToken() },
+});
+const chats = await personal.whatsapp.chats();
+const addable = chats.find((chat) => chat.canAdd());
+const group = addable ? await addable.adopt() : undefined;
+if (group && (await group.canSend())) {
+  const [someone] = await group.participants();
+  const send = await group.reply(
+    {
+      type: 'text',
+      text: someone ? `Hello @${someone.mentionToken}` : 'Hello',
+      mentions: someone ? [someone] : [],
+    },
+    { idempotencyKey: crypto.randomUUID() },
+  );
+  await send.refresh();
+  console.log(await send.state());
+}
+for (const shared of await personal.whatsapp.groups()) {
+  for await (const message of shared.messages()) console.log(await message.body());
+}
+```
+
+Keep the same idempotency key when retrying the same request. A delivery state of
+`unknown` must be reconciled; never automatically resend it. Uploads, quoted
+messages, mentions, mutations, and delivery references must belong to the same chat.

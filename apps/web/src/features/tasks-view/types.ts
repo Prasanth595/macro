@@ -1,4 +1,10 @@
 import type { FacetSelection, SortSelection } from '@app/features/soup';
+import type { TaskComposerContext } from '../task-composer/core/context';
+
+export type TaskCreateOptions = {
+  dueDate?: Date;
+  composerContext?: TaskComposerContext;
+};
 
 export type TaskTab = 'my-tasks' | 'created-by-me' | 'team-tasks' | 'projects';
 export type TasksTab = TaskTab;
@@ -43,6 +49,8 @@ export type TasksViewState = {
   facets: FacetSelection;
   collapsedGroupIds: string[];
   collapsedSidebarSectionIds: string[];
+  /** Transient marker: never persist saved-view filter drafts in entry history. */
+  savedViewActive?: boolean;
 };
 
 export type TasksViewStateOptions = Partial<TasksViewState>;

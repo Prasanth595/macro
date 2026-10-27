@@ -175,6 +175,10 @@ export type ApiDraftInput = {
      * Existing message DB ID (for updating an existing draft).
      */
     db_id?: string | null;
+    /**
+     * Generation from the last loaded draft; legacy clients begin at zero.
+     */
+    draft_generation?: number;
     headers_json?: null | Value;
     /**
      * Per-message override for whether to include the signature on send:
@@ -236,6 +240,10 @@ export type ApiDraftOutput = {
      * Message DB ID.
      */
     db_id?: string | null;
+    /**
+     * Generation required for subsequent edits.
+     */
+    draft_generation: number;
     headers_json?: null | Value;
     /**
      * Link ID.
@@ -313,6 +321,10 @@ export type ApiMessage = {
     cc: Array<ApiContactInfo>;
     created_at: string;
     db_id: string;
+    /**
+     * Draft edit generation; changes at send and cancellation boundaries.
+     */
+    draft_generation: number;
     from?: null | ApiContactInfo;
     global_id?: string | null;
     has_attachments: boolean;
@@ -329,6 +341,7 @@ export type ApiMessage = {
     provider_id?: string | null;
     provider_thread_id?: string | null;
     replying_to_id?: string | null;
+    scheduled_send_status?: null | ScheduledSendStatus;
     scheduled_send_time?: string | null;
     sent_at?: string | null;
     size_estimate?: number | null;
@@ -453,6 +466,22 @@ export type ApiThreadPreviewCursorInner = {
 
 export type ArchiveThreadRequest = {
     value: boolean;
+};
+
+export type ArchiveThreadsRequest = {
+    thread_ids: Array<string>;
+    value: boolean;
+};
+
+export type ArchiveThreadsResponse = {
+    /**
+     * Threads left unchanged because they could not be updated.
+     */
+    failed_thread_ids: Array<string>;
+    /**
+     * Threads whose archived status now matches the request.
+     */
+    updated_thread_ids: Array<string>;
 };
 
 /**
@@ -666,6 +695,11 @@ export type CalendarEvent = {
      */
     eventType?: EventType;
     /**
+     * What the organizer lets guests do: the canonical copy's values, or
+     * Google's defaults for an event synced before the policy was modeled.
+     */
+    guestPolicy: GuestPolicy;
+    /**
      * RFC 5545 UID used to reconcile provider and email sources.
      */
     icalUid: string;
@@ -677,6 +711,12 @@ export type CalendarEvent = {
      * Whether the canonical source's calendar prohibits editing it.
      */
     isReadOnly: boolean;
+    /**
+     * Whether this is a snapshot of a meeting shared with the owner, which
+     * Macro added to their calendar as a private copy: the meeting's changes
+     * never reach it, and nothing done to it reaches the meeting.
+     */
+    isSnapshot: boolean;
     /**
      * Optional physical or virtual location label.
      */
@@ -734,6 +774,12 @@ export type CalendarEvent = {
      * Entity update time.
      */
     updatedAt: string;
+    /**
+     * What the viewing requester may do with the event. Resolved only on
+     * the read path, alongside each attendee's `is_self`; nothing when no
+     * viewer is known. Source projections never store it.
+     */
+    viewerCan: ViewerCapabilities;
     /**
      * Event visibility.
      */
@@ -838,6 +884,12 @@ export type CalendarInvitation = {
      */
     method: InvitationMethod;
     organizer?: null | InvitationParticipant;
+    /**
+     * Raw `RRULE`, `RDATE` and `EXDATE` lines, empty for a single event.
+     * `None` on snapshots saved before recurrence was recorded, where a
+     * series cannot be told apart from a single event.
+     */
+    recurrence?: Array<string> | null;
     recurrence_id?: null | InvitationDateTime;
     /**
      * Original recurrence identifier spelling and parameters.
@@ -861,6 +913,25 @@ export type CalendarInvitation = {
      */
     uid: string;
 };
+
+/**
+ * HTTP error body returned by calendar mutation endpoints.
+ */
+export type CalendarMutationApiError = {
+    /**
+     * Machine-readable failure category.
+     */
+    code: CalendarMutationErrorCode;
+    /**
+     * Human-readable failure description.
+     */
+    message: string;
+};
+
+/**
+ * Machine-readable failure category for calendar mutations.
+ */
+export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'not_organizer' | 'guests_cannot_invite' | 'guest_list_hidden' | 'guests_cannot_modify' | 'already_on_calendar' | 'join_request_open' | 'copy_refused' | 'snapshot' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed' | 'copy_choice_required';
 
 /**
  * A materialized recurrence instance optimized for range queries.
@@ -926,6 +997,17 @@ export type ContactInfoLegacy = {
 
 export type ContactInfoWithInteraction = ContactInfoLegacy & {
     last_interaction: string;
+};
+
+/**
+ * Request body adding a shared event to the requester's calendar.
+ */
+export type CopyCalendarEventRequest = {
+    /**
+     * Google calendar to add the copy to; defaults to the requester's
+     * primary inbox's primary calendar.
+     */
+    calendarId?: string | null;
 };
 
 /**
@@ -1120,6 +1202,25 @@ export type GetScheduledResponse = {
  */
 export type GetThreadResponse = {
     thread: ApiThread;
+};
+
+/**
+ * The switches an organizer sets on an event to bound what its guests may
+ * do. Google omits a switch from the payload while it holds its default.
+ */
+export type GuestPolicy = {
+    /**
+     * Whether guests may invite others.
+     */
+    canInviteOthers: boolean;
+    /**
+     * Whether guests may change the event, including its guest list.
+     */
+    canModify: boolean;
+    /**
+     * Whether guests may see the guest list.
+     */
+    canSeeOtherGuests: boolean;
 };
 
 /**
@@ -1493,6 +1594,10 @@ export type ParsedMessage = {
     body_parsed?: string | null;
     cc: Array<ContactInfo>;
     db_id: string;
+    /**
+     * Draft edit generation captured with this message snapshot.
+     */
+    draft_generation?: number;
     from?: null | ContactInfo;
     internal_date_ts?: string | null;
     labels: Array<LabelInfo>;
@@ -1572,6 +1677,11 @@ export type ResyncResponse = {
      */
     backfill_job_id: string;
 };
+
+/**
+ * The user-visible delivery state of an unsent scheduled message.
+ */
+export type ScheduledSendStatus = 'pending' | 'sending' | 'failed' | 'unconfirmed';
 
 /**
  * Request body for sending a message (backward-compatible with `{ message: MessageToSend }`).
@@ -1687,6 +1797,10 @@ export type ThreadSummary = {
  */
 export type TransferDraftRequest = {
     destination_link_id: string;
+    /**
+     * Generation captured with the source draft.
+     */
+    draft_generation?: number;
     operation_id: string;
 };
 
@@ -1825,6 +1939,37 @@ export type UpsertScheduledResponse = {
 export type UserProvider = 'GMAIL' | 'OUTLOOK';
 
 export type Value = unknown;
+
+/**
+ * What the viewing requester may do with an event.
+ */
+export type ViewerCapabilities = {
+    /**
+     * Change the event's details (title, time, description, conference).
+     */
+    editDetails: boolean;
+    /**
+     * Add guests.
+     */
+    inviteGuests: boolean;
+    /**
+     * Act as the event's organizer: replace its whole guest list and manage
+     * its conferencing.
+     */
+    organize: boolean;
+    /**
+     * Remove guests.
+     */
+    removeGuests: boolean;
+    /**
+     * Answer the invitation.
+     */
+    rsvp: boolean;
+    /**
+     * Change the event's guest policy, which only Google calendars have.
+     */
+    setGuestPolicy: boolean;
+};
 
 export type GetAttachmentData = {
     body?: never;
@@ -2134,7 +2279,12 @@ export type UpsertScheduledMessageData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/scheduled/{id}';
 };
 
@@ -2162,7 +2312,12 @@ export type DeleteScheduledDraftData = {
          */
         message_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/scheduled/{message_id}';
 };
 
@@ -2193,7 +2348,12 @@ export type DeleteDraftData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}';
 };
 
@@ -2220,7 +2380,12 @@ export type AddDraftAttachmentData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}/attachments';
 };
 
@@ -2251,7 +2416,12 @@ export type RemoveDraftAttachmentData = {
          */
         attachment_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}/attachments/{attachment_id}';
 };
 
@@ -2276,7 +2446,12 @@ export type CompleteDraftAttachmentData = {
         id: string;
         attachment_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}/attachments/{attachment_id}/complete';
 };
 
@@ -2302,7 +2477,12 @@ export type AddForwardedAttachmentData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}/forwarded-attachments';
 };
 
@@ -2331,7 +2511,12 @@ export type RemoveForwardedAttachmentData = {
          */
         attachment_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Generation from the last loaded draft. Legacy clients use zero.
+         */
+        draft_generation?: number;
+    };
     url: '/email/drafts/{id}/forwarded-attachments/{attachment_id}';
 };
 
@@ -2845,6 +3030,12 @@ export type MailboxSettingsOperationsResponse = MailboxSettingsOperationsRespons
 
 export type DisableSyncData = {
     body?: never;
+    headers?: {
+        /**
+         * Inbox link ID to act on instead of the caller's primary inbox; may name a delegated inbox.
+         */
+        'X-Email-Link-Id'?: string | null;
+    };
     path?: never;
     query?: never;
     url: '/email/sync';
@@ -2853,6 +3044,9 @@ export type DisableSyncData = {
 export type DisableSyncErrors = {
     400: ErrorResponse;
     401: ErrorResponse;
+    403: ErrorResponse;
+    404: ErrorResponse;
+    409: ErrorResponse;
     500: ErrorResponse;
 };
 
@@ -2863,6 +3057,27 @@ export type DisableSyncResponses = {
 };
 
 export type DisableSyncResponse = DisableSyncResponses[keyof DisableSyncResponses];
+
+export type ArchiveThreadsData = {
+    body: ArchiveThreadsRequest;
+    path?: never;
+    query?: never;
+    url: '/email/threads/archived';
+};
+
+export type ArchiveThreadsErrors = {
+    400: ErrorResponse;
+    401: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type ArchiveThreadsError = ArchiveThreadsErrors[keyof ArchiveThreadsErrors];
+
+export type ArchiveThreadsResponses = {
+    200: ArchiveThreadsResponse;
+};
+
+export type ArchiveThreadsResponse2 = ArchiveThreadsResponses[keyof ArchiveThreadsResponses];
 
 export type PreviewsInboxCursorData = {
     body?: never;
@@ -3141,6 +3356,64 @@ export type GetThreadCalendarInvitationsResponses = {
 };
 
 export type GetThreadCalendarInvitationsResponse = GetThreadCalendarInvitationsResponses[keyof GetThreadCalendarInvitationsResponses];
+
+export type CopyThreadCalendarInvitationData = {
+    body: CopyCalendarEventRequest;
+    path: {
+        /**
+         * Authorized email thread
+         */
+        thread_id: string;
+        /**
+         * Message carrying the event
+         */
+        message_id: string;
+        /**
+         * Saved event within the message
+         */
+        invitation_id: string;
+    };
+    query?: never;
+    url: '/email/threads/{thread_id}/messages/{message_id}/calendar-invitations/{invitation_id}/copy';
+};
+
+export type CopyThreadCalendarInvitationErrors = {
+    /**
+     * The saved event cannot be added, or the calendar is not a Google calendar
+     */
+    400: CalendarMutationApiError;
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Calendar is read-only or needs reauthorization
+     */
+    403: CalendarMutationApiError;
+    /**
+     * No such saved event in the thread
+     */
+    404: CalendarMutationApiError;
+    /**
+     * Already on the viewer's calendar, no writable calendar, or the provider refused the copy
+     */
+    409: CalendarMutationApiError;
+    /**
+     * Transient provider failure
+     */
+    503: CalendarMutationApiError;
+};
+
+export type CopyThreadCalendarInvitationError = CopyThreadCalendarInvitationErrors[keyof CopyThreadCalendarInvitationErrors];
+
+export type CopyThreadCalendarInvitationResponses = {
+    /**
+     * The copy on the viewer's calendar
+     */
+    201: CalendarEvent;
+};
+
+export type CopyThreadCalendarInvitationResponse = CopyThreadCalendarInvitationResponses[keyof CopyThreadCalendarInvitationResponses];
 
 export type UpdateThreadProjectData = {
     body: UpdateThreadProjectRequest;

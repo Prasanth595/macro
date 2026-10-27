@@ -37,10 +37,16 @@ hexagonal architecture pattern.
 ## Tool contracts
 
 - The AI adapter omits legacy chat targets; only advertise entity types supported by the domain mutation service.
+- Standalone `WhatsAppGroup` entities are favoritable through the generic entity reference.
 
 ## Checks
 
 - `cargo test -p favorites --all-features` (`SQLX_OFFLINE` unset).
+
+## Gotchas
+
+- Authorize adds with `ports::FavoriteView`, not `ViewAccessLevel`: channels
+  resolve to channel roles, which `ViewAccessLevel` never accepts.
 
 ## Related
 
