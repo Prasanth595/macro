@@ -1,5 +1,6 @@
 import { requestSearchFocus } from '@app/features/next-soup/soup-view/search-controllers';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
+import { t } from '@app/lib/i18n';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { navigateToSidebarView } from '@components/app/app-sidebar/sidebar';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -49,7 +50,7 @@ export const SearchRailButton = () => {
         size: 'icon-md',
         variant: 'ghost',
         tooltip: {
-          content: 'Search',
+          content: t('nav.search'),
           placement: 'right',
           hotkey: TOKENS.sidebar.goTo.search,
         },
