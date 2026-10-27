@@ -103,13 +103,16 @@ the gateway `/email` prefix.
   Gmail (`inbox_sync::operations::pending_labels`); a re-sync or recovery
   backfill of a stored message also keeps labels Gmail's answer agrees with
   the pre-fetch snapshot on. gmail_ops sends only messages its write is the
-  newest on; an operation with a newer write still on its way waits in the
-  retry queue (`NewerLabelWritePending`) and sends if that write is rejected.
-  A permanent failure puts back what the older writes or the original state
-  say. Both label write forms carry the write's `pendingWriteId`; with batches
-  off, each message's operation settles only that message's markers. Markers
-  expire after 12 hours, which must outlast an operation's redelivery through
-  the gmail_ops queues.
+  newest on, and sends them before an operation with a newer write still on
+  its way (whatever its id) waits in the retry queue
+  (`NewerLabelWritePending`), so bulk writes that are each newer on one of the
+  other's messages don't wait on each other. A waiting message sends if the
+  newer write is rejected. A permanent failure gives up the write's unaccepted
+  and waiting messages and puts back what the older writes or the original
+  state say. Both label write forms carry the write's `pendingWriteId`; with
+  batches off, each message's operation settles only that message's markers.
+  Markers expire after 12 hours, which must outlast an operation's redelivery
+  through the gmail_ops queues.
 - `pubsub::label_write_sim` wires one mailbox to the production label-write,
   gmail_ops and inbox sync code with fake Gmail and SQS. Add a test there for a
   new race between writes and syncs; its ignored `randomized_shard_*` tests run

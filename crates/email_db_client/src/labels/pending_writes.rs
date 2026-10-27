@@ -87,9 +87,10 @@ pub enum LabelWriteTurn {
 }
 
 /// The turn of `write_id` on each of `message_ids` for `provider_label_ids`.
-/// A write waits only for newer writes with a newer id whose rows haven't
-/// expired: writes that are both newer and older on different messages must
-/// not wait for each other forever.
+/// A write waits for every newer write whose row hasn't expired, whatever its
+/// id: requests can stage in another order than they drew their ids. Bulk
+/// writes can each be the newer one on a different message, so an operation
+/// sends the messages it is newest on before it waits for the rest.
 #[tracing::instrument(skip(executor, message_ids), err)]
 pub async fn label_write_turns<'e, E>(
     executor: E,
@@ -113,7 +114,7 @@ where
             EXISTS (
                 SELECT 1 FROM email_gmail_pending_label_writes newer
                 WHERE newer.message_id = m.id AND newer.provider_label_id = l.label
-                    AND newer.seq > mine.seq AND newer.write_id > $2 AND newer.expires_at > now()
+                    AND newer.seq > mine.seq AND newer.expires_at > now()
             ) AS "waits!"
         FROM unnest($1::uuid[]) AS m(id)
         CROSS JOIN unnest($3::text[]) AS l(label)

@@ -199,28 +199,77 @@ async fn a_confirmed_write_is_what_a_newer_abandoned_write_falls_back_to(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("fetch_message_labels_in_bulk"))
 )]
-async fn a_write_waits_only_for_live_newer_writes_with_a_newer_id(
+async fn a_write_waits_for_live_newer_writes_whatever_their_ids(
     pool: Pool<Postgres>,
 ) -> Result<()> {
-    let earlier_id = Uuid::from_u128(0xaa01);
-    let later_id = Uuid::from_u128(0xaa02);
+    let unarchive = Uuid::from_u128(0xaa01);
+    let archive = Uuid::from_u128(0xaa02);
 
     // Staged in the opposite order to their ids, as when two requests race.
-    stage_inbox(&pool, false, later_id).await?;
-    stage_inbox(&pool, true, earlier_id).await?;
-    assert_eq!(turn(&pool, later_id).await?, LabelWriteTurn::Superseded);
-    assert_eq!(turn(&pool, earlier_id).await?, LabelWriteTurn::Send);
+    stage_inbox(&pool, false, archive).await?;
+    stage_inbox(&pool, true, unarchive).await?;
+    assert_eq!(turn(&pool, archive).await?, LabelWriteTurn::Wait);
+    assert_eq!(turn(&pool, unarchive).await?, LabelWriteTurn::Send);
 
-    let newest = Uuid::from_u128(0xaa03);
-    stage_inbox(&pool, false, newest).await?;
-    assert_eq!(turn(&pool, earlier_id).await?, LabelWriteTurn::Wait);
+    // Gmail rejects the unarchive, or it can't be queued: the archive is the
+    // user's last change again, and it sends.
+    assert_eq!(abandon(&pool, unarchive).await?, [MESSAGE]);
+    assert!(!in_inbox(&pool).await?);
+    assert_eq!(turn(&pool, archive).await?, LabelWriteTurn::Send);
+
+    let unarchive_again = Uuid::from_u128(0xaa03);
+    stage_inbox(&pool, true, unarchive_again).await?;
+    assert_eq!(turn(&pool, archive).await?, LabelWriteTurn::Wait);
     sqlx::query!(
         "UPDATE email_gmail_pending_label_writes SET expires_at = now() - interval '1 second' WHERE write_id = $1",
-        newest
+        unarchive_again
     )
     .execute(&pool)
     .await?;
-    assert_eq!(turn(&pool, earlier_id).await?, LabelWriteTurn::Superseded);
+    assert_eq!(turn(&pool, archive).await?, LabelWriteTurn::Superseded);
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("fetch_message_labels_in_bulk"))
+)]
+async fn writes_newer_than_each_other_on_two_messages_each_have_one_to_send(
+    pool: Pool<Postgres>,
+) -> Result<()> {
+    let second = Uuid::from_u128(0x8502);
+    let first_write = Uuid::from_u128(0xaa01);
+    let second_write = Uuid::from_u128(0xaa02);
+    let labels = ["INBOX".to_string()];
+
+    // Two bulk writes reach the messages' threads in opposite orders.
+    mark_pending_label_writes(&pool, LINK, &[MESSAGE], "INBOX", false, first_write).await?;
+    mark_pending_label_writes(&pool, LINK, &[MESSAGE], "INBOX", true, second_write).await?;
+    mark_pending_label_writes(&pool, LINK, &[second], "INBOX", true, second_write).await?;
+    mark_pending_label_writes(&pool, LINK, &[second], "INBOX", false, first_write).await?;
+    let first_turns = label_write_turns(&pool, &[MESSAGE, second], &labels, first_write).await?;
+    assert_eq!(first_turns[&MESSAGE], LabelWriteTurn::Wait);
+    assert_eq!(first_turns[&second], LabelWriteTurn::Send);
+    let second_turns = label_write_turns(&pool, &[MESSAGE, second], &labels, second_write).await?;
+    assert_eq!(second_turns[&MESSAGE], LabelWriteTurn::Send);
+    assert_eq!(second_turns[&second], LabelWriteTurn::Wait);
+
+    // Each write sends the message it is newest on, which settles the other's
+    // wait.
+    let mut tx = pool.begin().await?;
+    confirm_pending_label_writes(&mut tx, &[second], first_write).await?;
+    confirm_pending_label_writes(&mut tx, &[MESSAGE], second_write).await?;
+    tx.commit().await?;
+    for write_id in [first_write, second_write] {
+        let turns = label_write_turns(&pool, &[MESSAGE, second], &labels, write_id).await?;
+        assert!(
+            turns
+                .values()
+                .all(|turn| *turn == LabelWriteTurn::Superseded)
+        );
+    }
+    assert!(pending_provider_label_ids(&pool, MESSAGE).await?.is_empty());
+    assert!(pending_provider_label_ids(&pool, second).await?.is_empty());
     Ok(())
 }
 

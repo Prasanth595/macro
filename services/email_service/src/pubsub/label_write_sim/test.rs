@@ -16,6 +16,7 @@ const M1A: usize = 0;
 const M1B: usize = 1;
 const M1C: usize = 2;
 const M2A: usize = 3;
+const M2B: usize = 4;
 const M3A: usize = 5;
 
 /// Defines `$name` as a module with the scenario run once for each label
@@ -554,6 +555,101 @@ async fn a_resumed_older_write_skips_messages_a_newer_write_took_over(pool: PgPo
         assert!(db_has(sim, message, INBOX).await);
     }
     assert!(in_inbox(sim, T1).await);
+    assert!(sim.world.flag_mismatches().await.is_empty());
+}
+
+/// Two bulk writes reach t1 and t2 in opposite orders, so each is the newer
+/// one on a thread: the archive on t2, the unarchive on t1. On t2 the
+/// archive drew the earlier id, as when requests race. The unarchive sends t1
+/// before it waits for the archive on t2, and when Gmail rejects the archive,
+/// t2 goes back to the unarchive, which then sends it.
+#[sqlx::test(migrator = "macro_db_migrator::MACRO_DB_MIGRATIONS")]
+async fn crossing_bulk_writes_each_send_where_they_are_newest_and_fall_back_on_rejection(
+    pool: PgPool,
+) {
+    use crate::pubsub::gmail_ops::operations::OperationError;
+    use crate::pubsub::gmail_ops::operations::modify_message_labels::modify_message_labels;
+    use email::domain::ports::EmailRepo;
+    use models_email::gmail::gmail_ops::{GmailMessageRef, ModifyMessageLabelsBatchPayload};
+    use uuid::Uuid;
+
+    let mut world = World::new(pool, 920, true).await;
+    let sim = &mut Sim::new(&mut world, 1);
+    sim.act(Action::Archive(T2, true), false).await.unwrap();
+    sim.deliver_all(Queue::Ops, Reply::Ok).await;
+
+    let archive = Uuid::from_u128(0xc1);
+    let unarchive = Uuid::from_u128(0xc2);
+    let repo = email::outbound::EmailPgRepo::new(sim.world.db.clone());
+    for (thread, add, write_id) in [
+        (T1, false, archive),
+        (T2, true, unarchive),
+        (T1, true, unarchive),
+        (T2, false, archive),
+    ] {
+        repo.stage_thread_label_change(
+            sim.world.thread_ids[THREADS[thread]],
+            sim.world.link_id,
+            INBOX,
+            add,
+            write_id,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    }
+    let write = |add: bool, write_id: Uuid, messages: [usize; 5]| {
+        let inbox = vec![INBOX.to_string()];
+        ModifyMessageLabelsBatchPayload {
+            messages: messages
+                .iter()
+                .map(|message| GmailMessageRef {
+                    db_message_id: sim.world.message_ids[MESSAGES[*message].0],
+                    provider_message_id: MESSAGES[*message].0.to_string(),
+                })
+                .collect(),
+            labels_to_add: if add { inbox.clone() } else { vec![] },
+            labels_to_remove: if add { vec![] } else { inbox },
+            pending_write_id: Some(write_id),
+        }
+    };
+    let archive = write(false, archive, [M1A, M1B, M1C, M2A, M2B]);
+    let unarchive = write(true, unarchive, [M2A, M2B, M1A, M1B, M1C]);
+    let link = email_db_client::links::get::fetch_link_by_id(&sim.world.db, sim.world.link_id)
+        .await
+        .unwrap()
+        .unwrap();
+
+    wiring::reset_admission(&mut sim.world.redis, sim.world.link_id).await;
+    let requests_before = sim.world.gmail.lock().log.len();
+    let result = modify_message_labels(&sim.world.ops, &link, &unarchive).await;
+    assert!(matches!(result, Err(OperationError::WaitingForNewerWrite)));
+    let sent: Vec<String> = sim.world.gmail.lock().log[requests_before..]
+        .iter()
+        .filter(|request| request.kind == Kind::Write)
+        .flat_map(|request| request.ids.clone())
+        .collect();
+    assert_eq!(sent, ["m1a", "m1b", "m1c"]);
+
+    wiring::reset_admission(&mut sim.world.redis, sim.world.link_id).await;
+    sim.world
+        .gmail
+        .lock()
+        .next_writes
+        .push_back(Reply::Rejected);
+    let result = modify_message_labels(&sim.world.ops, &link, &archive).await;
+    assert!(matches!(result, Err(OperationError::Gmail(_))));
+    assert!(in_inbox(sim, T2).await);
+
+    wiring::reset_admission(&mut sim.world.redis, sim.world.link_id).await;
+    modify_message_labels(&sim.world.ops, &link, &unarchive)
+        .await
+        .unwrap();
+    for message in [M1A, M1B, M1C, M2A, M2B] {
+        assert!(db_has(sim, message, INBOX).await);
+        assert!(gmail_has(sim, message, INBOX));
+    }
+    assert_eq!(live_markers(sim).await, 0);
     assert!(sim.world.flag_mismatches().await.is_empty());
 }
 

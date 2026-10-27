@@ -14,14 +14,16 @@ use uuid::Uuid;
 #[cfg(test)]
 mod test;
 
-/// Modifies labels for a batch of messages. A message whose newer write is
-/// still on its way makes the operation wait for it, and one whose newer write
-/// was confirmed is left out. From ten messages up the batch is one Gmail
-/// request, which a permanent failure reverts as a whole. Below ten, each
-/// message is its own request and is settled as Gmail answers it (see
-/// [`send_one_at_a_time`]). A message Gmail no longer has is skipped;
-/// transient errors (5xx, network) and rate limits keep the optimistic DB
-/// changes for the retry.
+/// Modifies labels for a batch of messages. A message whose newer write was
+/// confirmed is left out. The messages the write is the newest on are sent
+/// first; one whose newer write is still on its way then makes the operation
+/// wait for it. Sending first means two writes that are each newer on one of
+/// the other's messages never wait for each other. From ten messages up the
+/// messages sent are one Gmail request, which a permanent failure reverts as
+/// a whole, with the waiting messages. Below ten, each message is its own
+/// request and is settled as Gmail answers it (see [`send_one_at_a_time`]).
+/// A message Gmail no longer has is skipped; transient errors (5xx, network)
+/// and rate limits keep the optimistic DB changes for the retry.
 ///
 /// Boxed so this large future lives on the heap rather than in the frames
 /// that await it: unoptimized builds give every awaited future its own stack
@@ -52,7 +54,7 @@ async fn modify_message_labels_unboxed(
     let Some(write_id) = payload.pending_write_id else {
         // Queued before markers existed: nothing to coordinate with.
         let messages: Vec<&GmailMessageRef> = payload.messages.iter().collect();
-        return send(ctx, link, payload, &messages).await;
+        return send(ctx, link, payload, &messages, &[]).await;
     };
 
     let message_ids: Vec<Uuid> = payload
@@ -71,7 +73,18 @@ async fn modify_message_labels_unboxed(
     };
     abandon_superseded(ctx, link, &ids_with(LabelWriteTurn::Superseded), write_id).await?;
 
-    let waiting = ids_with(LabelWriteTurn::Wait);
+    let mut waiting = ids_with(LabelWriteTurn::Wait);
+    let messages: Vec<&GmailMessageRef> = payload
+        .messages
+        .iter()
+        .filter(|message| turns.get(&message.db_message_id) == Some(&LabelWriteTurn::Send))
+        .collect();
+    if messages.len() >= SEPARATE_LABEL_WRITES_BELOW {
+        send(ctx, link, payload, &messages, &waiting).await?;
+    } else if !messages.is_empty() {
+        send_one_at_a_time(ctx, link, payload, write_id, &messages, &mut waiting).await?;
+    }
+
     if !waiting.is_empty() {
         tracing::info!(
             db_message_ids = ?waiting,
@@ -79,20 +92,10 @@ async fn modify_message_labels_unboxed(
         );
         return Err(OperationError::WaitingForNewerWrite);
     }
-
-    let messages: Vec<&GmailMessageRef> = payload
-        .messages
-        .iter()
-        .filter(|message| turns.get(&message.db_message_id) == Some(&LabelWriteTurn::Send))
-        .collect();
     if messages.is_empty() {
         tracing::info!("Newer label writes took over every message, skipping Gmail");
-        return Ok(());
     }
-    if messages.len() < SEPARATE_LABEL_WRITES_BELOW {
-        return send_one_at_a_time(ctx, link, payload, write_id, &messages).await;
-    }
-    send(ctx, link, payload, &messages).await
+    Ok(())
 }
 
 async fn label_write_turns(
@@ -151,20 +154,21 @@ async fn confirm(
 /// Sends `messages` one Gmail request each, settling each message as Gmail
 /// answers it. Before each request after the first, the message's turn is
 /// read again: a message a newer write took over meanwhile is skipped, and
-/// one with a newer write still on its way makes the rest wait. A permanent
-/// rejection reverts the rejected message and those not sent yet; messages
-/// Gmail accepted keep their change. A retry finds the accepted messages
-/// settled and doesn't send them again. Boxed for the reason given on
-/// [`modify_message_labels`].
+/// one with a newer write still on its way joins `waiting`. A permanent
+/// rejection reverts the rejected message, those not sent yet and the waiting
+/// ones; messages Gmail accepted keep their change. A retry finds the
+/// accepted messages settled and doesn't send them again. Boxed for the
+/// reason given on [`modify_message_labels`].
 fn send_one_at_a_time<'a>(
     ctx: &'a GmailOpsContext,
     link: &'a Link,
     payload: &'a ModifyMessageLabelsBatchPayload,
     write_id: Uuid,
     messages: &'a [&'a GmailMessageRef],
+    waiting: &'a mut Vec<Uuid>,
 ) -> BoxFuture<'a, Result<(), OperationError>> {
     Box::pin(send_one_at_a_time_unboxed(
-        ctx, link, payload, write_id, messages,
+        ctx, link, payload, write_id, messages, waiting,
     ))
 }
 
@@ -174,10 +178,11 @@ async fn send_one_at_a_time_unboxed(
     payload: &ModifyMessageLabelsBatchPayload,
     write_id: Uuid,
     messages: &[&GmailMessageRef],
+    waiting: &mut Vec<Uuid>,
 ) -> Result<(), OperationError> {
     // As in a batch request, a message Gmail no longer has counts as written
     // when the write has others.
-    let skip_missing = messages.len() > 1;
+    let skip_missing = payload.messages.len() > 1;
     for (index, message) in messages.iter().enumerate() {
         let message_id = message.db_message_id;
         if index > 0 {
@@ -193,11 +198,8 @@ async fn send_one_at_a_time_unboxed(
                     continue;
                 }
                 LabelWriteTurn::Wait => {
-                    tracing::info!(
-                        db_message_id = %message_id,
-                        "A newer label write on this message is still on its way, waiting for it"
-                    );
-                    return Err(OperationError::WaitingForNewerWrite);
+                    waiting.push(message_id);
+                    continue;
                 }
             }
         }
@@ -217,6 +219,7 @@ async fn send_one_at_a_time_unboxed(
                 let unaccepted: Vec<Uuid> = messages[index..]
                     .iter()
                     .map(|message| message.db_message_id)
+                    .chain(waiting.iter().copied())
                     .collect();
                 tracing::error!(
                     error = ?error,
@@ -241,16 +244,17 @@ async fn send_one_at_a_time_unboxed(
     Ok(())
 }
 
-/// Sends `messages` to Gmail in one call and records the outcome. Boxed for
-/// the reason given on [`modify_message_labels`]: the operation awaits it in
-/// two places.
+/// Sends `messages` to Gmail in one call and records the outcome. A permanent
+/// failure reverts them and the `waiting` messages. Boxed for the reason
+/// given on [`modify_message_labels`]: the operation awaits it in two places.
 fn send<'a>(
     ctx: &'a GmailOpsContext,
     link: &'a Link,
     payload: &'a ModifyMessageLabelsBatchPayload,
     messages: &'a [&'a GmailMessageRef],
+    waiting: &'a [Uuid],
 ) -> BoxFuture<'a, Result<(), OperationError>> {
-    Box::pin(send_unboxed(ctx, link, payload, messages))
+    Box::pin(send_unboxed(ctx, link, payload, messages, waiting))
 }
 
 async fn send_unboxed(
@@ -258,6 +262,7 @@ async fn send_unboxed(
     link: &Link,
     payload: &ModifyMessageLabelsBatchPayload,
     messages: &[&GmailMessageRef],
+    waiting: &[Uuid],
 ) -> Result<(), OperationError> {
     let db_message_ids: Vec<Uuid> = messages
         .iter()
@@ -285,12 +290,13 @@ async fn send_unboxed(
             Ok(())
         }
         Err(error) if is_permanent_mutation_error(&error) => {
+            let unaccepted: Vec<Uuid> = db_message_ids.iter().chain(waiting).copied().collect();
             tracing::error!(
                 error = ?error,
-                ?db_message_ids,
+                db_message_ids = ?unaccepted,
                 "Permanent Gmail error modifying labels, reverting database changes"
             );
-            revert_db_changes(&ctx.db, link, payload, db_message_ids)
+            revert_db_changes(&ctx.db, link, payload, unaccepted)
                 .await
                 .map_err(OperationError::Database)?;
             Err(OperationError::Gmail(error))

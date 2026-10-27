@@ -150,13 +150,12 @@ impl Sim<'_> {
                 .is_some_and(|latest| latest > track.seq)
         };
         if outcome == OpStatus::Rejected {
-            // A rejection reverts the messages Gmail hasn't accepted: the
-            // rejected one, and below ten messages those not sent yet that no
-            // newer write took over.
+            // A rejection gives the write up on every message Gmail hasn't
+            // accepted: the rejected one, those not sent yet and those
+            // waiting for a newer write.
             let rejected: Vec<String> = in_op
                 .iter()
                 .filter(|id| !accepted.contains(*id))
-                .filter(|id| sent_ids.contains(*id) || !superseded(self, id))
                 .cloned()
                 .collect();
             self.set_entries(lineage, &rejected, EntryState::Rejected);
