@@ -7,7 +7,15 @@ import type {
   TemplateVariable,
   VariableFill,
 } from '@service-scheduled-action/generated/schemas';
-import { ActionDialogShell, Badge, Button, Dialog, Input, Tabs } from '@ui';
+import {
+  ActionDialogShell,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  Input,
+  Tabs,
+} from '@ui';
 import { For, type JSX, Show } from 'solid-js';
 import {
   TemplateReferenceChip,
@@ -96,7 +104,7 @@ export function ShareTemplateDialog(props: {
     >
       <div class="contents">
         <ActionDialogShell hideBorder class="max-h-[85dvh] bg-transparent">
-          <ActionDialogShell.Body class="space-y-5">
+          <ActionDialogShell.Body class="flex flex-col gap-5 space-y-0">
             <ActionDialogShell.Header class="flex flex-wrap items-center gap-2 space-y-0">
               <ActionDialogShell.Title class="text-base">
                 Share: {props.name}
@@ -105,22 +113,26 @@ export function ShareTemplateDialog(props: {
                 As a template
               </Badge>
             </ActionDialogShell.Header>
-            <div class="rounded-xl bg-ink/3 p-4">
-              <p class="font-medium">People get a template, not your routine</p>
-              <ul class="mt-2 flex flex-col gap-1.5">
-                <ShareNote icon={<CheckIcon class="size-4 text-success" />}>
-                  They see your instructions and triggers, and can activate
-                  their own copy that runs as them.
-                </ShareNote>
-                <ShareNote icon={<LockIcon class="size-4" />}>
-                  Your routine, its runs and its results stay private to you.
-                </ShareNote>
-                <ShareNote icon={<ArrowsClockwiseIcon class="size-4" />}>
-                  Sharing again updates the template with your routine's current
-                  setup.
-                </ShareNote>
-              </ul>
-            </div>
+            <Card>
+              <Card.Body>
+                <p class="font-medium">
+                  People get a template, not your routine
+                </p>
+                <ul class="mt-2 flex flex-col gap-1.5">
+                  <ShareNote icon={<CheckIcon class="size-4 text-success" />}>
+                    They see your instructions and triggers, and can activate
+                    their own copy that runs as them.
+                  </ShareNote>
+                  <ShareNote icon={<LockIcon class="size-4" />}>
+                    Your routine, its runs and its results stay private to you.
+                  </ShareNote>
+                  <ShareNote icon={<ArrowsClockwiseIcon class="size-4" />}>
+                    Sharing again updates the template with your routine's
+                    current setup.
+                  </ShareNote>
+                </ul>
+              </Card.Body>
+            </Card>
             <label class="flex flex-col gap-1.5 text-sm">
               <span class="font-medium">Description</span>
               <Input

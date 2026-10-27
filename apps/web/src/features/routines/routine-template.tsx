@@ -304,7 +304,7 @@ function SendTemplate(props: { routineId: string; name: string }) {
         setSelectedOptions={setRecipients}
         triggerMode="input"
         portalScope="local"
-        class="min-w-0 flex-1 rounded-full border border-edge-muted px-2 py-1"
+        class="min-w-0 flex-1"
       />
       <Button
         variant="outline"

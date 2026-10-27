@@ -1,6 +1,6 @@
 import ClockCounterIcon from '@icon/system/regular/clock-counter-clockwise.svg';
 import LightningIcon from '@icon/system/regular/lightning.svg';
-import { Badge, Button } from '@ui';
+import { Badge, Button, Card } from '@ui';
 import { For, Show } from 'solid-js';
 
 /** A shared routine template as a card under the message that links it. */
@@ -16,32 +16,37 @@ export function TemplateCard(props: {
   onActivate(): void;
 }) {
   return (
-    <article
+    <Card
       aria-label={`Routine template: ${props.name}`}
-      class="mt-2 max-w-xl overflow-hidden rounded-xl border border-edge-muted"
+      class="mt-2 max-w-xl"
+      role="article"
     >
-      <div class="flex flex-col gap-2 p-4">
-        <div class="flex flex-wrap items-center gap-2 text-sm text-ink-muted">
+      <Card.Header>
+        <Card.Metadata class="flex flex-wrap items-center gap-2">
           <Badge variant="outline" size="xs">
             <ClockCounterIcon />
             Routine template
           </Badge>
           by {props.authorName}
-        </div>
-        <h3 class="font-semibold">{props.name}</h3>
+        </Card.Metadata>
+        <Card.Title>{props.name}</Card.Title>
         <Show when={props.description}>
-          <p class="text-sm text-ink-muted">{props.description}</p>
+          <Card.Description>{props.description}</Card.Description>
         </Show>
-        <For each={props.triggers}>
-          {(trigger) => (
-            <div class="flex items-center gap-2 text-sm">
-              <LightningIcon class="size-4 shrink-0 text-ink-muted" />
-              {trigger}
-            </div>
-          )}
-        </For>
-      </div>
-      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-edge-muted px-4 py-3">
+      </Card.Header>
+      <Show when={props.triggers.length > 0}>
+        <Card.Body class="flex flex-col gap-1 pt-0">
+          <For each={props.triggers}>
+            {(trigger) => (
+              <div class="flex items-center gap-2">
+                <LightningIcon class="size-4 shrink-0 text-ink-muted" />
+                {trigger}
+              </div>
+            )}
+          </For>
+        </Card.Body>
+      </Show>
+      <Card.Footer>
         <span class="text-sm text-ink-muted">
           {props.activeCount === 1
             ? 'Active for 1 person'
@@ -57,7 +62,7 @@ export function TemplateCard(props: {
             </Button>
           </Show>
         </div>
-      </div>
-    </article>
+      </Card.Footer>
+    </Card>
   );
 }

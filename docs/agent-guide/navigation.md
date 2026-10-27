@@ -920,10 +920,11 @@ posts the routine mention, **Copy template link** (the routine's own URL), and
 **Stop sharing**, which hides the template while activated routines keep
 running.
 
-Opening a shared routine someone else owns shows **Routine template** (by its
-author), **Activate for me**, the description, activation count, triggers, read-only
-instructions, and **References**: dashed chips fill in as the viewer, amber ones
-they can't open. **Activate for me** opens **Activate for me: name**: the routine
+Opening a shared routine someone else owns shows the template laid out like a
+routine's Overview: **Activate for me** at the right of the top bar, then the
+name, description, **Template by author**, activation count, triggers (marked
+"Doesn't run until you activate it"), read-only instructions, and
+**References**: dashed chips fill in as the viewer, amber ones they can't open. **Activate for me** opens **Activate for me: name**: the routine
 as it will run on the left, and on the right **Your call · N left** for each
 reference they can't open or must choose (**Keep it** / **Leave out**),
 **Filled in as you**, and **Works for you as is**. **Activate** stays disabled

@@ -2,7 +2,7 @@ import CheckIcon from '@icon/system/regular/check.svg';
 import LightningIcon from '@icon/system/regular/lightning.svg';
 import UserIcon from '@icon/system/regular/user.svg';
 import WarningIcon from '@icon/system/regular/warning-circle.svg';
-import { ActionDialogShell, Badge, Button, Dialog } from '@ui';
+import { ActionDialogShell, Badge, Button, Dialog, Item, Tabs } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
 import {
   TemplateReferenceChip,
@@ -25,35 +25,30 @@ function DecisionRow(props: {
   onChoose(choice: ReferenceChoice): void;
 }) {
   return (
-    <div class="flex flex-col gap-2 rounded-xl border border-edge-muted p-3">
-      <div class="flex min-w-0 flex-wrap items-center gap-2">
-        <TemplateReferenceChip
-          variable={props.reference.variable}
-          state={props.reference.state}
+    <Item variant="outlined" size="sm" class="flex-wrap">
+      <Item.Content>
+        <Item.Title>
+          <TemplateReferenceChip
+            variable={props.reference.variable}
+            state={props.reference.state}
+          />
+        </Item.Title>
+        <Item.Description>{decisionReason(props.reference)}</Item.Description>
+      </Item.Content>
+      <Item.Actions>
+        <Tabs
+          aria-label={`What to do with ${variableLabel(props.reference.variable)}`}
+          size="sm"
+          wrap
+          options={[
+            { value: 'keep' as const, label: 'Keep it' },
+            { value: 'leave_out' as const, label: 'Leave out' },
+          ]}
+          value={props.choice}
+          onChange={props.onChoose}
         />
-        <span class="text-sm text-ink-muted">
-          {decisionReason(props.reference)}
-        </span>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          aria-pressed={props.choice === 'keep'}
-          onClick={() => props.onChoose('keep')}
-        >
-          Keep it
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          aria-pressed={props.choice === 'leave_out'}
-          onClick={() => props.onChoose('leave_out')}
-        >
-          Leave out
-        </Button>
-      </div>
-    </div>
+      </Item.Actions>
+    </Item>
   );
 }
 
@@ -106,14 +101,14 @@ export function ActivateTemplateDialog(props: {
     >
       <div class="contents">
         <ActionDialogShell hideBorder class="max-h-[85dvh] bg-transparent">
-          <div class="flex flex-wrap items-center gap-2 border-b border-edge-divider px-5 py-3">
+          <ActionDialogShell.Header class="flex flex-wrap items-center gap-2 space-y-0 border-b border-edge-divider px-5 py-3">
             <ActionDialogShell.Title class="text-base">
               Activate for me: {props.name}
             </ActionDialogShell.Title>
             <Badge variant="outline" size="xs">
               Template by {props.authorName}
             </Badge>
-          </div>
+          </ActionDialogShell.Header>
           <div class="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[3fr_2fr]">
             <div class="flex flex-col gap-3 p-5">
               <h3 class="text-xs font-medium text-ink-muted">Your routine</h3>

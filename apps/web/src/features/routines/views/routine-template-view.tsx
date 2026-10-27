@@ -1,35 +1,13 @@
 import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
-import CaretRightIcon from '@icon/system/regular/caret-right.svg';
 import ClockCounterIcon from '@icon/system/regular/clock-counter-clockwise.svg';
 import LightningIcon from '@icon/system/regular/lightning.svg';
 import PlayIcon from '@icon/system/regular/play.svg';
 import type { RoutineTemplate } from '@service-scheduled-action/generated/schemas';
-import { Badge, Layer } from '@ui';
+import { Badge, Button, Layer } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
 import { TemplateReferenceChip } from '../components/template-reference';
 import { formatDateTime } from '../core/routine-draft';
 import type { TemplateReference } from '../primitives/template-activation';
-
-function ActivateCard(props: { onActivate(): void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => props.onActivate()}
-      class="flex min-w-0 flex-1 items-center gap-3 rounded-xl bg-ink p-4 text-left text-surface not-touch:hover:opacity-90"
-    >
-      <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface/15">
-        <PlayIcon class="size-4" />
-      </span>
-      <span class="min-w-0 flex-1">
-        <span class="block font-semibold">Activate for me</span>
-        <span class="block text-sm opacity-80">
-          Runs as you, on your inbox and channels.
-        </span>
-      </span>
-      <CaretRightIcon class="size-4 shrink-0" />
-    </button>
-  );
-}
 
 /**
  * A routine someone shared as a template, as the people it was shared with
@@ -91,34 +69,30 @@ export function RoutineTemplateView(props: {
             aria-label="Routine template location"
             class="min-w-0"
           />
-          <Badge variant="outline" size="sm" class="ml-auto">
-            Template
-          </Badge>
+          <Show when={props.canActivate}>
+            <Button
+              variant="cta"
+              size="md"
+              class="ml-auto shrink-0"
+              onClick={() => props.onActivate()}
+            >
+              <PlayIcon />
+              Activate for me
+            </Button>
+          </Show>
         </ViewShell.TopBar>
         <div class="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-12 touch:pt-6">
           <div class="mx-auto flex max-w-3xl flex-col gap-6">
-            <div class="flex flex-col gap-3 sm:flex-row">
-              <div class="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-dashed border-edge-muted p-4">
-                <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink/5">
-                  <ClockCounterIcon class="size-4" />
-                </span>
-                <span class="min-w-0">
-                  <span class="block font-semibold">Routine template</span>
-                  <span class="block text-sm text-ink-muted">
-                    By {props.authorName}. Doesn't run until you activate it.
-                  </span>
-                </span>
-              </div>
-              <Show when={props.canActivate}>
-                <ActivateCard onActivate={props.onActivate} />
-              </Show>
-            </div>
             <div>
               <h1 class="text-2xl font-semibold">{props.template.name}</h1>
               <Show when={props.template.description}>
                 <p class="mt-1 text-ink-muted">{props.template.description}</p>
               </Show>
               <div class="mt-3 flex flex-wrap gap-2">
+                <Badge variant="outline" size="sm">
+                  <ClockCounterIcon />
+                  Template by {props.authorName}
+                </Badge>
                 <Badge variant="outline" size="sm">
                   {props.template.active_count === 1
                     ? 'Active for 1 person'
@@ -132,16 +106,25 @@ export function RoutineTemplateView(props: {
             <Layer depth={1}>
               <section
                 aria-label="Template triggers"
-                class="flex flex-col gap-2 rounded-xl border border-edge-muted bg-surface p-4"
+                class="rounded-xl border border-edge-muted bg-surface"
               >
-                <For each={props.triggers}>
-                  {(trigger) => (
-                    <div class="flex items-center gap-2 text-sm">
-                      <LightningIcon class="size-4 shrink-0 text-ink-muted" />
-                      {trigger}
-                    </div>
-                  )}
-                </For>
+                <div class="flex flex-col gap-2 p-4">
+                  <For each={props.triggers}>
+                    {(trigger) => (
+                      <div class="flex items-center gap-2 text-sm">
+                        <LightningIcon class="size-4 shrink-0 text-ink-muted" />
+                        {trigger}
+                      </div>
+                    )}
+                  </For>
+                </div>
+                <div class="flex items-center gap-2 border-t border-edge-muted px-4 py-3 text-xs text-ink-muted">
+                  <span
+                    aria-hidden="true"
+                    class="size-1.5 rounded-full bg-ink-extra-muted"
+                  />
+                  Doesn't run until you activate it
+                </div>
               </section>
             </Layer>
             <section aria-label="Template instructions">

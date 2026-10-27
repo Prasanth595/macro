@@ -4,7 +4,7 @@ import HashIcon from '@icon/system/regular/hash.svg';
 import LockIcon from '@icon/system/regular/lock-simple.svg';
 import UserIcon from '@icon/system/regular/user.svg';
 import type { TemplateVariable } from '@service-scheduled-action/generated/schemas';
-import { cn } from '@ui';
+import { Badge, cn } from '@ui';
 import { type JSX, Match, Switch } from 'solid-js';
 import type { ReferenceState } from '../core/template';
 
@@ -35,7 +35,7 @@ function ReferenceIcon(props: { variable: TemplateVariable; class?: string }) {
 }
 
 /**
- * A template reference as a chip: dashed when it fills in as the viewer,
+ * A template reference as a badge: dashed when it fills in as the viewer,
  * amber when they can't open it, plain when it works for them as it is.
  */
 export function TemplateReferenceChip(props: {
@@ -45,24 +45,25 @@ export function TemplateReferenceChip(props: {
   children?: JSX.Element;
 }) {
   return (
-    <span
+    <Badge
+      variant="outline"
+      size="sm"
       class={cn(
-        'inline-flex max-w-full items-center gap-1 rounded-md border px-1.5 py-0.5 align-baseline text-sm',
-        props.state === 'fills_in' &&
-          'border-dashed border-accent/50 text-accent-ink',
-        props.state === 'works' && 'border-transparent bg-ink/5 text-ink',
+        'max-w-full',
+        props.state === 'fills_in' && 'border-dashed text-accent',
+        props.state === 'works' && 'text-ink',
         (props.state === 'unavailable' || props.state === 'choose') &&
-          'border-warning/50 bg-warning-bg text-warning'
+          'text-warning'
       )}
     >
       {props.state === 'unavailable' ? (
-        <LockIcon class="size-3.5 shrink-0" />
+        <LockIcon class="shrink-0" />
       ) : (
-        <ReferenceIcon variable={props.variable} class="size-3.5 shrink-0" />
+        <ReferenceIcon variable={props.variable} class="shrink-0" />
       )}
       <span class="truncate">
         {props.children ?? variableLabel(props.variable)}
       </span>
-    </span>
+    </Badge>
   );
 }
