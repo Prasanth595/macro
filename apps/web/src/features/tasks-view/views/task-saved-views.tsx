@@ -411,12 +411,12 @@ function TaskSavedViewRows(props: {
               </div>
               <Button
                 ref={attachCreateHotkeys}
-                size="sm"
+                size="icon-sm"
+                label={t('viewMenus.createSavedView')}
                 variant="outline"
                 onClick={() => run(startSavedView)}
               >
                 <PlusIcon class="size-3.5" />
-                {t('viewMenus.createSavedView')}
               </Button>
             </div>
           </Show>

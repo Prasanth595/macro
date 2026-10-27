@@ -100,7 +100,7 @@ Compose the list through compound components and reuse styled menu items across
 its context and overflow menus. The mobile picker shows rows without a duplicate
 section heading or general create button. The compact sidebar and picker empty
 state show the heading “Your go-to views”, the muted description “Save your setup
-for next time.” and a neutral Create view action with a plus icon, without a
+for next time.” and a neutral icon-only plus button labeled Create view, without a
 separate illustration. A subtly bordered, rounded container uses 12px padding,
 inherits the surrounding background, and has no shadow. Hide the sidebar header's
 plus while that action is visible; retain it while collapsed or populated. The
