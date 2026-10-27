@@ -98,6 +98,13 @@ vi.mock('@queries/agents/avatar', () => ({
   useUploadAgentAvatarMutation: () => ({ mutateAsync: avatarMocks.upload }),
 }));
 
+const faceFile = new File(['face'], 'agent-face.png', { type: 'image/png' });
+const faceImageMock = vi.hoisted(() => vi.fn());
+vi.mock('./components/agent-face-paint', () => ({
+  paintAgentFace: vi.fn(),
+  agentFaceImage: faceImageMock,
+}));
+
 const apiKeyMocks = vi.hoisted(() => ({
   query: {
     isSuccess: true,
@@ -298,8 +305,19 @@ vi.mock('@queries/pipedream-connectors', () => ({
   connectPipedreamApp: pipedreamMocks.connect,
 }));
 
+// Agent faces size their canvas to the element, pause off screen, and honor
+// reduced motion.
+class NoopObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 beforeAll(() => {
   vi.stubGlobal('scrollTo', vi.fn());
+  vi.stubGlobal('ResizeObserver', NoopObserver);
+  vi.stubGlobal('IntersectionObserver', NoopObserver);
+  vi.stubGlobal('matchMedia', () => ({ matches: false }));
 });
 
 beforeEach(() => {
@@ -308,6 +326,8 @@ beforeEach(() => {
   apiKeyMocks.save.mockReset();
   apiKeyMocks.remove.mockReset();
   avatarMocks.upload.mockResolvedValue('https://static.example/avatar.png');
+  faceImageMock.mockReset();
+  faceImageMock.mockResolvedValue(faceFile);
   updateSearchParams({ createAgent: undefined });
   setSearchParams.mockClear();
   cursorMocks.status.data = {
@@ -341,28 +361,31 @@ beforeEach(() => {
   };
 });
 
+const LOOK = 'Meet your new agent';
+const NAME = 'What’s its name?';
 const WHERE = 'Where should it run?';
 const SHARE = 'Who can use it?';
+const CHANNELS = /^Work with .+ anywhere$/;
 
 /**
- * Names a new agent if it has no name yet, then continues the creation
- * wizard until the step titled `heading` is showing.
+ * Continues the creation wizard until the step titled `heading` is showing,
+ * naming the agent on the way if it has no name yet.
  */
-function continueWizardTo(heading: string, name = 'Bug fixer') {
-  const nameField = screen.queryByLabelText('Name');
-  if (nameField instanceof HTMLInputElement && nameField.value === '') {
-    fireEvent.input(nameField, { target: { value: name } });
-  }
-  for (let step = 0; step < 4; step++) {
+function continueWizardTo(heading: string | RegExp, name = 'Bug fixer') {
+  for (let step = 0; step < 6; step++) {
     if (screen.queryByRole('heading', { name: heading })) return;
+    const nameField = screen.queryByLabelText('Name');
+    if (nameField instanceof HTMLInputElement && nameField.value === '') {
+      fireEvent.input(nameField, { target: { value: name } });
+    }
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   }
   expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
 }
 
 /** Goes back through the creation wizard to the step titled `heading`. */
-function backWizardTo(heading: string) {
-  for (let step = 0; step < 4; step++) {
+function backWizardTo(heading: string | RegExp) {
+  for (let step = 0; step < 6; step++) {
     if (screen.queryByRole('heading', { name: heading })) return;
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   }
@@ -387,9 +410,7 @@ describe('Agents', () => {
     updateSearchParams({ createAgent: 'true' });
     render(() => <Agents {...agentsPageProps} />);
     const dialog = screen.getByRole('region', { name: 'New agent' });
-    expect(
-      within(dialog).getByRole('heading', { name: 'Name your agent' })
-    ).toBeTruthy();
+    expect(within(dialog).getByRole('heading', { name: LOOK })).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(setSearchParams).toHaveBeenCalledWith(
       { createAgent: undefined },
@@ -833,9 +854,7 @@ describe('Agents', () => {
     );
     render(() => <Agents {...agentsPageProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
-    fireEvent.input(screen.getByLabelText('Name'), {
-      target: { value: 'Grungus' },
-    });
+    fireEvent.click(screen.getByRole('radio', { name: 'Wide' }));
     const input = screen
       .getByRole('region', { name: 'New agent' })
       .querySelector('input[type="file"]')!;
@@ -846,14 +865,19 @@ describe('Agents', () => {
         'Failed to upload file'
       )
     );
-    expect(screen.getByLabelText('Name')).toHaveProperty('value', 'Grungus');
+    expect(screen.getByRole('radio', { name: 'Wide' })).toHaveProperty(
+      'checked',
+      true
+    );
     expect(
       screen.getByRole('button', { name: 'Upload a picture instead' })
     ).toHaveProperty('disabled', false);
     fireEvent.change(input, { target: { files: [file] } });
     await waitFor(() =>
       expect(
-        screen.getByRole('img', { name: 'Grungus avatar' }).getAttribute('src')
+        screen
+          .getByRole('img', { name: 'your agent avatar' })
+          .getAttribute('src')
       ).toBe('https://static.example/avatar.png')
     );
   });
@@ -1093,40 +1117,35 @@ describe('Agents', () => {
     });
   });
 
-  it('walks through name, instructions, runtime, and sharing one step at a time', async () => {
+  it('walks through face, name, instructions, runtime, sharing, and channels one step at a time', async () => {
     render(() => <Agents {...agentsPageProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
 
     const dialog = screen.getByRole('region', { name: 'New agent' });
-    expect(
-      within(dialog).getByRole('heading', { name: 'Name your agent' })
-    ).toBeTruthy();
-    expect(within(dialog).getByLabelText('Name')).toBeTruthy();
-    expect(within(dialog).getByLabelText('@tag')).toBeTruthy();
-    expect(within(dialog).queryByLabelText('Description')).toBeNull();
+    expect(within(dialog).getByRole('heading', { name: LOOK })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Wide' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Mint' }));
+    expect(within(dialog).getByRole('radio', { name: 'Wide' })).toHaveProperty(
+      'checked',
+      true
+    );
     expect(
       within(dialog).getByRole('button', { name: 'Upload a picture instead' })
     ).toBeTruthy();
-    const avatarInput = dialog.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement;
-    fireEvent.change(avatarInput, {
-      target: {
-        files: [
-          new File(['avatar'], 'agent-avatar.png', { type: 'image/png' }),
-        ],
-      },
-    });
-    expect(within(dialog).queryByText('agent-avatar.png')).toBeNull();
-    await waitFor(() =>
-      expect(
-        within(dialog).getByRole('button', { name: 'Change picture' })
-      ).toBeTruthy()
-    );
+
+    continueWizardTo(NAME);
+    const nameField = within(dialog).getByLabelText('Name');
     // A step can't be skipped before its required fields are filled.
     expect(
       within(dialog).getByRole('button', { name: 'Continue' })
     ).toHaveProperty('disabled', true);
+    // The @tag follows the name until it's edited by hand.
+    fireEvent.input(nameField, { target: { value: 'Bug fixer' } });
+    expect(within(dialog).getByLabelText('@tag')).toHaveProperty(
+      'value',
+      'bug-fixer'
+    );
+    expect(within(dialog).queryByLabelText('Description')).toBeNull();
 
     continueWizardTo('What should Bug fixer do?');
     expect(within(dialog).getByLabelText('Instructions')).toBeTruthy();
@@ -1146,13 +1165,12 @@ describe('Agents', () => {
 
     continueWizardTo(SHARE);
     expect(within(dialog).getByRole('group', { name: 'Share' })).toBeTruthy();
-    expect(
-      within(dialog).getByRole('button', { name: 'Create agent' })
-    ).toBeTruthy();
 
-    fireEvent.click(
-      within(dialog).getByRole('button', { name: 'More options' })
-    );
+    continueWizardTo(CHANNELS);
+    // The last step shows where people meet the agent, by its @tag.
+    expect(within(dialog).getByText('Mention it in a doc')).toBeTruthy();
+    expect(within(dialog).getByText('Assign it a task')).toBeTruthy();
+    expect(within(dialog).getAllByText('@bug-fixer').length).toBeGreaterThan(0);
     expect(
       within(dialog).getByRole('group', { name: 'Channels' })
     ).toBeTruthy();
@@ -1161,6 +1179,31 @@ describe('Agents', () => {
       within(dialog).getByPlaceholderText('Search channels…');
     fireEvent.input(channelSearch, { target: { value: 'gen' } });
     expect(screen.getByRole('option', { name: 'general' })).toBeTruthy();
+  });
+
+  it('saves the chosen face as the new agent’s picture', async () => {
+    render(() => <Agents {...agentsPageProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
+    const dialog = screen.getByRole('region', { name: 'New agent' });
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Tall' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Rose' }));
+    continueWizardTo(CHANNELS);
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Create agent' })
+    );
+
+    await waitFor(() =>
+      expect(agentMocks.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          avatarUrl: 'https://static.example/avatar.png',
+        })
+      )
+    );
+    expect(faceImageMock).toHaveBeenCalledWith({
+      style: 'tall',
+      color: 'rose',
+    });
+    expect(avatarMocks.upload).toHaveBeenCalledWith(faceFile);
   });
 
   it('offers Connect Cursor instead of an unconnected Cursor option', () => {
@@ -1195,7 +1238,7 @@ describe('Agents', () => {
     expect(within(dialog).queryByLabelText('Harness')).toBeNull();
   });
 
-  it('keeps mention, permission, and channel choices collapsed under More options', () => {
+  it('keeps mention and permission choices collapsed under More options', () => {
     render(() => <Agents {...agentsPageProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
     continueWizardTo(SHARE);
@@ -1204,14 +1247,9 @@ describe('Agents', () => {
     const toggle = within(dialog).getByRole('button', { name: 'More options' });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(
-      within(dialog).getByText(
-        'Chat agent · All channels · Your connected apps'
-      )
+      within(dialog).getByText('Chat agent · Your connected apps')
     ).toBeTruthy();
     expect(within(dialog).queryByLabelText('Chat agent')).toBeNull();
-    expect(
-      within(dialog).queryByRole('group', { name: 'Channels' })
-    ).toBeNull();
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
@@ -1223,12 +1261,8 @@ describe('Agents', () => {
       true
     );
     expect(
-      within(dialog).getByRole('group', { name: 'Channels' })
-    ).toBeTruthy();
-    fireEvent.click(within(dialog).getByLabelText('Specific channels'));
-    expect(
-      within(dialog).getByText('Chat agent · 0 channels · Your connected apps')
-    ).toBeTruthy();
+      within(dialog).queryByRole('group', { name: 'Channels' })
+    ).toBeNull();
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
@@ -1258,6 +1292,7 @@ describe('Agents', () => {
   it('persists creation through the agents API', async () => {
     render(() => <Agents {...agentsPageProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
+    continueWizardTo(NAME);
 
     const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
     fireEvent.input(within(dialog).getByLabelText('Name'), {
@@ -1269,6 +1304,7 @@ describe('Agents', () => {
     });
     continueWizardTo(SHARE);
     fireEvent.click(within(dialog).getByLabelText('Team'));
+    continueWizardTo(CHANNELS);
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create agent' })
     );
@@ -1276,7 +1312,7 @@ describe('Agents', () => {
     await waitFor(() => {
       expect(agentMocks.create).toHaveBeenCalledWith({
         autoAcceptPermissions: true,
-        avatarUrl: undefined,
+        avatarUrl: 'https://static.example/avatar.png',
         isCoding: false,
         channelIds: [],
         channelScope: 'all',
@@ -1303,6 +1339,7 @@ describe('Agents', () => {
   it("saves a new agent's API key after the agent, for its model's provider", async () => {
     render(() => <Agents {...agentsPageProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
+    continueWizardTo(NAME);
 
     const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
     fireEvent.input(within(dialog).getByLabelText('Name'), {
@@ -1313,6 +1350,7 @@ describe('Agents', () => {
       target: { value: 'sk-ant-api03-abc' },
     });
     continueWizardTo(SHARE);
+    continueWizardTo(CHANNELS);
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create agent' })
     );
@@ -1442,6 +1480,7 @@ describe('Agents', () => {
     chooseSelectOption(defaultModel, 'Cursor Large');
     expect(defaultModel.textContent).toBe('Cursor Large');
     continueWizardTo(SHARE);
+    continueWizardTo(CHANNELS);
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create agent' })
     );
@@ -1534,6 +1573,7 @@ describe('Agents', () => {
     }
     expect(fetchHarnesses).toHaveBeenCalledTimes(3);
     continueWizardTo(SHARE);
+    continueWizardTo(CHANNELS);
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create agent' })
     );
@@ -1698,6 +1738,7 @@ describe('Agents', () => {
 
     render(() => <Agents {...agentsPageProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
+    continueWizardTo(NAME);
 
     const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
     fireEvent.input(within(dialog).getByLabelText('Name'), {
@@ -1708,6 +1749,7 @@ describe('Agents', () => {
       within(dialog).getByRole('radio', { name: 'In your harness' })
     );
     continueWizardTo(SHARE);
+    continueWizardTo(CHANNELS);
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create agent' })
     );
@@ -1715,7 +1757,7 @@ describe('Agents', () => {
     await waitFor(() => {
       expect(agentMocks.create).toHaveBeenCalledWith({
         autoAcceptPermissions: false,
-        avatarUrl: undefined,
+        avatarUrl: 'https://static.example/avatar.png',
         isCoding: true,
         channelIds: [],
         channelScope: 'all',
@@ -1740,6 +1782,7 @@ describe('Agents', () => {
 
     render(() => <Agents {...agentsPageProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
+    continueWizardTo(NAME);
 
     const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
     fireEvent.input(within(dialog).getByLabelText('Name'), {
@@ -1764,6 +1807,7 @@ describe('Agents', () => {
       true
     );
     fireEvent.click(within(dialog).getByLabelText('Chat agent'));
+    continueWizardTo(CHANNELS);
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create agent' })
     );
@@ -1914,9 +1958,7 @@ describe('Agents', () => {
 
     const dialog = screen.getByRole('region', { name: 'New agent' });
     expect(
-      within(dialog).getByText(
-        'Chat agent · All channels · Your connected apps'
-      )
+      within(dialog).getByText('Chat agent · Your connected apps')
     ).toBeTruthy();
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'More options' })
@@ -1930,6 +1972,7 @@ describe('Agents', () => {
   it('picks apps from the whole catalog, shows the viewer connection state, and persists them', async () => {
     render(() => <Agents {...agentsPageProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
+    continueWizardTo(NAME);
 
     const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
     fireEvent.input(within(dialog).getByLabelText('Name'), {
@@ -1943,7 +1986,7 @@ describe('Agents', () => {
 
     // An explicit selection with nothing in it is not something to save.
     expect(
-      within(dialog).getByRole('button', { name: 'Create agent' })
+      within(dialog).getByRole('button', { name: 'Continue' })
     ).toHaveProperty('disabled', true);
 
     within(dialog).getByLabelText('Search connectors').focus();
@@ -1973,6 +2016,7 @@ describe('Agents', () => {
 
     // Unconnected picks never block saving: the agent's author chooses the
     // apps, each person connects their own.
+    continueWizardTo(CHANNELS);
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create agent' })
     );
@@ -2111,6 +2155,7 @@ it.each(['in-memory', 'cursor'])(
     agentMocks.create.mockClear();
     render(() => <Agents {...agentsPageProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
+    continueWizardTo(NAME);
     const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
     fireEvent.input(within(dialog).getByLabelText('Name'), {
       target: { value: 'Built-in agent' },
@@ -2132,6 +2177,7 @@ it.each(['in-memory', 'cursor'])(
     expect(within(dialog).queryByText('Permission requests')).toBeNull();
     expect(within(dialog).queryByLabelText('Always prompt')).toBeNull();
     expect(within(dialog).queryByLabelText('Always bypass')).toBeNull();
+    continueWizardTo(CHANNELS);
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Create agent' })
     );

@@ -26,13 +26,14 @@ import { useAgentModelsQueries } from '@queries/agents/models';
 import { usePipedreamConnectedSlugs } from '@queries/pipedream-connectors';
 import type { AgentMcpServer } from '@service-storage/generated/schemas/agentMcpServer';
 import type { AgentMcpServers } from '@service-storage/generated/schemas/agentMcpServers';
-import { ApiKeyInput, Button, InputGroup } from '@ui';
+import { ApiKeyInput, Button, cn, InputGroup } from '@ui';
 import { createSignal, type JSX, Match, Show, Switch } from 'solid-js';
 import { match } from 'ts-pattern';
 import { ChannelMultiSelect } from '../channel/Bots/ChannelMultiSelect';
 import { AgentCreateWizard, type WizardStep } from './agent-create-wizard';
 import { CursorConnectPage } from './CursorConnectPage';
 import { AgentAvatar } from './components/agent-avatar';
+import { agentFaceImage } from './components/agent-face-paint';
 import { AgentModelPicker } from './components/agent-model-picker';
 import { AgentInstructionsEditor } from './components/instructions-editor';
 import { SettingsSelect } from './components/settings-select';
@@ -42,6 +43,7 @@ import {
   apiKeyProviderName,
   apiKeyProviderOf,
 } from './core/agent-api-key';
+import type { AgentFaceLook } from './core/agent-face';
 import {
   type AgentShare,
   type ChannelMode,
@@ -233,12 +235,16 @@ export function AgentEditorPage(props: {
       finished === 'cursor' ? cursorHarness() : macrodHarnesses()[0];
     if (ready) handleHarnessChange(ready.id);
   };
-  const advancedSummary = () =>
+  const advancedSummary = (options: { channels: boolean }) =>
     [
       isCoding() ? 'Coding agent' : 'Chat agent',
-      channelMode() === 'all'
-        ? 'All channels'
-        : `${selectedChannelIds().length} ${selectedChannelIds().length === 1 ? 'channel' : 'channels'}`,
+      ...(options.channels
+        ? [
+            channelMode() === 'all'
+              ? 'All channels'
+              : `${selectedChannelIds().length} ${selectedChannelIds().length === 1 ? 'channel' : 'channels'}`,
+          ]
+        : []),
       ...(pipedreamMcp()
         ? [
             mcp().scope === 'owner_connections'
@@ -360,6 +366,22 @@ export function AgentEditorPage(props: {
     setCodingChoice(undefined);
   };
 
+  const uploadFace = async (face: AgentFaceLook) => {
+    setUploadingAvatar(true);
+    try {
+      return await uploadAvatar.mutateAsync(await agentFaceImage(face));
+    } catch (error) {
+      toast.failure(
+        error instanceof Error
+          ? `Couldn’t save the agent’s face: ${error.message}`
+          : 'Couldn’t save the agent’s face'
+      );
+      return undefined;
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleAvatarInput = async (file: File | undefined) => {
     if (!file || busy()) return;
     setUploadingAvatar(true);
@@ -393,13 +415,19 @@ export function AgentEditorPage(props: {
       : props.currentTeamId;
   };
 
-  /** Saves the agent, resolving to its id, or `undefined` when it failed. */
-  const submit = async () => {
+  /**
+   * Saves the agent, resolving to its id, or `undefined` when it failed. A
+   * new agent without an uploaded picture saves a picture of its `face`, so
+   * it looks the same wherever agents are shown as images.
+   */
+  const submit = async (face?: AgentFaceLook) => {
     if (!canCreate()) return undefined;
+    const picture = avatarUrl() ?? (face && (await uploadFace(face)));
+    if (face && !picture) return undefined;
 
     const harness = selectedHarness();
     const saved = await props.onSave({
-      avatarUrl: avatarUrl(),
+      avatarUrl: picture,
       channelIds: channelMode() === 'all' ? [] : selectedChannelIds(),
       channelScope: channelMode(),
       defaultModel: selectedDefaultModelId(),
@@ -473,9 +501,14 @@ export function AgentEditorPage(props: {
     </>
   );
 
-  const nameFields = () => (
+  const nameFields = (layout: 'row' | 'stack') => (
     <>
-      <div class="mt-4 grid grid-cols-1 gap-3 @min-[440px]:grid-cols-2">
+      <div
+        class={cn(
+          'grid grid-cols-1 gap-3',
+          layout === 'row' && 'mt-4 @min-[440px]:grid-cols-2'
+        )}
+      >
         <label class="flex flex-col gap-1.5">
           <span class="text-xs font-medium text-ink">Name</span>
           <input
@@ -670,7 +703,7 @@ export function AgentEditorPage(props: {
     </>
   );
 
-  const advancedOptions = () => (
+  const advancedOptions = (options: { channels: boolean }) => (
     <>
       <div id="agent-advanced" class="flex flex-col">
         <fieldset class="grid gap-2">
@@ -774,40 +807,47 @@ export function AgentEditorPage(props: {
           </AdvancedGroup>
         </Show>
 
-        <AdvancedGroup
-          title="Channels"
-          description="Choose whether this agent is global or channel-specific."
-        >
-          <fieldset class="flex flex-col gap-2">
-            <legend class="sr-only">Channels</legend>
-            <ChoiceRow
-              name="agent-channel-mode"
-              value="all"
-              checked={channelMode() === 'all'}
-              title="All channels"
-              description="The agent can be mentioned in every channel, like @macro."
-              onChange={() => setChannelMode('all')}
-            />
-            <ChoiceRow
-              name="agent-channel-mode"
-              value="selected"
-              checked={channelMode() === 'selected'}
-              title="Specific channels"
-              description="Only members of selected channels can use this agent."
-              onChange={() => setChannelMode('selected')}
-            />
-          </fieldset>
-
-          <Show when={channelMode() === 'selected'}>
-            <div class="mt-3 border-t border-edge-muted pt-3">
-              <ChannelMultiSelect
-                channelIds={selectedChannelIds()}
-                onChange={setSelectedChannelIds}
-              />
-            </div>
-          </Show>
-        </AdvancedGroup>
+        <Show when={options.channels}>
+          <AdvancedGroup
+            title="Channels"
+            description="Choose whether this agent is global or channel-specific."
+          >
+            {channelFields()}
+          </AdvancedGroup>
+        </Show>
       </div>
+    </>
+  );
+
+  const channelFields = () => (
+    <>
+      <fieldset class="flex flex-col gap-2">
+        <legend class="sr-only">Channels</legend>
+        <ChoiceRow
+          name="agent-channel-mode"
+          value="all"
+          checked={channelMode() === 'all'}
+          title="All channels"
+          description="The agent can be mentioned in every channel, like @macro."
+          onChange={() => setChannelMode('all')}
+        />
+        <ChoiceRow
+          name="agent-channel-mode"
+          value="selected"
+          checked={channelMode() === 'selected'}
+          title="Specific channels"
+          description="Only members of selected channels can use this agent."
+          onChange={() => setChannelMode('selected')}
+        />
+      </fieldset>
+      <Show when={channelMode() === 'selected'}>
+        <div class="mt-3 border-t border-edge-muted pt-3">
+          <ChannelMultiSelect
+            channelIds={selectedChannelIds()}
+            onChange={setSelectedChannelIds}
+          />
+        </div>
+      </Show>
     </>
   );
 
@@ -836,7 +876,7 @@ export function AgentEditorPage(props: {
             description="How this agent appears in channels and mentions."
           >
             {avatarRow()}
-            {nameFields()}
+            {nameFields('row')}
           </AgentFormSection>
           <AgentFormSection
             title="Instructions"
@@ -858,7 +898,7 @@ export function AgentEditorPage(props: {
           </AgentFormSection>
           <AgentFormSection
             title="Advanced"
-            description={advancedSummary()}
+            description={advancedSummary({ channels: true })}
             actions={
               <Button
                 type="button"
@@ -872,7 +912,9 @@ export function AgentEditorPage(props: {
               </Button>
             }
           >
-            <Show when={advancedOpen()}>{advancedOptions()}</Show>
+            <Show when={advancedOpen()}>
+              {advancedOptions({ channels: true })}
+            </Show>
           </AgentFormSection>
         </form>
         <div class="mt-6 flex flex-wrap items-center gap-2 border-t border-edge-muted pt-4">
@@ -917,6 +959,7 @@ export function AgentEditorPage(props: {
 
   const canContinue = (step: WizardStep) =>
     match(step)
+      .with('look', () => !uploadingAvatar())
       .with(
         'name',
         () =>
@@ -932,7 +975,17 @@ export function AgentEditorPage(props: {
           selectedHarness() !== undefined &&
           selectedDefaultModelId().length > 0
       )
-      .with('share', () => canCreate())
+      .with(
+        'share',
+        () =>
+          !busy() &&
+          (mcp().scope === 'owner_connections' ||
+            selectedMcpServers().length > 0) &&
+          (share() === 'Private'
+            ? props.canMakePrivate
+            : props.canShareWithTeam)
+      )
+      .with('channels', () => canCreate())
       .exhaustive();
   const wizard = () => (
     <AgentCreateWizard
@@ -944,13 +997,14 @@ export function AgentEditorPage(props: {
       uploadingAvatar={uploadingAvatar()}
       canContinue={canContinue}
       fields={{
-        name: nameFields,
+        name: () => nameFields('stack'),
         instructions: instructionsField,
         where: whereItRunsFields,
         share: shareFields,
-        advanced: advancedOptions,
+        channels: channelFields,
+        advanced: () => advancedOptions({ channels: false }),
       }}
-      advancedSummary={advancedSummary()}
+      advancedSummary={advancedSummary({ channels: false })}
       onUploadAvatar={handleAvatarInput}
       onClearAvatar={() => setAvatarUrl(undefined)}
       onCreate={submit}

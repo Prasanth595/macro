@@ -1,143 +1,185 @@
 import { cn } from '@ui';
+import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import {
-  createUniqueId,
-  For,
-  Match,
-  onCleanup,
-  onMount,
-  Show,
-  Switch,
-} from 'solid-js';
-import { type AgentFaceShape, agentFaceLook } from '../core/agent-face';
-import './agent-face.css';
+  type AgentFaceLook,
+  type AgentFacePose,
+  RESTING_POSE,
+} from '../core/agent-face';
+import { paintAgentFace } from './agent-face-paint';
 
-/** Idle blinks and watches; thinking spins its outline; done redraws it in color. */
+/** Whether the app is in its dark theme, following theme switches. */
+export function createDarkTheme() {
+  const root = document.documentElement;
+  const isDark = () => root.dataset.themeLight !== 'true';
+  const [dark, setDark] = createSignal(isDark());
+  const observer = new MutationObserver(() => setDark(isDark()));
+  observer.observe(root, {
+    attributes: true,
+    attributeFilter: ['data-theme-light'],
+  });
+  onCleanup(() => observer.disconnect());
+  return dark;
+}
+
+/** Idle blinks and looks around; thinking folds into the mark; done smiles. */
 export type AgentFaceState = 'idle' | 'thinking' | 'done';
 
-const OUTLINES: Record<AgentFaceShape, string> = {
-  round: 'M31 62A29 29 0 1 1 89 62A29 29 0 1 1 31 62Z',
-  leaf: 'M60 33L89 33L89 62A29 29 0 1 1 60 33Z',
-  block:
-    'M43 34H77A11 11 0 0 1 88 45V79A11 11 0 0 1 77 90H43A11 11 0 0 1 32 79V45A11 11 0 0 1 43 34Z',
+type Spring = { value: number; velocity: number };
+const spring = (s: Spring, target: number, dt: number, period: number) => {
+  // Critically damped; substeps keep a slow frame from overshooting.
+  const w = (Math.PI * 2) / period;
+  const steps = Math.ceil((dt * w) / 0.2);
+  const h = dt / steps;
+  for (let step = 0; step < steps; step++) {
+    s.velocity += (w * w * (target - s.value) - 2 * w * s.velocity) * h;
+    s.value += s.velocity * h;
+  }
+  return s.value;
 };
 
 /**
- * An agent's Line face: a monoline head in ink with one accent, on an app-icon
- * tile. Shape, mouth, and accent come from `seed` (the agent's @tag).
+ * An agent's Mark face on a transparent canvas. Animated faces blink, glance
+ * around (or follow the pointer), fold into the logo while thinking, and hop
+ * when done; static ones draw once, for lists.
  */
 export function AgentFace(props: {
-  seed: string;
+  look: AgentFaceLook;
   state?: AgentFaceState;
+  animated?: boolean;
   /** Eyes follow the pointer, for a large preview rather than list rows. */
   followPointer?: boolean;
   class?: string;
 }) {
-  const look = () => agentFaceLook(props.seed);
-  const tileId = createUniqueId();
-  let root!: SVGSVGElement;
+  let canvas!: HTMLCanvasElement;
+  const dark = createDarkTheme();
+  const [pixels, setPixels] = createSignal(0);
+
+  const draw = (pose: AgentFacePose) => {
+    const ctx = canvas.getContext('2d');
+    const size = pixels();
+    if (!ctx || size === 0) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+    paintAgentFace(ctx, size, props.look, pose, dark());
+  };
+
   onMount(() => {
-    if (!props.followPointer) return;
+    const sizeObserver = new ResizeObserver(() => {
+      const box = canvas.getBoundingClientRect();
+      const size = Math.round(
+        Math.min(box.width, box.height) * Math.min(2.5, devicePixelRatio || 1)
+      );
+      canvas.width = size;
+      canvas.height = size;
+      setPixels(size);
+    });
+    sizeObserver.observe(canvas);
+    onCleanup(() => sizeObserver.disconnect());
+
+    const reducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+    if (!props.animated || reducedMotion) return;
+
+    let visible = true;
+    const visibility = new IntersectionObserver(([entry]) => {
+      visible = entry?.isIntersecting ?? true;
+    });
+    visibility.observe(canvas);
+
+    const pointer = { x: 0, y: 0, at: -Infinity };
     const follow = (event: PointerEvent) => {
-      const box = root.getBoundingClientRect();
-      const dx = event.clientX - (box.left + box.width / 2);
-      const dy = event.clientY - (box.top + box.height / 2);
-      const distance = Math.hypot(dx, dy) || 1;
-      const reach = distance / (distance + 160);
-      root.style.setProperty(
-        '--agent-face-look-x',
-        ((dx / distance) * reach).toFixed(3)
-      );
-      root.style.setProperty(
-        '--agent-face-look-y',
-        ((dy / distance) * reach).toFixed(3)
-      );
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+      pointer.at = performance.now() / 1000;
     };
-    window.addEventListener('pointermove', follow, { passive: true });
-    onCleanup(() => window.removeEventListener('pointermove', follow));
+    if (props.followPointer)
+      window.addEventListener('pointermove', follow, { passive: true });
+
+    const look = { x: { value: 0, velocity: 0 }, y: { value: 0, velocity: 0 } };
+    const think: Spring = { value: 0, velocity: 0 };
+    const happy: Spring = { value: 0, velocity: 0 };
+    let glance = { x: 0, y: 0, until: 0 };
+    let lastBlink = -Infinity;
+    let nextBlink = 1.5;
+    let hopAt = -Infinity;
+    let last = performance.now() / 1000;
+    let frame = 0;
+
+    const tick = (now: number) => {
+      frame = requestAnimationFrame(tick);
+      const t = now / 1000;
+      const dt = Math.min(1 / 20, Math.max(0, t - last));
+      last = t;
+      if (!visible) return;
+      const state = props.state ?? 'idle';
+
+      let target = { x: 0, y: 0 };
+      if (state === 'thinking') target = { x: 0.5, y: -0.7 };
+      else if (t - pointer.at < 3) {
+        const box = canvas.getBoundingClientRect();
+        const dx = pointer.x - (box.left + box.width / 2);
+        const dy = pointer.y - (box.top + box.height / 2);
+        const distance = Math.hypot(dx, dy) || 1;
+        const reach = distance / (distance + 160);
+        target = { x: (dx / distance) * reach, y: (dy / distance) * reach };
+      } else {
+        if (t > glance.until) {
+          const angle = Math.random() * Math.PI * 2;
+          const reach = Math.random() < 0.45 ? 0.1 : 0.4 + Math.random() * 0.4;
+          glance = {
+            x: Math.cos(angle) * reach,
+            y: Math.sin(angle) * reach * 0.7,
+            until: t + 1.4 + Math.random() * 2.6,
+          };
+        }
+        target = glance;
+      }
+      if (t > nextBlink) {
+        lastBlink = t;
+        nextBlink = t + 2.4 + Math.random() * 3.6;
+      }
+      // Eyes close and reopen over 170ms.
+      const blink = Math.max(0, 1 - Math.abs((t - lastBlink) / 0.085 - 1));
+      const wasHappy = happy.value > 0.5;
+      const smile = spring(happy, state === 'done' ? 1 : 0, dt, 0.42);
+      if (!wasHappy && smile > 0.5) hopAt = t;
+      const hop = (t - hopAt) / 0.46;
+      draw({
+        time: t,
+        lookX: spring(look.x, target.x, dt, 0.24),
+        lookY: spring(look.y, target.y, dt, 0.24),
+        open: 1 - blink,
+        happy: smile,
+        think: spring(think, state === 'thinking' ? 1 : 0, dt, 0.6),
+        work: 0,
+        lift: hop > 0 && hop < 1 ? Math.sin(Math.PI * hop) * 0.22 : 0,
+      });
+    };
+    frame = requestAnimationFrame(tick);
+    onCleanup(() => {
+      cancelAnimationFrame(frame);
+      visibility.disconnect();
+      window.removeEventListener('pointermove', follow);
+    });
   });
+
+  // Static faces redraw when their look, size, or theme changes.
+  createEffect(() => {
+    if (props.animated) return;
+    draw({
+      ...RESTING_POSE,
+      happy: props.state === 'done' ? 1 : 0,
+      think: props.state === 'thinking' ? 1 : 0,
+    });
+  });
+
   return (
-    <svg
-      ref={root}
-      viewBox="0 0 120 120"
+    <canvas
+      ref={canvas}
       aria-hidden="true"
       data-agent-face
-      data-state={props.state ?? 'idle'}
-      class={cn('agent-face', props.class)}
-      style={{
-        '--agent-face-accent': `var(--color-${look().color})`,
-        // Offset blinks so a list of agents doesn't blink in unison.
-        '--agent-face-blink-delay': `${-(props.seed.length % 5) * 0.9}s`,
-      }}
-    >
-      <defs>
-        <linearGradient id={tileId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" style={{ 'stop-color': 'var(--color-surface-2)' }} />
-          <stop offset="1" style={{ 'stop-color': 'var(--color-surface-1)' }} />
-        </linearGradient>
-      </defs>
-      <rect
-        x="9"
-        y="8"
-        width="102"
-        height="102"
-        rx="30"
-        fill={`url(#${tileId})`}
-      />
-      <rect
-        x="9.5"
-        y="8.5"
-        width="101"
-        height="101"
-        rx="29.5"
-        class="agent-face-rim"
-      />
-      <path
-        d={OUTLINES[look().shape]}
-        pathLength="100"
-        class="agent-face-outline"
-      />
-      <path
-        d={OUTLINES[look().shape]}
-        pathLength="100"
-        class="agent-face-trace"
-      />
-      <Show when={look().shape === 'leaf'}>
-        <circle cx="95" cy="27" r="3.8" class="agent-face-accent-fill" />
-      </Show>
-      <g class="agent-face-features">
-        <For each={[53.5, 66.5]}>
-          {(x) => (
-            <g transform={`translate(${x} 57)`}>
-              <ellipse rx="3.4" ry="3.4" class="agent-face-eye" />
-              <path d="M-3.8 1.5Q0 -3.4 3.8 1.5" class="agent-face-happy" />
-            </g>
-          )}
-        </For>
-        <g transform="translate(60 71)">
-          <Switch>
-            <Match when={look().mouth === 'smile'}>
-              <path
-                d="M-6 -1Q0 4.5 6 -1"
-                class="agent-face-mouth agent-face-mouth-accent"
-              />
-            </Match>
-            <Match when={look().mouth === 'level'}>
-              <path d="M-3.5 0H3.5" class="agent-face-mouth" />
-            </Match>
-            <Match when={look().mouth === 'cursor'}>
-              <rect
-                x="-4"
-                y="-2.4"
-                width="8"
-                height="4.8"
-                rx="1.4"
-                class="agent-face-mouth agent-face-accent-fill"
-              />
-            </Match>
-          </Switch>
-          <path d="M-6.5 -1.5Q0 5.5 6.5 -1.5" class="agent-face-smile" />
-        </g>
-      </g>
-    </svg>
+      class={cn('block', props.class)}
+    />
   );
 }

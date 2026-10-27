@@ -63,7 +63,7 @@ export function AgentWizard(props: {
     >
       <header
         class={cn(
-          'absolute inset-x-0 top-0 z-10 grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4',
+          'absolute inset-x-0 top-0 z-10 grid grid-cols-[1fr_auto_1fr] items-center gap-3 bg-gradient-to-b from-panel from-60% to-transparent px-4 pb-4',
           inSheet
             ? 'pt-2'
             : 'pt-4 touch:pt-[calc(var(--mobile-content-inset-top,0px)+0.75rem)]'
