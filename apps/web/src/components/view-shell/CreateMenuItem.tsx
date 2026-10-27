@@ -35,7 +35,10 @@ export function CreateMenuItem(
       )}
     >
       <local.icon
-        class={cn('size-5 shrink-0', !local.singleLine && 'mt-0.5')}
+        class={cn(
+          'shrink-0',
+          local.singleLine ? 'size-(--sidebar-icon-size)' : 'mt-0.5 size-5'
+        )}
       />
       <span
         class={cn(
