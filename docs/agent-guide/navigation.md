@@ -781,8 +781,9 @@ list without section labels or gaps. Up to three recently used choices appear
 first, followed by the remaining choices in this order: **Docs** (Document, Snippet), **Organization**
 (Folder), **Design** (Canvas, Design, Photoshop file, Illustrator file), **Data**
 (Database, Spreadsheet, Form), **Comms** (Email, Message, Channel, Call), **Tasks**
-(Task, Project, Reminder), **AI** (Agent, Routine, Skill), and **Other** (Code and
-any uncategorized entries). Only available entries appear.
+(Task, Project, Reminder), **AI** (Agent, Custom agent, Routine, Skill), and **Other** (Code and
+any uncategorized entries). Only available entries appear. **Custom agent**
+(C, then W) opens the new-agent wizard in the Agents workspace.
 Recent items appear only at the top, not again in their categories. With no
 history, the list starts with Document. Hover or keyboard navigation updates the right detail panel;
 click a row or press Enter to start that creation flow. List icons are monochrome:
