@@ -15,6 +15,15 @@ pub(super) struct PropertyValueSql {
     pub group_order: String,
 }
 
+/// SQL expressions for one stored property type.
+struct PropertyTypeSql {
+    data_types: &'static str,
+    value_type: &'static str,
+    sort_key: Option<String>,
+    group_key: Option<String>,
+    group_order: Option<String>,
+}
+
 /// Guard a DATE value before casting its JSON payload.
 pub(super) fn property_date_expression(alias: &str) -> String {
     format!(
@@ -40,62 +49,66 @@ pub(super) fn property_value_sql(alias: &str, data_type: &str, element: &str) ->
     );
     let option_group = format!("CASE WHEN {option_order} IS NOT NULL THEN {element}#>>'{{}}' END");
     let branches = [
-        (
-            "'DATE'",
-            "Date",
-            format!("EXTRACT(EPOCH FROM {date})::double precision * 1000000"),
-            "NULL::text".to_owned(),
-            "NULL::double precision".to_owned(),
-        ),
-        (
-            "'NUMBER'",
-            "Number",
-            number,
-            "NULL::text".to_owned(),
-            "NULL::double precision".to_owned(),
-        ),
-        (
-            "'BOOLEAN'",
-            "Boolean",
-            boolean,
-            "NULL::text".to_owned(),
-            "NULL::double precision".to_owned(),
-        ),
-        (
-            "'SELECT_STRING', 'SELECT_NUMBER', 'TAG'",
-            "SelectOption",
-            selected_order,
-            option_group,
-            option_order,
-        ),
-        (
-            "'ENTITY'",
-            "EntityReference",
-            "NULL::double precision".to_owned(),
-            format!("{element}->>'entity_id'"),
-            "NULL::double precision".to_owned(),
-        ),
-        (
-            "'LINK'",
-            "Link",
-            "NULL::double precision".to_owned(),
-            format!("{element}#>>'{{}}'"),
-            "NULL::double precision".to_owned(),
-        ),
+        PropertyTypeSql {
+            data_types: "'DATE'",
+            value_type: "Date",
+            sort_key: Some(format!(
+                "EXTRACT(EPOCH FROM {date})::double precision * 1000000"
+            )),
+            group_key: None,
+            group_order: None,
+        },
+        PropertyTypeSql {
+            data_types: "'NUMBER'",
+            value_type: "Number",
+            sort_key: Some(number),
+            group_key: None,
+            group_order: None,
+        },
+        PropertyTypeSql {
+            data_types: "'BOOLEAN'",
+            value_type: "Boolean",
+            sort_key: Some(boolean),
+            group_key: None,
+            group_order: None,
+        },
+        PropertyTypeSql {
+            data_types: "'SELECT_STRING', 'SELECT_NUMBER', 'TAG'",
+            value_type: "SelectOption",
+            sort_key: Some(selected_order),
+            group_key: Some(option_group),
+            group_order: Some(option_order),
+        },
+        PropertyTypeSql {
+            data_types: "'ENTITY'",
+            value_type: "EntityReference",
+            sort_key: None,
+            group_key: Some(format!("{element}->>'entity_id'")),
+            group_order: None,
+        },
+        PropertyTypeSql {
+            data_types: "'LINK'",
+            value_type: "Link",
+            sort_key: None,
+            group_key: Some(format!("{element}#>>'{{}}'")),
+            group_order: None,
+        },
     ];
     let mut sort_key = String::from("CASE");
     let mut group_key = String::from("CASE");
     let mut group_order = String::from("CASE");
-    for (types, variant, sort, group, order) in branches {
+    for branch in branches {
         let condition = format!(
-            " WHEN {data_type} IN ({types}) AND {alias}.values->>'type' = '{variant}' THEN "
+            " WHEN {data_type} IN ({}) AND {alias}.values->>'type' = '{}' THEN ",
+            branch.data_types, branch.value_type
         );
+        let null_number = "NULL::double precision";
         sort_key.push_str(&condition);
-        sort_key.push_str(&sort);
+        sort_key.push_str(branch.sort_key.as_deref().unwrap_or(null_number));
         group_key.push_str(&condition);
-        group_key.push_str(&group);
+        group_key.push_str(branch.group_key.as_deref().unwrap_or("NULL::text"));
         group_order.push_str(&condition);
-        group_order.push_str(&order);
+        group_order.push_str(branch.group_order.as_deref().unwrap_or(null_number));
     }
     sort_key.push_str(" ELSE NULL::double precision END");
     group_key.push_str(" ELSE NULL::text END");
