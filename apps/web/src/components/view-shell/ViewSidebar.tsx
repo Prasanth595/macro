@@ -37,12 +37,15 @@ function Header(
     searchLabel?: string;
     searchOpen?: boolean;
     onSearchOpenChange?: (open: boolean) => void;
+    /** View controls (e.g. filters) in the right group, before search. */
+    actions?: JSX.Element;
     collapseControl?: JSX.Element;
   }
 ) {
   const [local, rest] = splitProps(props, [
     'children',
     'class',
+    'actions',
     'search',
     'searchLabel',
     'searchOpen',
@@ -76,6 +79,7 @@ function Header(
         >
           {local.children}
           <div class="ml-auto flex shrink-0 items-center gap-1">
+            {local.actions}
             <Show when={!isTouchDevice() && local.search}>
               <Control
                 label={local.searchLabel ?? 'Search'}

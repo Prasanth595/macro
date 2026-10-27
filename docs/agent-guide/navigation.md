@@ -323,7 +323,8 @@ controls. Use the shared slots described in
 Desktop app navigation panels have **Hide navigation** at the right end of their
 48px title bar. It hides only that split's navigation; **Show navigation** (the
 hamburger) appears before the main header's title/breadcrumbs, including when a
-document, email, or conversation is open. Home's filter sits beside its label.
+document, email, or conversation is open. Home's filter sits in the right group,
+before search and **Hide navigation**.
 Every desktop view title (the navigation panel's label, and Home's top bar while
 its navigation is hidden) is followed by a **Switch view** caret. Its menu lists
 the rail's apps in rail order, then the More apps, with a check on the current
