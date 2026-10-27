@@ -79,6 +79,7 @@
 			"services/ai-editing-worker",
 			"services/bots/anthropic-status-bot",
 			"services/bots/stripe-payment-bot",
+			"services/bots/grok-bot-relay",
 			"services/lexical-service",
 			"packages/spreadsheet",
 			"vendor/ironcalc/pkg",

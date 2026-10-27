@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "grok-bot-relay",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  // Event ids already relayed, so a redelivered Macro event never starts a
+  // second Grok Bot run. Create with `wrangler kv namespace create SEEN_EVENTS`
+  // and put the printed id here before deploying.
+  "kv_namespaces": [{ "binding": "SEEN_EVENTS", "id": "replace-with-your-kv-namespace-id" }]
+}
