@@ -31,7 +31,7 @@ hexagonal architecture pattern.
 ## Recipes
 
 - Add a favoritable entity type: `validate_favoritable` in
-  `src/domain/mutation_service.rs` → `list_favorites` in
+  `src/domain/mutation_service.rs` → `list_favorites` and `count_favorites` in
   `src/outbound/pg_favorites_repo.rs` if the kind can be deleted → caller's
   feature wiring.
 - Add an AI tool action: `src/inbound/toolset.rs` → `src/domain/mutation_service.rs`.

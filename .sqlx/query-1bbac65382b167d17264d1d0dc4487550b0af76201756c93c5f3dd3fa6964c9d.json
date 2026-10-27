@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) as \"count!\"\n            FROM favorite f\n            CROSS JOIN LATERAL (\n                SELECT CASE\n                    WHEN f.entity_id ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'\n                        THEN f.entity_id::uuid\n                END AS entity_uuid\n            ) fid\n            LEFT JOIN \"Document\" d ON f.entity_type = 'document' AND d.id = f.entity_id\n            LEFT JOIN \"Chat\" c ON f.entity_type = 'chat' AND c.id = f.entity_id\n            LEFT JOIN \"Project\" p ON f.entity_type = 'project' AND p.id = f.entity_id\n            LEFT JOIN agent_session ags ON f.entity_type = 'agent_session' AND ags.id = fid.entity_uuid\n            WHERE f.user_id = $1\n                AND (f.entity_type <> 'document' OR d.id IS NOT NULL)\n                AND (f.entity_type <> 'chat' OR c.id IS NOT NULL)\n                AND (f.entity_type <> 'project' OR p.id IS NOT NULL)\n                AND (f.entity_type <> 'agent_session' OR ags.id IS NOT NULL)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1bbac65382b167d17264d1d0dc4487550b0af76201756c93c5f3dd3fa6964c9d"
+}

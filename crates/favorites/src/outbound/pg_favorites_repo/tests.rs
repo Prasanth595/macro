@@ -44,9 +44,37 @@ async fn insert_document(pool: &PgPool, id: &str, name: &str, owner: &str) {
         .expect("document should insert");
 }
 
+async fn insert_agent_session(pool: &PgPool, owner: &str) -> Uuid {
+    let bot_id = Uuid::now_v7();
+    sqlx::query(
+        r#"INSERT INTO bots (id, kind, name, handle, has_agent, owner_user_id) VALUES ($1, 'owned', 'Coder', $2, true, $3)"#,
+    )
+    .bind(bot_id)
+    .bind(format!("coder-{}", bot_id.simple()))
+    .bind(owner)
+    .execute(pool)
+    .await
+    .expect("bot should insert");
+    let session_id = Uuid::now_v7();
+    sqlx::query(
+        r#"
+        INSERT INTO agent_session (id, owner_id, bot_id, model, harness, repo_url, workspace)
+        VALUES ($1, $2, $3, 'claude', 'macrod', 'https://github.com/example/example', '/workspace')
+        "#,
+    )
+    .bind(session_id)
+    .bind(owner)
+    .bind(bot_id)
+    .execute(pool)
+    .await
+    .expect("agent session should insert");
+    session_id
+}
+
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn add_favorite_appends_and_is_idempotent(pool: PgPool) {
     insert_user(&pool, USER_A).await;
+    insert_document(&pool, "doc-1", "Launch plan", USER_A).await;
     let repo = PgFavoritesRepo::new(pool);
 
     let first = repo
@@ -85,6 +113,9 @@ async fn add_favorite_appends_and_is_idempotent(pool: PgPool) {
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn count_favorites_counts_user_collection(pool: PgPool) {
     insert_user(&pool, USER_A).await;
+    for entity_id in ["doc-1", "doc-2", "doc-3"] {
+        insert_document(&pool, entity_id, "Launch plan", USER_A).await;
+    }
     let repo = PgFavoritesRepo::new(pool);
 
     assert_eq!(
@@ -115,6 +146,41 @@ async fn count_favorites_counts_user_collection(pool: PgPool) {
             .await
             .expect("count should run"),
         3
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn count_favorites_skips_targets_that_no_longer_exist(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    insert_document(&pool, "doc-live", "Launch plan", USER_A).await;
+    insert_document(&pool, "doc-trashed", "Old doc", USER_A).await;
+    sqlx::query(r#"UPDATE "Document" SET "deletedAt" = now() WHERE id = 'doc-trashed'"#)
+        .execute(&pool)
+        .await
+        .expect("document should soft delete");
+    let live_session = insert_agent_session(&pool, USER_A).await;
+    let repo = PgFavoritesRepo::new(pool);
+
+    for entity in [
+        EntityType::Document.with_entity_str("doc-live"),
+        EntityType::Document.with_entity_str("doc-trashed"),
+        EntityType::Document.with_entity_str("doc-purged"),
+        EntityType::AgentSession.with_entity_string(live_session.to_string()),
+        EntityType::AgentSession.with_entity_string(Uuid::now_v7().to_string()),
+        EntityType::Channel.with_entity_str("chan-1"),
+    ] {
+        repo.add_favorite(&user(USER_A), &entity)
+            .await
+            .expect("favorite should insert");
+    }
+
+    // A trashed document can be restored, so it still counts; a purged
+    // document and a deleted agent session do not.
+    assert_eq!(
+        repo.count_favorites(&user(USER_A))
+            .await
+            .expect("count should run"),
+        4
     );
 }
 
@@ -198,29 +264,7 @@ async fn list_favorites_hydrates_uuid_keyed_entities(pool: PgPool) {
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn list_favorites_skips_agent_sessions_that_no_longer_exist(pool: PgPool) {
     insert_user(&pool, USER_A).await;
-    let bot_id = Uuid::now_v7();
-    sqlx::query(
-        r#"INSERT INTO bots (id, kind, name, handle, has_agent, owner_user_id) VALUES ($1, 'owned', 'Coder', $2, true, $3)"#,
-    )
-    .bind(bot_id)
-    .bind(format!("coder-{}", bot_id.simple()))
-    .bind(USER_A)
-    .execute(&pool)
-    .await
-    .expect("bot should insert");
-    let live_session = Uuid::now_v7();
-    sqlx::query(
-        r#"
-        INSERT INTO agent_session (id, owner_id, bot_id, model, harness, repo_url, workspace)
-        VALUES ($1, $2, $3, 'claude', 'macrod', 'https://github.com/example/example', '/workspace')
-        "#,
-    )
-    .bind(live_session)
-    .bind(USER_A)
-    .bind(bot_id)
-    .execute(&pool)
-    .await
-    .expect("agent session should insert");
+    let live_session = insert_agent_session(&pool, USER_A).await;
 
     let repo = PgFavoritesRepo::new(pool);
     for session_id in [live_session, Uuid::now_v7()] {

@@ -108,8 +108,29 @@ impl FavoritesRepo for PgFavoritesRepo {
 
     #[tracing::instrument(err, skip(self))]
     async fn count_favorites(&self, user_id: &MacroUserIdStr<'_>) -> Result<i64, Self::Err> {
+        // Mirrors the existence joins in `list_favorites` so a favorite whose
+        // target row is gone stops counting toward the cap. Trashed
+        // (`deletedAt`) targets still count: restoring one brings it back.
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) as "count!" FROM favorite WHERE user_id = $1"#,
+            r#"
+            SELECT COUNT(*) as "count!"
+            FROM favorite f
+            CROSS JOIN LATERAL (
+                SELECT CASE
+                    WHEN f.entity_id ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+                        THEN f.entity_id::uuid
+                END AS entity_uuid
+            ) fid
+            LEFT JOIN "Document" d ON f.entity_type = 'document' AND d.id = f.entity_id
+            LEFT JOIN "Chat" c ON f.entity_type = 'chat' AND c.id = f.entity_id
+            LEFT JOIN "Project" p ON f.entity_type = 'project' AND p.id = f.entity_id
+            LEFT JOIN agent_session ags ON f.entity_type = 'agent_session' AND ags.id = fid.entity_uuid
+            WHERE f.user_id = $1
+                AND (f.entity_type <> 'document' OR d.id IS NOT NULL)
+                AND (f.entity_type <> 'chat' OR c.id IS NOT NULL)
+                AND (f.entity_type <> 'project' OR p.id IS NOT NULL)
+                AND (f.entity_type <> 'agent_session' OR ags.id IS NOT NULL)
+            "#,
             user_id.as_ref(),
         )
         .fetch_one(&self.pool)
