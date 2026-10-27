@@ -1,14 +1,15 @@
 use crate::backfill_completion_service::{
     enqueue_thread_metadata_update, handle_thread_attachment_upload,
 };
-use crate::pubsub::backfill::backfill_message::record_backfilled_message;
-use crate::pubsub::backfill::db_error::map_db_error;
+use crate::pubsub::backfill::backfill_message::{enqueue_crm_contacts, save_invitations};
+use crate::pubsub::backfill::db_error::{is_unstorable, map_db_error};
 use crate::pubsub::backfill::email_api_error::map_email_api_error;
 use crate::pubsub::backfill::increment_counters::incr_completed_threads;
 use crate::pubsub::backfill::write_slot;
 use crate::pubsub::context::PubSubContext;
 use crate::util::process_pre_insert::process_message_pre_insert;
 use email_api_client::domain::models::{CalendarPart, MessageWithCalendarParts};
+use email_db_client::messages::insert::SkippedMessage;
 use models_email::email::service::backfill::{BackfillThreadPayload, JobScopedPayload};
 use models_email::email::service::link;
 use models_email::email::service::message::Message;
@@ -54,26 +55,37 @@ pub async fn backfill_thread(
 
     let fetched = fetch_thread(ctx, link, &thread_provider_id).await?;
     let (mut messages, calendar_parts) = prepare_messages(fetched).await;
+    enqueue_threads_crm_contacts(ctx, link, &messages).await?;
 
     // The priority pass and the normal sweep both enqueue a thread, and both
     // copies can pass the check above while they wait for Gmail. Only the copy
     // that inserts the thread finishes it; the other just counts it as done.
     let slot = write_slot::acquire(ctx).await?;
-    let inserted = email_db_client::threads::insert::insert_backfilled_thread(
-        &ctx.db,
-        &thread_provider_id,
-        link.id,
-        &mut messages,
-    )
-    .await;
-    slot.release().await;
-    let Some(thread_db_id) = inserted
+    let inserted = slot
+        .hold(email_db_client::threads::insert::insert_backfilled_thread(
+            &ctx.db,
+            &thread_provider_id,
+            link.id,
+            &mut messages,
+            is_unstorable,
+        ))
+        .await;
+    let Some((thread_db_id, skipped)) = inserted
         .map_err(|e| map_db_error(e, format!("Failed to insert thread {}", thread_provider_id)))?
     else {
         return incr_completed_threads(ctx, link, scope.job_id).await;
     };
 
-    finish_written_thread(ctx, scope, link, thread_db_id, &messages, &calendar_parts).await
+    finish_written_thread(
+        ctx,
+        scope,
+        link,
+        thread_db_id,
+        &messages,
+        &calendar_parts,
+        &skipped,
+    )
+    .await
 }
 
 /// Recovery-job path for a thread that is already in the database: read the
@@ -128,26 +140,37 @@ async fn refresh_existing_thread(
     }
 
     let (mut messages, calendar_parts) = prepare_messages(missing).await;
+    enqueue_threads_crm_contacts(ctx, link, &messages).await?;
     let slot = write_slot::acquire(ctx).await?;
-    let inserted = email_db_client::messages::insert::insert_thread_messages(
-        &ctx.db,
-        thread_db_id,
-        link.id,
-        &mut messages,
-    )
-    .await;
-    slot.release().await;
-    inserted.map_err(|e| {
-        map_db_error(
-            e,
-            format!(
-                "Failed to insert missing messages of thread {}",
-                p.thread_provider_id
-            ),
-        )
-    })?;
+    let skipped = slot
+        .hold(email_db_client::messages::insert::insert_thread_messages(
+            &ctx.db,
+            thread_db_id,
+            link.id,
+            &mut messages,
+            is_unstorable,
+        ))
+        .await
+        .map_err(|e| {
+            map_db_error(
+                e,
+                format!(
+                    "Failed to insert missing messages of thread {}",
+                    p.thread_provider_id
+                ),
+            )
+        })?;
 
-    finish_written_thread(ctx, scope, link, thread_db_id, &messages, &calendar_parts).await
+    finish_written_thread(
+        ctx,
+        scope,
+        link,
+        thread_db_id,
+        &messages,
+        &calendar_parts,
+        &skipped,
+    )
+    .await
 }
 
 /// Reads every message of the provider thread, with its calendar parts.
@@ -183,13 +206,27 @@ async fn prepare_messages(
     (messages, calendar_parts)
 }
 
+/// Enqueues the CRM contact updates of every message in the thread. This runs
+/// before the thread is written, while a failure can still be retried: after
+/// the commit a retry would skip the thread. Duplicate enqueues are harmless.
+async fn enqueue_threads_crm_contacts(
+    ctx: &PubSubContext,
+    link: &link::Link,
+    messages: &[Message],
+) -> Result<(), ProcessingError> {
+    for message in messages {
+        enqueue_crm_contacts(ctx, link, message).await?;
+    }
+    Ok(())
+}
+
 /// Finishes a thread whose messages are committed.
 ///
 /// A retried BackfillThread finds the thread written and skips it, so nothing
-/// here may ask for a retry. The invitation, CRM and attachment fan-outs are
-/// idempotent and log their failures; the metadata step goes last and is the
-/// only one that can fail the operation, as a non-retryable error that counts
-/// the thread once.
+/// here may ask for a retry. Messages the write skipped are logged. The
+/// invitation and attachment fan-outs only log their failures; the metadata
+/// step goes last and is the only one that can fail the operation, as a
+/// non-retryable error that counts the thread once.
 async fn finish_written_thread(
     ctx: &PubSubContext,
     scope: &JobScopedPayload<BackfillThreadPayload>,
@@ -197,11 +234,20 @@ async fn finish_written_thread(
     thread_db_id: uuid::Uuid,
     messages: &[Message],
     calendar_parts: &[Vec<CalendarPart>],
+    skipped: &[SkippedMessage],
 ) -> Result<(), ProcessingError> {
     let thread_provider_id = &scope.payload.thread_provider_id;
-    for (message, parts) in messages.iter().zip(calendar_parts) {
-        if let Err(error) = record_backfilled_message(ctx, link, message, parts).await {
-            tracing::warn!(error = ?error, %thread_provider_id, "Skipped a backfilled message's invitation or CRM fan-out");
+    for SkippedMessage { index, error } in skipped {
+        tracing::warn!(
+            error = ?error,
+            %thread_provider_id,
+            message_id = messages[*index].provider_id.as_deref().unwrap_or_default(),
+            "Skipped a backfilled message that cannot be stored"
+        );
+    }
+    for (index, (message, parts)) in messages.iter().zip(calendar_parts).enumerate() {
+        if !skipped.iter().any(|skipped| skipped.index == index) {
+            save_invitations(ctx, link, message, parts).await;
         }
     }
     if let Err(error) = handle_thread_attachment_upload(ctx, link, scope.job_id, thread_db_id).await

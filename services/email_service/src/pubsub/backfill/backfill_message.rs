@@ -52,20 +52,21 @@ pub async fn backfill_message(
         .await;
     inserted.map_err(|e| map_db_error(e, "Failed to insert final message into database"))?;
 
-    record_backfilled_message(ctx, link, &message, &fetched.calendar_parts).await?;
+    save_invitations(ctx, link, &message, &fetched.calendar_parts).await;
+    enqueue_crm_contacts(ctx, link, &message).await?;
 
     // Handle all success-related operations
     increment_counters::incr_completed_messages(ctx, link, scope.job_id, p).await
 }
 
-/// Records what a newly written backfill message implies beyond its own rows:
-/// calendar invitations it carries and the CRM contacts it involves.
-pub(super) async fn record_backfilled_message(
+/// Saves the calendar invitations a written backfill message carries. Best
+/// effort: a failure is logged, as invitation extraction always has been.
+pub(super) async fn save_invitations(
     ctx: &PubSubContext,
     link: &link::Link,
     message: &Message,
     calendar_parts: &[CalendarPart],
-) -> Result<(), ProcessingError> {
+) {
     let provider_id = message.provider_id.as_deref().unwrap_or_default();
     if !message.is_draft && !calendar_parts.is_empty() {
         match email_db_client::messages::get::get_message_and_thread_id_by_provider_id(
@@ -88,7 +89,15 @@ pub(super) async fn record_backfilled_message(
             Err(error) => tracing::warn!(error = ?error, "invitation extraction skipped"),
         }
     }
+}
 
+/// Enqueues the CRM contact updates a backfill message implies. Needs no
+/// database row, so it can run before the message is written.
+pub(super) async fn enqueue_crm_contacts(
+    ctx: &PubSubContext,
+    link: &link::Link,
+    message: &Message,
+) -> Result<(), ProcessingError> {
     // Fan out a PopulateCrmContact job per address involved in the
     // message — every non-draft message contributes, in both
     // directions. Sent: enumerate to/cc/bcc (recipients the team

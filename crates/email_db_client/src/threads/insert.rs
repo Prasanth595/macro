@@ -190,20 +190,30 @@ pub async fn insert_blank_thread(
 }
 
 /// Inserts a backfilled thread and all of its messages in one transaction,
-/// returning the thread id, or `None` when the mailbox already has the thread,
-/// including when a concurrent insert won; nothing is written then.
+/// returning the thread id and the messages it skipped, or `None` when the
+/// mailbox already has the thread, including when a concurrent insert won;
+/// nothing is written then.
 ///
-/// A failed insert leaves no thread behind, so a retried backfill writes the
-/// whole thread again. Thread metadata and `replying_to` links are left to the
-/// backfill's metadata step, as with [`insert_blank_thread`].
-#[tracing::instrument(skip(pool, messages), fields(message_count = messages.len()), err)]
+/// A message `is_unstorable` rejects is left out under its own savepoint while
+/// the rest commit. Any other failure leaves no thread behind, so a retried
+/// backfill writes the whole thread again. Thread metadata and `replying_to`
+/// links are left to the backfill's metadata step, as with
+/// [`insert_blank_thread`].
+#[tracing::instrument(skip(pool, messages, is_unstorable), fields(message_count = messages.len()), err)]
 pub async fn insert_backfilled_thread(
     pool: &PgPool,
     thread_provider_id: &str,
     link_id: Uuid,
     messages: &mut [message::Message],
-) -> anyhow::Result<Option<Uuid>> {
-    let recipients = messages::insert::upsert_messages_contacts(pool, link_id, messages).await?;
+    is_unstorable: impl Fn(&anyhow::Error) -> bool,
+) -> anyhow::Result<Option<(Uuid, Vec<messages::insert::SkippedMessage>)>> {
+    let writer = messages::insert::BackfillMessageWriter {
+        pool,
+        link_id,
+        is_unstorable,
+    };
+    let mut skipped = Vec::new();
+    let recipients = writer.upsert_contacts(messages, &mut skipped).await?;
     let thread = blank_thread(thread_provider_id, link_id);
 
     let mut tx = pool.begin().await?;
@@ -212,10 +222,9 @@ pub async fn insert_backfilled_thread(
         tx.rollback().await?;
         return Ok(None);
     }
-    for (message, recipients) in messages.iter_mut().zip(recipients) {
-        messages::insert::insert_message_with_tx(&mut tx, id, message, link_id, recipients, false)
-            .await?;
-    }
+    writer
+        .insert_messages(&mut tx, id, messages, recipients, &mut skipped)
+        .await?;
     tx.commit().await?;
-    Ok(Some(id))
+    Ok(Some((id, skipped)))
 }

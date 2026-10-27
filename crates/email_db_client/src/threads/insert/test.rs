@@ -378,6 +378,17 @@ fn backfilled_messages(link_id: Uuid) -> Vec<message::Message> {
     ]
 }
 
+/// Postgres "data exception" (SQLSTATE class 22): the value itself can't be stored.
+fn data_exception(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        cause
+            .downcast_ref::<sqlx::Error>()
+            .and_then(|error| error.as_database_error())
+            .and_then(|error| error.code())
+            .is_some_and(|code| code.starts_with("22"))
+    })
+}
+
 async fn thread_message_count(pool: &Pool<Postgres>, thread_id: Uuid) -> anyhow::Result<i64> {
     Ok(sqlx::query_scalar!(
         r#"SELECT COUNT(*) AS "count!" FROM email_messages WHERE thread_id = $1"#,
@@ -397,9 +408,17 @@ async fn a_backfilled_thread_is_written_with_all_of_its_messages(
     let link_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")?;
     let mut messages = backfilled_messages(link_id);
 
-    let thread_id = insert_backfilled_thread(&pool, "backfill-thread", link_id, &mut messages)
-        .await?
-        .expect("the thread is new");
+    let (thread_id, skipped) = insert_backfilled_thread(
+        &pool,
+        "backfill-thread",
+        link_id,
+        &mut messages,
+        data_exception,
+    )
+    .await?
+    .expect("the thread is new");
+
+    assert!(skipped.is_empty());
 
     assert_eq!(thread_message_count(&pool, thread_id).await?, 2);
     Ok(())
@@ -418,11 +437,17 @@ async fn a_thread_another_copy_already_wrote_gets_no_messages_from_this_one(
         .expect("the thread is new");
     let mut messages = backfilled_messages(link_id);
 
-    let inserted =
-        insert_backfilled_thread(&pool, "backfill-thread", link_id, &mut messages).await?;
+    let inserted = insert_backfilled_thread(
+        &pool,
+        "backfill-thread",
+        link_id,
+        &mut messages,
+        data_exception,
+    )
+    .await?;
 
-    assert_eq!(
-        inserted, None,
+    assert!(
+        inserted.is_none(),
         "only the copy that wrote the thread finishes it"
     );
     assert_eq!(thread_message_count(&pool, existing_id).await?, 0);
@@ -442,9 +467,50 @@ async fn missing_messages_are_written_into_their_existing_thread(
         .expect("the thread is new");
     let mut messages = backfilled_messages(link_id);
 
-    crate::messages::insert::insert_thread_messages(&pool, thread_id, link_id, &mut messages)
-        .await?;
+    let skipped = crate::messages::insert::insert_thread_messages(
+        &pool,
+        thread_id,
+        link_id,
+        &mut messages,
+        data_exception,
+    )
+    .await?;
+
+    assert!(skipped.is_empty());
 
     assert_eq!(thread_message_count(&pool, thread_id).await?, 2);
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("links"))
+)]
+async fn a_message_that_cannot_be_stored_is_skipped_and_the_rest_of_its_thread_is_written(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let link_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")?;
+    let mut messages = backfilled_messages(link_id);
+    // Postgres text can't hold NUL, so this message fails identically every time.
+    messages[0].body_text = Some("broken \0 body".to_string());
+
+    let (thread_id, skipped) = insert_backfilled_thread(
+        &pool,
+        "backfill-thread",
+        link_id,
+        &mut messages,
+        data_exception,
+    )
+    .await?
+    .expect("the thread is new");
+
+    assert_eq!(
+        skipped
+            .iter()
+            .map(|skipped| skipped.index)
+            .collect::<Vec<_>>(),
+        vec![0]
+    );
+    assert_eq!(thread_message_count(&pool, thread_id).await?, 1);
     Ok(())
 }
