@@ -72,7 +72,7 @@ export function ListPropertyValue(props: {
           <Property.EditTrigger
             aria-label={label()}
             class={cn(
-              'list-property-cell inline-flex w-full max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-full px-2 py-1.5 text-left leading-tight hover:bg-surface/50 @max-[840px]/u-list:px-1',
+              'list-property-cell inline-flex min-h-7 w-full max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-full px-2 py-1.5 text-left leading-tight hover:bg-surface/50 @max-[840px]/u-list:px-1',
               props.class
             )}
           >
@@ -84,16 +84,8 @@ export function ListPropertyValue(props: {
               when={!isEmpty()}
               fallback={
                 <>
-                  <Show
-                    when={props.property.valueType === 'DATE'}
-                    fallback={
-                      <CircleDashedEmpty class="size-3 shrink-0 opacity-50 @max-[840px]/u-list:size-4" />
-                    }
-                  >
-                    <Property.Icon
-                      property={props.property}
-                      class="size-3 shrink-0 opacity-50 @max-[840px]/u-list:size-4"
-                    />
+                  <Show when={props.property.valueType !== 'DATE'}>
+                    <CircleDashedEmpty class="size-3 shrink-0 opacity-50 @max-[840px]/u-list:size-4" />
                   </Show>
                   <span
                     aria-hidden="true"

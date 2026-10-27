@@ -147,10 +147,11 @@ Next 7 days covers D+2 through D+7; Later starts at D+8; No due date includes
 missing and cleared dates. Relative filters and groups refresh at local midnight,
 timezone changes, and app resume. Continuation pages keep their original boundaries.
 Task lists show an editable **Due date** property column with a calendar icon
-beside the value; click its header to switch between Due soonest and Due furthest
-away. Phones and narrow panes show only the calendar icon, colored by urgency;
-tap it to view or edit the exact date. The dropdown shows the current date, or
-**No due date** when unset, above the date choices. Due dates stay outside the title.
+only when a date is set; click its header to switch between Due soonest and Due
+furthest away. Phones and narrow panes show only the urgency-colored icon for
+dated tasks. Empty date cells remain editable without a calendar icon. The
+dropdown shows the current date, or **No due date** when unset, above the date
+choices. Due dates stay outside the title.
 Board cards show due dates in property pills. Overdue dates
 on open tasks use the danger color; only dates due today or tomorrow use the
 warning color. Later dates, completed tasks, and canceled tasks have neutral due
