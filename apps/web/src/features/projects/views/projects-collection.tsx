@@ -505,7 +505,13 @@ export function ProjectsCollection(props: {
   );
   const dueDateControl = () => (
     <Dropdown>
-      <Dropdown.Trigger as={ButtonGroup.Button} aria-label={"Filter due date"} tooltip={"Filter due date"} variant="ghost" size="icon-sm" >
+      <Dropdown.Trigger
+        as={ButtonGroup.Button}
+        aria-label="Filter due date"
+        tooltip="Filter due date"
+        variant="ghost"
+        size="icon-sm"
+      >
         <CalendarIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
       </Dropdown.Trigger>
       <Dropdown.Content>
@@ -672,7 +678,10 @@ export function ProjectsCollection(props: {
                       {filtered() ? 'No matching projects' : 'No projects yet'}
                     </span>
                     <Show when={!filtered()}>
-                      <Button variant="outline" onClick={() => props.onCreate()}>
+                      <Button
+                        variant="outline"
+                        onClick={() => props.onCreate()}
+                      >
                         New project
                       </Button>
                     </Show>

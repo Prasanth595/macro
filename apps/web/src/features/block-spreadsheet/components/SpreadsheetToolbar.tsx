@@ -72,7 +72,7 @@ function FontSizeControl(props: SpreadsheetToolbarProps) {
     <div class="flex shrink-0 items-center gap-0.5">
       <ToolbarButton
         size="icon-sm"
-        label="Decrease font size"
+        aria-label="Decrease font size"
         disabled={props.readonly || size() <= 8}
         onClick={() => setSize(size() - 1)}
       >
@@ -109,7 +109,7 @@ function FontSizeControl(props: SpreadsheetToolbarProps) {
       />
       <ToolbarButton
         size="icon-sm"
-        label="Increase font size"
+        aria-label="Increase font size"
         disabled={props.readonly || size() >= 36}
         onClick={() => setSize(size() + 1)}
       >
@@ -124,7 +124,7 @@ function TextStyleControls(props: SpreadsheetToolbarProps) {
     <>
       <ToolbarButton
         size="icon-sm"
-        label="Bold"
+        aria-label="Bold"
         tooltip="Bold (⌘/Ctrl B)"
         aria-pressed={!!props.cell?.bold}
         variant={props.cell?.bold ? 'accent' : 'ghost'}
@@ -135,7 +135,7 @@ function TextStyleControls(props: SpreadsheetToolbarProps) {
       </ToolbarButton>
       <ToolbarButton
         size="icon-sm"
-        label="Italic"
+        aria-label="Italic"
         tooltip="Italic (⌘/Ctrl I)"
         aria-pressed={!!props.cell?.italic}
         variant={props.cell?.italic ? 'accent' : 'ghost'}
@@ -146,7 +146,7 @@ function TextStyleControls(props: SpreadsheetToolbarProps) {
       </ToolbarButton>
       <ToolbarButton
         size="icon-sm"
-        label="Strikethrough"
+        aria-label="Strikethrough"
         aria-pressed={!!props.cell?.strikethrough}
         variant={props.cell?.strikethrough ? 'accent' : 'ghost'}
         disabled={props.readonly}
@@ -158,7 +158,7 @@ function TextStyleControls(props: SpreadsheetToolbarProps) {
       </ToolbarButton>
       <ToolbarButton
         size="icon-sm"
-        label="Underline"
+        aria-label="Underline"
         tooltip="Underline (⌘/Ctrl U)"
         aria-pressed={!!props.cell?.underline}
         variant={props.cell?.underline ? 'accent' : 'ghost'}
@@ -185,7 +185,7 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
       >
         <ToolbarButton
           size="icon-sm"
-          label="Undo"
+          aria-label="Undo"
           tooltip="Undo (⌘/Ctrl Z)"
           disabled={props.readonly || !props.canUndo}
           onClick={() => props.onCommand('undo')}
@@ -194,7 +194,7 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
         </ToolbarButton>
         <ToolbarButton
           size="icon-sm"
-          label="Redo"
+          aria-label="Redo"
           tooltip="Redo (⌘/Ctrl Shift Z)"
           disabled={props.readonly || !props.canRedo}
           onClick={() => props.onCommand('redo')}
@@ -208,7 +208,7 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
         <Divider />
         <ToolbarButton
           size="icon-sm"
-          label="Format as currency"
+          aria-label="Format as currency"
           disabled={props.readonly}
           onClick={() => props.onStyle({ format: 'currency' })}
         >
@@ -216,7 +216,7 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
         </ToolbarButton>
         <ToolbarButton
           size="icon-sm"
-          label="Format as percent"
+          aria-label="Format as percent"
           disabled={props.readonly}
           onClick={() => props.onStyle({ format: 'percent' })}
         >
@@ -224,7 +224,7 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
         </ToolbarButton>
         <ToolbarButton
           size="icon-sm"
-          label="Decrease decimal places"
+          aria-label="Decrease decimal places"
           disabled={props.readonly || decimals() === 0}
           onClick={() => props.onStyle({ decimals: decimals() - 1 })}
         >
@@ -234,7 +234,7 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
         </ToolbarButton>
         <ToolbarButton
           size="icon-sm"
-          label="Increase decimal places"
+          aria-label="Increase decimal places"
           disabled={props.readonly || decimals() === 10}
           onClick={() => props.onStyle({ decimals: decimals() + 1 })}
         >
@@ -255,7 +255,7 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
         <AlignmentMenu {...props} />
         <ToolbarButton
           size="icon-sm"
-          label="Decrease indent"
+          aria-label="Decrease indent"
           disabled={props.readonly}
           onClick={() => {
             props.onCommand('indent-decrease');
@@ -266,7 +266,7 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
         </ToolbarButton>
         <ToolbarButton
           size="icon-sm"
-          label="Increase indent"
+          aria-label="Increase indent"
           disabled={props.readonly}
           onClick={() => {
             props.onCommand('indent-increase');
@@ -278,7 +278,7 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
         <VerticalAlignmentMenu {...props} />
         <ToolbarButton
           size="icon-sm"
-          label="Wrap text"
+          aria-label="Wrap text"
           aria-pressed={!!props.cell?.wrap}
           variant={props.cell?.wrap ? 'accent' : 'ghost'}
           disabled={props.readonly}
@@ -292,7 +292,7 @@ export function SpreadsheetToolbar(props: SpreadsheetToolbarProps) {
         <InsertMenu {...props} />
         <ToolbarButton
           size="icon-sm"
-          label="Find and replace"
+          aria-label="Find and replace"
           tooltip="Find and replace (⌘/Ctrl F)"
           onClick={() => props.onCommand('find')}
         >
@@ -425,17 +425,20 @@ export function FormulaBar(props: {
           onPointerDown={(event) => event.preventDefault()}
           onMouseDown={(event) => event.preventDefault()}
         >
-          <Button variant="ghost" aria-label={"Cancel edit"} tooltip={"Cancel edit"}
+          <Button
+            variant="ghost"
+            aria-label="Cancel edit"
+            tooltip="Cancel edit"
             {...cancelPress}
-            
             size="icon-sm"
             class="size-[44px]"
           >
             <X class="size-5" />
           </Button>
-          <Button aria-label={"Apply edit"} tooltip={"Apply edit"}
+          <Button
+            aria-label="Apply edit"
+            tooltip="Apply edit"
             {...commitPress}
-            
             size="icon-sm"
             variant="accent"
             class="size-[44px]"

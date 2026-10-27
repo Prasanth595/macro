@@ -11,7 +11,14 @@ import CheckIcon from '@icon/system/regular/check.svg';
 import PlusIcon from '@icon/system/regular/plus.svg';
 import TrayIcon from '@icon/system/regular/tray.svg';
 import { useMailAccountsQuery } from '@queries/email/mail-accounts';
-import { AvatarGroup, Button, ButtonGroup, cn, Dropdown, pressHandlers } from '@ui';
+import {
+  AvatarGroup,
+  Button,
+  ButtonGroup,
+  cn,
+  Dropdown,
+  pressHandlers,
+} from '@ui';
 import { createMemo, For, type JSX, Show } from 'solid-js';
 import { fromInboxOptions } from '../../email-compose/core/email-sender';
 import { useEmailView } from '../email-view-context';
@@ -405,12 +412,14 @@ export function EmailInboxMenu(props: { class?: string; grouped?: boolean }) {
           as={props.grouped ? ButtonGroup.Button : Button}
           variant="ghost"
           size="icon-md"
-          
           aria-label={`Inbox: ${selection.label()}`}
           tooltip={selection.label()}
           class={cn('shrink-0', props.class)}
         >
-          <span aria-hidden="true" class="inline-flex size-4 shrink-0 items-center justify-center">
+          <span
+            aria-hidden="true"
+            class="inline-flex size-4 shrink-0 items-center justify-center"
+          >
             <Show
               when={selection.selectedOption()}
               fallback={<AllInboxesAvatar options={selection.options()} />}

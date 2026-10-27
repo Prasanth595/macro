@@ -25,13 +25,9 @@ function ReplyActionButton(props: {
   disabled?: boolean;
   onClick: () => void;
 }) {
-  const viewContext = useEmailThreadViewContext();
   return (
     <Button
-      // Button owns its Layer; floating actions use the dock's chrome depth.
-      
       variant="outline"
-      
       aria-label={props.ariaLabel}
       disabled={props.disabled}
       class={cn(

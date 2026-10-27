@@ -4,7 +4,13 @@ import CalendarIcon from '@icon/system/regular/calendar-blank.svg';
 import CaretDownIcon from '@icon/system/regular/caret-down.svg';
 import CaretRightIcon from '@icon/system/regular/caret-right.svg';
 import CheckIcon from '@icon/system/regular/check.svg';
-import { Button, ButtonGroup, Dropdown, Hotkey, Calendar as MiniCalendar } from '@ui';
+import {
+  Button,
+  ButtonGroup,
+  Dropdown,
+  Hotkey,
+  Calendar as MiniCalendar,
+} from '@ui';
 import { createMemo, For, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { CalendarPeriodView } from '../types';
@@ -147,7 +153,7 @@ export function PeriodSelector(props: {
         as={props.grouped ? ButtonGroup.Button : Button}
         aria-label="Choose calendar view"
         variant="ghost"
-        size={props.grouped ? undefined : (props.compact ? 'md' : 'lg')}
+        size={props.grouped ? undefined : props.compact ? 'md' : 'lg'}
         class="shrink-0 border-transparent bg-transparent text-sm"
       >
         {CALENDAR_VIEWS.find((view) => view.value === controls.activeView())

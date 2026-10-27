@@ -126,14 +126,14 @@ export const ListNav = (props: ListNavProps) => {
         </Show>
       }
     >
-      <Button aria-label={props.item.label}
+      <Button
+        aria-label={props.item.label}
         variant="ghost"
         size="icon-md"
         class={cn(
           'size-10 cursor-default rounded-xl',
           isActive() && 'bg-hover text-ink'
         )}
-        
         aria-description={
           [
             props.unread && 'Unread items',
@@ -143,11 +143,13 @@ export const ListNav = (props: ListNavProps) => {
             .filter(Boolean)
             .join('. ') || undefined
         }
-        tooltip={{ content: (`Go to ${props.item.label}`) ?? (props.item.label), placement: "right", hotkey: props.item.hotkeyToken
+        tooltip={{
+          content: `Go to ${props.item.label}`,
+          placement: 'right',
+          hotkey: props.item.hotkeyToken
             ? [TOKENS.sidebar.goToLeader, props.item.hotkeyToken]
-            : undefined }}
-        
-        
+            : undefined,
+        }}
         draggable={false}
         aria-current={isActive() ? 'page' : undefined}
         // An attribute rather than a class-only state, so the styling can be

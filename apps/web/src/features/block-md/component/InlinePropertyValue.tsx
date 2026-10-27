@@ -92,7 +92,7 @@ export const InlinePropertyValue: Component<InlinePropertyValueProps> = (
         <Show when={canManage()}>
           <Button
             size="icon-sm"
-            label="Unpin"
+            aria-label="Unpin"
             disabled={removing()}
             onClick={() =>
               ctx.onPropertyUnpinned?.(

@@ -120,9 +120,13 @@ export function CallControlBar(props: {
         <Button
           size="icon-lg"
           variant="outline"
-          aria-label={props.screenSharing ? 'Stop sharing screen' : 'Share screen'}
+          aria-label={
+            props.screenSharing ? 'Stop sharing screen' : 'Share screen'
+          }
           tooltip={{
-            content: props.screenSharing ? 'Stop sharing screen' : 'Share screen',
+            content: props.screenSharing
+              ? 'Stop sharing screen'
+              : 'Share screen',
             placement: 'top',
           }}
           aria-pressed={props.screenSharing}

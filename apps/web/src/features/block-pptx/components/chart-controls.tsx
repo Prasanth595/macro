@@ -419,10 +419,11 @@ export function ChartDataEditor(props: {
             <TableIcon class="size-4" />
             Edit chart data
           </h2>
-          <Button aria-label={"Close"} tooltip={"Close"}
+          <Button
+            aria-label="Close"
+            tooltip="Close"
             size="icon-sm"
             variant="ghost"
-            
             onClick={props.onClose}
           >
             <X class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
@@ -564,7 +565,7 @@ export function ChartDataEditor(props: {
           </Button>
           <Button
             size="sm"
-            variant={"accent"}
+            variant="accent"
             data-testid="pptx-chart-apply"
             disabled={
               props.readonly || busy() || (chart() ? !chart()!.editable : false)
@@ -684,7 +685,7 @@ export function ChartDesignTab(props: {
           )}
         </RibbonPopover>
         <RibbonTextButton
-          label="Data labels"
+          aria-label="Data labels"
           variant={chart()?.dataLabels ? 'accent' : 'ghost'}
           aria-pressed={!!chart()?.dataLabels}
           disabled={ro()}
@@ -762,7 +763,7 @@ export function ChartDesignTab(props: {
       </RibbonGroup>
       <RibbonGroup label="Data">
         <RibbonTextButton
-          label="Edit data"
+          aria-label="Edit data"
           disabled={ro()}
           data-testid="pptx-chart-edit-data"
           onClick={props.onEditData}

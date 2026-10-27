@@ -3,7 +3,14 @@ import type {
   GroupOptionId,
 } from '@app/features/next-soup/soup-view/group-options';
 import StackSimpleIcon from '@icon/system/regular/stack-simple.svg';
-import { Button, ButtonGroup, type ButtonVariant, Dropdown, SingleSelectCheck, Tooltip } from '@ui';
+import {
+  Button,
+  ButtonGroup,
+  type ButtonVariant,
+  Dropdown,
+  SingleSelectCheck,
+  Tooltip,
+} from '@ui';
 import { type Component, For, Show } from 'solid-js';
 
 interface GroupDropdownProps {
@@ -33,7 +40,6 @@ export const GroupDropdown: Component<GroupDropdownProps> = (props) => {
           as={props.grouped ? ButtonGroup.Button : Button}
           variant={props.variant ?? 'outline'}
           size={triggerSize()}
-          
           aria-label={props.hideLabel ? 'Group' : undefined}
         >
           <StackSimpleIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />

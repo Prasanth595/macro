@@ -2,7 +2,7 @@ import CaretDownIcon from '@icon/system/regular/caret-down.svg';
 import CopyIcon from '@icon/system/regular/copy.svg';
 import PauseIcon from '@icon/system/regular/pause.svg';
 import PlayIcon from '@icon/system/regular/play.svg';
-import { Button, ButtonGroup, Dropdown } from '@ui';
+import { ButtonGroup, Dropdown } from '@ui';
 import { Show } from 'solid-js';
 
 /** Routine actions share the task's compact agent-action control. */
@@ -17,7 +17,12 @@ export function RoutineRunButton(props: {
 }) {
   return (
     <Dropdown placement="bottom-end">
-      <ButtonGroup finish="raised" variant="secondary" size="sm" aria-label="Run routine">
+      <ButtonGroup
+        finish="raised"
+        variant="secondary"
+        size="sm"
+        aria-label="Run routine"
+      >
         <ButtonGroup.Button
           variant="ghost"
           disabled={props.runDisabled}
@@ -27,7 +32,8 @@ export function RoutineRunButton(props: {
           Run now
         </ButtonGroup.Button>
         <ButtonGroup.Divider />
-        <Dropdown.Trigger as={ButtonGroup.Button}
+        <Dropdown.Trigger
+          as={ButtonGroup.Button}
           variant="ghost"
           size="icon-sm"
           aria-label="Run options"

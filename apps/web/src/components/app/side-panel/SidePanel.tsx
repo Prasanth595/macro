@@ -407,41 +407,49 @@ function Toggle(props: { size?: 'sm' | 'md' } = {}) {
   if (!ctx) {
     throw new Error('<SidePanel.Toggle> must be inside <SidePanel.Root>');
   }
-  const iconSize = () => isTouchDevice() || props.size === 'md' ? 'icon-md' : 'icon-sm';
+  const iconSize = () =>
+    isTouchDevice() || props.size === 'md' ? 'icon-md' : 'icon-sm';
 
   return (
     <Show when={ctx.hasSections()}>
       <HeaderActionGroup label="Details" size={props.size}>
         <ButtonGroup.Button
-          
           variant="ghost"
           size={iconSize()}
+          aria-label={ctx.isOpen() ? 'Hide details' : 'Show details'}
           class={cn(
             isTouchDevice() &&
               'border-0 hover:bg-transparent! active:bg-transparent! focus-visible:bg-transparent! active:text-accent',
             isTouchDevice() && ctx.isOpen() && 'text-accent'
           )}
-          tooltip={{ content: isTouchDevice()
+          tooltip={{
+            content: isTouchDevice()
               ? ctx.isOpen()
                 ? 'Hide details'
                 : 'Show details'
               : ctx.isOpen()
                 ? 'Hide Side Panel'
-                : 'Show Side Panel', hotkey: TOKENS.block.toggleSidePanel }}
+                : 'Show Side Panel',
+            hotkey: TOKENS.block.toggleSidePanel,
+          }}
           aria-haspopup={isTouchDevice() ? 'dialog' : undefined}
           aria-expanded={ctx.isOpen()}
-          
           onClick={() => ctx.toggle()}
         >
           <Show
             when={isTouchDevice()}
             fallback={
               <SidePanelIcon
-                class={cn('size-4 shrink-0 rotate-180', ctx.isOpen() && 'text-accent')}
+                class={cn(
+                  'size-4 shrink-0 rotate-180',
+                  ctx.isOpen() && 'text-accent'
+                )}
               />
             }
           >
-            <InfoIcon class={cn('size-6 shrink-0', ctx.isOpen() && 'text-accent')} />
+            <InfoIcon
+              class={cn('size-6 shrink-0', ctx.isOpen() && 'text-accent')}
+            />
           </Show>
         </ButtonGroup.Button>
       </HeaderActionGroup>

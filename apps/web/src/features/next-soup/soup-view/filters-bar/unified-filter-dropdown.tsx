@@ -32,7 +32,14 @@ import { PropertyValueIcon } from '@property/component/propertyValue/PropertyVal
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { useGithubLinkStatusQuery } from '@queries/auth';
 import { useContacts } from '@queries/contacts/contacts';
-import { Button, ButtonGroup, type ButtonVariant, cn, Dropdown, Tooltip } from '@ui';
+import {
+  Button,
+  ButtonGroup,
+  type ButtonVariant,
+  cn,
+  Dropdown,
+  Tooltip,
+} from '@ui';
 import {
   type Accessor,
   batch,
@@ -724,7 +731,6 @@ export const UnifiedFilterDropdown = (
                   as={props.grouped ? ButtonGroup.Button : Button}
                   variant={props.variant ?? 'outline'}
                   size={triggerSize()}
-                  
                   aria-label={props.hideLabel ? 'Filter' : undefined}
                 >
                   <FilterIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />

@@ -1,8 +1,7 @@
-import { ButtonGroup } from '@ui';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import MagnifyingGlassIcon from '@icon/system/regular/magnifying-glass.svg';
 import XIcon from '@icon/system/regular/x.svg';
-import { Button } from '@ui/components/Button';
+import { ButtonGroup } from '@ui';
 import { InputGroup } from '@ui/components/InputGroup';
 import {
   createMemo,
@@ -71,12 +70,12 @@ export function DatabaseSearch(props: {
       when={props.isOpen}
       fallback={
         <HeaderActionGroup label="Search">
-          <ButtonGroup.Button aria-label={"Search"}
+          <ButtonGroup.Button
+            aria-label="Search"
             ref={searchButton}
             type="button"
             variant="ghost"
             size="icon-md"
-            
             aria-keyshortcuts="Control+F Meta+F"
             tooltip="Search every table"
             onClick={() => props.onOpen()}
@@ -137,10 +136,13 @@ export function DatabaseSearch(props: {
             class="text-xs"
           />
           <InputGroup.Addon align="inline-end">
-            <InputGroup.Button aria-label={props.term ? 'Clear search' : 'Close search'} tooltip={{ content: props.term ? 'Clear search' : 'Close search', disabled: true }}
+            <InputGroup.Button
+              aria-label={props.term ? 'Clear search' : 'Close search'}
+              tooltip={{
+                content: props.term ? 'Clear search' : 'Close search',
+                disabled: true,
+              }}
               size="icon-xs"
-              
-              
               onClick={() => {
                 if (props.term) changeTerm('');
                 else closeAndRestore();

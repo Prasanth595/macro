@@ -21,10 +21,11 @@ export function CalendarCreateMenu(props: {
       <Show
         when={props.presentation}
         fallback={
-          <Dropdown.Trigger aria-label={props.label} tooltip={props.label}
+          <Dropdown.Trigger
+            aria-label={props.label}
+            tooltip={props.label}
             size={props.size ?? 'sm'}
             class={props.class}
-            
           >
             {props.trigger}
           </Dropdown.Trigger>

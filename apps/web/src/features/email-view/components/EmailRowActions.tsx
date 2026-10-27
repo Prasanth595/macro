@@ -45,13 +45,15 @@ export function EmailStarAction(props: {
         !props.starred && 'opacity-0 pointer-events-none'
       )}
     >
-      <Button aria-label={props.starred ? 'Unstar email' : 'Star email'}
+      <Button
+        aria-label={props.starred ? 'Unstar email' : 'Star email'}
         variant="ghost"
         size="icon-sm"
-        
         class={props.starred ? 'text-ink-muted' : 'text-ink-extra-muted'}
-        tooltip={{ content: (props.starred ? 'Remove from favorites' : 'Add to favorites') ?? (props.starred ? 'Unstar email' : 'Star email'), hotkey: TOKENS.email.star }}
-        
+        tooltip={{
+          content: props.starred ? 'Remove from favorites' : 'Add to favorites',
+          hotkey: TOKENS.email.star,
+        }}
         aria-pressed={props.starred}
         disabled={props.pending}
         onClick={props.onStar}
@@ -74,13 +76,16 @@ export function EmailRowActions(props: {
 }) {
   return (
     <EmailActionGroup onFocus={props.onFocus}>
-      <Button aria-label={props.archived ? 'Unarchive email' : 'Archive email'} tooltip={{ content: props.archived ? 'Unarchive email' : 'Archive email', hotkey: props.archived
+      <Button
+        aria-label={props.archived ? 'Unarchive email' : 'Archive email'}
+        tooltip={{
+          content: props.archived ? 'Unarchive email' : 'Archive email',
+          hotkey: props.archived
             ? TOKENS.entity.action.markNotDone
-            : TOKENS.entity.action.markDone }}
+            : TOKENS.entity.action.markDone,
+        }}
         variant="ghost"
         size="icon-sm"
-        
-        
         class="text-ink-extra-muted"
         disabled={!props.canArchive || props.pending}
         onClick={props.onArchive}
@@ -89,11 +94,14 @@ export function EmailRowActions(props: {
           <ArrowCounterClockwiseIcon class="size-4" />
         </Show>
       </Button>
-      <Button aria-label={"Open command menu"} tooltip={{ content: "Open command menu", hotkey: TOKENS.global.commandMenu }}
+      <Button
+        aria-label="Open command menu"
+        tooltip={{
+          content: 'Open command menu',
+          hotkey: TOKENS.global.commandMenu,
+        }}
         variant="ghost"
         size="icon-sm"
-        
-        
         class="text-ink-extra-muted"
         onClick={props.onCommands}
       >

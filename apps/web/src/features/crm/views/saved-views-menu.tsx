@@ -53,10 +53,11 @@ const SavedViewRow = (props: {
     <Show when={props.onSetDefault}>
       {(onSetDefault) => (
         <Tooltip label={props.isDefault ? 'Remove default' : 'Set as default'}>
-          <Button aria-label={props.isDefault ? 'Remove default' : 'Set as default'} tooltip={props.isDefault ? 'Remove default' : 'Set as default'}
+          <Button
+            aria-label={props.isDefault ? 'Remove default' : 'Set as default'}
+            tooltip={props.isDefault ? 'Remove default' : 'Set as default'}
             variant="ghost"
             size="icon-sm"
-            
             class={cn(
               'size-6 shrink-0 p-1 text-ink-muted',
               !props.isDefault &&
@@ -70,10 +71,11 @@ const SavedViewRow = (props: {
       )}
     </Show>
     <Tooltip label="Copy link">
-      <Button aria-label={"Copy link"} tooltip={"Copy link"}
+      <Button
+        aria-label="Copy link"
+        tooltip="Copy link"
         variant="ghost"
         size="icon-sm"
-        
         class="size-6 shrink-0 p-1 text-ink-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
         onClick={props.onCopyLink}
       >
@@ -83,10 +85,11 @@ const SavedViewRow = (props: {
     <Show when={props.onDelete}>
       {(onDelete) => (
         <Tooltip label="Delete view">
-          <Button aria-label={"Delete view"} tooltip={"Delete view"}
+          <Button
+            aria-label="Delete view"
+            tooltip="Delete view"
             variant="ghost"
             size="icon-sm"
-            
             class="size-6 shrink-0 p-1 text-ink-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
             onClick={() => onDelete()()}
           >
@@ -108,7 +111,9 @@ const EmptyViewsHint = (props: { children: JSX.Element }) => (
  * list/board mode, stage/owner sub-filters, tab), plus share links that
  * encode the same state into the URL (see `queries/saved-view-codec.ts`).
  */
-export function CompanyViewsMenu(props: { hideLabel?: boolean; grouped?: boolean } = {}) {
+export function CompanyViewsMenu(
+  props: { hideLabel?: boolean; grouped?: boolean } = {}
+) {
   const copyShareLink = useCrmContext().copyViewLink;
   const {
     soup,
@@ -186,11 +191,11 @@ export function CompanyViewsMenu(props: { hideLabel?: boolean; grouped?: boolean
 
   return (
     <Dropdown open={open()} onOpenChange={handleOpenChange}>
-      <Dropdown.Trigger tooltip={props.hideLabel ? 'Views' : undefined}
+      <Dropdown.Trigger
+        tooltip={props.hideLabel ? 'Views' : undefined}
         as={props.grouped ? ButtonGroup.Button : Button}
         variant="ghost"
         size={triggerSize()}
-        
         aria-label={props.hideLabel ? 'Views' : undefined}
       >
         <StackIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
@@ -337,11 +342,12 @@ export function CompanyDisplayMenu(props: { grouped?: boolean } = {}) {
   return (
     <Dropdown>
       <Tooltip label="Display options">
-        <Dropdown.Trigger aria-label={"Display options"} tooltip={"Display options"}
+        <Dropdown.Trigger
+          aria-label="Display options"
+          tooltip="Display options"
           as={props.grouped ? ButtonGroup.Button : Button}
           variant="ghost"
           size={props.grouped ? 'icon-sm' : 'icon-md'}
-          
         >
           <SlidersIcon class="size-4 touch:size-6 shrink-0 pointer-events-none" />
         </Dropdown.Trigger>

@@ -357,10 +357,11 @@ export function SplitPanel(props: SplitPanelProps) {
                             <h3 class="min-w-0 flex-1 truncate text-sm font-medium text-ink-muted">
                               {panel().title}
                             </h3>
-                            <Button aria-label={"Close"} tooltip={"Close"}
+                            <Button
+                              aria-label="Close"
+                              tooltip="Close"
                               variant="ghost"
                               size="icon-sm"
-                              
                               onClick={() => panel().onClose?.()}
                             >
                               <CloseIcon class="size-3.5 touch:size-6 shrink-0 pointer-events-none" />
@@ -382,8 +383,11 @@ export function SplitPanel(props: SplitPanelProps) {
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  label="Close split"
-                  hotkey={TOKENS.split.close}
+                  aria-label="Close split"
+                  tooltip={{
+                    content: 'Close split',
+                    hotkey: TOKENS.split.close,
+                  }}
                   class={cn(
                     'absolute top-0 left-0 z-split-panel-chrome origin-top-left scale-[1.15] size-4 p-0 rounded-none border-0 border-r border-b border-edge-frame bg-panel text-ink-muted/70 hover:bg-hover hover:text-ink',
                     props.handle.isSpotLight()

@@ -1,10 +1,10 @@
-import { ButtonGroup } from '@ui';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import CheckIcon from '@icon/system/regular/check.svg';
 import FunnelIcon from '@icon/system/regular/funnel-simple.svg';
 import PlusIcon from '@icon/system/regular/plus.svg';
 import SortAscendingIcon from '@icon/system/regular/sort-ascending.svg';
 import StackIcon from '@icon/system/regular/stack.svg';
+import { ButtonGroup } from '@ui';
 import { Button } from '@ui/components/Button';
 import { Dropdown } from '@ui/components/Dropdown';
 import { For, type JSX, Show } from 'solid-js';
@@ -50,8 +50,9 @@ export function DatabaseEditorToolbar(props: {
               <Show when={board()}>
                 {(current) => (
                   <Dropdown placement="bottom-start">
-                    <Dropdown.Trigger as={ButtonGroup.Button} aria-label={"Group board by"}
-                      
+                    <Dropdown.Trigger
+                      as={ButtonGroup.Button}
+                      aria-label="Group board by"
                       tooltip="Group by"
                       size="icon-md"
                       variant="ghost"

@@ -243,10 +243,11 @@ export function ScheduleFields(props: {
                           timeFormat={timeFormat()}
                         />
                       </div>
-                      <Button aria-label={`${hours().windows.length || hours().unavailableWindows.length ? 'Edit' : 'Add'} ${day} hours`} tooltip={`${hours().windows.length || hours().unavailableWindows.length ? 'Edit' : 'Add'} ${day} hours`}
+                      <Button
+                        aria-label={`${hours().windows.length || hours().unavailableWindows.length ? 'Edit' : 'Add'} ${day} hours`}
+                        tooltip={`${hours().windows.length || hours().unavailableWindows.length ? 'Edit' : 'Add'} ${day} hours`}
                         variant="ghost"
                         size="icon-sm"
-                        
                         aria-expanded={active()}
                         disabled={locked()}
                         onClick={(event) =>
@@ -286,7 +287,7 @@ export function ScheduleFields(props: {
                                 Cancel
                               </Button>
                               <Button
-                                variant={"accent"}
+                                variant="accent"
                                 size="sm"
                                 disabled={!draft().ranges}
                                 onClick={apply}
@@ -317,10 +318,11 @@ export function ScheduleFields(props: {
                 <h3 class="text-base font-semibold">Calendar preview</h3>
               </div>
               <div class="flex items-center gap-1">
-                <Button aria-label={"Previous month"} tooltip={"Previous month"}
+                <Button
+                  aria-label="Previous month"
+                  tooltip="Previous month"
                   variant="ghost"
                   size="icon-sm"
-                  
                   disabled={locked()}
                   onClick={() =>
                     changeMonth(shiftAvailabilityMonth(monthDate(), -1))
@@ -333,10 +335,11 @@ export function ScheduleFields(props: {
                   disabled={locked()}
                   onChange={changeMonth}
                 />
-                <Button aria-label={"Next month"} tooltip={"Next month"}
+                <Button
+                  aria-label="Next month"
+                  tooltip="Next month"
                   variant="ghost"
                   size="icon-sm"
-                  
                   disabled={locked()}
                   onClick={() =>
                     changeMonth(shiftAvailabilityMonth(monthDate(), 1))
@@ -394,9 +397,9 @@ export function ScheduleFields(props: {
                 variant="outline"
                 size="sm"
                 disabled={locked()}
-                onClick={(event) =>
-                  openDates([monthDate()], event.currentTarget)
-                }
+                onClick={(
+                  event: MouseEvent & { currentTarget: HTMLButtonElement }
+                ) => openDates([monthDate()], event.currentTarget)}
               >
                 <Plus class="size-4" />
                 Add exception
@@ -437,10 +440,11 @@ export function ScheduleFields(props: {
                         </span>
                       </Show>
                     </div>
-                    <Button aria-label={`Edit exception ${formatAvailabilityDate(override.date)}`} tooltip={`Edit exception ${formatAvailabilityDate(override.date)}`}
+                    <Button
+                      aria-label={`Edit exception ${formatAvailabilityDate(override.date)}`}
+                      tooltip={`Edit exception ${formatAvailabilityDate(override.date)}`}
                       variant="ghost"
                       size="icon-sm"
-                      
                       disabled={locked()}
                       onClick={(event) =>
                         openDates([override.date], event.currentTarget)
@@ -448,10 +452,10 @@ export function ScheduleFields(props: {
                     >
                       <Pencil class="size-4" />
                     </Button>
-                    <Button aria-label={`Remove exception ${formatAvailabilityDate(override.date)}`}
+                    <Button
+                      aria-label={`Remove exception ${formatAvailabilityDate(override.date)}`}
                       variant="ghost"
                       size="icon-sm"
-                      
                       tooltip="Remove this exception and use weekly hours again"
                       disabled={locked()}
                       onClick={() => {

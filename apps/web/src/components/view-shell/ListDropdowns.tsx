@@ -49,13 +49,14 @@ function SingleSelectDropdown<TId extends string>(
       onOpenChange={props.onOpenChange}
       placement="bottom-end"
     >
-      <Dropdown.Trigger aria-label={props.label} tooltip={props.label}
+      <Dropdown.Trigger
+        aria-label={props.label}
+        tooltip={props.label}
         as={props.grouped ? ButtonGroup.Button : Button}
         ref={props.triggerRef}
         variant="ghost"
         size={props.grouped ? 'icon-sm' : 'icon-md'}
         class={props.class}
-        
       >
         {props.icon}
       </Dropdown.Trigger>
@@ -124,7 +125,10 @@ export function ViewLayoutDropdown(props: ViewLayoutDropdownProps) {
         <Show
           when={props.value === 'gantt'}
           fallback={
-            <Show when={props.value === 'board'} fallback={<ListIcon class="size-4" />}>
+            <Show
+              when={props.value === 'board'}
+              fallback={<ListIcon class="size-4" />}
+            >
               <BoardIcon class="size-4" />
             </Show>
           }
@@ -307,13 +311,14 @@ export function ListFilterDropdown<
       <Show
         when={props.customTrigger}
         fallback={
-          <Dropdown.Trigger aria-label={props.label ?? 'Filter list'} tooltip={props.label ?? 'Filter list'}
+          <Dropdown.Trigger
+            aria-label={props.label ?? 'Filter list'}
+            tooltip={props.label ?? 'Filter list'}
             as={props.grouped ? ButtonGroup.Button : Button}
             ref={props.triggerRef}
             variant="ghost"
             size={triggerSize()}
             class={props.class}
-            
           >
             <FilterIcon class="size-4 shrink-0" />
             <Show when={props.activeCount}>

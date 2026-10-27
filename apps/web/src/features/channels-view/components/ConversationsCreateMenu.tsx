@@ -21,11 +21,12 @@ export function ConversationsCreateMenu(props: {
       <Show
         when={props.presentation}
         fallback={
-          <Dropdown.Trigger aria-label={"Create channel or direct message"} tooltip={"Create channel or direct message"}
+          <Dropdown.Trigger
+            aria-label="Create channel or direct message"
+            tooltip="Create channel or direct message"
             as={ViewSidebar.Control}
             variant="ghost"
             size="icon-sm"
-            
           >
             <PlusIcon class="size-3.5" />
           </Dropdown.Trigger>
