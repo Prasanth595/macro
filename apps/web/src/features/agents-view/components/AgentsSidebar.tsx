@@ -16,6 +16,7 @@ import {
   MaybeSoupEntityActionDrawerManager,
   SoupEntityContextMenu,
 } from '@app/features/soup';
+import { t } from '@app/lib/i18n';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { unreadFilterFn } from '@entity/utils/filter';
@@ -469,32 +470,32 @@ export function AgentCreateMenu(props: {
         <Dropdown.Group>
           <CreateMenuItem
             icon={AgentIcon}
-            title="Conversation"
-            description="Start a conversation with an existing agent."
+            title={t('create.conversationLabel')}
+            description={t('create.guideConversation')}
             onSelect={() => {
               queueMicrotask(props.onConversation);
             }}
           />
           <CreateMenuItem
             icon={AgentIcon}
-            title="Work agent"
-            description="Create an assistant with instructions and access to your Macro workspace."
+            title={t('create.workAgentLabel')}
+            description={t('create.guideWorkAgent')}
             onSelect={() => {
               queueMicrotask(() => props.onCreate('agent'));
             }}
           />
           <CreateMenuItem
             icon={CodeIcon}
-            title="Coding agent"
-            description="Create an agent that works in a connected coding harness."
+            title={t('create.codingAgentLabel')}
+            description={t('create.guideCodingAgent')}
             onSelect={() => {
               queueMicrotask(() => props.onCreate('coder'));
             }}
           />
           <CreateMenuItem
             icon={RoutineIcon}
-            title="Routine"
-            description="Set up an agent to run on a recurring schedule."
+            title={t('create.routineLabel')}
+            description={t('create.guideRoutine')}
             onSelect={() => {
               queueMicrotask(props.onRoutine);
             }}

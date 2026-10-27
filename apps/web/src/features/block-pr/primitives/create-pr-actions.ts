@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { toast } from '@core/component/Toast/Toast';
 import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowCounterClockwise from '@icon/system/regular/arrow-counter-clockwise.svg';
@@ -54,8 +55,6 @@ export type PrActions = {
   /** A change is in flight. */
   pending: Accessor<boolean>;
 };
-
-const MERGE_WAITS_ON_CHECKS = 'Merge is available once every check passes';
 
 /**
  * A pull request's state changes, shared by its header button and "…" menu:
@@ -118,12 +117,12 @@ export function createPrActions(
     if (pullRequest.status === 'closed') {
       actions.push({
         key: 'reopen',
-        label: 'Reopen pull request',
+        label: t('entityActions.prReopen'),
         icon: ArrowCounterClockwise,
         run: () =>
           runChange(() => setState.mutateAsync({ ...target, state: 'open' }), {
-            done: `Reopened ${name}`,
-            failed: 'Failed to reopen pull request',
+            done: t('entityActions.toastPrReopened', { name }),
+            failed: t('entityActions.toastPrReopenFailed'),
           }),
       });
     }
@@ -132,18 +131,18 @@ export function createPrActions(
     if (pullRequest.draft === true) {
       actions.push({
         key: 'ready-for-review',
-        label: 'Ready for review',
+        label: t('entityActions.prReadyForReview'),
         icon: Eye,
         run: () =>
           runChange(() => setDraft.mutateAsync({ ...target, draft: false }), {
-            done: `Ready for review: ${name}`,
-            failed: 'Failed to mark pull request ready for review',
+            done: t('entityActions.toastPrReadyForReview', { name }),
+            failed: t('entityActions.toastPrReadyForReviewFailed'),
           }),
       });
     } else {
       actions.push({
         key: 'merge',
-        label: 'Merge',
+        label: t('entityActions.prMerge'),
         icon: GitMerge,
         run: () =>
           fireAndForget(
@@ -156,30 +155,30 @@ export function createPrActions(
           checks: pullRequest.checks,
         })
           ? undefined
-          : MERGE_WAITS_ON_CHECKS,
+          : t('entityActions.prMergeWaitsOnChecks'),
       });
     }
     // Draft state unknown: offer neither direction rather than guess.
     if (pullRequest.draft === false) {
       actions.push({
         key: 'convert-to-draft',
-        label: 'Convert to draft',
+        label: t('entityActions.prConvertToDraft'),
         icon: FileDashed,
         run: () =>
           runChange(() => setDraft.mutateAsync({ ...target, draft: true }), {
-            done: `Converted to draft: ${name}`,
-            failed: 'Failed to convert pull request to a draft',
+            done: t('entityActions.toastPrConvertedToDraft', { name }),
+            failed: t('entityActions.toastPrConvertToDraftFailed'),
           }),
       });
     }
     actions.push({
       key: 'close',
-      label: 'Close pull request',
+      label: t('entityActions.prClose'),
       icon: XCircle,
       run: () =>
         runChange(() => setState.mutateAsync({ ...target, state: 'closed' }), {
-          done: `Closed ${name}`,
-          failed: 'Failed to close pull request',
+          done: t('entityActions.toastPrClosed', { name }),
+          failed: t('entityActions.toastPrCloseFailed'),
         }),
     });
     return actions;

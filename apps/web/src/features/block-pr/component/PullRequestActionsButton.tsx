@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import CaretDown from '@icon/system/regular/caret-down.svg';
 import { Button, ButtonGroup, Dropdown } from '@ui';
 import { For, Show } from 'solid-js';
@@ -17,7 +18,7 @@ export function PullRequestActionsButton(props: { actions: PrActions }) {
           <ButtonGroup
             variant={primary().key === 'merge' ? 'success' : 'outline'}
             depth={2}
-            label="Pull request actions"
+            label={t('entityActions.prActions')}
           >
             <Button
               disabled={props.actions.pending() || !!primary().disabledReason}
@@ -29,7 +30,7 @@ export function PullRequestActionsButton(props: { actions: PrActions }) {
               <Dynamic component={primary().icon} class="size-3.5" />
               <span>
                 {primary().key === 'merge' && props.actions.pending()
-                  ? 'Merging…'
+                  ? t('entityActions.prMerging')
                   : primary().label}
               </span>
             </Button>
@@ -37,7 +38,7 @@ export function PullRequestActionsButton(props: { actions: PrActions }) {
               <ButtonGroup.Divider />
               <Dropdown.Trigger
                 size="icon-md"
-                label="More pull request actions"
+                label={t('entityActions.prMoreActions')}
                 disabled={props.actions.pending()}
               >
                 <CaretDown class="size-3.5" />

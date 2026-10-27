@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { toast } from '@core/component/Toast/Toast';
 import { openExternalUrl } from '@core/util/url';
 import { type EntityData, isGithubPrEntity } from '@entity';
@@ -15,7 +16,7 @@ export const makeGithubLinkAction = () => {
   const copy = async (entity: EntityData) => {
     if (!isGithubPrEntity(entity)) return;
     await navigator.clipboard.writeText(entity.metadata.url);
-    toast.success('GitHub link copied to clipboard');
+    toast.success(t('entityActions.toastGithubLinkCopied'));
   };
 
   return { canExecute, open, copy };

@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { DEV_MODE_ENV } from '@core/constant/featureFlags';
 import {
   getDeletedItems,
@@ -19,7 +20,6 @@ import {
   bulkRevertDelete as bulkRevertDeleteOp,
   copyItem as copyItemOp,
   deleteItem as deleteItemOp,
-  FOLDER_DUPLICATE_LIMIT_HINT,
   getItemAccessLevel as getItemAccessLevelOp,
   moveToFolder as moveToFolderOp,
   permanentlyDelete as permanentlyDeleteOp,
@@ -87,11 +87,11 @@ export const useItemOperations = createSingletonRoot(() => {
       if (success) {
         toast.success(`${args.name} copied`);
       } else if (args.itemType === 'project') {
-        toast.failure('Unable to duplicate folder', {
-          subtext: FOLDER_DUPLICATE_LIMIT_HINT,
+        toast.failure(t('entityActions.toastDuplicateFolderFailed'), {
+          subtext: t('entityActions.folderDuplicateLimit'),
         });
       } else {
-        toast.failure('Unable to copy item');
+        toast.failure(t('entityActions.toastCopyFailed', { count: 1 }));
       }
       return id;
     }

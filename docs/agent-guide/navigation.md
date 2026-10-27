@@ -58,8 +58,11 @@ mutation confirmations wait for storage instead of being sent twice.
 
 Verify the all-hidden case without activating the former owner: no held physical
 owner lock after parking, preserved generation/queue, and successful reads/writes
-from a returning tab. Also verify a pending HTTP response settling after parking
-and multiple surviving clients. A drain that Safari has already suspended still
+from a returning tab. Start a query while parked, resume storage from another
+tab, and verify that the original query completes—not just a fresh query key.
+Replacement must not strand an in-flight query when it invalidates its snapshot;
+cache-only reads still never use the network. Also verify a pending HTTP response
+settling after parking and multiple surviving clients. A drain that Safari has already suspended still
 waits for that worker to resume; no deadline kills it or steals its lock. Lifecycle
 telemetry uses `park-started`, `parked`, `unpark-started`, `unpark-completed`, and
 `visibility-handoff-*` owner events.
@@ -72,6 +75,18 @@ Repeat through another handoff and while requests are pending. Interrupted
 optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
 `ownerEvent: coordinator-restarted` distinguishes this from engine replacement
 or a BFCache restore.
+
+Separately, leaving the creating page while its SharedWorker is still downloading
+can fail the survivor before its first ready frame. In an isolated Safari fixture,
+hold that download, connect a second page, and navigate the creator through a
+normal link. Release the asset and verify the survivor initializes on its bounded
+registration retries without a reload. Retries wait 100 ms and 200 ms; navigating
+or disposing the survivor during either wait must stop further constructors.
+Verify BFCache restoration starts fresh without resurrecting the canceled retry.
+Use `graphql_cache.registration_retry` to inspect wait timing and cancellation;
+preserve the scope, existing queue, and conservative storage-failure handling.
+Do not inject this failure into a live account or mistake it for a repeated-ready
+loop.
 
 The same write-safety rule applies when an owner navigates away without restarting
 the coordinator: a surviving tab's enqueue may be committed even if its reply was
@@ -158,6 +173,7 @@ successfully rather than hashing the empty JavaScript placeholder.
 | `/app/activity` | Activity heatmap + feed |
 | `/app/calendar/<month-or-week-or-day>` | Calendar; the focused event, its occurrence, and the locator range use `sN.calendar.*` |
 | `/app/scheduling` | Scheduling workspace: booking links, availability, bookings, insights, and booking page |
+| `/app/external` | External: link a personal WhatsApp account and adopt independently shared WhatsApp groups (requires the `enable-whatsapp-linked` flag; see [External](external.md)) |
 | `/app/<document-type>/<uuid>` | Legacy document URL (including `md`, `pdf`, `canvas`, `spreadsheet`, and the other Drive document types); redirects to `/app/drive/<document-type>/<uuid>` |
 | `/app/database/<uuid>` | A database with table and board views (requires the Databases flag). Links and opens outside Drive stay at this URL; opened from Drive, it shows inline at `/app/drive/database/<uuid>` |
 | `/app/documents`, `/app/files` | Legacy Files views; redirect to `/app/drive` |
@@ -401,6 +417,8 @@ Showing Scheduling removes its duplicate from More; the choice survives reload.
 Activity appears in Customize sidebar only when the `enable-activity-feed` flag
 is on and, like Scheduling, starts hidden in More (also for existing preferences)
 until enabled on the rail.
+External (plug icon, `g x`) appears on the rail only with the
+`enable-whatsapp-linked` flag; it starts shown and can be hidden like other apps.
 
 - Top: buttons `Create` and `Search`. Clicking `Search` opens a menu
   with `Command Menu` (⌘K on Mac / Ctrl+K elsewhere) and `Search everything`
@@ -647,7 +665,8 @@ The inline `/app/debug/create-menu-demo` keeps all three layouts for comparison
 without creating data. Mobile continues to use its create sheet.
 
 On mobile, the bottom dock defaults to Notifications, Calendar, Email, Channels,
-Agents, Files, Tasks, Calls, CRM, Reviews, and Scheduling. Feature-gated views
+Agents, Files, Tasks, Calls, Customers, Reviews, Scheduling,
+and External. Feature-gated views
 appear only when enabled. The navigation island measures its width and fits as
 many fixed-size app buttons as possible, reserving room for More. Search stays
 in its own island at the right edge and opens the persistent Search… input and

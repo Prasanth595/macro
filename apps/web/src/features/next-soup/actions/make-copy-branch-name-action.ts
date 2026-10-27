@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import { toast } from '@core/component/Toast/Toast';
 import { copyBranchNameToClipboard } from '@core/util/branchName';
 import { type EntityData, isGithubPrEntity, isTaskEntity } from '@entity';
@@ -20,7 +21,7 @@ export const makeCopyBranchNameAction = () => {
       const branch = entity.metadata.headBranch;
       if (!branch) return;
       await navigator.clipboard.writeText(branch);
-      toast.success('Branch name copied to clipboard');
+      toast.success(t('entityActions.toastBranchNameCopied'));
       return;
     }
     if (!isTaskEntity(entity)) return;

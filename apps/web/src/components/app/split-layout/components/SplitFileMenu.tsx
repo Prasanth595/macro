@@ -9,6 +9,7 @@ import {
 } from '@app/features/next-soup/actions';
 import { ProjectAssignmentDialog } from '@app/features/projects/projects';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { t } from '@app/lib/i18n';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import type { BlockTool } from '@components/app/ResponsiveBlockToolbar';
@@ -185,7 +186,7 @@ function DesktopRender(props: SplitFileMenuRenderProps) {
       >
         <DotsThree />
       </Dropdown.Trigger>
-      <Dropdown.Content class="w-64">
+      <Dropdown.Content class="min-w-64 max-w-[min(22rem,calc(100vw-1rem))]">
         <For each={sections()}>
           {(section) => (
             <Dropdown.Group>
@@ -259,7 +260,7 @@ function MobileRender(
     >
       <MobileDrawer.Portal>
         <MobileDrawer.Overlay />
-        <MobileDrawer.Content aria-label="File actions">
+        <MobileDrawer.Content aria-label={t('splitMenu.fileActions')}>
           <MobileDrawer.Handle />
           <MobileDrawer.ScrollBody>
             <Show when={props.views}>
@@ -299,7 +300,9 @@ function MobileRender(
                   {/* With a views group leading the drawer, title the action
                       sections to set the two apart. */}
                   <Show when={sections().length > 0}>
-                    <MobileDrawer.Label>Actions</MobileDrawer.Label>
+                    <MobileDrawer.Label>
+                      {t('entityActions.actions')}
+                    </MobileDrawer.Label>
                   </Show>
                 </>
               )}
@@ -395,7 +398,9 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
     const entity = menuEntity();
     if (!entity || !favoriteAction.canExecute(entity)) return undefined;
     return {
-      label: favoriteAction.isFavorited(entity) ? 'Unfavorite' : 'Favorite',
+      label: favoriteAction.isFavorited(entity)
+        ? t('entityActions.unfavorite')
+        : t('entityActions.favorite'),
       icon: Star,
       action: () => {
         fireAndForget(favoriteAction.execute([entity]), 'entity-actions');
@@ -412,7 +417,9 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
     if (!entity || !muteAction.canExecute(entity)) return undefined;
     const muted = muteAction.isMuted(entity);
     return {
-      label: muted ? 'Unmute notifications' : 'Mute notifications',
+      label: muted
+        ? t('entityActions.unmuteNotifications')
+        : t('entityActions.muteNotifications'),
       icon: muted ? BellSimple : BellSlash,
       action: () => {
         fireAndForget(muteAction.execute([entity]), 'entity-actions');
@@ -428,7 +435,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
     const entity = menuEntity();
     if (!entity || !muteAction.canExecute(entity)) return undefined;
     return {
-      label: 'Snooze notifications…',
+      label: t('entityActions.snoozeNotifications'),
       icon: Clock,
       action: () => {
         setOpen(false);
@@ -450,7 +457,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
     const entity = menuEntity();
     if (!entity || !createReminderAction.canExecute(entity)) return undefined;
     return {
-      label: 'Remind me',
+      label: t('entityActions.remindMe'),
       icon: BellSimple,
       action: () => {
         setOpen(false);
@@ -468,7 +475,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
     const entity = menuEntity();
     if (!entity || !addTagAction.canExecute(entity)) return undefined;
     return {
-      label: 'Add tag',
+      label: t('entityActions.addTag'),
       icon: Tag,
       action: () => {
         setOpen(false);
@@ -487,7 +494,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
     // its URL is dead); skip the item rather than copy one that won't open.
     if (entity && !copyLinkAction.canExecute(entity)) return undefined;
     return {
-      label: 'Copy Link',
+      label: t('entityActions.copyLink'),
       icon: Link,
       action: () => {
         if (entity) {
@@ -507,7 +514,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
   };
 
   const copyEntityIdOp = (): SplitFileMenuAction => ({
-    label: 'Copy ID',
+    label: t('entityActions.copyId'),
     icon: Copy,
     action: () => {
       fireAndForget(copyEntityIdAction.executeById(props.id), 'entity-actions');
@@ -535,7 +542,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
             .with('delete', () => {
               if (!ownsMenuEntity()) return null;
               return {
-                label: 'Delete',
+                label: t('entityActions.delete'),
                 action: () => {
                   const entity = menuEntity();
                   if (!entity) return;
@@ -544,14 +551,15 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
                     view: 'delete',
                     entities: [entity],
                     onFinish: () => {
-                      toast.success('Deleted');
+                      toast.success(t('entityActions.toastDeleted'));
                       if (props.onDelete) {
                         props.onDelete();
                       } else {
                         returnSplitToRecentListView(ctx.handle);
                       }
                     },
-                    onError: () => toast.failure('Failed to delete'),
+                    onError: () =>
+                      toast.failure(t('entityActions.toastDeleteFailed')),
                   });
                 },
                 icon: Trash,
@@ -561,7 +569,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
             .with('rename', () => {
               if (!ownsMenuEntity()) return null;
               return {
-                label: 'Rename',
+                label: t('entityActions.rename'),
                 action: () => {
                   const entity = menuEntity();
                   if (!entity) return;
@@ -569,8 +577,10 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
                   openBulkEditModal({
                     view: 'rename',
                     entities: [entity],
-                    onFinish: () => toast.success('Renamed'),
-                    onError: () => toast.failure('Failed to rename'),
+                    onFinish: () =>
+                      toast.success(t('entityActions.toastRenamed')),
+                    onError: () =>
+                      toast.failure(t('entityActions.toastRenameFailed')),
                   });
                 },
                 icon: Rename,
@@ -583,7 +593,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
             .with('copy', () => {
               if (!canDuplicateItemType(props.itemType)) return null;
               return {
-                label: 'Duplicate',
+                label: t('entityActions.duplicate'),
                 action: async () => {
                   const res = await itemOperations.copyItem({
                     itemType: props.itemType,
@@ -610,7 +620,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
             .with('moveToProject', () => {
               if (!ownsMenuEntity()) return null;
               return {
-                label: 'Move to folder',
+                label: t('entityActions.moveToFolder'),
                 action: () => {
                   const entity = buildEntityData({
                     id: props.id,
@@ -622,8 +632,10 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
                   openBulkEditModal({
                     view: 'moveToProject',
                     entities: [entity],
-                    onFinish: () => toast.success('Moved to folder'),
-                    onError: () => toast.failure('Failed to move to folder'),
+                    onFinish: () =>
+                      toast.success(t('entityActions.toastMovedToFolder')),
+                    onError: () =>
+                      toast.failure(t('entityActions.toastMoveToFolderFailed')),
                   });
                 },
                 icon: ArrowRight,
@@ -651,7 +663,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
         props.permissions === Permissions.CAN_EDIT)
         ? [
             {
-              label: 'Add to project…',
+              label: t('entityActions.addToProject'),
               icon: Stack,
               group: 'file' as const,
               action: () => {
@@ -668,7 +680,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
   });
 
   const filteredTools = createMemo(() =>
-    (props.tools ?? []).filter((t) => !t.condition || t.condition())
+    (props.tools ?? []).filter((tool) => !tool.condition || tool.condition())
   );
 
   const tools = createMemo<SplitFileMenuAction[]>(() =>

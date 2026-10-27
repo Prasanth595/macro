@@ -1,4 +1,5 @@
 import { makeCopyLinkAction } from '@app/features/next-soup/actions';
+import { t } from '@app/lib/i18n';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -17,10 +18,10 @@ export function ReviewContextMenuContent(props: {
 }) {
   return (
     <ContextMenu.Portal>
-      <ContextMenuContent class="w-56 text-xs text-ink-muted">
+      <ContextMenuContent class="min-w-56 max-w-[22rem] text-xs text-ink-muted">
         <MenuItem
           icon={SplitIcon}
-          text="Open in new split"
+          text={t('entityActions.openInNewSplit')}
           disabled={!globalSplitManager()?.canAppendSplit()}
           onClick={() => {
             if (globalSplitManager()?.canAppendSplit())
@@ -29,14 +30,14 @@ export function ReviewContextMenuContent(props: {
         />
         <MenuItem
           icon={CopyIcon}
-          text="Copy Link"
+          text={t('entityActions.copyLinkCommand')}
           onClick={() =>
             fireAndForget(copyLink.execute([props.review]), 'reviews-view')
           }
         />
         <MenuItem
           icon={ArrowSquareOutIcon}
-          text="Open on GitHub"
+          text={t('entityActions.openOnGitHub')}
           onClick={() =>
             window.open(
               props.review.metadata.url,

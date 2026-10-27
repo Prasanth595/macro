@@ -1,4 +1,5 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
+import { t } from '@app/lib/i18n';
 import { toast } from '@core/component/Toast/Toast';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { canEditChannelIdentity, type EntityData } from '@entity/types/entity';
@@ -34,7 +35,9 @@ export const makeRenameAction = (options: MakeRenameOptions) => {
       entities,
       onFinish: () => {
         toast.success(
-          entities.length > 1 ? `Renamed ${entities.length} items` : 'Renamed'
+          entities.length > 1
+            ? t('entityActions.toastRenamedCount', { count: entities.length })
+            : t('entityActions.toastRenamed')
         );
       },
     });
@@ -51,7 +54,9 @@ export const makeRenameAction = (options: MakeRenameOptions) => {
       entities,
       onFinish: () => {
         toast.success(
-          entities.length > 1 ? `Renamed ${entities.length} items` : 'Renamed'
+          entities.length > 1
+            ? t('entityActions.toastRenamedCount', { count: entities.length })
+            : t('entityActions.toastRenamed')
         );
         if (firstEntity) {
           soup.focus.set(firstEntity.id);

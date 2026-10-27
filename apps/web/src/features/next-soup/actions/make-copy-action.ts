@@ -1,7 +1,5 @@
-import {
-  canDuplicateItemType,
-  FOLDER_DUPLICATE_LIMIT_HINT,
-} from '@core/component/FileList/itemOperations';
+import { t } from '@app/lib/i18n';
+import { canDuplicateItemType } from '@core/component/FileList/itemOperations';
 import { toast } from '@core/component/Toast/Toast';
 import type { EntityData } from '@entity';
 import { createBulkCopyDssEntityMutation } from '@entity';
@@ -25,15 +23,17 @@ export const makeCopyAction = () => {
       });
     } catch {
       toast.failure(
-        entities.length > 1 ? 'Unable to copy items' : 'Unable to copy item',
+        t('entityActions.toastCopyFailed', { count: entities.length }),
         entities.some((entity) => entity.type === 'project')
-          ? { subtext: FOLDER_DUPLICATE_LIMIT_HINT }
+          ? { subtext: t('entityActions.folderDuplicateLimit') }
           : undefined
       );
       return;
     }
     toast.success(
-      entities.length > 1 ? `Copied ${entities.length} items` : 'Copied'
+      entities.length > 1
+        ? t('entityActions.toastCopiedCount', { count: entities.length })
+        : t('entityActions.toastCopied')
     );
   };
 

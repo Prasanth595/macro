@@ -1,3 +1,4 @@
+import { t } from '@app/lib/i18n';
 import type { FileOperation } from '@components/app/split-layout/components/SplitFileMenu';
 import { toast } from '@core/component/Toast/Toast';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -40,17 +41,20 @@ export function usePrFileOperations(
     operations.push(
       {
         group: 'sharing',
-        label: 'Copy GitHub Link',
+        label: t('entityActions.copyGithubLink'),
         icon: Link,
         action: () =>
           fireAndForget(
-            copyToClipboard(githubUrl, 'GitHub link copied to clipboard'),
+            copyToClipboard(
+              githubUrl,
+              t('entityActions.toastGithubLinkCopied')
+            ),
             'pr-file-menu'
           ),
       },
       {
         group: 'sharing',
-        label: 'Open on GitHub',
+        label: t('entityActions.openOnGitHub'),
         icon: GithubIcon,
         action: () => openExternalUrl(githubUrl),
       }
@@ -59,11 +63,14 @@ export function usePrFileOperations(
     if (headBranch) {
       operations.push({
         group: 'sharing',
-        label: 'Copy Branch Name',
+        label: t('entityActions.copyBranchName'),
         icon: GitBranch,
         action: () =>
           fireAndForget(
-            copyToClipboard(headBranch, 'Branch name copied to clipboard'),
+            copyToClipboard(
+              headBranch,
+              t('entityActions.toastBranchNameCopied')
+            ),
             'pr-file-menu'
           ),
       });

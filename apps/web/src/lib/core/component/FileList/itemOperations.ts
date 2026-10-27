@@ -390,10 +390,6 @@ export async function bulkMoveToFolder(
   };
 }
 
-/** Why a folder copy can fail that the server's error can't say. */
-export const FOLDER_DUPLICATE_LIMIT_HINT =
-  'Folders with more than 100 files, chats, and subfolders can’t be duplicated.';
-
 /**
  * Whether an item type can be duplicated. Folders copy with their contents
  * only through the GraphQL entity mutation, which has no REST counterpart.

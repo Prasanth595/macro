@@ -83,6 +83,8 @@ export const authExcluded = [
   // Introductory offers belong to the app's subscription checkout flow.
   'getTrialEligibility',
   'getUserInvites',
+  // The interface language is an app setting, not SDK surface.
+  'getUserLanguage',
   'getUserLinkExists',
   'getUserName',
   'getUserNames',
@@ -118,6 +120,7 @@ export const authExcluded = [
   'putCursorApiKey',
   'putCursorDefaultModel',
   'putProfilePicture',
+  'putUserLanguage',
   'putUserName',
   'redeemGtmInviteLink',
   'refresh',
@@ -174,6 +177,7 @@ export const cognitionExcluded = [
   'listPipedreamMcpConnections',
   'mcpAuthCallback',
   'mcpOauthClientMetadata',
+  'recoverPipedreamMcpConnection',
   'rejectToolCall',
   // Channel discovery shares the app-only import workflow below.
   'discoverHandler',
@@ -358,6 +362,13 @@ export const storageExcluded = [
   'jobProcessingResultHandler',
   'joinChannelByCode',
   'leaveOrEndCall',
+  // Pairing, passkey handoff, and rollout configuration belong to the app session.
+  'linkedCancelPairing',
+  'linkedConfiguration',
+  'linkedConnect',
+  'linkedDisconnect',
+  'linkedPairing',
+  'linkedPasskey',
   // Live meeting admission and participant previews are app session flows.
   'meetingGuestJoin',
   // Browser setup reserves an empty RTC room before creating a meeting.

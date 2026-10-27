@@ -8,6 +8,7 @@ import {
   makeMuteAction,
   makeShareAction,
 } from '@app/features/next-soup/actions';
+import { t } from '@app/lib/i18n';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { MenuItem, MenuSeparator } from '@core/component/ContextMenu';
 import { toast } from '@core/component/Toast/Toast';
@@ -54,10 +55,14 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
 
       onFinish: () => {
         fireAndForget(invalidateProjects(), 'drive-view');
-        toast.success(view === 'rename' ? 'Renamed' : 'Moved to folder');
+        toast.success(
+          view === 'rename'
+            ? t('entityActions.toastRenamed')
+            : t('entityActions.toastMovedToFolder')
+        );
       },
 
-      onError: () => toast.failure('Failed to update folder'),
+      onError: () => toast.failure(t('entityActions.toastFolderUpdateFailed')),
     });
   };
 
@@ -65,62 +70,69 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
     <>
       <MenuSeparator />
       <Show when={entity().ownerId === userId()}>
-        <MenuItem text="Rename" onClick={() => editFolder('rename')} />
+        <MenuItem
+          text={t('entityActions.rename')}
+          onClick={() => editFolder('rename')}
+        />
       </Show>
       <MenuItem
-        text={favorite.isFavorited(entity()) ? 'Unfavorite' : 'Favorite'}
+        text={
+          favorite.isFavorited(entity())
+            ? t('entityActions.unfavorite')
+            : t('entityActions.favorite')
+        }
         onClick={() =>
           fireAndForget(favorite.execute([entity()]), 'drive-view')
         }
       />
       <Show when={mute.canExecute(entity())}>
         <MenuItem
-          text="Snooze notifications…"
+          text={t('entityActions.snoozeNotifications')}
           onClick={() => mute.snooze([entity()])}
         />
         <MenuItem
           text={
             mute.isMuted(entity())
-              ? 'Unmute notifications'
-              : 'Mute notifications'
+              ? t('entityActions.unmuteNotifications')
+              : t('entityActions.muteNotifications')
           }
           onClick={() => fireAndForget(mute.execute([entity()]), 'drive-view')}
         />
       </Show>
       <Show when={entity().ownerId === userId()}>
         <MenuItem
-          text="Move to folder"
+          text={t('entityActions.moveToFolder')}
           onClick={() => editFolder('moveToProject')}
         />
       </Show>
       <Show when={duplicate.canExecute(entity())}>
         <MenuItem
-          text="Duplicate"
+          text={t('entityActions.duplicate')}
           onClick={() =>
             fireAndForget(duplicate.execute([entity()]), 'drive-view')
           }
         />
       </Show>
       <MenuItem
-        text="Copy Link"
+        text={t('entityActions.copyLink')}
         onClick={() =>
           fireAndForget(copyLink.execute([entity()]), 'drive-view')
         }
       />
       <MenuItem
-        text="Copy ID"
+        text={t('entityActions.copyId')}
         onClick={() =>
           fireAndForget(copyEntityId.executeById(entity().id), 'drive-view')
         }
       />
       <MenuItem
-        text="Share"
+        text={t('entityActions.share')}
         onClick={() => fireAndForget(share.execute(entity()), 'drive-view')}
       />
       <Show when={deleteFolder.canExecute(entity())}>
         <MenuSeparator />
         <MenuItem
-          text="Delete"
+          text={t('entityActions.delete')}
           class="text-failure-ink"
           onClick={() =>
             fireAndForget(deleteFolder.execute([entity()]), 'drive-view')
