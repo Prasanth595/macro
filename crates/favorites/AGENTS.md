@@ -47,6 +47,10 @@ hexagonal architecture pattern.
 
 - Authorize adds with `ports::FavoriteView`, not `ViewAccessLevel`: channels
   resolve to channel roles, which `ViewAccessLevel` never accepts.
+- Permanent deletes remove favorites through `delete_favorites` triggers on
+  each entity table, not through this crate, so foreign-key cascades are
+  covered too. A newly favoritable kind needs its own trigger (see
+  `docs/guides/add-entity.md`); trashing keeps favorites.
 
 ## Related
 
