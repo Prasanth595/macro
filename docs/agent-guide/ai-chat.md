@@ -816,19 +816,24 @@ for Premium, `AI_USAGE_MAX_INCLUDED_ALLOWANCE_CENTS`, and
 used up and no credits or usage billing cover the request, sending a message
 answers HTTP 402 and the app opens the **AI usage limit** dialog (title
 `You've used this month's included AI`, or the spending-limit / failed-charge
-variants). It shows **Monthly limit** and an `Open usage settings` button.
-When the viewer is the payer and Auto-Reload is off or suspended, it says
-`Turn on auto-reload to keep going.`, lists the thresholds (reload to $25 below
-$5 while Auto-Reload is off), shows an editable **Monthly spend limit** prefilled with
-the plan default ($200 Pro, $1,000 Max; blank means no limit), and offers
-**Turn on auto-reload**, which enables it with those values in one click. Enabling reloads right
-away when the balance is low; on success the dialog closes with an
-`Auto-reload is on` toast and the user resends. If the card on file can't be
-charged, the dialog says so and the button becomes **Add payment method**
-(Stripe billing portal, returning to Settings → Usage). Team members who don't
-pay see `Add additional credits to keep going.` instead. Credit purchases and
-Auto-Reload thresholds live in Settings → Usage; subscription changes live in
-Settings → Billing.
+variants). It says when the included AI resets. When the viewer is the payer
+on a paid plan, it offers **One-time** and, while Auto-Reload is off or
+suspended, **Auto-reload**:
+
+- **One-time** picks a credit pack ($25 / $50 / $100 from the plan catalog) and
+  **Buy $25 in credits** opens Stripe Checkout, returning to the same page.
+- **Auto-reload** shows the reload (`$25 when below $5`), an editable
+  **Monthly limit** prefilled with the plan default ($200 Pro, $1,000 Max; blank
+  means no limit), and **Turn on auto-reload**, which enables it in one click.
+  Enabling reloads right away when the balance is low; on success the dialog
+  closes with an `Auto-reload is on` toast and the user resends. If the card on
+  file can't be charged, the button becomes **Add payment method** (Stripe
+  billing portal, returning to Settings → Usage).
+
+The primary action uses the ink-filled `primary` Button; **Usage settings** and
+**Dismiss** are ghost buttons. Team members who don't pay see `Open usage
+settings` instead. Credit purchases and Auto-Reload thresholds also live in
+Settings → Usage; subscription changes live in Settings → Billing.
 
 The free plan is a hard cap: when its monthly allowance is used up, requests
 answer 402 with code `ai_free_allowance_exhausted`. The dialog title is

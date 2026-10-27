@@ -40,6 +40,8 @@ export const buttonVariants = createVariants(
         'bg-transparent text-ink-muted not-touch:not-disabled:hover:overlay-hover not-touch:not-disabled:hover:text-ink not-touch:not-disabled:active:overlay-active',
       strong:
         'bg-control text-ink-muted border-edge-button font-semibold not-touch:not-disabled:hover:overlay-hover not-touch:not-disabled:hover:text-ink not-touch:not-disabled:active:overlay-active',
+      primary:
+        'bg-ink text-surface focus-visible:ring-surface/70 not-touch:not-disabled:hover:opacity-90 not-touch:not-disabled:active:opacity-80',
       cta: 'bg-accent text-accent-contrast focus-visible:ring-accent-contrast/70 [--color-edge:var(--color-accent-contrast-muted)] [--color-edge-muted:var(--color-accent-contrast-muted)] not-touch:not-disabled:hover:overlay-[color-mix(in_oklch,var(--color-surface)_12%,transparent)] not-touch:not-disabled:active:overlay-[color-mix(in_oklch,var(--color-surface)_22%,transparent)]',
     },
     size: {
@@ -158,7 +160,9 @@ function isIconSize(size: ButtonSize): boolean {
  * line up.
  *
  * @do Use ghost for unframed actions, at any size.
- * @do Use strong for outline actions with bolder type and cta for accent-filled actions.
+ * @do Use strong for outline actions with bolder type, cta for accent-filled
+ *   actions, and primary for the neutral black-on-white (white-on-black) action
+ *   that confirms a dialog.
  * @do Use the default shared surface, or glass={false} for a flat frame.
  * @do Always set `label` on icon-only buttons; it is the accessible name.
  * @do Use `icon-*` sizes for icon-only buttons; `icon-md` beside 32px controls.

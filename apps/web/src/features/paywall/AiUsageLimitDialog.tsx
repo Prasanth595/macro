@@ -11,6 +11,7 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import {
   useAiBillingPlansQuery,
   useAiBillingSummaryQuery,
+  useCreateAiCreditCheckoutMutation,
   useCreateBillingPortalMutation,
   useUpdateAiAutoReloadMutation,
 } from '@queries/auth';
@@ -18,18 +19,20 @@ import { queryReadyGate } from '@queries/gate';
 import { createSignal, Suspense } from 'solid-js';
 import {
   isUsageAvailable,
-  monthlyUsagePercent,
   parseDollarInput,
   validateAutoReload,
 } from '../usage/core/usage';
 import { toUsageSummary } from '../usage/queries/usage-summary';
 import { useAiUsagePreview } from './ai-usage-preview';
-import { AiUsageLimitDialogView } from './components/ai-usage-limit-dialog';
+import {
+  AiUsageLimitDialogView,
+  type PurchaseMode,
+} from './components/ai-usage-limit-dialog';
 
 /**
- * Shown when the backend refuses an AI request with a billing code. Shows the
- * monthly limit and offers paid subscriptions to Free users, one-click
- * Auto-Reload to paid payers who haven't turned it on, or usage credits.
+ * Shown when the backend refuses an AI request with a billing code. Offers
+ * paid subscriptions to Free users, and to paid payers a one-time credit
+ * purchase or one-click Auto-Reload when it isn't on.
  */
 export function AiUsageLimitDialog() {
   const { usageLimitOpen, usageLimitCode, hideUsageLimit } =
@@ -41,8 +44,12 @@ export function AiUsageLimitDialog() {
   const usagePreview = useAiUsagePreview();
   const autoReload = useUpdateAiAutoReloadMutation();
   const portal = useCreateBillingPortalMutation();
+  const checkout = useCreateAiCreditCheckoutMutation();
+  const [mode, setMode] = createSignal<PurchaseMode>('credits');
+  /** The chosen credit pack; unset shows the smallest. */
+  const [packCents, setPackCents] = createSignal<number>();
   const [paymentFailed, setPaymentFailed] = createSignal(false);
-  const [autoReloadError, setAutoReloadError] = createSignal<string>();
+  const [offerError, setOfferError] = createSignal<string>();
   /** The payer's edit to the monthly limit; unset shows the plan default. */
   const [monthlyLimitInput, setMonthlyLimitInput] = createSignal<string>();
   const available = () =>
@@ -59,27 +66,15 @@ export function AiUsageLimitDialog() {
   const close = () => {
     hideUsageLimit();
     setPaymentFailed(false);
-    setAutoReloadError(undefined);
+    setOfferError(undefined);
     setMonthlyLimitInput(undefined);
+    setMode('credits');
+    setPackCents(undefined);
   };
 
-  const usage = () => {
-    const snapshot = usageSnapshot();
-    return snapshot
-      ? {
-          percentage: monthlyUsagePercent(
-            snapshot.used_cents,
-            snapshot.included_cents
-          ),
-          periodEnd: snapshot.period_end,
-          unlimited: snapshot.unlimited,
-        }
-      : undefined;
-  };
-
-  /** The payer's saved thresholds, when one click can turn Auto-Reload on. */
-  const autoReloadSettings = () => {
-    // The plan catalog supplies the starting thresholds and monthly limit.
+  /** The paid payer's position and plan catalog, when they can buy more. */
+  const payer = () => {
+    // The plan catalog supplies credit packs and Auto-Reload's starting values.
     if (
       usagePreview.active() ||
       !queryReadyGate(summary) ||
@@ -87,16 +82,44 @@ export function AiUsageLimitDialog() {
     )
       return;
     const snapshot = summary.data;
-    // Keep the offer while a failed charge is shown: a declined reload
-    // leaves Auto-Reload active with its invoice still open.
     if (
       snapshot.tier === 'free' ||
       snapshot.unlimited ||
-      !snapshot.can_manage_billing ||
-      (snapshot.auto_reload?.active && !paymentFailed())
+      !snapshot.can_manage_billing
     )
       return;
-    return toUsageSummary(snapshot, plans.data).autoReload.settings;
+    return { snapshot, catalog: plans.data };
+  };
+
+  /** The payer's starting thresholds, when one click can turn Auto-Reload on. */
+  const autoReloadSettings = () => {
+    const current = payer();
+    // Keep the offer while a failed charge is shown: a declined reload
+    // leaves Auto-Reload active with its invoice still open.
+    if (!current || (current.snapshot.auto_reload?.active && !paymentFailed()))
+      return;
+    return toUsageSummary(current.snapshot, current.catalog).autoReload
+      .settings;
+  };
+
+  const selectedPack = () =>
+    packCents() ?? payer()?.catalog.credit_packs_cents[0];
+
+  const buyCredits = async () => {
+    const amountCents = selectedPack();
+    if (amountCents === undefined || checkout.isPending) return;
+    setOfferError(undefined);
+    // Come back to this page so the user can resend from where they were.
+    const here = window.location.href;
+    try {
+      window.location.href = await checkout.mutateAsync({
+        amountCents,
+        successUrl: here,
+        cancelUrl: here,
+      });
+    } catch {
+      setOfferError("Couldn't open checkout. Please try again.");
+    }
   };
 
   const monthlyLimit = () => {
@@ -125,10 +148,10 @@ export function AiUsageLimitDialog() {
     const chosen = chosenSettings();
     if (!chosen || autoReload.isPending) return;
     if ('error' in chosen) {
-      setAutoReloadError(chosen.error);
+      setOfferError(chosen.error);
       return;
     }
-    setAutoReloadError(undefined);
+    setOfferError(undefined);
     try {
       const snapshot = await autoReload.mutateAsync(chosen.settings);
       // Enabling reloads right away when the balance is low. A failed charge
@@ -141,7 +164,7 @@ export function AiUsageLimitDialog() {
       close();
       toast.success('Auto-reload is on. Resend your message.');
     } catch {
-      setAutoReloadError("Couldn't turn on auto-reload. Please try again.");
+      setOfferError("Couldn't turn on auto-reload. Please try again.");
     }
   };
 
@@ -152,22 +175,28 @@ export function AiUsageLimitDialog() {
         returnUrl: `${window.location.origin}/app/settings/usage`,
       });
     } catch {
-      setAutoReloadError("Couldn't open payment methods. Please try again.");
+      setOfferError("Couldn't open payment methods. Please try again.");
     }
   };
 
-  const autoReloadOffer = () => {
+  const offer = () => {
+    const current = payer();
+    const pack = selectedPack();
+    if (!current || pack === undefined) return;
     const settings = autoReloadSettings();
-    return settings
-      ? {
-          minimumBalanceCents: settings.minimumBalanceCents,
-          targetBalanceCents: settings.targetBalanceCents,
-          monthlyLimit: monthlyLimit(),
-          pending: autoReload.isPending || portal.isPending,
-          paymentFailed: paymentFailed(),
-          error: autoReloadError(),
-        }
-      : undefined;
+    return {
+      mode: settings ? mode() : ('credits' as const),
+      packsCents: current.catalog.credit_packs_cents,
+      packCents: pack,
+      autoReload: settings && {
+        minimumBalanceCents: settings.minimumBalanceCents,
+        targetBalanceCents: settings.targetBalanceCents,
+        monthlyLimit: monthlyLimit(),
+        paymentFailed: paymentFailed(),
+      },
+      pending: autoReload.isPending || portal.isPending || checkout.isPending,
+      error: offerError(),
+    };
   };
 
   return (
@@ -176,8 +205,8 @@ export function AiUsageLimitDialog() {
         open={usageLimitOpen() && available()}
         code={usageLimitCode() ?? undefined}
         freePlan={freePlan()}
-        usage={usage()}
-        autoReload={autoReloadOffer()}
+        resetsAt={usageSnapshot()?.period_end}
+        offer={offer()}
         previewNotice={
           usagePreview.active()
             ? `Developer preview: ${usagePreview.plan() === 'free' ? 'Free' : 'paid'} plan. No account billing has changed.`
@@ -189,8 +218,17 @@ export function AiUsageLimitDialog() {
           close();
           openSettings(target);
         }}
+        onMode={(next) => {
+          setOfferError(undefined);
+          setMode(next);
+        }}
+        onPack={(cents) => {
+          setOfferError(undefined);
+          setPackCents(cents);
+        }}
+        onBuyCredits={() => fireAndForget(buyCredits(), 'usage')}
         onMonthlyLimit={(value) => {
-          setAutoReloadError(undefined);
+          setOfferError(undefined);
           setMonthlyLimitInput(value);
         }}
         onTurnOnAutoReload={() => fireAndForget(turnOnAutoReload(), 'usage')}
