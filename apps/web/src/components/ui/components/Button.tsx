@@ -39,12 +39,12 @@ const buttonPressedStyles =
 
 /** Shared recipe for Button and headless controls that own their rendering. */
 const buttonStyles = createVariants(
-  'relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border font-medium select-none transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 data-disabled:cursor-not-allowed data-disabled:opacity-45 focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-button-focus motion-reduce:transition-none forced-colors:focus-visible:outline-current touch:min-h-9 touch:min-w-9',
+  'relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border font-medium select-none transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 data-disabled:cursor-not-allowed data-disabled:opacity-45 focus-visible:outline-hidden focus-visible:-outline-offset-2 motion-reduce:transition-none forced-colors:focus-visible:outline-current touch:min-h-9 touch:min-w-9',
   {
     variant: {
       primary: cn(
         buttonFrames.primary,
-        'not-data-disabled:hover:bg-button-primary-hover not-data-disabled:active:bg-button-primary-pressed aria-pressed:bg-button-primary-pressed aria-pressed:not-data-disabled:hover:bg-button-primary-pressed aria-expanded:bg-button-primary-pressed aria-expanded:not-data-disabled:hover:bg-button-primary-pressed focus-visible:outline-button-primary-ink',
+        'not-data-disabled:hover:bg-button-primary-hover not-data-disabled:active:bg-button-primary-pressed aria-pressed:bg-button-primary-pressed aria-pressed:not-data-disabled:hover:bg-button-primary-pressed aria-expanded:bg-button-primary-pressed aria-expanded:not-data-disabled:hover:bg-button-primary-pressed',
         buttonPressedStyles
       ),
       secondary: cn(

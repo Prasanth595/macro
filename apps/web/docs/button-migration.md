@@ -25,6 +25,7 @@ Keep Button-specific helpers and materials within the app's shared UI and theme 
 - Sizes: `xs` through `xl`, plus `icon-xs` through `icon-xl`. Replace `icon-composer` with `icon-md`.
 - Use explicit `icon-*` sizes instead of `square`.
 - Set accessible names with `aria-label`, not `label`.
+- Buttons omit the visible focus outline in ordinary color modes; forced-colors mode retains the system-colored focus outline. Other controls keep their existing focus treatment.
 - Tooltips accept a string or `{ content, placement, disabled, hotkey, shortcut }`. Shortcut and tooltip configuration no longer live on the Button root.
 - Remove `depth`, `glass`, and `noTouchResize`. Ghost and link remain flat unless `finish="raised"` is explicit. Outline and `appearance="bare"` always stay flat, even when a finish is supplied.
 - `aria-expanded` drives expanded-state styling, not Kobalte's broader `data-expanded` state.
@@ -65,7 +66,7 @@ Button variant materials live in `src/index.css`: fills, hover/pressed colors, a
 
 `buttonAccentVars` in `features/theme/utils/buttonTheme.ts` only chooses `button-primary-ink` and `button-primary-state-mix` from the resolved accent. The root renderer and subtree previews supply those two variables; all mixing remains in CSS. Live color edits also refresh the existing light/dark scope marker. Derived values do not enter persisted theme data.
 
-Shared neutral borders use `border-primary`, `border-secondary`, `border-tertiary`, and `divider`: 16%, 12%, 8%, and 4% opacity respectively, white in dark mode and black in light mode. Flat and pressed outline Buttons use the secondary role. Desktop raised edges use `elevated` with the shared glass edge palette and control-scale tokens, including on dark secondary buttons. Touch uses the existing glass rim. Group separators retain `bg-divider`. These CSS tokens stay independent of text colors; existing focus/status treatments are unchanged.
+Shared neutral borders use `border-primary`, `border-secondary`, `border-tertiary`, and `divider`: 16%, 12%, 8%, and 4% opacity respectively, white in dark mode and black in light mode. Flat and pressed outline Buttons use the secondary role. Desktop raised edges use `elevated` with the shared glass edge palette and control-scale tokens, including on dark secondary buttons. Touch uses the existing glass rim. Group separators retain `bg-divider`. These CSS tokens stay independent of text colors; existing status treatments are unchanged.
 
 The Create menu's submit action uses the shared accent-colored `primary` variant so its background and text contrast stay paired; do not locally override accent colors while leaving the derived accent text unchanged.
 
