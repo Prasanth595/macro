@@ -19,6 +19,8 @@ export type CalendarSyncWarning = {
 };
 
 type WarningSource = {
+  viewerId: Accessor<string | undefined>;
+  enabled: Accessor<boolean>;
   warnings: Accessor<readonly CalendarSyncWarning[]>;
   loaded: Accessor<boolean>;
 };
@@ -27,19 +29,45 @@ type WarningSource = {
 // keeping dismissals until the last calendar host leaves.
 const useCalendarSyncNotices = createSharedRoot(() => {
   const [sources, setSources] = createSignal<readonly WarningSource[]>([]);
-  const warnings = createMemo(() => [
-    ...new Map(
-      sources().flatMap((source) =>
-        source.warnings().map((warning) => [warning.id, warning] as const)
-      )
-    ).values(),
-  ]);
+  const activeSources = createMemo(() => {
+    const active = sources().filter(
+      (source) => source.enabled() && source.viewerId() !== undefined
+    );
+    const viewerId = active[0]?.viewerId();
+    return active.filter((source) => source.viewerId() === viewerId);
+  });
+  const observation = createMemo<{
+    viewerId: string | undefined;
+    warnings: CalendarSyncWarning[];
+  }>((previous) => {
+    const active = activeSources();
+    const viewerId = active[0]?.viewerId();
+    if (viewerId === undefined) return { viewerId, warnings: [] };
+    const confirmed = active.filter((source) => source.loaded());
+    // Query handoffs can drop placeholder data on error. Keep observations in
+    // this shared owner so another loading host can take over the same notice.
+    if (confirmed.length === 0 && previous && previous.viewerId === viewerId) {
+      return previous;
+    }
+    const byId = new Map<string, CalendarSyncWarning>();
+    for (const source of confirmed.length > 0 ? confirmed : active) {
+      for (const warning of source.warnings()) byId.set(warning.id, warning);
+    }
+    // An unanswered empty source is not an observation of a healthy calendar.
+    const hasObservation = confirmed.length > 0 || byId.size > 0;
+    return {
+      viewerId: hasObservation ? viewerId : undefined,
+      warnings: [...byId.values()],
+    };
+  });
+  const warnings = () => observation().warnings;
   useKeyedPersistentToasts({
     items: warnings,
-    itemsLoaded: () => sources().every((source) => source.loaded()),
+    itemsLoaded: () => activeSources().some((source) => source.loaded()),
     // Diagnostics can contain a different trace on every retry. Only a change
     // in the user-facing problem should replace a notice or undo dismissal.
-    key: (warning) => `${warning.id}:${warning.issue.kind}`,
+    key: (warning) =>
+      `${observation().viewerId}:${warning.id}:${warning.issue.kind}`,
     toast: (warning) => ({
       title: warning.issue.title,
       icon: WarningIcon,
@@ -73,12 +101,16 @@ const useCalendarSyncNotices = createSharedRoot(() => {
 
 /** Persistent, dismissible sync notices using the app's shared toast surface. */
 export function CalendarSyncNotifications(props: {
+  viewerId: string | undefined;
+  enabled?: boolean;
   warnings: readonly CalendarSyncWarning[];
   loaded: boolean;
 }) {
   const register = useCalendarSyncNotices();
   onMount(() => {
     const unregister = register({
+      viewerId: () => props.viewerId,
+      enabled: () => props.enabled !== false,
       warnings: () => props.warnings,
       loaded: () => props.loaded,
     });

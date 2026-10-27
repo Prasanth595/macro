@@ -108,8 +108,9 @@ provider diagnostics and tracing details never appear in these surfaces.
 Repeated retries do not duplicate a toast or reopen a dismissed one while the
 calendar view stays mounted. Home previews and Calendar splits share the same
 notice and dismissal while either remains open. Recovery removes the notice,
-and a later failure can notify again. A failed background refresh keeps the
-cached notice in place. Multiple calendar warnings queue one at a time. Setup and
+and a later failure can notify again. Loading or failed refreshes keep the last
+known notice until a response confirms recovery; retained notices clear when
+the viewer changes. Multiple calendar warnings queue one at a time. Setup and
 reconnect actions keep precedence over sync notices.
 Verify dismissal, retry, recovery, and long calendar labels in both themes on
 desktop and phone with

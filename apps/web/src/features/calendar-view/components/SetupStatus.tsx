@@ -46,6 +46,7 @@ export function SetupStatus() {
   const calendarPager = useCalendarPager();
   const linksQuery = useEmailLinksQuery();
   const calendarsQuery = useVisibleCalendarsQuery();
+  const userId = useUserId();
   const warnings = createMemo(() =>
     calendarsQuery.isPending
       ? []
@@ -63,7 +64,6 @@ export function SetupStatus() {
         )
   );
   const startAddInbox = useAddInboxFlow();
-  const userId = useUserId();
 
   // The links list also carries inboxes another Macro user delegated to the
   // viewer. Whether that user's calendar syncs is theirs to decide, as in the
@@ -153,10 +153,12 @@ export function SetupStatus() {
   return (
     <>
       <CalendarSyncNotifications
-        warnings={setupState() === undefined ? warnings() : []}
+        viewerId={userId()}
+        enabled={setupState() === undefined}
+        warnings={warnings()}
         loaded={
-          // Only a successful result can confirm recovery and forget dismissals.
-          calendarsQuery.isSuccess
+          // Placeholder success is still a handoff, not confirmed recovery.
+          calendarsQuery.isSuccess && !calendarsQuery.isPlaceholderData
         }
       />
       <Show when={setupState() !== undefined}>

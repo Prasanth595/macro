@@ -73,6 +73,73 @@ test('shares one notice and dismissal across simultaneous calendar views', async
   await expect(notices).toHaveCount(0);
 });
 
+test('retains the notice when a loading view takes over during a failed handoff', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const notices = page.locator('[data-macro-toast]:visible');
+  await expect(notices).toHaveCount(1);
+  const toastId = await notices.getAttribute('data-toast-id');
+  await page
+    .getByRole('button', { name: 'Lose calendar data', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Open second view', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Close first view', exact: true })
+    .click();
+  await expect(notices).toHaveCount(1);
+  await expect(notices).toHaveAttribute('data-toast-id', toastId!);
+  await expect(notices).toContainText('Community events');
+  await page.getByRole('button', { name: 'Recover', exact: true }).click();
+  await expect(notices).toHaveCount(0);
+});
+
+test('scopes retained notices and dismissals to the current viewer', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const notices = page.locator('[data-macro-toast]:visible');
+  await notices.getByRole('button', { name: 'Close', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Lose calendar data', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Change viewer', exact: true })
+    .click();
+  await expect(notices).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'Restore calendar data', exact: true })
+    .click();
+  await expect(notices).toHaveCount(1);
+  await page
+    .getByRole('button', { name: 'Lose calendar data', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Change viewer', exact: true })
+    .click();
+  await expect(notices).toHaveCount(0);
+});
+
+test('gives setup actions priority even while query data is unavailable', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const notices = page.locator('[data-macro-toast]:visible');
+  await expect(notices).toHaveCount(1);
+  await page
+    .getByRole('button', { name: 'Lose calendar data', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Toggle setup', exact: true }).click();
+  await expect(notices).toHaveCount(0);
+  await page.getByRole('button', { name: 'Toggle setup', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Restore calendar data', exact: true })
+    .click();
+  await expect(notices).toHaveCount(1);
+});
+
 for (const theme of ['light', 'dark']) {
   test(`wraps long calendar labels without clipping the ${theme} toast`, async ({
     page,

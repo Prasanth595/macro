@@ -2,7 +2,7 @@ import '@fontsource-variable/inter';
 import '../../../index.css';
 import { ToastRegion } from '@core/component/Toast/ToastRegion';
 import { Button } from '@ui';
-import { createSignal, Show } from 'solid-js';
+import { batch, createSignal, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import { macroDarkTheme } from '../../theme/themes/macro-dark';
 import { macroLightTheme } from '../../theme/themes/macro-light';
@@ -25,6 +25,9 @@ function Fixture() {
   const [second, setSecond] = createSignal(false);
   const [firstView, setFirstView] = createSignal(true);
   const [secondView, setSecondView] = createSignal(false);
+  const [handoff, setHandoff] = createSignal(false);
+  const [viewerId, setViewerId] = createSignal('viewer-one');
+  const [setup, setSetup] = createSignal(false);
   const warnings = () => [
     ...(error()
       ? [
@@ -65,7 +68,16 @@ function Fixture() {
         >
           Retry sync
         </Button>
-        <Button onClick={() => setError(undefined)}>Recover</Button>
+        <Button
+          onClick={() =>
+            batch(() => {
+              setError(undefined);
+              setHandoff(false);
+            })
+          }
+        >
+          Recover
+        </Button>
         <Button onClick={() => setError('provider connection unavailable')}>
           Connection issue
         </Button>
@@ -73,13 +85,37 @@ function Fixture() {
         <Button onClick={() => setSecondView(true)}>Open second view</Button>
         <Button onClick={() => setFirstView(false)}>Close first view</Button>
         <Button onClick={() => setFirstView(true)}>Open first view</Button>
+        <Button onClick={() => setHandoff(true)}>Lose calendar data</Button>
+        <Button onClick={() => setHandoff(false)}>Restore calendar data</Button>
+        <Button
+          onClick={() =>
+            setViewerId((current) =>
+              current === 'viewer-one' ? 'viewer-two' : 'viewer-one'
+            )
+          }
+        >
+          Change viewer
+        </Button>
+        <Button onClick={() => setSetup((current) => !current)}>
+          Toggle setup
+        </Button>
       </div>
       <ToastRegion />
       <Show when={firstView()}>
-        <CalendarSyncNotifications warnings={warnings()} loaded />
+        <CalendarSyncNotifications
+          viewerId={viewerId()}
+          enabled={!setup()}
+          warnings={handoff() ? [] : warnings()}
+          loaded={!handoff()}
+        />
       </Show>
       <Show when={secondView()}>
-        <CalendarSyncNotifications warnings={warnings()} loaded />
+        <CalendarSyncNotifications
+          viewerId={viewerId()}
+          enabled={!setup()}
+          warnings={handoff() ? [] : warnings()}
+          loaded={!handoff()}
+        />
       </Show>
     </main>
   );

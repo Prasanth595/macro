@@ -19,6 +19,7 @@ const [links, setLinks] = createSignal<EmailLink[]>([]);
 const [calendarStatus, setCalendarStatus] = createSignal<
   'pending' | 'success' | 'error'
 >('success');
+const [placeholder, setPlaceholder] = createSignal(false);
 const [calendars, setCalendars] = createSignal<
   | {
       id: string;
@@ -57,6 +58,9 @@ vi.mock('@queries/calendar/calendars', () => ({
     },
     get isPending() {
       return calendarStatus() === 'pending';
+    },
+    get isPlaceholderData() {
+      return placeholder();
     },
     get data() {
       if (calendarStatus() === 'pending')
@@ -112,6 +116,7 @@ beforeEach(() => {
   setUserId('macro|self');
   setLinks([]);
   setCalendarStatus('success');
+  setPlaceholder(false);
   setCalendars([]);
 });
 
@@ -154,6 +159,28 @@ describe('SetupStatus', () => {
     expect(mocks.toastCustom).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps an undismissed warning through a failed handoff until recovery is confirmed', () => {
+    setLinks([link('own')]);
+    setCalendars([failedCalendar]);
+    render(() => <SetupStatus />);
+    expect(mocks.toastCustom).toHaveBeenCalledTimes(1);
+
+    batch(() => {
+      setCalendarStatus('pending');
+      setCalendars(undefined);
+    });
+    expect(mocks.toastDismiss).not.toHaveBeenCalled();
+    setCalendarStatus('error');
+    expect(mocks.toastDismiss).not.toHaveBeenCalled();
+    batch(() => {
+      setCalendars([failedCalendar]);
+      setCalendarStatus('success');
+    });
+    expect(mocks.toastCustom).toHaveBeenCalledTimes(1);
+    setCalendars([]);
+    expect(mocks.toastDismiss).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
   it('does not read pending calendar data or invent a notice after an initial failure', () => {
     setLinks([link('own')]);
     setCalendarStatus('pending');
@@ -163,6 +190,50 @@ describe('SetupStatus', () => {
     setCalendarStatus('error');
     expect(mocks.toastCustom).not.toHaveBeenCalled();
   });
+
+  it('gives reconnect actions priority over retained sync warnings', () => {
+    setLinks([link('own')]);
+    setCalendars([failedCalendar]);
+    render(() => <SetupStatus />);
+    batch(() => {
+      setCalendarStatus('pending');
+      setCalendars(undefined);
+    });
+    setLinks([link('own', { needs_reauth: true })]);
+    expect(screen.getByRole('button', { name: 'Reconnect' })).toBeTruthy();
+    expect(mocks.toastDismiss).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
+  it('does not treat empty placeholder data as confirmed recovery', () => {
+    setLinks([link('own')]);
+    setCalendars([failedCalendar]);
+    render(() => <SetupStatus />);
+    batch(() => {
+      setPlaceholder(true);
+      setCalendars([]);
+    });
+    expect(mocks.toastDismiss).not.toHaveBeenCalled();
+    setPlaceholder(false);
+    expect(mocks.toastDismiss).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
+  it.each(['macro|another', undefined])(
+    'clears retained warnings when the viewer becomes %s',
+    (viewerId) => {
+      setLinks([link('own')]);
+      setCalendars([failedCalendar]);
+      render(() => <SetupStatus />);
+      batch(() => {
+        setCalendarStatus('pending');
+        setCalendars(undefined);
+      });
+      expect(mocks.toastDismiss).not.toHaveBeenCalled();
+      setUserId(viewerId);
+      expect(mocks.toastDismiss).toHaveBeenCalledExactlyOnceWith(1);
+      setCalendarStatus('error');
+      expect(mocks.toastCustom).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('asks a delegate with no inbox of their own to connect one', async () => {
     const user = userEvent.setup();

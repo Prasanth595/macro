@@ -248,7 +248,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   [calendar walkthrough](../../docs/agent-guide/calendar.md).
 - Present calendar sync diagnostics through `calendarSyncIssue`; use short shared
   toast headings with wrapping calendar labels, deduplicate retries by calendar
-  and issue kind across mounted views, and remove notices on recovery. Verify
+  and issue kind across mounted views; retain observations for the current
+  viewer through loading, and remove notices on confirmed recovery. Verify
   desktop and phone with
   `bunx playwright test --config src/features/calendar/browser-test/playwright.config.ts`.
 - Mark loaded calendar row notifications through the notification source so read
