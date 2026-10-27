@@ -414,7 +414,15 @@ export function NewChatPage(props: {
       <Tabs
         aria-label="Conversation mode"
         options={[
-          { value: 'auto', label: agentsModeLabel('auto'), icon: AutoIcon },
+          ...(ownMode.autoAvailable()
+            ? [
+                {
+                  value: 'auto' as const,
+                  label: agentsModeLabel('auto'),
+                  icon: AutoIcon,
+                },
+              ]
+            : []),
           { value: 'chat', label: agentsModeLabel('chat'), icon: ChatIcon },
           { value: 'code', label: agentsModeLabel('code'), icon: CodeIcon },
         ]}
@@ -424,7 +432,7 @@ export function NewChatPage(props: {
         iconOnly={isTouchDevice()}
         value={mode()}
         onChange={setMode}
-        class="w-72 touch:w-36"
+        class={ownMode.autoAvailable() ? 'w-72 touch:w-36' : 'w-56 touch:w-24'}
       />
     </div>
   );

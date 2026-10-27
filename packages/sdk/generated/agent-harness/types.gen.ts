@@ -2640,6 +2640,10 @@ export type ChooseAgentModeErrors = {
      */
     402: unknown;
     /**
+     * Auto mode is not enabled for the caller
+     */
+    403: unknown;
+    /**
      * The classifier is unconfigured, failed, or timed out
      */
     503: unknown;

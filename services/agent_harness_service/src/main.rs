@@ -1501,11 +1501,28 @@ async fn run() -> anyhow::Result<()> {
         )),
         _ => None,
     };
+    // Auto mode is limited to users with `enable-composer-auto-mode`.
+    let mode_flags = config
+        .posthog_api_key
+        .value()
+        .map(|key| {
+            feature_flags::outbound::posthog::PostHogFeatureFlags::new(
+                config
+                    .posthog_host
+                    .value()
+                    .unwrap_or("https://us.i.posthog.com"),
+                key.to_owned(),
+                std::time::Duration::from_secs(3),
+            )
+        })
+        .transpose()
+        .map_err(|error| anyhow::anyhow!("invalid feature flag configuration: {error}"))?;
     let mode_choice = agent_harness::inbound::mode_choice::agent_mode_choice_router(
         agent_harness::inbound::mode_choice::AgentModeChoiceRouterState::new(
             Arc::new(
                 agent_harness::domain::mode_choice::ModeChoiceServiceImpl::new(
                     mode_classifier,
+                    mode_flags,
                     admission.clone(),
                 ),
             ),

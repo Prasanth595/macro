@@ -369,8 +369,9 @@ A handle to an agent session by id. Details load on first access.
 > `static` **chooseMode**(`client`, `prompt`): `Promise`\<[`AgentMode`](../../../../../generated/agent-harness/types.gen/type-aliases/AgentMode.md)\>
 
 Whether `prompt` needs a chat agent or a coding agent, as the app's Auto
-mode decides before starting a session. Rejects when the classifier is
-unavailable, slow, or the caller is out of AI quota.
+mode decides before starting a session. Rejects when Auto mode is not
+enabled for the caller, the classifier is unavailable or slow, or the
+caller is out of AI quota.
 
 #### Parameters
 

@@ -345,6 +345,9 @@
           "402": {
             "description": "The caller cannot start new AI work"
           },
+          "403": {
+            "description": "Auto mode is not enabled for the caller"
+          },
           "503": {
             "description": "The classifier is unconfigured, failed, or timed out"
           }

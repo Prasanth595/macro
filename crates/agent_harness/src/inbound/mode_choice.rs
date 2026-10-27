@@ -97,6 +97,7 @@ where
         (status = 400, description = "The prompt is blank"),
         (status = 401, description = "Unauthenticated"),
         (status = 402, description = "The caller cannot start new AI work"),
+        (status = 403, description = "Auto mode is not enabled for the caller"),
         (status = 503, description = "The classifier is unconfigured, failed, or timed out"),
     )
 )]
@@ -120,6 +121,11 @@ where
         Err(ModeChoiceError::EmptyPrompt) => {
             (StatusCode::BAD_REQUEST, "a prompt needs text".to_owned()).into_response()
         }
+        Err(ModeChoiceError::NotEnabled) => (
+            StatusCode::FORBIDDEN,
+            ModeChoiceError::NotEnabled.to_string(),
+        )
+            .into_response(),
         Err(ModeChoiceError::Admission(error)) => error.into_response(),
         Err(error) => {
             tracing::warn!(error = ?error, "could not choose an agent mode");

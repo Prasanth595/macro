@@ -481,6 +481,11 @@ export type chooseAgentModeResponse402 = {
   status: 402;
 };
 
+export type chooseAgentModeResponse403 = {
+  data: void;
+  status: 403;
+};
+
 export type chooseAgentModeResponse503 = {
   data: void;
   status: 503;
@@ -493,6 +498,7 @@ export type chooseAgentModeResponseError = (
   | chooseAgentModeResponse400
   | chooseAgentModeResponse401
   | chooseAgentModeResponse402
+  | chooseAgentModeResponse403
   | chooseAgentModeResponse503
 ) & {
   headers: Headers;

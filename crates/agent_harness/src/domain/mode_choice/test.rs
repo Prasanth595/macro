@@ -1,5 +1,7 @@
 use super::*;
 use ai_billing::{AdmissionFuture, DenyReason};
+use feature_flags::outbound::fake::FakeFeatureFlags;
+use feature_flags::{FlagSnapshot, FlagValue};
 use jev::domain::Probability;
 use serde_json::Value;
 use std::sync::Mutex;
@@ -48,17 +50,38 @@ impl YesNoClassifier for Classifier {
     }
 }
 
+/// Flags for [`owner`] with Auto mode on or off.
+fn flags(enabled: bool) -> FakeFeatureFlags {
+    let mut flags = FakeFeatureFlags::default();
+    flags.set(
+        owner(),
+        Ok(FlagSnapshot::new([(
+            AUTO_MODE_FLAG.into(),
+            FlagValue::Boolean(enabled),
+        )])),
+    );
+    flags
+}
+
 fn service(
     answer: Result<f32, JevError>,
     admission: Result<(), AiAdmissionError>,
-) -> (ModeChoiceServiceImpl<Classifier>, Asked) {
+) -> (ModeChoiceServiceImpl<Classifier, FakeFeatureFlags>, Asked) {
+    service_with_flags(answer, admission, Some(flags(true)))
+}
+
+fn service_with_flags(
+    answer: Result<f32, JevError>,
+    admission: Result<(), AiAdmissionError>,
+    flags: Option<FakeFeatureFlags>,
+) -> (ModeChoiceServiceImpl<Classifier, FakeFeatureFlags>, Asked) {
     let inputs = Arc::new(Mutex::new(Vec::new()));
     let classifier = Classifier {
         answer,
         inputs: inputs.clone(),
     };
     (
-        ModeChoiceServiceImpl::new(Some(classifier), Arc::new(Admission(admission))),
+        ModeChoiceServiceImpl::new(Some(classifier), flags, Arc::new(Admission(admission))),
         inputs,
     )
 }
@@ -123,9 +146,28 @@ async fn classifier_failures_and_missing_configuration_are_errors() {
         Err(ModeChoiceError::Classifier(JevError::Unavailable))
     );
 
-    let unconfigured = ModeChoiceServiceImpl::<Classifier>::new(None, Arc::new(Admission(Ok(()))));
+    let unconfigured = ModeChoiceServiceImpl::<Classifier, FakeFeatureFlags>::new(
+        None,
+        Some(flags(true)),
+        Arc::new(Admission(Ok(()))),
+    );
     assert_eq!(
         unconfigured.choose(owner(), "Fix the login bug").await,
         Err(ModeChoiceError::Unavailable)
     );
+}
+
+#[tokio::test]
+async fn users_without_the_flag_are_not_classified() {
+    let mut unreadable = FakeFeatureFlags::default();
+    unreadable.set(owner(), Err("posthog is down".to_owned()));
+    for flags in [None, Some(flags(false)), Some(unreadable)] {
+        let (service, inputs) = service_with_flags(Ok(0.9), Ok(()), flags);
+
+        assert_eq!(
+            service.choose(owner(), "Fix the login bug").await,
+            Err(ModeChoiceError::NotEnabled)
+        );
+        assert!(inputs.lock().unwrap().is_empty());
+    }
 }

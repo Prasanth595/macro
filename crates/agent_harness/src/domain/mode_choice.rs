@@ -5,6 +5,7 @@ use std::{sync::Arc, time::Duration};
 
 use ai_billing::{AiAdmissionError, AiAdmissionService};
 use ai_usage::{AiFeature, UsageContext};
+use feature_flags::FeatureFlags;
 use jev::domain::{JevError, YesNoClassifier, YesNoQuestion};
 use macro_user_id::user_id::MacroUserIdStr;
 use serde::Serialize;
@@ -20,6 +21,8 @@ const DECISION_TIMEOUT: Duration = Duration::from_secs(3);
 /// Leading characters of the prompt the classifier reads. What a request is
 /// asking for shows up early; the rest only adds latency and cost.
 const MAX_PROMPT_CHARS: usize = 4_000;
+/// PostHog flag gating Auto mode; the web composer reads the same key.
+pub const AUTO_MODE_FLAG: &str = "enable-composer-auto-mode";
 /// Probability of yes at or above which a prompt goes to a coding agent.
 const CODE_THRESHOLD: f32 = 0.5;
 const NEEDS_CODING_AGENT: &str = "Does this request need a coding agent working in a software \
@@ -43,6 +46,9 @@ pub enum ModeChoiceError {
     /// The prompt has no text.
     #[error("a prompt needs text")]
     EmptyPrompt,
+    /// Auto mode is not enabled for this user, or their flags could not be read.
+    #[error("automatic mode choice is not enabled")]
+    NotEnabled,
     /// No classifier is configured on this deployment.
     #[error("automatic mode choice is not configured")]
     Unavailable,
@@ -69,24 +75,47 @@ pub trait ModeChoiceService: Send + Sync + 'static {
     ) -> Result<AgentMode, ModeChoiceError>;
 }
 
-/// [`ModeChoiceService`] over a metered yes/no classifier.
-pub struct ModeChoiceServiceImpl<C> {
+/// [`ModeChoiceService`] over a metered yes/no classifier, for users with
+/// [`AUTO_MODE_FLAG`].
+pub struct ModeChoiceServiceImpl<C, F> {
     classifier: Option<Arc<C>>,
+    flags: Option<F>,
     admission: Arc<dyn AiAdmissionService>,
 }
 
-impl<C: YesNoClassifier> ModeChoiceServiceImpl<C> {
-    /// Without a classifier every choice fails as [`ModeChoiceError::Unavailable`].
-    pub fn new(classifier: Option<C>, admission: Arc<dyn AiAdmissionService>) -> Self {
+impl<C: YesNoClassifier, F: FeatureFlags + 'static> ModeChoiceServiceImpl<C, F> {
+    /// Without a classifier every choice fails as [`ModeChoiceError::Unavailable`];
+    /// without flags, as [`ModeChoiceError::NotEnabled`].
+    pub fn new(
+        classifier: Option<C>,
+        flags: Option<F>,
+        admission: Arc<dyn AiAdmissionService>,
+    ) -> Self {
         Self {
             classifier: classifier.map(Arc::new),
+            flags,
             admission,
         }
+    }
+
+    async fn enabled(&self, owner: &MacroUserIdStr<'_>) -> bool {
+        let Some(flags) = &self.flags else {
+            return false;
+        };
+        flags
+            .load(owner)
+            .await
+            .inspect_err(|error| {
+                tracing::warn!(?error, "feature flags unavailable; Auto mode stays off");
+            })
+            .is_ok_and(|flags| flags.is_enabled(AUTO_MODE_FLAG))
     }
 }
 
 #[async_trait::async_trait]
-impl<C: YesNoClassifier> ModeChoiceService for ModeChoiceServiceImpl<C> {
+impl<C: YesNoClassifier, F: FeatureFlags + 'static> ModeChoiceService
+    for ModeChoiceServiceImpl<C, F>
+{
     #[tracing::instrument(
         name = "agent.mode_choice",
         skip_all,
@@ -110,9 +139,14 @@ impl<C: YesNoClassifier> ModeChoiceService for ModeChoiceServiceImpl<C> {
             .classifier
             .clone()
             .ok_or(ModeChoiceError::Unavailable)?;
-        self.admission
-            .admit(&owner, AiFeature::AgentModeChoice)
-            .await?;
+        let (enabled, admitted) = tokio::join!(
+            self.enabled(&owner),
+            self.admission.admit(&owner, AiFeature::AgentModeChoice)
+        );
+        if !enabled {
+            return Err(ModeChoiceError::NotEnabled);
+        }
+        admitted?;
         let input = serde_json::Value::String(prompt.chars().take(MAX_PROMPT_CHARS).collect());
         let question = YesNoQuestion::try_from(NEEDS_CODING_AGENT)
             .expect("the coding question is nonblank and under the length limit");

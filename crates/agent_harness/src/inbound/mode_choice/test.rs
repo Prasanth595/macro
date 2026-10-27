@@ -132,6 +132,7 @@ async fn unauthenticated_callers_are_not_classified() {
 async fn failures_map_to_their_status() {
     for (error, status) in [
         (ModeChoiceError::EmptyPrompt, StatusCode::BAD_REQUEST),
+        (ModeChoiceError::NotEnabled, StatusCode::FORBIDDEN),
         (
             ModeChoiceError::Admission(ai_billing::AiAdmissionError::Unavailable),
             StatusCode::SERVICE_UNAVAILABLE,

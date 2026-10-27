@@ -38,7 +38,11 @@ const mocks = vi.hoisted(() => ({
     mocks.preferredInmemModel = id;
   }),
   repositories: [] as { url: string; defaultBranch?: string }[],
+  autoEnabled: true,
   chooseAgentMode: vi.fn(async (_prompt: string) => 'chat' as 'chat' | 'code'),
+}));
+vi.mock('@app/lib/analytics/posthog', () => ({
+  useFeatureFlag: () => () => ({ enabled: mocks.autoEnabled, loading: false }),
 }));
 vi.mock('@queries/agents/mode-choice', () => ({
   chooseAgentMode: (prompt: string) => mocks.chooseAgentMode(prompt),
@@ -233,9 +237,10 @@ vi.mock('../components/ChatComposer', () => ({
 beforeEach(() => {
   localStorage.clear();
   // Most cases exercise an explicit Chat or Code choice; Auto has its own.
-  localStorage.setItem('agents-view-mode-v2:user', 'chat');
+  localStorage.setItem('agents-view-mode-v1:user', 'chat');
   mocks.userId = () => 'user';
   mocks.chooseAgentMode.mockClear();
+  mocks.autoEnabled = true;
 });
 
 function page(
@@ -440,6 +445,23 @@ describe('agent-led new conversation', () => {
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Agent' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Repository' })).toBeNull();
+  });
+  it('offers only Chat and Code without the Auto flag', () => {
+    localStorage.clear();
+    mocks.autoEnabled = false;
+    const send = page();
+    expect(screen.queryByRole('radio', { name: 'Auto' })).toBeNull();
+    expect(
+      (screen.getByRole('radio', { name: 'Chat' }) as HTMLInputElement).checked
+    ).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(mocks.chooseAgentMode).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        botId: undefined,
+        modelOverride: 'chat-default',
+      })
+    );
   });
   it('sends a coding prompt in Auto to the usual coding agent with its defaults', async () => {
     mocks.chooseAgentMode.mockResolvedValueOnce('code');

@@ -410,7 +410,9 @@ the shimmer.
   an ease-out curve. The greeting text flips vertically into place on each mode change
   with the same duration; both animations respect reduced motion.
   Its bottom corners follow the toggle's curve. Chat and Code limit the offered agents; the choice is
-  remembered per user, and a person with no saved choice starts in **Auto**.
+  remembered per user, and a person with no saved choice starts in **Auto**. Auto is
+  behind the `enable-composer-auto-mode` PostHog flag (Macro employees only), which the
+  agent harness checks too; without it the switch is Chat / Code and a saved Auto reads as Chat.
   **Auto** (magic wand) hides the agent, model, effort, and speed controls. On send, the
   input is briefly blocked (“Choosing Chat or Code…”) while `POST /agent-mode-choice` on the
   agent harness asks Cloudflare's Clef Flash whether the prompt needs a coding agent. Code
