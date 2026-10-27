@@ -16,6 +16,9 @@ Read-only intent classification and editable field extraction for Command K.
   composes providers and mounts the router under `/universal_input`.
 - Suggestions contain display text, never authorized entity identifiers.
   Submission and permission checks belong to the destination services.
+- `eval/baseline.json` and `eval/compare.py` compare live classification and
+  extraction against fixed expectations; see `eval/README.md` for the frozen
+  clock, fixture identity resolution, reports and before/after comparisons.
 - Keep all public API documented; the crate denies missing documentation.
 
 ## Checks
@@ -25,3 +28,5 @@ Read-only intent classification and editable field extraction for Command K.
 - `just check`.
 - With model credentials configured, run the opt-in prompt regression with
   `cargo test -p universal_input search_query_excludes_consumed_filters -- --ignored`.
+- `python3 -m unittest discover -s crates/universal_input/eval -p 'test_*.py'`
+  checks the baseline comparison logic without calling providers.
