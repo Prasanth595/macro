@@ -121,8 +121,9 @@ surface, so they blend with the dialog instead of using the darker page fill.
 Their menus stay inside the composer's portal scope. Verify that calendar,
 recurrence, Guests, conferencing, Location, and Notifications open on the first
 click from the title field and accept changes without closing the composer.
-Open the start/end date picker and its nested time list; selecting a time keeps
-the date picker open. Escape dismisses the active menu before the composer.
+Each end is a date button (its calendar closes on a pick) and, unless all day,
+a time field: type `3p` or `15:30` and the list jumps there, Enter commits,
+Escape restores the old time. Escape dismisses the active menu before the composer.
 Moving the start date or time moves the end with it, keeping the event's length
 (all-day dates keep their day count), until the end is picked in the same edit;
 after that the end stays put, and a start past it shows the end-before-start
@@ -534,6 +535,13 @@ switches the open details.
 Desktop event details stay inside the visible calendar grid, including Home
 previews and narrow splits. They overlap wide Day-view events when needed and
 shrink to fit the pane; long details scroll while the RSVP row stays visible.
+As in Google Calendar, the popover opens beside the event, aligned with its top,
+and switches only between the right and left side; when it doesn't fit below,
+it slides up to stay in the window instead of opening above the event. Sections
+that load after it opens (join requests, meeting notes) therefore never move it
+from below the event to above it. Check placement with an event low in a tall
+window, a short window, and a pending join request; the backend-free regression
+is `apps/web/src/features/calendar-view/browser-test/playwright.config.ts`.
 
 The `New event` composer (also opened by dragging a range on the grid) has an `Event kind`
 pill choosing between `Event` and `Out of office`. Picking `Out of office` hides the guests,

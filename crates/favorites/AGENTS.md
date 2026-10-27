@@ -30,8 +30,11 @@ hexagonal architecture pattern.
 
 ## Recipes
 
-- Add a favoritable entity type: `src/domain/models.rs` → `src/domain/service.rs`
-  → `src/outbound/pg_favorites_repo.rs` → caller's feature wiring.
+- Add a favoritable entity type: `validate_favoritable` in
+  `src/domain/mutation_service.rs` → a `delete_favorites` trigger on the kind's
+  table (`docs/guides/add-entity.md`) → `list_favorites` in
+  `src/outbound/pg_favorites_repo.rs` if the kind can be trashed → caller's
+  feature wiring.
 - Add an AI tool action: `src/inbound/toolset.rs` → `src/domain/mutation_service.rs`.
 
 ## Tool contracts
@@ -49,8 +52,7 @@ hexagonal architecture pattern.
   resolve to channel roles, which `ViewAccessLevel` never accepts.
 - Permanent deletes remove favorites through `delete_favorites` triggers on
   each entity table, not through this crate, so foreign-key cascades are
-  covered too. A newly favoritable kind needs its own trigger (see
-  `docs/guides/add-entity.md`); trashing keeps favorites.
+  covered too. Trashing keeps favorites.
 
 ## Related
 
