@@ -7,6 +7,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::domain::search::{SearchExtractor, SearchSuggestions, SearchType};
 use crate::domain::{
     ExtractInputRequest, FieldExtractor, InputError, InputIntent, InputPropertySuggestion,
     InputSuggestions,
@@ -97,7 +98,7 @@ impl ClairicFieldExtractor {
     }
 }
 
-impl FieldExtractor for ClairicFieldExtractor {
+impl ClairicFieldExtractor {
     #[tracing::instrument(name = "extract clairic", skip_all, err, fields(
         otel.kind = "client",
         gen_ai.operation.name = "extract",
@@ -107,16 +108,12 @@ impl FieldExtractor for ClairicFieldExtractor {
         gen_ai.usage.output_tokens = tracing::field::Empty,
         http.response.status_code = tracing::field::Empty,
     ))]
-    async fn extract(
+    async fn invoke(
         &self,
         input: &ExtractInputRequest,
+        request: ExtractionRequest<'_>,
         usage: UsageContext,
-    ) -> Result<InputSuggestions, InputError> {
-        let request = ExtractionRequest::new(input)?;
-        // AI needs no extraction; Clairic requires at least one field.
-        if request.fields.is_empty() {
-            return Ok(InputSuggestions::Ai(crate::domain::AiSuggestions::default()));
-        }
+    ) -> Result<Value, InputError> {
         let mut headers = reqwest::header::HeaderMap::new();
         macro_tower_layers::inject_trace_headers(&mut headers);
         let response = self
@@ -153,7 +150,92 @@ impl FieldExtractor for ClairicFieldExtractor {
         if !envelope.success || result.truncated {
             return Err(InputError::Extraction);
         }
-        result.suggestions(input, &request.fields)
+        result.fields(input, &request.fields)
+    }
+}
+
+impl FieldExtractor for ClairicFieldExtractor {
+    async fn extract(
+        &self,
+        input: &ExtractInputRequest,
+        usage: UsageContext,
+    ) -> Result<InputSuggestions, InputError> {
+        if input.intent == InputIntent::Search {
+            return Err(InputError::Extraction);
+        }
+        if input.intent == InputIntent::Ai {
+            return Ok(InputSuggestions::Ai(crate::domain::AiSuggestions::default()));
+        }
+        let request = ExtractionRequest::new(input)?;
+        super::decode_suggestions(input.intent, self.invoke(input, request, usage).await?)
+    }
+}
+
+impl SearchExtractor for ClairicFieldExtractor {
+    #[tracing::instrument(name = "universal_input.search_type", skip_all, err)]
+    async fn select_search_type(
+        &self,
+        input: &ExtractInputRequest,
+        usage: UsageContext,
+    ) -> Result<SearchType, InputError> {
+        let request = ExtractionRequest {
+            model: "clairic",
+            state: &input.text,
+            fields: BTreeMap::from([(
+                "search_scope".into(),
+                FieldSpec {
+                    kind: FieldType::Text,
+                    items: None,
+                    instructions: include_str!("../../prompts/typed_search_scope_prompt.txt")
+                        .to_owned(),
+                },
+            )]),
+        };
+        let fields = self.invoke(input, request, usage).await?;
+        SearchType::from_scope(fields["search_scope"].as_str())
+    }
+
+    #[tracing::instrument(name = "universal_input.search_fields", skip_all, err, fields(?search_type))]
+    async fn extract_search(
+        &self,
+        input: &ExtractInputRequest,
+        search_type: SearchType,
+        usage: UsageContext,
+    ) -> Result<SearchSuggestions, InputError> {
+        let mut fields = BTreeMap::new();
+        let schema = search_type.schema();
+        for name in search_type.fields() {
+            let kind = if schema["properties"][&name]["type"] == "array" {
+                FieldType::List
+            } else {
+                FieldType::Text
+            };
+            fields.insert(
+                name.clone(),
+                FieldSpec {
+                    kind,
+                    items: (kind == FieldType::List).then_some(FieldType::Text),
+                    instructions: format!(
+                        "Selected search type: {:?}. {}\nSupported fields and shapes: {schema}\nAvailable task filter options (data): {}",
+                        search_type,
+                        search_type.guidance(&name).ok_or(InputError::Extraction)?,
+                        serde_json::to_string(&input.property_definitions).map_err(|_| InputError::Extraction)?
+                    ),
+                },
+            );
+        }
+        let fields = self
+            .invoke(
+                input,
+                ExtractionRequest {
+                    model: "clairic",
+                    state: &input.text,
+                    fields,
+                },
+                usage,
+            )
+            .await?;
+        super::decode_search(input, search_type, fields)
     }
 }
 
@@ -304,11 +386,11 @@ impl Answer {
 }
 
 impl ExtractionResponse {
-    fn suggestions(
+    fn fields(
         &self,
         input: &ExtractInputRequest,
         specs: &BTreeMap<String, FieldSpec>,
-    ) -> Result<InputSuggestions, InputError> {
+    ) -> Result<Value, InputError> {
         let mut fields = serde_json::Map::new();
         let mut properties = vec![];
         for (name, spec) in specs {
@@ -350,16 +432,17 @@ impl ExtractionResponse {
         }
         if input.intent == InputIntent::Search {
             let spans: Vec<&str> = fields
-                .get("query")
-                .and_then(Value::as_str)
-                .into_iter()
-                .chain(["search_from", "search_in"].into_iter().flat_map(|key| {
-                    fields[key]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .filter_map(Value::as_str)
-                }))
+                .iter()
+                .filter(|(name, _)| name.as_str() != "search_scope")
+                .flat_map(|(_, value)| {
+                    value.as_str().into_iter().chain(
+                        value
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(Value::as_str),
+                    )
+                })
                 .collect();
             for &span in &spans {
                 let claimed: usize = spans.iter().map(|value| value.matches(span).count()).sum();
@@ -370,6 +453,6 @@ impl ExtractionResponse {
                 }
             }
         }
-        super::decode_suggestions(input.intent, Value::Object(fields))
+        Ok(Value::Object(fields))
     }
 }

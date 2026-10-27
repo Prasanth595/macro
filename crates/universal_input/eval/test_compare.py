@@ -41,8 +41,8 @@ class BaselineComparisonTests(unittest.TestCase):
 
     def test_null_queries_are_empty_but_filter_wording_is_a_mismatch(self):
         expected = {"search_type": "Channels", "query": ""}
-        empty = compare_fields(expected, "search", {"search_scope": "messages", "query": None}, SUITE)
-        repeated = compare_fields(expected, "search", {"search_scope": "channels", "query": "messages from julia"}, SUITE)
+        empty = compare_fields(expected, "search", {"type": "channels", "query": None}, SUITE)
+        repeated = compare_fields(expected, "search", {"type": "channels", "query": "messages from julia"}, SUITE)
         self.assertTrue(empty["query"]["pass"])
         self.assertTrue(empty["search_type"]["pass"])
         self.assertFalse(repeated["query"]["pass"])

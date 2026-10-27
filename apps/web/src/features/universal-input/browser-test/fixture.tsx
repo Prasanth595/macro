@@ -564,7 +564,8 @@ export function UniversalInputFixture(
         const filters = resolveSearchFilters(
           input.fields.searchFilters,
           actions.people(),
-          actions.searchChannels()
+          actions.searchChannels(),
+          actions.inboxes()
         );
         if (filters.unresolved.length)
           return `Choose a specific person or channel for ${filters.unresolved.join(', ')}`;

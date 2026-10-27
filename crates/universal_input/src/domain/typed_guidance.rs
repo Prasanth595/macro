@@ -5,18 +5,6 @@ impl InputIntent {
     /// The meaning of one extracted field; adapters choose its wire representation.
     pub fn typed_field_guidance(self, field: &str) -> Option<&'static str> {
         match (self, field) {
-            (Self::Search, "query") => Some(include_str!(
-                "../../prompts/extract_search_query_prompt.txt"
-            )),
-            (Self::Search, "search_scope") => {
-                Some(include_str!("../../prompts/typed_search_scope_prompt.txt").trim_end())
-            }
-            (Self::Search, "search_from") => {
-                Some(include_str!("../../prompts/typed_search_from_prompt.txt").trim_end())
-            }
-            (Self::Search, "search_in") => {
-                Some(include_str!("../../prompts/typed_search_in_prompt.txt").trim_end())
-            }
             (Self::Email, "cc") => {
                 Some(include_str!("../../prompts/typed_email_cc_prompt.txt").trim_end())
             }

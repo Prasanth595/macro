@@ -3777,6 +3777,36 @@
         },
         "additionalProperties": false
       },
+      "CallSearchSuggestions": {
+        "type": "object",
+        "description": "Call search supports speakers, channels and attendance status.",
+        "required": ["from", "in"],
+        "properties": {
+          "from": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Speaker names or supplied addresses."
+          },
+          "in": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Channel names."
+          },
+          "query": {
+            "type": ["string", "null"],
+            "description": "Remaining keyword phrase."
+          },
+          "status": {
+            "type": ["string", "null"],
+            "description": "Attendance display value, resolved against supported options by the client."
+          }
+        },
+        "additionalProperties": false
+      },
       "CapabilityHarnessDto": {
         "type": "string",
         "description": "Harness names accepted by the capability-discovery endpoint.",
@@ -3942,6 +3972,32 @@
         "type": "string",
         "description": "The source of a changeset's diff, on the wire.",
         "enum": ["github_pull_request"]
+      },
+      "ChannelSearchSuggestions": {
+        "type": "object",
+        "description": "Message filters remain display names until resolved against the user's directory.",
+        "required": ["from", "in"],
+        "properties": {
+          "from": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Explicit message sender names or addresses."
+          },
+          "in": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Explicit channel names."
+          },
+          "query": {
+            "type": ["string", "null"],
+            "description": "Remaining keyword phrase."
+          }
+        },
+        "additionalProperties": false
       },
       "ChannelSharePermission": {
         "type": "object",
@@ -4357,6 +4413,29 @@
         ],
         "description": "The JSON-RPC id of an agent's `elicitation/create` request, carried whole\nso the answer echoes exactly what the agent sent.\n\nAgents pick these, not us: Claude Code counts from `0`, others use\nstrings. `null` is not a legal id for a request that expects a response,\nso it is not representable here."
       },
+      "EmailSearchSuggestions": {
+        "type": "object",
+        "description": "Email search exposes importance and connected inbox addresses, not sender filters.",
+        "required": ["inboxes"],
+        "properties": {
+          "importance": {
+            "type": ["string", "null"],
+            "description": "Explicit importance wording, resolved by the client."
+          },
+          "inboxes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Explicit connected inbox addresses, resolved by the client."
+          },
+          "query": {
+            "type": ["string", "null"],
+            "description": "Remaining keyword phrase."
+          }
+        },
+        "additionalProperties": false
+      },
       "EmailSuggestions": {
         "type": "object",
         "description": "Editable fields for email inference, before submission and identity resolution.",
@@ -4535,6 +4614,17 @@
             "format": "int32",
             "description": "Opaque client revision used to discard stale suggestions.",
             "minimum": 0
+          },
+          "search_type": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SearchType",
+                "description": "Explicitly selected search type; absent means infer it before extracting filters."
+              }
+            ]
           },
           "text": {
             "type": "string",
@@ -5169,6 +5259,17 @@
           }
         }
       },
+      "QuerySearchSuggestions": {
+        "type": "object",
+        "description": "A topic for search types without additional supported facets.",
+        "properties": {
+          "query": {
+            "type": ["string", "null"],
+            "description": "Remaining keyword phrase after supported filters and instructions."
+          }
+        },
+        "additionalProperties": false
+      },
       "QueuedActionDto": {
         "type": "object",
         "description": "One action waiting in a session's queue.\n\nClients deserialize this, so both derives are used.",
@@ -5604,33 +5705,195 @@
         }
       },
       "SearchSuggestions": {
-        "type": "object",
-        "description": "Editable fields for search inference, before submission and identity resolution.",
-        "properties": {
-          "query": {
-            "type": ["string", "null"],
-            "description": "Terms to find existing Macro content."
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuerySearchSuggestions",
+                "description": "Query across content types."
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["all"]
+                  }
+                }
+              }
+            ],
+            "description": "Query across content types."
           },
-          "search_from": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Explicit sender, speaker, or task-creator names for the client to resolve."
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChannelSearchSuggestions",
+                "description": "Message topic, senders and channels."
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["channels"]
+                  }
+                }
+              }
+            ],
+            "description": "Message topic, senders and channels."
           },
-          "search_in": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Explicit channel names for the client to resolve."
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuerySearchSuggestions",
+                "description": "Document or file topic."
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["document-or-file"]
+                  }
+                }
+              }
+            ],
+            "description": "Document or file topic."
           },
-          "search_scope": {
-            "type": ["string", "null"],
-            "description": "Verbatim noun naming the requested search category, such as messages or tasks."
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaskSearchSuggestions",
+                "description": "Task topic and supported task facets."
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["task"]
+                  }
+                }
+              }
+            ],
+            "description": "Task topic and supported task facets."
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EmailSearchSuggestions",
+                "description": "Email topic, importance and inbox addresses."
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["email"]
+                  }
+                }
+              }
+            ],
+            "description": "Email topic, importance and inbox addresses."
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CallSearchSuggestions",
+                "description": "Call topic, speakers, channels and attendance."
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["calls"]
+                  }
+                }
+              }
+            ],
+            "description": "Call topic, speakers, channels and attendance."
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuerySearchSuggestions",
+                "description": "Folder topic."
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["folders"]
+                  }
+                }
+              }
+            ],
+            "description": "Folder topic."
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuerySearchSuggestions",
+                "description": "AI conversation topic."
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["agent"]
+                  }
+                }
+              }
+            ],
+            "description": "AI conversation topic."
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuerySearchSuggestions",
+                "description": "Calendar event topic."
+              },
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["calendar"]
+                  }
+                }
+              }
+            ],
+            "description": "Calendar event topic."
           }
-        },
-        "additionalProperties": false
+        ],
+        "description": "Only the selected type's fields can appear in a search suggestion."
+      },
+      "SearchType": {
+        "type": "string",
+        "description": "Search indexes supported by the shared search editor.",
+        "enum": [
+          "all",
+          "channels",
+          "document-or-file",
+          "task",
+          "email",
+          "calls",
+          "folders",
+          "agent",
+          "calendar"
+        ]
       },
       "SessionBot": {
         "type": "object",
@@ -5815,6 +6078,46 @@
             "description": "Current session id shown in the conversation metadata."
           }
         }
+      },
+      "TaskSearchSuggestions": {
+        "type": "object",
+        "description": "Task facets match the shared search editor; assignee and creator are distinct.",
+        "required": ["status", "priority", "assignees", "created_by"],
+        "properties": {
+          "assignees": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Assigned people's names or supplied addresses."
+          },
+          "created_by": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Task creators' names or supplied addresses."
+          },
+          "priority": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Priority display values for client-side option resolution."
+          },
+          "query": {
+            "type": ["string", "null"],
+            "description": "Remaining keyword phrase."
+          },
+          "status": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Status display values for client-side option resolution."
+          }
+        },
+        "additionalProperties": false
       },
       "TaskSuggestions": {
         "type": "object",

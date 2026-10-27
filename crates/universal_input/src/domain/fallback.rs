@@ -36,3 +36,47 @@ impl<P: FieldExtractor, F: FieldExtractor> FieldExtractor for FallbackFieldExtra
         self.fallback.extract(input, usage).await
     }
 }
+
+impl<P: super::search::SearchExtractor, F: super::search::SearchExtractor>
+    super::search::SearchExtractor for FallbackFieldExtractor<P, F>
+{
+    async fn select_search_type(
+        &self,
+        input: &ExtractInputRequest,
+        usage: UsageContext,
+    ) -> Result<super::search::SearchType, InputError> {
+        if let Some(primary) = &self.primary {
+            match primary.select_search_type(input, usage.clone()).await {
+                Ok(value) => return Ok(value),
+                Err(InputError::Extraction | InputError::Unavailable) => {
+                    tracing::warn!("Search type extraction unavailable; using fallback")
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        self.fallback.select_search_type(input, usage).await
+    }
+    async fn extract_search(
+        &self,
+        input: &ExtractInputRequest,
+        search_type: super::search::SearchType,
+        usage: UsageContext,
+    ) -> Result<super::search::SearchSuggestions, InputError> {
+        if let Some(primary) = &self.primary {
+            match primary
+                .extract_search(input, search_type, usage.clone())
+                .await
+            {
+                Ok(value) => return Ok(value),
+                Err(InputError::Extraction | InputError::Unavailable) => tracing::warn!(
+                    ?search_type,
+                    "Search field extraction unavailable; using fallback"
+                ),
+                Err(error) => return Err(error),
+            }
+        }
+        self.fallback
+            .extract_search(input, search_type, usage)
+            .await
+    }
+}

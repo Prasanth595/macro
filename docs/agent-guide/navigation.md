@@ -600,7 +600,12 @@ spans that end early use the existing fallback. Manual edits retain precedence.
 Bug reports and prioritized problems count as tasks. **Cmd/Ctrl+Shift+Right** cycles through
 types in likelihood order; **Cmd/Ctrl+Shift+Left** cycles backward. The icon and
 type pill opens **Content type**; there is no Next type button. Choosing a type, cycling, or editing a field locks the type.
-Completed predictions interpret the full draft rather than relying on prefix rules: “Email notifications not working” or
+Opening action words (message, task, search/find, email, note, schedule/calendar,
+ask/agent) strongly guide model classification; the body topic does not override
+the requested action. This remains model interpretation, without a local prefix
+parser. Open-ended questions, including internal history such as when we last
+deployed, go to an agent unless search results are explicitly requested.
+Completed predictions interpret the full draft: bare bug reports and
 “Find and fix notification bug” can become tasks. Manual type choices and field
 edits still lock the type. Addressing distinguishes the channel from actionable text
 in its body. For example, “email julia” followed by “can we reschedule the thing
@@ -614,9 +619,13 @@ must resolve to an email address, and a connected inbox is required. A successfu
 save closes the menu and opens the saved draft when available; a
 failed save preserves the input. **Cmd/Ctrl+Enter** continues to send the email.
 Search mode embeds Global Search's editor, Type/In/From filter chips, and
-result rows with highlighted message snippets. The model extracts search keywords,
-content category, sender and channel filters. Results wait for extraction; no
-local language parser strips commands or filter clauses. For example, “search messages from Julia in #sales about budget”
+result rows with highlighted message snippets. Extraction first selects the search
+type, then uses its schema: Channels has In/From; Tasks has status, priority,
+assignees and creators; Calls has In/From/attendance; Email has importance and
+connected inboxes. Other types extract keywords. Task assignees and creators are
+distinct, and unsupported filter wording (including tags) remains in the keyword
+query. A manually chosen search Type fixes the schema for later predictions.
+Results wait for extraction; no local language parser strips commands or filter clauses. For example, “search messages from Julia in #sales about budget”
 selects **Type: Channels**, resolves Julia through the people directory, selects
 **In: sales**, and searches for “budget”. Names must resolve uniquely; unresolved
 people or channels pause search until corrected in the filter pickers. Use

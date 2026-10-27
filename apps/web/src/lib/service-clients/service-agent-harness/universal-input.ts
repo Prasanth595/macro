@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { ClassifyInputRequest } from './generated/schemas/classifyInputRequest';
 import type { ExtractInputRequest } from './generated/schemas/extractInputRequest';
 import { InputIntent } from './generated/schemas/inputIntent';
+import type { SearchSuggestions } from './generated/schemas/searchSuggestions';
 
 // Wire decoding stays here; the feature adapter maps it into its own vocabulary.
 const intent = z.enum(InputIntent);
@@ -26,6 +27,63 @@ const recurrence = z.object({
     z.object({ kind: z.literal('on'), date: z.iso.date() }),
   ]),
 });
+// Require every generated wire field, including optional additions, in its decoder.
+type SearchDecoderFields<Type extends SearchSuggestions['type']> = {
+  [Field in keyof Extract<SearchSuggestions, { type: Type }>]-?: z.ZodType<
+    Extract<SearchSuggestions, { type: Type }>[Field]
+  >;
+};
+const SEARCH_SCHEMAS = {
+  all: z.strictObject({
+    type: z.literal('all'),
+    query: text,
+  } satisfies SearchDecoderFields<'all'>),
+  'document-or-file': z.strictObject({
+    type: z.literal('document-or-file'),
+    query: text,
+  } satisfies SearchDecoderFields<'document-or-file'>),
+  folders: z.strictObject({
+    type: z.literal('folders'),
+    query: text,
+  } satisfies SearchDecoderFields<'folders'>),
+  agent: z.strictObject({
+    type: z.literal('agent'),
+    query: text,
+  } satisfies SearchDecoderFields<'agent'>),
+  calendar: z.strictObject({
+    type: z.literal('calendar'),
+    query: text,
+  } satisfies SearchDecoderFields<'calendar'>),
+  channels: z.strictObject({
+    type: z.literal('channels'),
+    query: text,
+    from: z.array(z.string()),
+    in: z.array(z.string()),
+  } satisfies SearchDecoderFields<'channels'>),
+  task: z.strictObject({
+    type: z.literal('task'),
+    query: text,
+    status: z.array(z.string()),
+    priority: z.array(z.string()),
+    assignees: z.array(z.string()),
+    created_by: z.array(z.string()),
+  } satisfies SearchDecoderFields<'task'>),
+  calls: z.strictObject({
+    type: z.literal('calls'),
+    query: text,
+    from: z.array(z.string()),
+    in: z.array(z.string()),
+    status: text,
+  } satisfies SearchDecoderFields<'calls'>),
+  email: z.strictObject({
+    type: z.literal('email'),
+    query: text,
+    importance: text,
+    inboxes: z.array(z.string()),
+  } satisfies SearchDecoderFields<'email'>),
+} satisfies Record<SearchSuggestions['type'], z.ZodType>;
+const { all: ALL_SEARCH_SCHEMA, ...TYPE_SEARCH_SCHEMAS } = SEARCH_SCHEMAS;
+
 const extraction = z.discriminatedUnion('intent', [
   z.object({
     revision: z.number(),
@@ -35,12 +93,10 @@ const extraction = z.discriminatedUnion('intent', [
   z.object({
     revision: z.number(),
     intent: z.literal('search'),
-    suggestions: z.object({
-      query: text,
-      search_scope: text,
-      search_from: z.array(z.string()).default([]),
-      search_in: z.array(z.string()).default([]),
-    }),
+    suggestions: z.discriminatedUnion('type', [
+      ALL_SEARCH_SCHEMA,
+      ...Object.values(TYPE_SEARCH_SCHEMAS),
+    ]),
   }),
   z.object({
     revision: z.number(),
@@ -125,17 +181,20 @@ export const universalInputClient = {
     text: string,
     selected: z.infer<typeof intent>,
     revision: number,
-    properties: { name: string; options: string[] }[] = []
+    properties: { name: string; options: string[] }[] = [],
+    searchType?: ExtractInputRequest['search_type']
   ) =>
     request(
       'extract',
       {
         text,
         intent: selected,
+        search_type: selected === 'search' ? searchType : undefined,
         revision,
         reference_time: new Date().toISOString(),
         time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        property_definitions: selected === 'task' ? properties : [],
+        property_definitions:
+          selected === 'task' || selected === 'search' ? properties : [],
       } satisfies ExtractInputRequest,
       extraction
     ),

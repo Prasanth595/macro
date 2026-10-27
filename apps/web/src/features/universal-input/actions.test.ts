@@ -304,6 +304,40 @@ describe('destination adapters', () => {
       }),
     });
   });
+  it('resolves an extracted email inbox during validation and submission', async () => {
+    const snapshot = input('search', {
+      query: 'budget',
+      searchFilters: JSON.stringify({
+        type: 'email',
+        email: { inboxIds: ['me@example.com'], importance: false },
+      }),
+    });
+    const result = await execute(snapshot);
+    result.open?.();
+    expect(mocks.replace).toHaveBeenCalledWith({
+      next: expect.objectContaining({
+        params: expect.objectContaining({
+          initialFilters: expect.objectContaining({
+            include: expect.objectContaining({
+              emailLinkId: ['inbox'],
+              emailImportance: false,
+            }),
+          }),
+        }),
+      }),
+    });
+    await expect(
+      execute(
+        input('search', {
+          query: 'budget',
+          searchFilters: JSON.stringify({
+            type: 'email',
+            email: { inboxIds: ['missing@example.com'] },
+          }),
+        })
+      )
+    ).rejects.toThrow();
+  });
   it('opens global search with resolved sender and DM filters rather than dropping them', async () => {
     const searchFilters = JSON.stringify({
       type: 'channels',

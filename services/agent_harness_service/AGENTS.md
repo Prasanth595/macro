@@ -37,8 +37,8 @@ Pulumi stacks; they do not host extra agent processes.
   and Pipedream apps, from the router hooks wired in `src/cognition/server.rs`.
 - `crates/universal_input` owns Command K's authenticated `/universal_input/classify`
   and `/universal_input/extract` routes, mounted directly by `src/api.rs`. The root
-  composes Clairic content extraction with Nemotron temporal extraction and the
-  shared admission/usage services.
+  composes staged search type/field extraction and Clairic content extraction
+  with Nemotron temporal extraction and the shared admission/usage services.
 - `src/scheduling.rs`: routine HTTP routes and background scheduling;
   domain/adapters live in `crates/scheduled_action`.
 - `src/preview.rs` + `src/preview/`: preview control routes, public HTTP and SSH listeners;

@@ -30,6 +30,71 @@ impl FieldExtractor for Extractor {
     }
 }
 struct Denied;
+
+#[test]
+fn intent_prompts_stay_within_the_classifiers_question_contract() {
+    for (intent, prompt) in INTENT_QUESTIONS {
+        assert!(
+            YesNoQuestion::try_from(prompt).is_ok(),
+            "{intent:?} prompt exceeds the classifier contract"
+        );
+    }
+}
+
+#[test]
+fn every_intent_response_field_has_an_extraction_or_domain_owner() {
+    use std::collections::BTreeSet;
+    for (intent, response, domain_fields) in [
+        (
+            InputIntent::Ai,
+            serde_json::json!(AiSuggestions::default()),
+            &[][..],
+        ),
+        (
+            InputIntent::Email,
+            serde_json::json!(EmailSuggestions::default()),
+            &[][..],
+        ),
+        (
+            InputIntent::Note,
+            serde_json::json!(NoteSuggestions::default()),
+            &["body"][..],
+        ),
+        (
+            InputIntent::Task,
+            serde_json::json!(TaskSuggestions::default()),
+            &["due_date"][..],
+        ),
+        (
+            InputIntent::Calendar,
+            serde_json::json!(CalendarSuggestions::default()),
+            &["start", "end", "start_assumption", "recurrence"][..],
+        ),
+        (
+            InputIntent::Message,
+            serde_json::json!(MessageSuggestions::default()),
+            &[][..],
+        ),
+    ] {
+        let fields: BTreeSet<_> = response
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        let owned: BTreeSet<_> = intent
+            .extraction_fields()
+            .iter()
+            .chain(domain_fields)
+            .copied()
+            .collect();
+        assert_eq!(
+            fields, owned,
+            "{intent:?} has a field without an extraction owner"
+        );
+    }
+}
+
 impl AiAdmissionService for Denied {
     fn admit<'a>(
         &'a self,
@@ -49,6 +114,7 @@ fn request() -> ExtractInputRequest {
         revision: 7,
         reference_time: "2026-10-09T18:00:00Z".parse().unwrap(),
         time_zone: "America/New_York".into(),
+        search_type: None,
         property_definitions: vec![],
     }
 }

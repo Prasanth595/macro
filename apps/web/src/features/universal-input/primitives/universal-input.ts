@@ -1,5 +1,6 @@
 import { batch, createSignal, onCleanup } from 'solid-js';
 import { v7 as uuidv7 } from 'uuid';
+import { parseSearchFilters } from '../../next-soup/core/search-filters';
 import type { InputCapabilities } from '../context/capabilities';
 import {
   applySuggestions,
@@ -140,6 +141,11 @@ export function createUniversalInput(source: InputCapabilities) {
       return {
         text: current.text,
         intent: current.intent,
+        searchType:
+          current.intent === 'search' &&
+          current.edited.search.includes('searchFilters')
+            ? parseSearchFilters(current.fields.search.searchFilters ?? '').type
+            : undefined,
         revision: revision(),
         decision: decisionRevision,
       };
@@ -147,11 +153,14 @@ export function createUniversalInput(source: InputCapabilities) {
     key: (input) => `${input.revision}:${input.intent}`,
     async run(input) {
       try {
-        const response = await source.extract(
-          input.text,
-          input.intent,
-          input.revision
-        );
+        const response = input.searchType
+          ? await source.extract(
+              input.text,
+              input.intent,
+              input.revision,
+              input.searchType
+            )
+          : await source.extract(input.text, input.intent, input.revision);
         if (
           !usable(input.decision) ||
           revision() !== input.revision ||

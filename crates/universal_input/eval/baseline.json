@@ -8,10 +8,12 @@
   "channels": ["Bug Reports"],
   "search_types": {
     "Channels": ["channel", "channels", "message", "messages", "channel message", "channel messages", "dm", "dms"],
-    "Tasks": ["task", "tasks"]
+    "Tasks": ["task", "tasks"],
+    "Documents": ["document-or-file", "documents"]
   },
   "property_definitions": [
-    { "name": "Priority", "options": ["Urgent", "High", "Medium", "Low"] }
+    { "name": "Priority", "options": ["Urgent", "High", "Medium", "Low"] },
+    { "name": "Status", "options": ["Not Started", "In Progress", "In Review", "Completed", "Canceled"] }
   ],
   "groups": [
     {
@@ -138,6 +140,21 @@
         "search messages from julia",
         "search channels from julia"
       ]
+    },
+    {
+      "id": "search-task-filters",
+      "expect": { "intent": "search", "search_type": "Tasks", "status": ["In Progress"], "priority": ["High"], "assignees": ["julia@macro.com"], "created_by": ["teo@macro.com"], "query": "android" },
+      "inputs": ["search in progress high priority tasks assigned to julia created by teo about android"]
+    },
+    {
+      "id": "search-task-filters-only",
+      "expect": { "intent": "search", "search_type": "Tasks", "priority": ["High"], "assignees": ["julia@macro.com"], "query": "" },
+      "inputs": ["search high priority tasks assigned to julia"]
+    },
+    {
+      "id": "search-unsupported-document-filter",
+      "expect": { "intent": "search", "search_type": "Documents", "query": "from julia" },
+      "inputs": ["search documents from julia"]
     },
     {
       "id": "search-task-keywords",

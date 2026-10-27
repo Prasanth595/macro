@@ -55,8 +55,11 @@ explicit action button to create or send, or **Save as draft** to save an email.
 Manual field edits keep precedence over later predictions. The same PostHog flag
 as Command K applies; when it is off, the view keeps normal
 live search. Closing Search clears the input and its unsent suggested form.
-For Search intent, the shared global-search filters and results update live above
-the bar. Open a filtered result directly; there is no separate Search submit action.
+For Search intent, extraction selects a search type before extracting only that
+type's supported filters. Task status/priority/assignee/creator filters and channel
+In/From filters use the same controls and resolution as desktop Command K.
+The shared global-search filters and results update live above the bar. Open a
+filtered result directly; there is no separate Search submit action.
 Opening a result hides search chrome while
 preserving that Search history entry's query, category, mode, result order, and
 scroll position. Opening a result does not promote it within that saved list,

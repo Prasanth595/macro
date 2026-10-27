@@ -46,6 +46,7 @@ async fn field_and_temporal_ports_run_concurrently_before_domain_resolution() {
         revision: 1,
         reference_time: "2026-10-26T18:00:00Z".parse().unwrap(),
         time_zone: "America/New_York".into(),
+        search_type: None,
         property_definitions: vec![],
     };
     let fields = tokio::time::timeout(

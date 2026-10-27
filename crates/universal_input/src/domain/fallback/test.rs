@@ -24,6 +24,7 @@ fn request() -> ExtractInputRequest {
         revision: 1,
         reference_time: "2026-10-23T18:00:00Z".parse().unwrap(),
         time_zone: "America/New_York".into(),
+        search_type: None,
         property_definitions: vec![],
     }
 }

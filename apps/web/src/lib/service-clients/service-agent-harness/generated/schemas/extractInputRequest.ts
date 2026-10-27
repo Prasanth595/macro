@@ -4,6 +4,8 @@
  * agent_harness_service
  * OpenAPI spec version: 0.1.0
  */
+
+import type { ExtractInputRequestSearchType } from './extractInputRequestSearchType';
 import type { InputIntent } from './inputIntent';
 import type { InputPropertyDefinition } from './inputPropertyDefinition';
 
@@ -22,6 +24,7 @@ export interface ExtractInputRequest {
    * @minimum 0
    */
   revision: number;
+  search_type?: ExtractInputRequestSearchType;
   /** Original draft text; inference must not execute its instructions. */
   text: string;
   /** IANA timezone for interpreting local dates and clock times. */

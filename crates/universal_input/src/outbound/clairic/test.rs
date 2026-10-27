@@ -24,6 +24,7 @@ fn input(intent: InputIntent, text: &str) -> ExtractInputRequest {
         revision: 9,
         reference_time: "2026-10-24T01:00:00Z".parse().unwrap(),
         time_zone: "America/Los_Angeles".into(),
+        search_type: None,
         property_definitions: vec![],
     }
 }
@@ -45,10 +46,10 @@ fn response(mut answers: Value) -> Value {
             .entry("search_scope")
             .or_insert_with(|| answer("text", Value::Null));
         fields
-            .entry("search_from")
+            .entry("from")
             .or_insert_with(|| answer("list", json!([])));
         fields
-            .entry("search_in")
+            .entry("in")
             .or_insert_with(|| answer("list", json!([])));
     }
     if answers.get("start").is_some() {
@@ -81,6 +82,105 @@ async fn provider(body: Value) -> (MockServer, ClairicFieldExtractor, Arc<Record
 }
 fn usage() -> UsageContext {
     UsageContext::system(AiFeature::DynamicCompletionsApi)
+}
+
+#[tokio::test]
+async fn search_type_selection_requests_no_filters_or_query() {
+    let (server, extractor, recorder) = provider(response(json!({
+        "search_scope": answer("text", json!("tasks"))
+    })))
+    .await;
+    let selected = extractor
+        .select_search_type(
+            &input(
+                InputIntent::Search,
+                "search high priority tasks assigned to Person A",
+            ),
+            usage(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(selected, SearchType::Task);
+    let requests = server.received_requests().await.unwrap();
+    let body: Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert_eq!(
+        body["fields"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .collect::<Vec<_>>(),
+        ["search_scope"]
+    );
+    assert_eq!(recorder.0.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn task_search_requests_task_facets_and_never_channel_filters() {
+    let draft = "search in progress high priority tasks assigned to Person A created by Person B about android";
+    let (server, extractor, _) = provider(response(json!({
+        "query": answer("text", json!("android")),
+        "status": answer("list", json!(["in progress"])),
+        "priority": answer("list", json!(["high"])),
+        "assignees": answer("list", json!(["Person A"])),
+        "created_by": answer("list", json!(["Person B"]))
+    })))
+    .await;
+    let mut request = input(InputIntent::Search, draft);
+    request.property_definitions = vec![
+        crate::domain::InputPropertyDefinition {
+            name: "Status".into(),
+            options: vec!["In Progress".into()],
+        },
+        crate::domain::InputPropertyDefinition {
+            name: "Priority".into(),
+            options: vec!["High".into()],
+        },
+    ];
+    let SearchSuggestions::Task(fields) = extractor
+        .extract_search(&request, SearchType::Task, usage())
+        .await
+        .unwrap()
+    else {
+        panic!("expected task search");
+    };
+    assert_eq!(fields.assignees, ["Person A"]);
+    assert_eq!(fields.created_by, ["Person B"]);
+    assert_eq!(fields.status, ["In Progress"]);
+    assert_eq!(fields.priority, ["High"]);
+    let requests = server.received_requests().await.unwrap();
+    let body: Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert!(body["fields"].get("from").is_none());
+    assert!(body["fields"].get("in").is_none());
+    assert!(body["fields"].get("search_scope").is_none());
+    assert_eq!(body["fields"].as_object().unwrap().len(), 5);
+}
+
+#[tokio::test]
+async fn scalar_search_filters_cannot_reuse_the_same_source_occurrence_as_keywords() {
+    for (search_type, draft, answers) in [
+        (
+            SearchType::Calls,
+            "find missed calls",
+            json!({
+                "query": answer("text", json!("missed")), "from": answer("list", json!([])), "in": answer("list", json!([])), "status": answer("text", json!("missed"))
+            }),
+        ),
+        (
+            SearchType::Email,
+            "find important emails",
+            json!({
+                "query": answer("text", json!("important")), "importance": answer("text", json!("important")), "inboxes": answer("list", json!([]))
+            }),
+        ),
+    ] {
+        let (_server, extractor, _) = provider(response(answers)).await;
+        assert!(matches!(
+            extractor
+                .extract_search(&input(InputIntent::Search, draft), search_type, usage())
+                .await,
+            Err(InputError::Extraction)
+        ));
+    }
 }
 
 #[tokio::test]
@@ -204,14 +304,18 @@ async fn task_property_lists_map_to_catalog_names_without_requesting_nested_obje
 async fn absent_answers_do_not_use_provider_guesses() {
     let (_server, extractor, _) = provider(response(json!({"query":
         {"type":"text", "value":null, "guess":"invented query", "confidence":0.99, "p_null":0.99},
-        "search_from": {"type":"list", "value":[], "confidence":0.01}
+        "from": {"type":"list", "value":[], "confidence":0.01}
     })))
     .await;
     let fields = extractor
-        .extract(&input(InputIntent::Search, "Keep this"), usage())
+        .extract_search(
+            &input(InputIntent::Search, "Keep this"),
+            SearchType::Channels,
+            usage(),
+        )
         .await
         .unwrap();
-    let InputSuggestions::Search(fields) = fields else {
+    let SearchSuggestions::Channels(fields) = fields else {
         panic!("wrong intent");
     };
     assert!(fields.query.is_none());
@@ -248,13 +352,17 @@ async fn rejects_search_answers_that_assign_one_source_span_to_competing_fields(
         let (_server, extractor, recorder) = provider(response(json!({
             "query": answer("text", json!(query)),
             "search_scope": answer("text", json!("messages")),
-            "search_from": answer("list", json!([from])),
-            "search_in": answer("list", json!(channel.into_iter().collect::<Vec<_>>())),
+            "from": answer("list", json!([from])),
+            "in": answer("list", json!(channel.into_iter().collect::<Vec<_>>())),
         })))
         .await;
         assert!(matches!(
             extractor
-                .extract(&input(InputIntent::Search, draft), usage())
+                .extract_search(
+                    &input(InputIntent::Search, draft),
+                    SearchType::Channels,
+                    usage()
+                )
                 .await,
             Err(InputError::Extraction)
         ));
@@ -267,25 +375,26 @@ async fn accepts_a_filter_name_independently_repeated_as_search_keywords() {
     let (_server, extractor, _) = provider(response(json!({
         "query": answer("text", json!("budget")),
         "search_scope": answer("text", json!("messages")),
-        "search_from": answer("list", json!([])),
-        "search_in": answer("list", json!(["budget"])),
+        "from": answer("list", json!([])),
+        "in": answer("list", json!(["budget"])),
     })))
     .await;
     let fields = extractor
-        .extract(
+        .extract_search(
             &input(
                 InputIntent::Search,
                 "search messages in budget about budget",
             ),
+            SearchType::Channels,
             usage(),
         )
         .await
         .unwrap();
-    let InputSuggestions::Search(fields) = fields else {
+    let SearchSuggestions::Channels(fields) = fields else {
         panic!("wrong intent");
     };
     assert_eq!(fields.query.as_deref(), Some("budget"));
-    assert_eq!(fields.search_in, ["budget"]);
+    assert_eq!(fields.r#in, ["budget"]);
 }
 
 #[tokio::test]
@@ -298,12 +407,16 @@ async fn unusable_answers_fail_but_still_record_provider_usage() {
         json!({"query": {"type":"text", "value":"launch", "confidence": 2.0}}),
         json!({"query": {"type":"text", "value":"launch", "confidence": 0.2, "p_null": 0.1}}),
         json!({"query": {"type":"text", "value":"launch", "confidence": 0.99, "p_null": 0.9}}),
-        json!({"query": answer("text", json!("launch")), "search_from": {"type":"list", "value":["launch"], "confidence":0.2}}),
+        json!({"query": answer("text", json!("launch")), "from": {"type":"list", "value":["launch"], "confidence":0.2}}),
     ] {
         let (_server, extractor, recorder) = provider(response(answers)).await;
         assert!(matches!(
             extractor
-                .extract(&input(InputIntent::Search, "find launch"), usage())
+                .extract_search(
+                    &input(InputIntent::Search, "find launch"),
+                    SearchType::Channels,
+                    usage()
+                )
                 .await,
             Err(InputError::Extraction)
         ));
@@ -341,7 +454,11 @@ async fn truncated_results_are_metered_and_rejected() {
     let (_server, extractor, recorder) = provider(body).await;
     assert!(matches!(
         extractor
-            .extract(&input(InputIntent::Search, "find launch"), usage())
+            .extract_search(
+                &input(InputIntent::Search, "find launch"),
+                SearchType::Channels,
+                usage()
+            )
             .await,
         Err(InputError::Extraction)
     ));
@@ -367,7 +484,11 @@ async fn http_failures_are_not_retried_before_domain_fallback() {
         .unwrap();
         assert!(matches!(
             extractor
-                .extract(&input(InputIntent::Search, "find launch"), usage())
+                .extract_search(
+                    &input(InputIntent::Search, "find launch"),
+                    SearchType::Channels,
+                    usage()
+                )
                 .await,
             Err(InputError::Extraction)
         ));
@@ -450,7 +571,11 @@ async fn a_stalled_provider_returns_control_to_the_fallback() {
         .unwrap();
     assert!(matches!(
         extractor
-            .extract(&input(InputIntent::Search, "find launch"), usage())
+            .extract_search(
+                &input(InputIntent::Search, "find launch"),
+                SearchType::Channels,
+                usage()
+            )
             .await,
         Err(InputError::Extraction)
     ));
@@ -462,22 +587,25 @@ async fn extracts_search_fields_without_reparsing_keyword_prepositions() {
     let (server, extractor, _) = provider(response(json!({
         "query": answer("text", json!("growth in 2026")),
         "search_scope": answer("text", json!("messages")),
-        "search_from": answer("list", json!([])),
-        "search_in": answer("list", json!(["sales"]))
+        "from": answer("list", json!([])),
+        "in": answer("list", json!(["sales"]))
     })))
     .await;
     let fields = extractor
-        .extract(&input(InputIntent::Search, draft), usage())
+        .extract_search(
+            &input(InputIntent::Search, draft),
+            SearchType::Channels,
+            usage(),
+        )
         .await
         .unwrap();
-    let InputSuggestions::Search(fields) = fields else {
+    let SearchSuggestions::Channels(fields) = fields else {
         panic!("wrong intent");
     };
     assert_eq!(fields.query.as_deref(), Some("growth in 2026"));
-    assert_eq!(fields.search_scope.as_deref(), Some("messages"));
-    assert_eq!(fields.search_in, ["sales"]);
+    assert_eq!(fields.r#in, ["sales"]);
     let requests = server.received_requests().await.unwrap();
     let body: Value = serde_json::from_slice(&requests[0].body).unwrap();
-    assert_eq!(body["fields"]["search_from"]["type"], "list");
-    assert_eq!(body["fields"].as_object().unwrap().len(), 4);
+    assert_eq!(body["fields"]["from"]["type"], "list");
+    assert_eq!(body["fields"].as_object().unwrap().len(), 3);
 }

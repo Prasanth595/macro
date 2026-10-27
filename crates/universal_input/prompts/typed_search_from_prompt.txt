@@ -1,1 +1,2 @@
-Names or supplied addresses explicitly requested as message senders, call speakers, or task creators. Keep a single named person together even if their name contains a comma or and. Exclude negated people. For other content categories return an empty list and retain unsupported filter wording in query.
+Explicit message sender names or supplied addresses. Keep each person together, including quoted names with commas or and. Use [] when absent. Do not infer senders from names inside the topic, or turn negated filters into positive filters. Never return IDs.
+Channels is the message search type. In search channels from Person A, Person A is the sender, even without a keyword topic. Never move that person into query.

@@ -1,8 +1,12 @@
 import { Telemetry } from '@macro-inc/observability';
 import { universalInputClient } from '@service-agent-harness/universal-input';
+import {
+  TASK_PRIORITY_OPTIONS,
+  TASK_STATUS_OPTIONS,
+} from '../next-soup/core/search-options';
 import type { InputCapabilities } from './context/capabilities';
 import { suggestionsSchema } from './core/input';
-import { extractedSearchFields } from './core/search';
+import { extractedSearchFields } from './queries/extracted-search';
 
 export function createInferenceSource(
   properties: () => Promise<
@@ -18,7 +22,7 @@ export function createInferenceSource(
         span.setAttr('input.revision', revision);
         return universalInputClient.classify(text, revision);
       }),
-    extract: (text, intent, revision) =>
+    extract: (text, intent, revision, searchType) =>
       Telemetry.span('universal_input.extract', async (span) => {
         span.setAttr('input.surface', surface);
         span.setAttr('input.intent', intent);
@@ -28,19 +32,27 @@ export function createInferenceSource(
           text,
           intent,
           revision,
-          intent === 'task' ? await properties() : []
+          intent === 'task'
+            ? await properties()
+            : intent === 'search'
+              ? [
+                  {
+                    name: 'Status',
+                    options: TASK_STATUS_OPTIONS.map((option) => option.label),
+                  },
+                  {
+                    name: 'Priority',
+                    options: TASK_PRIORITY_OPTIONS.map(
+                      (option) => option.label
+                    ),
+                  },
+                ]
+              : [],
+          searchType
         );
         let fields: unknown = response.suggestions;
         if (response.intent === 'search') {
-          fields = extractedSearchFields(
-            {
-              query: response.suggestions.query,
-              scope: response.suggestions.search_scope,
-              from: response.suggestions.search_from,
-              in: response.suggestions.search_in,
-            },
-            text
-          );
+          fields = extractedSearchFields(response.suggestions);
         } else if (response.intent === 'calendar') {
           const recurrence = response.suggestions.recurrence;
           fields = {

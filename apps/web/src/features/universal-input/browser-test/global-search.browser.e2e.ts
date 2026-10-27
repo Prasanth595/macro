@@ -41,6 +41,30 @@ test('search messages from Julia prepopulates the global Channels and From facet
   );
 });
 
+test('task search applies status, priority, assignee and creator facets without repeating them as keywords', async ({
+  page,
+}) => {
+  const dialog = await compose(
+    page,
+    'search in progress high priority tasks assigned to julia created by john about android'
+  );
+  const filters = dialog.getByLabel('Search filters');
+  await expect(filters.getByText('Tasks', { exact: true })).toBeVisible();
+  await expect(filters.getByText('In Progress', { exact: true })).toBeVisible();
+  await expect(filters.getByText('High', { exact: true })).toBeVisible();
+  await expect(filters.getByText('Julia Jones', { exact: true })).toBeVisible();
+  await expect(filters.getByText('John Adams', { exact: true })).toBeVisible();
+  await expect(
+    dialog.getByRole('textbox', { name: 'Search for', exact: true })
+  ).toHaveText('android');
+  await expect(page.getByTestId('global-search-requests')).toContainText(
+    'macro|julia@macro.com'
+  );
+  await expect(page.getByTestId('global-search-requests')).toContainText(
+    'macro|john@example.com'
+  );
+});
+
 test('global Search requests enforce sender and channel filters and render actual message snippets', async ({
   page,
 }) => {

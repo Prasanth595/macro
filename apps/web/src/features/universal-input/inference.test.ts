@@ -1,4 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest';
+import {
+  TASK_PRIORITY_OPTIONS,
+  TASK_STATUS_OPTIONS,
+} from '../next-soup/core/search-options';
 import { createInferenceSource } from './inference';
 
 const { extract } = vi.hoisted(() => ({ extract: vi.fn() }));
@@ -10,7 +14,7 @@ beforeEach(() => {
   extract.mockImplementation(async (_text, intent, revision) => ({
     intent,
     revision,
-    suggestions: { recipients: [], guests: [], search_from: [], search_in: [] },
+    suggestions: { recipients: [], guests: [], from: [], in: [] },
   }));
 });
 
@@ -30,7 +34,8 @@ it('waits for the task field catalog before invoking extraction', async () => {
     'Fix clicks\npriority urgent',
     'task',
     7,
-    catalog
+    catalog,
+    undefined
   );
 });
 
@@ -40,7 +45,13 @@ it('extracts email immediately without waiting for unrelated task metadata', asy
   );
   await createInferenceSource(properties).extract('Email Julia', 'email', 2);
   expect(properties).not.toHaveBeenCalled();
-  expect(extract).toHaveBeenCalledWith('Email Julia', 'email', 2, []);
+  expect(extract).toHaveBeenCalledWith(
+    'Email Julia',
+    'email',
+    2,
+    [],
+    undefined
+  );
 });
 
 it('adapts raw extracted search fields without reinterpreting the keyword phrase', async () => {
@@ -51,9 +62,9 @@ it('adapts raw extracted search fields without reinterpreting the keyword phrase
       recipients: [],
       guests: [],
       query: 'growth in 2026',
-      search_scope: 'messages',
-      search_from: ['Julia'],
-      search_in: ['sales'],
+      type: 'channels',
+      from: ['Julia'],
+      in: ['sales'],
     },
   });
   const result = await createInferenceSource().extract(
@@ -67,7 +78,7 @@ it('adapts raw extracted search fields without reinterpreting the keyword phrase
     type: 'channels',
     channels: { from: ['Julia'], in: ['sales'] },
   });
-  expect(result.suggestions).not.toHaveProperty('search_from');
+  expect(result.suggestions).not.toHaveProperty('from');
 });
 
 it('adapts recurrence into the shared calendar editor config and retains copies', async () => {
@@ -107,4 +118,41 @@ it('adapts recurrence into the shared calendar editor config and retains copies'
   );
   expect(email.suggestions.cc).toEqual(['Julia']);
   expect(email.suggestions.bcc).toEqual(['investor@example.org']);
+});
+
+it('supplies the shared search option catalog and a manually selected type', async () => {
+  extract.mockResolvedValue({
+    revision: 9,
+    intent: 'search',
+    suggestions: {
+      type: 'task',
+      query: 'android',
+      status: [],
+      priority: ['High'],
+      assignees: [],
+      created_by: [],
+    },
+  });
+  await createInferenceSource().extract(
+    'search high priority tasks about android',
+    'search',
+    9,
+    'task'
+  );
+  expect(extract).toHaveBeenCalledWith(
+    'search high priority tasks about android',
+    'search',
+    9,
+    [
+      {
+        name: 'Status',
+        options: TASK_STATUS_OPTIONS.map((option) => option.label),
+      },
+      {
+        name: 'Priority',
+        options: TASK_PRIORITY_OPTIONS.map((option) => option.label),
+      },
+    ],
+    'task'
+  );
 });

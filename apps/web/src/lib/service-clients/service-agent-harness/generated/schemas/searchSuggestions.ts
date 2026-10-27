@@ -4,19 +4,26 @@
  * agent_harness_service
  * OpenAPI spec version: 0.1.0
  */
-import type { SearchSuggestionsQuery } from './searchSuggestionsQuery';
-import type { SearchSuggestionsSearchScope } from './searchSuggestionsSearchScope';
+import type { SearchSuggestionsOneOf } from './searchSuggestionsOneOf';
+import type { SearchSuggestionsOneOfFour } from './searchSuggestionsOneOfFour';
+import type { SearchSuggestionsOneOfOnenine } from './searchSuggestionsOneOfOnenine';
+import type { SearchSuggestionsOneOfOnesix } from './searchSuggestionsOneOfOnesix';
+import type { SearchSuggestionsOneOfOnethree } from './searchSuggestionsOneOfOnethree';
+import type { SearchSuggestionsOneOfOnezero } from './searchSuggestionsOneOfOnezero';
+import type { SearchSuggestionsOneOfSeven } from './searchSuggestionsOneOfSeven';
+import type { SearchSuggestionsOneOfTwofive } from './searchSuggestionsOneOfTwofive';
+import type { SearchSuggestionsOneOfTwotwo } from './searchSuggestionsOneOfTwotwo';
 
 /**
- * Editable fields for search inference, before submission and identity resolution.
+ * Only the selected type's fields can appear in a search suggestion.
  */
-export interface SearchSuggestions {
-  /** Terms to find existing Macro content. */
-  query?: SearchSuggestionsQuery;
-  /** Explicit sender, speaker, or task-creator names for the client to resolve. */
-  search_from?: string[];
-  /** Explicit channel names for the client to resolve. */
-  search_in?: string[];
-  /** Verbatim noun naming the requested search category, such as messages or tasks. */
-  search_scope?: SearchSuggestionsSearchScope;
-}
+export type SearchSuggestions =
+  | SearchSuggestionsOneOf
+  | SearchSuggestionsOneOfFour
+  | SearchSuggestionsOneOfSeven
+  | SearchSuggestionsOneOfOnezero
+  | SearchSuggestionsOneOfOnethree
+  | SearchSuggestionsOneOfOnesix
+  | SearchSuggestionsOneOfOnenine
+  | SearchSuggestionsOneOfTwotwo
+  | SearchSuggestionsOneOfTwofive;

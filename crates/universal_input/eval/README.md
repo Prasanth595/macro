@@ -1,10 +1,11 @@
 # Universal Input behavior baseline
 
-`baseline.json` holds 22 input variants and their expected intent and fields.
+`baseline.json` holds 25 input variants and their expected intent and fields.
 It preserves multiline messages and checks the complete requested message body,
 task title/body/priority/deadline, event start/invitees, note body, and search
 category/sender/query. It also checks email To/Cc/subject/body separation and a
-message addressed to a named channel. Fields without an expectation are left
+message addressed to a named channel, task search facets, and unsupported document
+sender wording retained as keywords. Fields without an expectation are left
 unconstrained.
 
 The clock is fixed at **2026-10-27 12:00 UTC**. All three dinner variants expect
@@ -37,6 +38,10 @@ acceptable forms with or without a reporter prefix and ignore capitalization/tra
 punctuation; they still reject a description merged into the title. Message and
 note bodies remain exact after trimming outside whitespace. A null search query
 is equivalent to an empty one.
+
+Search extraction returns a canonical `type` and only that type's fields. The
+runner compares task status, priority, assignees and creators as separate facets;
+channel sender filters remain separate from task creators.
 
 The runner selects the highest-scoring intent, as the composer does. It does not
 force the expected type when classification is wrong. Failures therefore show

@@ -344,13 +344,15 @@ async fn run() -> anyhow::Result<()> {
             .transpose()?
             .map(|provider| jev::domain::JevClassifier::new(provider, recorder.clone())),
         universal_input::domain::temporal::WithTemporalExtraction::new(
-            universal_input::domain::FallbackFieldExtractor::new(
-                universal_input::outbound::clairic::ClairicFieldExtractor::from_config(
-                    &config.cloudflare_account_id,
-                    &config.cloudflare_api_token,
-                    recorder.clone(),
-                )?,
-                universal_input::outbound::AgentFieldExtractor::new(recorder.clone()),
+            universal_input::domain::search::WithSearchExtraction::new(
+                universal_input::domain::FallbackFieldExtractor::new(
+                    universal_input::outbound::clairic::ClairicFieldExtractor::from_config(
+                        &config.cloudflare_account_id,
+                        &config.cloudflare_api_token,
+                        recorder.clone(),
+                    )?,
+                    universal_input::outbound::AgentFieldExtractor::new(recorder.clone()),
+                ),
             ),
             universal_input::outbound::temporal::AgentTemporalExtractor::new(recorder.clone()),
         ),

@@ -6,6 +6,6 @@
  */
 
 /**
- * Terms to find existing Macro content.
+ * Explicit importance wording, resolved by the client.
  */
-export type SearchSuggestionsQuery = string | null;
+export type EmailSearchSuggestionsImportance = string | null;

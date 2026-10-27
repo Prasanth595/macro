@@ -1,5 +1,5 @@
 //! Intent-specific suggestions: fields cannot be attached to the wrong destination.
-use super::{InputIntent, InputPropertySuggestion};
+use super::{InputIntent, InputPropertySuggestion, SearchSuggestions};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -42,22 +42,6 @@ impl InputSuggestions {
 #[derive(Debug, Default, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AiSuggestions {}
-
-/// Editable fields for search inference, before submission and identity resolution.
-#[derive(Debug, Default, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct SearchSuggestions {
-    /// Terms to find existing Macro content.
-    pub query: Option<String>,
-    /// Verbatim noun naming the requested search category, such as messages or tasks.
-    pub search_scope: Option<String>,
-    /// Explicit sender, speaker, or task-creator names for the client to resolve.
-    #[serde(default)]
-    pub search_from: Vec<String>,
-    /// Explicit channel names for the client to resolve.
-    #[serde(default)]
-    pub search_in: Vec<String>,
-}
 
 /// Editable fields for email inference, before submission and identity resolution.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, ToSchema)]

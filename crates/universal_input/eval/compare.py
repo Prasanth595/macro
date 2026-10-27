@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 
 def normalize(field, value, suite):
-    if field in ("recipients", "cc", "bcc", "guests", "search_from"):
+    if field in ("recipients", "cc", "bcc", "guests", "search_from", "assignees", "created_by"):
         people = {
             alias.casefold(): person["email"]
             for person in suite["people"]
@@ -32,7 +32,9 @@ def normalize(field, value, suite):
             (name for name, aliases in suite["search_types"].items() if (value or "").casefold() in aliases),
             value,
         )
-    if field == "priority":
+    if field in ("priority", "status"):
+        if isinstance(value, list):
+            return sorted(item.casefold() for item in value)
         return value.casefold() if isinstance(value, str) else value
     if field == "title" and isinstance(value, str):
         return value.strip().rstrip(".!?").casefold()
@@ -49,14 +51,16 @@ def normalize(field, value, suite):
 
 def compare_fields(expected, intent, suggestions, suite):
     actual = {"intent": intent, **suggestions}
-    actual["search_type"] = suggestions.get("search_scope")
+    actual["search_type"] = suggestions.get("type")
+    actual["search_from"] = suggestions.get("from")
     priorities = [
         value
         for prop in suggestions.get("properties", [])
         if prop["name"].casefold() == "priority"
         for value in prop["values"]
     ]
-    actual["priority"] = priorities[0] if len(priorities) == 1 else priorities or None
+    if intent == "task":
+        actual["priority"] = priorities[0] if len(priorities) == 1 else priorities or None
     fields = {}
     for field, value in expected.items():
         observed = normalize(field, actual.get(field), suite)
@@ -92,7 +96,7 @@ def run_case(case_id, text, expected, suite, base_url, headers, context=None):
             extracted = request(base_url, "extract", {
                 "text": text, "intent": intent, "revision": 1,
                 "reference_time": suite["reference_time"], "time_zone": suite["time_zone"],
-                "property_definitions": suite["property_definitions"] if intent == "task" else [],
+                "property_definitions": suite["property_definitions"] if intent in ("task", "search") else [],
             }, headers, context)
             if extracted["intent"] != intent:
                 raise ValueError("Extraction returned a different intent")

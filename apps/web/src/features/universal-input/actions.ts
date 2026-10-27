@@ -219,7 +219,8 @@ export function createInputActions(
       const filters = resolveSearchFilters(
         input.fields.searchFilters,
         people(),
-        searchChannels()
+        searchChannels(),
+        email.accounts.inboxes()
       );
       if (filters.unresolved.length)
         return `Choose a specific person or channel for ${filters.unresolved.join(', ')}`;
@@ -347,7 +348,8 @@ export function createInputActions(
         const { state } = resolveSearchFilters(
           f.searchFilters,
           people(),
-          searchChannels()
+          searchChannels(),
+          email.accounts.inboxes()
         );
         const search = {
           query: f.query.trim(),

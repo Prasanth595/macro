@@ -14,7 +14,9 @@ mod test;
 
 mod fallback;
 pub use fallback::FallbackFieldExtractor;
+pub mod search;
 mod suggestions;
+pub use search::SearchSuggestions;
 mod typed_guidance;
 pub use suggestions::*;
 pub mod temporal;
@@ -47,7 +49,7 @@ impl InputIntent {
     pub fn extraction_fields(self) -> &'static [&'static str] {
         match self {
             Self::Ai => &[],
-            Self::Search => &["search_scope", "search_from", "search_in", "query"],
+            Self::Search => &[],
             Self::Email => &["subject", "body", "recipients", "cc", "bcc"],
             Self::Note => &["title"],
             Self::Task => &["title", "body", "properties"],
@@ -69,7 +71,13 @@ impl InputIntent {
             Self::Note => include_str!("../prompts/extract_note_prompt.txt"),
             Self::Task => include_str!("../prompts/extract_task_prompt.txt"),
             Self::Calendar => include_str!("../prompts/extract_calendar_prompt.txt"),
-            Self::Message => include_str!("../prompts/extract_message_prompt.txt"),
+            Self::Message => concat!(
+                include_str!("../prompts/extract_message_prompt.txt"),
+                "\nrecipients: ",
+                include_str!("../prompts/typed_message_recipients_prompt.txt"),
+                "\nbody: ",
+                include_str!("../prompts/typed_message_body_prompt.txt")
+            ),
         }
     }
 }
@@ -78,31 +86,31 @@ impl InputIntent {
 pub const INTENT_QUESTIONS: [(InputIntent, &str); 7] = [
     (
         InputIntent::Ai,
-        "Is the author directly asking an AI assistant to answer, explain, research, generate or draft content? 'Ask AI to draft an email to Julia' is YES. Questions or requests in the body after an email/chat addressing line are for that recipient, not AI. Directly composing an email, message, note, task or event is NO.",
+        include_str!("../prompts/classify_ai_prompt.txt"),
     ),
     (
         InputIntent::Search,
-        "Is the author trying to find existing content in Macro (documents, emails, tasks, messages), rather than asking for an explanation or web research?",
+        include_str!("../prompts/classify_search_prompt.txt"),
     ),
     (
         InputIntent::Email,
-        "Is the author composing an email to send? A leading 'email Julia', 'email to john@example.com' or 'send an email to Julia' is YES; following lines are email body even with action requests, bugs or rescheduling dates. Judge the requested channel, not the body topic. 'Remind me to email Julia tomorrow', 'create a task to email Julia' and asking AI to draft an email are NO. A greeting alone is insufficient.",
+        include_str!("../prompts/classify_email_prompt.txt"),
     ),
     (
         InputIntent::Note,
-        "Is this content to keep as a Markdown note or document, such as observations, prose, an outline or reference material, rather than a question, a message to someone, or an action to perform? Bug reports, broken behavior, user problems, and reports with a priority or severity should be tracked as tasks instead of notes, even without an explicit fix instruction.",
+        include_str!("../prompts/classify_note_prompt.txt"),
     ),
     (
         InputIntent::Task,
-        "Is this a to-do, deliverable, bug report or actionable problem to track? Bare broken behavior and 'user unable to click on notification; priority high' are YES. 'Remind me to email Julia tomorrow' is YES. A leading 'email Julia' or 'DM Julia' is NO, even with actionable requests, bugs or dates in its body. Asking AI to draft content is NO. 'Finish report by Friday' is a task; 'Call John at 3pm tomorrow' is a calendar event.",
+        include_str!("../prompts/classify_task_prompt.txt"),
     ),
     (
         InputIntent::Calendar,
-        "Is this an activity to put on a calendar at a particular time, such as 'Call John at 3pm tomorrow'? Timed calls are YES even without 'schedule'. A deliverable with a deadline is NO. A leading email/chat addressing instruction is NO: dates, meetings or rescheduling in its outgoing body do not create an event.",
+        include_str!("../prompts/classify_calendar_prompt.txt"),
     ),
     (
         InputIntent::Message,
-        "Is the author composing a chat message or asking to DM someone or post to a channel, rather than composing email or asking an AI for help? There should be evidence of a chat recipient or conversational message intent.",
+        include_str!("../prompts/classify_message_prompt.txt"),
     ),
 ];
 
@@ -146,6 +154,9 @@ pub struct ExtractInputRequest {
     pub reference_time: DateTime<Utc>,
     /// IANA timezone for interpreting local dates and clock times.
     pub time_zone: String,
+    /// Explicitly selected search type; absent means infer it before extracting filters.
+    #[serde(default)]
+    pub search_type: Option<search::SearchType>,
     /// Available task fields and display values, never authorized entity IDs.
     #[serde(default)]
     pub property_definitions: Vec<InputPropertyDefinition>,

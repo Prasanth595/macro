@@ -716,6 +716,28 @@ export type CalendarSuggestions = {
 };
 
 /**
+ * Call search supports speakers, channels and attendance status.
+ */
+export type CallSearchSuggestions = {
+    /**
+     * Speaker names or supplied addresses.
+     */
+    from: Array<string>;
+    /**
+     * Channel names.
+     */
+    in: Array<string>;
+    /**
+     * Remaining keyword phrase.
+     */
+    query?: string | null;
+    /**
+     * Attendance display value, resolved against supported options by the client.
+     */
+    status?: string | null;
+};
+
+/**
  * Harness names accepted by the capability-discovery endpoint.
  */
 export type CapabilityHarnessDto = 'in-memory' | 'cursor' | 'macrod';
@@ -839,6 +861,24 @@ export type ChangesetDto = {
  * The source of a changeset's diff, on the wire.
  */
 export type ChangesetSourceDto = 'github_pull_request';
+
+/**
+ * Message filters remain display names until resolved against the user's directory.
+ */
+export type ChannelSearchSuggestions = {
+    /**
+     * Explicit message sender names or addresses.
+     */
+    from: Array<string>;
+    /**
+     * Explicit channel names.
+     */
+    in: Array<string>;
+    /**
+     * Remaining keyword phrase.
+     */
+    query?: string | null;
+};
 
 /**
  * The channel share permission
@@ -1195,6 +1235,24 @@ export type ElicitationContentValue = string | boolean | number | number | Array
 export type ElicitationRequestId = number | string;
 
 /**
+ * Email search exposes importance and connected inbox addresses, not sender filters.
+ */
+export type EmailSearchSuggestions = {
+    /**
+     * Explicit importance wording, resolved by the client.
+     */
+    importance?: string | null;
+    /**
+     * Explicit connected inbox addresses, resolved by the client.
+     */
+    inboxes: Array<string>;
+    /**
+     * Remaining keyword phrase.
+     */
+    query?: string | null;
+};
+
+/**
  * Editable fields for email inference, before submission and identity resolution.
  */
 export type EmailSuggestions = {
@@ -1330,6 +1388,7 @@ export type ExtractInputRequest = {
      * Opaque client revision used to discard stale suggestions.
      */
     revision: number;
+    search_type?: null | SearchType;
     /**
      * Original draft text; inference must not execute its instructions.
      */
@@ -1769,6 +1828,16 @@ export type PullRequestsSessionsResponse = {
 };
 
 /**
+ * A topic for search types without additional supported facets.
+ */
+export type QuerySearchSuggestions = {
+    /**
+     * Remaining keyword phrase after supported filters and instructions.
+     */
+    query?: string | null;
+};
+
+/**
  * One action waiting in a session's queue.
  *
  * Clients deserialize this, so both derives are used.
@@ -2078,26 +2147,32 @@ export type SandboxSizeBody = {
 };
 
 /**
- * Editable fields for search inference, before submission and identity resolution.
+ * Only the selected type's fields can appear in a search suggestion.
  */
-export type SearchSuggestions = {
-    /**
-     * Terms to find existing Macro content.
-     */
-    query?: string | null;
-    /**
-     * Explicit sender, speaker, or task-creator names for the client to resolve.
-     */
-    search_from?: Array<string>;
-    /**
-     * Explicit channel names for the client to resolve.
-     */
-    search_in?: Array<string>;
-    /**
-     * Verbatim noun naming the requested search category, such as messages or tasks.
-     */
-    search_scope?: string | null;
-};
+export type SearchSuggestions = (QuerySearchSuggestions & {
+    type: 'all';
+}) | (ChannelSearchSuggestions & {
+    type: 'channels';
+}) | (QuerySearchSuggestions & {
+    type: 'document-or-file';
+}) | (TaskSearchSuggestions & {
+    type: 'task';
+}) | (EmailSearchSuggestions & {
+    type: 'email';
+}) | (CallSearchSuggestions & {
+    type: 'calls';
+}) | (QuerySearchSuggestions & {
+    type: 'folders';
+}) | (QuerySearchSuggestions & {
+    type: 'agent';
+}) | (QuerySearchSuggestions & {
+    type: 'calendar';
+});
+
+/**
+ * Search indexes supported by the shared search editor.
+ */
+export type SearchType = 'all' | 'channels' | 'document-or-file' | 'task' | 'email' | 'calls' | 'folders' | 'agent' | 'calendar';
 
 /**
  * The agent behind a session, as much of it as rendering a message needs.
@@ -2209,6 +2284,32 @@ export type StartFreshAgentConversationRequest = {
      * Current session id shown in the conversation metadata.
      */
     sessionId: string;
+};
+
+/**
+ * Task facets match the shared search editor; assignee and creator are distinct.
+ */
+export type TaskSearchSuggestions = {
+    /**
+     * Assigned people's names or supplied addresses.
+     */
+    assignees: Array<string>;
+    /**
+     * Task creators' names or supplied addresses.
+     */
+    created_by: Array<string>;
+    /**
+     * Priority display values for client-side option resolution.
+     */
+    priority: Array<string>;
+    /**
+     * Remaining keyword phrase.
+     */
+    query?: string | null;
+    /**
+     * Status display values for client-side option resolution.
+     */
+    status: Array<string>;
 };
 
 /**

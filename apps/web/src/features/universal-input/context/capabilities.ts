@@ -4,6 +4,7 @@ import type { RecipientSelectorProps } from '@core/component/RecipientSelector';
 import type { LexicalEditor } from 'lexical';
 import type { JSX } from 'solid-js';
 import type { RosterAgent } from '../../agents-view/core/roster';
+import type { SearchTypeValue } from '../../next-soup/core/search-filters';
 
 import type {
   Draft,
@@ -61,7 +62,8 @@ export interface InputCapabilities {
   extract(
     text: string,
     intent: Intent,
-    revision: number
+    revision: number,
+    searchType?: SearchTypeValue
   ): Promise<{ revision: number; intent: Intent; suggestions: Suggestions }>;
   submit(input: Submission): Promise<SubmissionResult>;
   saveEmailDraft(input: Submission): Promise<SubmissionResult>;

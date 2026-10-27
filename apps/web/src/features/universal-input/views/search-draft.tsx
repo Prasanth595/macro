@@ -20,7 +20,8 @@ export function SearchDraft(props: {
     resolveSearchFilters(
       props.state.fields().searchFilters,
       props.actions.people(),
-      props.actions.searchChannels()
+      props.actions.searchChannels(),
+      props.actions.inboxes()
     )
   );
   return (

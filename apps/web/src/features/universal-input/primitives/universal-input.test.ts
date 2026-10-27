@@ -158,6 +158,30 @@ describe('universal draft lifecycle', () => {
     await tick();
     expect(state.fields().query).toBe('budget');
   });
+  it('keeps a manually chosen search type in later extraction requests', async () => {
+    const capabilities = source({
+      classify: vi.fn(async (_text, revision) => ({
+        revision,
+        scores: scored('search'),
+      })),
+    });
+    const state = mount(capabilities);
+    state.setText('search messages from Julia about android');
+    await tick();
+    state.edit(
+      'searchFilters',
+      JSON.stringify(searchFiltersSchema.parse({ type: 'task' }))
+    );
+    state.setText('search messages from Julia about android updates');
+    await tick();
+    expect(capabilities.extract).toHaveBeenLastCalledWith(
+      'search messages from Julia about android updates',
+      'search',
+      expect.any(Number),
+      'task'
+    );
+    expect(JSON.parse(state.fields().searchFilters).type).toBe('task');
+  });
   it('pauses search after failed filter extraction until both fields are explicitly chosen', async () => {
     const extract = vi.fn(
       async (_text: string, intent: Intent, revision: number) => ({

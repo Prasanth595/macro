@@ -1,14 +1,5 @@
 # Type Alias: SearchSuggestions
 
-> **SearchSuggestions** = \{ `query?`: `string` \| `null`; `search_from?`: `string`[]; `search_in?`: `string`[]; `search_scope?`: `string` \| `null`; \}
+> **SearchSuggestions** = [`QuerySearchSuggestions`](QuerySearchSuggestions.md) & \{ `type`: `"all"`; \} \| [`ChannelSearchSuggestions`](ChannelSearchSuggestions.md) & \{ `type`: `"channels"`; \} \| [`QuerySearchSuggestions`](QuerySearchSuggestions.md) & \{ `type`: `"document-or-file"`; \} \| [`TaskSearchSuggestions`](TaskSearchSuggestions.md) & \{ `type`: `"task"`; \} \| [`EmailSearchSuggestions`](EmailSearchSuggestions.md) & \{ `type`: `"email"`; \} \| [`CallSearchSuggestions`](CallSearchSuggestions.md) & \{ `type`: `"calls"`; \} \| [`QuerySearchSuggestions`](QuerySearchSuggestions.md) & \{ `type`: `"folders"`; \} \| [`QuerySearchSuggestions`](QuerySearchSuggestions.md) & \{ `type`: `"agent"`; \} \| [`QuerySearchSuggestions`](QuerySearchSuggestions.md) & \{ `type`: `"calendar"`; \}
 
-Editable fields for search inference, before submission and identity resolution.
-
-## Properties
-
-| Property | Type | Description |
-| ------ | ------ | ------ |
-| <a id="property-query"></a> `query?` | `string` \| `null` | Terms to find existing Macro content. |
-| <a id="property-search_from"></a> `search_from?` | `string`[] | Explicit sender, speaker, or task-creator names for the client to resolve. |
-| <a id="property-search_in"></a> `search_in?` | `string`[] | Explicit channel names for the client to resolve. |
-| <a id="property-search_scope"></a> `search_scope?` | `string` \| `null` | Verbatim noun naming the requested search category, such as messages or tasks. |
+Only the selected type's fields can appear in a search suggestion.
