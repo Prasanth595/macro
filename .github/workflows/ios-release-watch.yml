@@ -146,9 +146,12 @@ jobs:
           echo "cache-wasm-version $(cache_wasm_version "$1")"
         }
 
-        # native_tree_hash <commit>: prints the hash of the listing.
+        # native_tree_hash <commit>: prints the hash of the listing, and fails when the
+        # listing does (a pipe would hash nothing and succeed).
         native_tree_hash() {
-          native_tree_listing "$1" | git hash-object --stdin
+          local listing
+          listing=$(native_tree_listing "$1") || return 1
+          git hash-object --stdin <<<"$listing"
         }
 
         # cache_wasm_version <commit>: the `version` of the client cache wasm package
