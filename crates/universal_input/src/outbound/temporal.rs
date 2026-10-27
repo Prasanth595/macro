@@ -37,13 +37,14 @@ impl AgentTemporalExtractor {
     /// Exact production instructions, including the schema read by the model.
     pub fn prompt(intent: InputIntent, schema: &Value) -> String {
         let task = if intent == InputIntent::Task {
-            "\nFor this TASK draft extract ONLY an explicitly supplied task deadline as start-role facts. Ignore discussion-topic dates and scheduling requests inside quoted content. Return no end, duration or recurrence facts. With no deadline, return {\"expressions\":[],\"recurrence\":[]}."
+            concat!("\n", include_str!("../../prompts/temporal_task_prompt.txt")).trim_end()
         } else {
             ""
         };
+        let output = include_str!("../../prompts/temporal_output_prompt.txt").trim_end();
         format!(
-            "{}{task}\nReturn only JSON matching this native schema:\n{schema}",
-            include_str!("temporal_prompt.txt").trim_end()
+            "{}{task}\n{output}\n{schema}",
+            include_str!("../../prompts/temporal_prompt.txt").trim_end()
         )
     }
 }

@@ -7,7 +7,9 @@ Read-only intent classification and editable field extraction for Command K.
   temporal expressions against the request clock and timezone. Providers interpret natural language;
   domain validation must not re-parse it with regexes. `domain/fallback.rs` owns provider failover policy.
   Search extraction identifies filters before the remaining topic; typed and generative
-  providers share `domain/extract_search_query_prompt.txt` so filter-only searches have no query.
+  providers share `prompts/extract_search_query_prompt.txt` so filter-only searches have no query.
+- `prompts/` holds all extraction instructions, including typed field guidance
+  and temporal task/output instructions; see `prompts/README.md` for the file map.
 - `src/outbound.rs` implements the field-extraction port through the shared
   model router; `outbound/clairic.rs` implements Cloudflare typed content extraction,
   rejects search field claims that reuse source occurrences, and

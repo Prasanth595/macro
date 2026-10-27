@@ -20,7 +20,7 @@ pub use suggestions::*;
 pub mod temporal;
 
 /// Domain-owned guidance for how the inference port interprets a draft.
-pub const FIELD_EXTRACTION_GUIDANCE: &str = include_str!("domain/extract_fields_prompt.txt");
+pub const FIELD_EXTRACTION_GUIDANCE: &str = include_str!("../prompts/extract_fields_prompt.txt");
 
 /// A destination the composer can prepare, but never execute through inference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -59,17 +59,17 @@ impl InputIntent {
     /// Intent-specific interpretation policy, supplied through the inference port.
     pub fn extraction_guidance(self) -> &'static str {
         match self {
-            Self::Ai => "Return an empty JSON object.",
+            Self::Ai => include_str!("../prompts/extract_ai_prompt.txt").trim_end(),
             Self::Search => concat!(
-                include_str!("domain/extract_search_prompt.txt"),
+                include_str!("../prompts/extract_search_prompt.txt"),
                 "\n",
-                include_str!("domain/extract_search_query_prompt.txt")
+                include_str!("../prompts/extract_search_query_prompt.txt")
             ),
-            Self::Email => include_str!("domain/extract_email_prompt.txt"),
-            Self::Note => include_str!("domain/extract_note_prompt.txt"),
-            Self::Task => include_str!("domain/extract_task_prompt.txt"),
-            Self::Calendar => include_str!("domain/extract_calendar_prompt.txt"),
-            Self::Message => include_str!("domain/extract_message_prompt.txt"),
+            Self::Email => include_str!("../prompts/extract_email_prompt.txt"),
+            Self::Note => include_str!("../prompts/extract_note_prompt.txt"),
+            Self::Task => include_str!("../prompts/extract_task_prompt.txt"),
+            Self::Calendar => include_str!("../prompts/extract_calendar_prompt.txt"),
+            Self::Message => include_str!("../prompts/extract_message_prompt.txt"),
         }
     }
 }

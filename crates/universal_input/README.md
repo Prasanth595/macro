@@ -19,6 +19,10 @@ submission uses the existing destination services and their permission
 checks. The domain service validates input and checks AI admission before calling
 either provider. Usage is recorded through the shared recorder.
 
+All extraction instructions live in [prompts/](prompts/README.md): shared and
+intent-specific guidance, individual Clairic fields, and temporal instructions.
+Rust embeds these files and assembles them with schemas and task-property data.
+
 The crate owns its authenticated Axum router. `agent_harness_service` mounts
 `POST /universal_input/classify` and `POST /universal_input/extract` directly,
 without the cognition prefix. The harness root composes providers. Configure the existing

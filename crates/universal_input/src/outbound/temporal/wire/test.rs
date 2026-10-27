@@ -56,7 +56,7 @@ fn prompt_examples_match_the_actual_strict_schema_and_typed_adapter() {
             description: None,
         })
         .unwrap();
-    for line in include_str!("../../temporal_prompt.txt").lines() {
+    for line in include_str!("../../../../prompts/temporal_prompt.txt").lines() {
         if let Some(example) = line.strip_prefix("JSON: ") {
             let value: Value = serde_json::from_str(example).unwrap();
             validator.validate(&value).unwrap();
