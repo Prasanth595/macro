@@ -13,6 +13,10 @@ This creates a Markdown document named after the meeting, links it with meeting
 viewer access, and opens it immediately. Team access starts off. A meeting can
 have multiple notes; **Create** and **Link** remain on the section title row
 so you can keep creating notes or linking existing documents.
+Both actions are available while notes load. Reopening a recently viewed event
+uses cached notes immediately while stale data refreshes in the background.
+The picker can open while existing links load, but submission waits for that
+check so selecting an already-linked note cannot change its sharing.
 
 Choose **Link** to search the titles of Markdown documents you own, select one, review
 the sharing explanation, and optionally include your existing team before
@@ -26,6 +30,10 @@ from current Macro team memberships; they do not introduce departments or subtea
 Linked meetings also appear in the note’s side-panel **References** section.
 Only readers with meeting-detail access see those references; owners retain safe
 unavailable-meeting entries.
+Click a meeting reference to reopen that exact occurrence. If the calendar
+backend has not yet deployed embedded reference previews, the dialog reports
+that meeting details are temporarily unavailable and offers **Retry**. Missing
+fields must not be described as removed meeting access.
 
 Open the linked title to read the original document. On desktop it opens in a
 new split; on mobile it replaces the calendar pane and closes event details.
@@ -39,8 +47,10 @@ removes this meeting’s grants without deleting the document. Keep the labeled
 Options button visible beside long titles; truncate the title without widening
 the event details. Labeled note controls do not need extra hover tooltips.
 The linking dialog uses a wider desktop layout and a phone sheet. Only the
-document results scroll. The picker uses the calendar notes endpoint’s title
-search (up to 30 recently updated owned Markdown documents), not full-text search. The meeting context,
+document results scroll. The picker starts with owned Markdown matches from
+Quick Access's local cache, then adds the calendar notes endpoint's title
+results (up to 30 per query), not full-text search. Matching results stay visible
+while typing and searches are cached across opens. The meeting context,
 sharing controls, and action buttons stay visible, including in a short viewport.
 A former team’s grant can be removed in Share while the meeting is still visible;
 unlinking remains available even if the meeting is no longer accessible.
@@ -56,6 +66,10 @@ links** (inside **Link** on mobile). Every saved link remains removable here eve
 if the meeting was cancelled, fell outside the sync window, or stopped being
 shared with the owner. **Unlink** asks before removing its meeting/team grants.
 Unavailable meetings use a safe label rather than revealing private details.
+Checking **Also share with Macro** also updates **Team access** to **View via
+meeting** when there is no direct team grant. The dropdown's **Use meeting
+access** option removes only additional direct sharing; uncheck the meeting's
+checkbox to remove its team grant. Unlink stays in place while a team save runs.
 
 Full-detail team events expose the same note controls; provider actions such as
 editing the event or RSVPing stay unavailable. Busy-only team entries and
@@ -152,6 +166,14 @@ responses: switch Month/Week/Day rapidly and navigate without blanking the grid.
 Confirm mixed event shapes, stable positions, clean handoff, and an uncovered Retry.
 Reduced-motion mode disables pulses and transitions. The page stays busy until the
 handoff starts. Hidden pages do not animate. Resize to confirm skeleton alignment.
+
+Imported Google all-day events whose start and end dates match display as one day.
+This also applies to recurring instances and moved exceptions. Sync keeps the
+original provider dates without editing the Google event; reversed dates remain
+invalid. Verify that a calendar containing both such an all-day event and an
+ordinary timed event completes sync and shows both.
+The [calendar component fixture](media/calendar-import/one-day.png) shows a
+normalized one-day occurrence beside a timed event on the same date.
 
 Imported timed events with identical start and end are points: they show a compact
 chip with one time and `No duration` in details, and do not block availability.
@@ -1378,3 +1400,5 @@ not create another copy while the existing operation is unresolved. Events with
 native details that cannot be safely copied are rejected before any invitations.
 For an Outlook invitation you attend, `Open in Outlook` below the RSVP controls
 opens the actual occurrence so you can clear your own response there.
+
+Calendar's New menus explain Event, Call, and Booking link with icons and muted descriptions. Call and Booking link keep their existing feature gates. Booking link opens the personal Scheduling workspace with an unsaved link editor; canceling creates nothing. The URL request is consumed once after the profile is ready.

@@ -67,6 +67,41 @@ the gateway `/email` prefix.
   calendar refresh so unrelated invitation updates retain teammates' OOO rows.
 - Spawn `run_transfers` regardless of the Outlook flags. Gmail inbox moves
   finish there; with writes off it pauses only the Outlook retire step.
+- Every `GmailApi` call takes a permit from `RedisGmailRequestGate`
+  (`outbound/email_api/gmail_gate.rs`): per mailbox it caps requests in
+  flight and quota units per window, and pauses after a Gmail 429 (live work
+  for a second, backfill for at least 10 s). A "Too many concurrent requests"
+  429 also lowers that mailbox's in-flight cap, which then rises by one a
+  minute back to five; backfill gets what the cap leaves above two. It fails
+  closed, so a Redis outage surfaces as local rate limits. Consumers must
+  requeue or redeliver a rate-limited message, never drop it. Up to twelve
+  refused backfill requests per mailbox wait up to 20 s for room so backfill's
+  slots don't idle; the rest are sent back as new, delayed messages
+  (`pubsub/backfill/deferral.rs`), because waiting out the visibility timeout
+  would spend the queue's 20 deliveries.
+  Inbox sync releases the upload claims of a refused attachment fetch and
+  requeues the upsert, because a claimed attachment is never offered again.
+- Backfill message writes hold one of twenty fleet-wide Redis write slots
+  (`util/redis/backfill_write_slots.rs`), however many workers and tasks run,
+  so a large backfill can't queue enough writers on the primary to slow every
+  other query. A write waits up to 10 s for a slot and is then deferred like a
+  rate limit; Redis failing to decide also defers it. Run the write through
+  `BackfillWriteSlot::hold`, which renews the 120 s lease while the write runs,
+  so a stalled write can't lose its slot to another writer. Live inbox
+  sync writes take no slot. Keep new bulk backfill writes behind the same slots.
+- `gmail_ops` workers decode both label write forms: single-message
+  `ModifyMessageLabels` and `ModifyMessageLabelsBatch` (up to 1,000 messages;
+  one `batchModify` from ten messages up, separate `messages.modify` calls
+  below that, at 5 units each against a flat 50; a permanent failure reverts
+  the whole batch). Producers send the batch form only with
+  `GMAIL_LABEL_WRITE_BATCHES_ENABLED` (here and in `document_storage_service`,
+  default off), because workers released before it delete batches as
+  undecodable. Rollout: deploy with the switch off; once every
+  `pubsub_workers` task runs that release, set it to `true` in the
+  `email-service` and `document-storage` Doppler projects (dev, then prd) and
+  redeploy both services. Before rolling workers back past that release, turn
+  it off and let the gmail-ops queues drain. Retire the single-message form
+  only after every producer sends batches.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
   Skip the bad address with a WARN that omits it (the parse error echoes it)
   instead of failing the step; see `pubsub::util::build_contact_connections`.

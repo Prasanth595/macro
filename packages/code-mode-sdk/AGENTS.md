@@ -12,14 +12,18 @@ HTML worker belong to `packages/sdk-docs`.
 - `scripts/typedoc.ts`: index each entity and split linked Markdown into
   per-symbol references (classes, methods, types).
 - `scripts/catalog.ts`: compact entity descriptions; agent and harness docs share
-  a topic so discovery stays within its 32-question classifier limit.
+  a topic, as do native channels and standalone WhatsApp groups, so discovery stays
+  within its 32-question classifier limit.
 - `src/index.ts`: public SDK exports used by programs.
 
 ## Tool contracts
 
+- WhatsApp sends/uploads use only the credential owner's connection and accept their session or own API token (including signed agent attribution); bots never send. Pairing and account/access controls require the person's session.
 - Agent documentation excludes the legacy chats/workspace namespaces and their Macro properties; public SDK APIs remain compatible for existing callers.
 
 ## Checks
+
+- Run root `just check` for formatting; CodeMode uses `apps/web/biome.jsonc`, while the standalone SDK has its own formatter.
 
 - `bun run generate`, then `bun run check:generated`.
 - `bun run type-check` and `bun run test`.

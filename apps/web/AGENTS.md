@@ -16,6 +16,8 @@
 
 ## Verifying a change in a real browser
 
+During iterative visual tweaks, use focused browser verification; defer full typechecks and CI checks until the batch is ready or the user requests them.
+
 Any user-visible change should be exercised in a browser before you call it fixed — type-check, biome, and vitest all pass on code that still has the interaction bug.
 
 Split dragging and composer reflow have a backend-free browser regression:
@@ -45,9 +47,17 @@ sample data; keep notes aligned with those existing surfaces and preserve their
 dialog open guards. Open the existing document Share dialog for note access,
 keep labeled Options controls visible beside truncated titles without redundant
 hover tooltips, and use existing team memberships for optional note sharing.
+Keep meeting-note reads cached across event opens, show cached Quick Access
+matches while note searches refresh, and keep event actions usable while notes
+load. Show meeting-derived team viewing in the document's Team access summary;
+keep it distinct from additional direct sharing and keep Unlink stable while
+team access saves.
 Include linked meetings in Markdown side-panel References, behind the same flag;
 reuse the shared single-line ReferenceRow with the title and date inline, and
 resolve meeting details and opening targets through authorized calendar previews.
+Treat missing reference projection fields during backend rollout as unresolved,
+not denied; offer Retry on the links query without bypassing the server's
+reference authorization.
 Gate event notes and document Share meeting-link controls with
 `enable-calendar-meeting-notes` before mounting their query sources; it defaults
 on in dev and uses PostHog in production.
@@ -104,6 +114,15 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 ## Canvas collaboration
 
+Document sync uses the `sync-via-gateway` PostHog flag in both deployed dev and
+production. Off or unknown flag values use direct sync sockets.
+Local stacks with `sync_router` can opt in with `VITE_SYNC_VIA_GATEWAY=true`;
+`false` forces direct sync. The choice is made when a sync source is created
+and stays fixed for its lifetime. PostHog can serve a cached value on reload;
+recreate document sessions after the client receives the updated flag to change
+transport. This is not an immediate kill switch for open sessions. Provision
+the hosted router before enabling.
+
 Saved canvases use the shared Loro runtime; the stored JSON is only the original
 migration seed. Keep whole-file simple-save out of scene editing. Canvas
 initialization, WAL/snapshot recovery and teardown live in
@@ -140,12 +159,20 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 - Share URL recognition with `packages/lexical-core/utils/auto-link.ts`; preserve explicit unlink markers when saving and rendering messages. See `packages/lexical-core/README.md` at the repository root.
 - Empty human DMs use the shared centered conversations graphic and explain email delivery to nonusers; keep this state out of agent DMs, loading/error states, and populated timelines.
+- Main Tasks mounts reusable GraphQL saved views; keep embedded Project/CRM task lists unchanged. Read `src/features/tasks-view/AGENTS.md` for filter, draft, navigation, and browser checks.
 - Enable persisted email/calendar review controls only for the review’s saved acting account; historical reviews fall back to the session owner. Require session edit access on desktop and mobile.
 - Email draft reads compare server generations before choosing cached delivery state over a restored working copy; only a definitive first-submission rejection permits local send recovery without server cancellation.
 - Compose settings pages with `features/settings/primitives.tsx` so section headings,
   raised composer cards (`SettingsSurface`), row spacing, and control shapes stay
   consistent; never hand-build a flat `bg-ink/*` card. Keep Integrations on the
   shared page width and side padding.
+- Preserve email signature HTML through import, preview, and source editing;
+  mount Quill only for explicit Rich text editing and confirm custom-layout
+  conversion. Keep the settings and composer preview on the same sanitized HTML
+  renderer. Phone settings show the preview with desktop-only editing. See the
+  [signature walkthrough](../../docs/agent-guide/settings.md#email-signatures)
+  for browser coverage. Keep signature commit callbacks on the mutation hook
+  so account-list remounts cannot leave an already-cleared draft behind.
 - Keep personal accounts and agent tool connections together in Settings → Integrations;
   preserve `agent-connections` as an alias for existing links.
 - Keep bot setup focused on the token-and-SDK workflow; Agent and Ownership
@@ -177,6 +204,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   Publish recovery reset outcomes before parking while retaining the read pause.
   Bound foreground resume reads to one second without killing an owner, stealing
   its lock, replaying writes, or treating intentional parking as a failure.
+- Retry still-current query reads once when engine replacement invalidates their
+  snapshot; do not strand urql's in-flight key or revive torn-down or superseded reads.
+  Keep network forwarding deduplicated and cache-only reads off the network.
 - Mobile dock customization shares the navigation island’s measured capacity; persist ordering per user with `mobile-dock-order.ts`, preserve gated destinations, and keep Search and More fixed. Reorder handles drag without a hold delay; the rest of each row scrolls.
 - Share sidebar and mobile dock unread presence through `components/app/use-navigation-unread.ts`; keep badges reactive to read/done changes, guard all query data with `queryReadyGate` so pending preferences or paused queries cannot suspend the shell, and avoid fetching extra pages for counts.
 - Name Home thread rows from their latest scoped notification, including document mentions and reactions; use the thread author only when no notification exists. Document rows whose newest outstanding notification is a comment, and calendar event rows whose newest is a join request, say who did it (`row-notification.ts`).
@@ -204,7 +234,6 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   and Tasks headers: title, filters, view options, New, expandable Search. Put sidebar search in
   `ViewSidebar.Header` so its icon precedes collapse and its field opens above New.
 - Keep desktop headers on the shared `ListHeader` / `HeaderActionGroup` pattern: view `Tabs` as pills after the title, 32px semantic islands with 8px gaps on the right, fully rounded elevated frames, New then expandable Search; preserve touch layouts. Pick each control by role from the [design system rule](../../.agents/rules/web/design-system.md); see [UI conventions](../../docs/agent-guide/ui-conventions.md#top-bars). Never use recessed/inset backgrounds in headers.
-- Keep desktop model and effort controls separate: the model selector opens the catalog and the speedometer opens the runtime's advertised slider stops; retain the mobile effort sheet.
 - Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - Diagnose native full reloads with `native_webview_started`, `native_diagnostic_recovered`, and the shared `frontend_instance_id`; use `reloadApp(reason)` for frontend reloads and keep breadcrumbs content-free. Treat `previous_document_*` checkpoints as last-observed lifecycle evidence, never a crash verdict; clear them on logout. `previous_document_last_*` comes from the native navigation breadcrumb (route and entity type, never ids). See [frontend checkpoints](docs/native-reload-diagnostics.md) and `tauri/src-tauri/README.md`.
@@ -216,6 +245,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Compose multiselect filters with `Dropdown.MultiSelectItem` and the shared
   searchable filters; follow [multiselect dropdowns](../../docs/agent-guide/ui-conventions.md#multiselect-dropdowns)
   for checkbox, row, Only, keyboard, and touch behavior.
+- Keep adopted WhatsApp groups in External at `/external/whatsapp/:id` with their own queries; sharing controls viewing and the viewer's own WhatsApp membership controls sending. Never route them through channel context or services.
 - All API/network calls live in service-clients.
 - Open projects through `openProject` (`features/projects/open-project.ts`): it
   retargets an already-open project split to the section or comment in place.
@@ -279,6 +309,10 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Reactive GraphQL reads use `createLiveQuery` for a document and
   `useSoupAstItemsQuery` (backed by `createSoupLiveQuery`) for Soup lists; see
   [choosing a reactive read](docs/graphql-normalized-cache-plan.md#choosing-a-reactive-read).
+- Render user-visible text in new UI, and every menu and navigation label,
+  with `t()` from `@app/lib/i18n`, adding only the English to
+  `src/lib/i18n/locales/en/`. The periodic `update-translations` skill fills
+  in the other languages. See the [i18n rule](../../.agents/rules/web/i18n.md).
 - When adding or changing a feature flag, follow the `feature-flags` skill.
 - When adding or changing a view's feature tour, follow the `add-tour` skill.
 
@@ -286,7 +320,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 Conventions for this app live in `.agents/rules/web/` and load when you touch
 matching files: data fetching, Solid reactivity, architecture, UI, UI primitives,
-the startup bundle, and Lexical nodes.
+the startup bundle, Lexical nodes, and translated menu labels.
 
 ### Good Reference
 - https://github.com/solidjs-community/solid-primitives
@@ -336,8 +370,8 @@ Generate APNs validators with `scripts/generate-api-schema.ts`; its compact
 `generated/push.ts` entry avoids importing every notification-service schema
 on the startup path. Carry known channel root IDs in push navigation (a null
 `threadId` means the message itself is the root), prefetch the target window
-alongside channel metadata, and keep the channel loading shell stable until
-that target can be positioned.
+alongside channel metadata, and keep the shared Macro loading indicator visible
+until that target can be positioned.
 
 ## macOS notification activation
 
@@ -524,3 +558,14 @@ cards, the expanded viewer, and the shared Drive/standalone header on desktop,
 phone, and tablet:
 `bunx playwright test --config src/lib/core/component/FileDownload/browser-test/playwright.config.ts`.
 See the [download walkthrough](../../docs/agent-guide/files.md#downloading-files).
+
+## Interface icons
+- Task rows, document mention pills, and @mention menu rows use `TaskStatusIcon` with the current status property; use the task subtype completion flag only when a recognized status is unavailable. Mention pills show status only in that leading icon, not again among the trailing task badges. Keep generic navigation and creation icons independent of task state.
+- Read [the icon system rules](src/components/icon/system/README.md) before adding or changing interface icons or icon motion. Reuse the original Macro SVG family via individual `@icon/system/...` imports; do not introduce another icon set.
+- If a glyph is missing, author original SVG geometry on the 24-unit grid with round caps/joins, restrained detail, `currentColor`, and the documented theme-aware weight. Never trace or import proprietary symbol paths. Match active/bold variants and review 14/16/20/24 px in light and dark mode.
+- Interactive glyphs use the shared `installIconMotion` behavior; do not add per-button bounce/spin effects. Keep state indicators static, preserve accessible control names, and honor reduced motion. See the icon README for wrapper and opt-out attributes.
+
+### Creation choices and notifications
+
+- Reuse `CreateMenuItem` for explanatory New menu entries: original icons, a title, and muted wrapping descriptions, preserving the existing `ViewCreateButton` trigger and each action's feature gates.
+- Keep transient toasts in their bounded stack and persistent prompts/reminders in separate regions; preserve keyboard dismissal, full mobile descriptions, and remaining-time pause on hover/focus.

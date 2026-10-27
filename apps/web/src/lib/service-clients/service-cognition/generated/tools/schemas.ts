@@ -4317,6 +4317,9 @@ export const CreateRoutine = z.object({
         });
       }
     }),
+    requiredApps: z
+      .array(z.object({ appSlug: z.string(), name: z.string() }))
+      .optional(),
   }),
 });
 
@@ -16020,6 +16023,7 @@ export const ShareWithChannel = z.object({
       z.literal('call'),
       z.literal('thread'),
       z.literal('agent_session'),
+      z.literal('whatsapp_group'),
       z.literal('chat'),
     ];
     const errors = schemas.reduce<z.ZodError[]>(
@@ -16053,6 +16057,7 @@ export const ShareWithChannelResponse = z.object({
       z.literal('call'),
       z.literal('thread'),
       z.literal('agent_session'),
+      z.literal('whatsapp_group'),
       z.literal('chat'),
     ];
     const errors = schemas.reduce<z.ZodError[]>(
@@ -16826,6 +16831,9 @@ export const UpdateRoutine = z.object({
               });
             }
           }),
+          requiredApps: z
+            .array(z.object({ appSlug: z.string(), name: z.string() }))
+            .optional(),
         }),
         type: z.literal('configuration'),
       }),
