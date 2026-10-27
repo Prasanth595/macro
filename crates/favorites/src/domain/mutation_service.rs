@@ -99,6 +99,7 @@ fn validate_favoritable(entity_type: EntityType) -> Result<(), FavoritesError> {
         | EntityType::CrmCompany
         | EntityType::CrmContact
         | EntityType::WhatsAppGroup
+        | EntityType::AgentSession
         | EntityType::Database
         | EntityType::Form => Ok(()),
         EntityType::User
@@ -108,7 +109,6 @@ fn validate_favoritable(entity_type: EntityType) -> Result<(), FavoritesError> {
         | EntityType::CalendarEvent
         | EntityType::Reminder
         | EntityType::Skill
-        | EntityType::AgentSession
         | EntityType::ScheduledAction
         | EntityType::Initiative
         | EntityType::CrmPipeline
