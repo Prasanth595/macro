@@ -123,8 +123,16 @@ export type BuildTaskQueryOptions = {
 };
 
 /** The Soup CRM association naming the record. */
-export const taskCrmAssociation = (crm: TaskCrmScope) =>
-  crm.type === 'company' ? { company: crm.id } : { contact: crm.id };
+export const taskCrmAssociation = (crm: TaskCrmScope) => {
+  switch (crm.type) {
+    case 'activity':
+      return 'activity' as const;
+    case 'company':
+      return { company: crm.id };
+    case 'contact':
+      return { contact: crm.id };
+  }
+};
 
 /** Builds the concrete Soup AST used only by the production Tasks view. */
 export function buildTaskQuery(
