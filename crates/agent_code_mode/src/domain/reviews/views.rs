@@ -63,6 +63,19 @@ impl ReviewService {
         self.present_view_owned(session.id, input).await
     }
 
+    /// The span records how big the view was and how many problems turned it
+    /// back, never what it holds.
+    #[tracing::instrument(
+        name = "view.present",
+        skip_all,
+        fields(
+            session_id = %session,
+            from_code = input.execution_id.is_some(),
+            view_bytes = tracing::field::Empty,
+            problems = tracing::field::Empty,
+        ),
+        err
+    )]
     async fn present_view_owned(
         &self,
         session: AgentSessionId,
@@ -74,12 +87,14 @@ impl ReviewService {
         let size = serde_json::to_vec(&input.view)
             .map_err(|_| invalid())?
             .len();
+        tracing::Span::current().record("view_bytes", size);
         if size > MAX_VIEW_BYTES {
             return Err(CodeModeError::Invalid(format!(
                 "The view was not presented: it is {size} bytes, over the {MAX_VIEW_BYTES}-byte limit. Present fewer widgets."
             )));
         }
         let problems = dynamic_ui::view_problems(&input.view);
+        tracing::Span::current().record("problems", problems.len());
         if !problems.is_empty() {
             return Err(CodeModeError::Invalid(problems_message(&problems)));
         }
