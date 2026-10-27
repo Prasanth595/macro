@@ -2234,6 +2234,7 @@ dependencies = [
  "tracing",
  "url",
  "urlencoding",
+ "user_language",
  "user_quota",
  "utoipa",
  "utoipa-swagger-ui",
@@ -3814,6 +3815,7 @@ dependencies = [
  "urlencoding",
  "utoipa",
  "uuid",
+ "wiremock",
  "workspace-hack",
 ]
 
@@ -4784,6 +4786,7 @@ dependencies = [
  "notification",
  "predicate-index",
  "rootcause",
+ "saved_views",
  "scheduled_action",
  "serde",
  "serde_json",
@@ -4897,6 +4900,7 @@ dependencies = [
  "model-entity",
  "models_bulk_upload",
  "opentelemetry",
+ "postcard",
  "redis",
  "secretsmanager_client",
  "serde",
@@ -4937,7 +4941,9 @@ dependencies = [
 name = "connection_gateway_models"
 version = "0.1.0"
 dependencies = [
+ "macro_user_id",
  "model-entity",
+ "postcard",
  "serde",
  "serde_json",
  "utoipa",
@@ -13042,6 +13048,9 @@ version = "0.1.0"
 dependencies = [
  "macro_user_id",
  "serde",
+ "serde_json",
+ "sqlx",
+ "strum 0.27.2",
  "utoipa",
  "uuid",
  "workspace-hack",
@@ -13073,6 +13082,7 @@ dependencies = [
  "fractional_index",
  "macro_user_id",
  "macro_uuid",
+ "nom 8.0.0",
  "schemars 1.2.1",
  "serde",
  "serde_json",
@@ -17155,11 +17165,16 @@ dependencies = [
 name = "saved_views"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
+ "macro_db_migrator",
  "macro_uuid",
+ "rootcause",
  "serde",
  "serde_json",
  "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
  "tracing",
  "utoipa",
  "uuid",
@@ -19475,6 +19490,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "sync_router"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bebop",
+ "connection_gateway_models",
+ "futures",
+ "macro_entrypoint",
+ "macro_env_var",
+ "mockall",
+ "opentelemetry",
+ "postcard",
+ "redis",
+ "sync_service_bebop_schema",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-tungstenite 0.28.0",
+ "tracing",
+ "tracing-opentelemetry",
+ "workspace-hack",
+]
+
+[[package]]
 name = "sync_service"
 version = "0.1.0"
 dependencies = [
@@ -20979,6 +21017,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "user_language"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "macro_authorization",
+ "macro_db_migrator",
+ "macro_user_id",
+ "model-error-response",
+ "model_user",
+ "rootcause",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "workspace-hack",
+]
+
+[[package]]
 name = "user_link_cleanup_handler"
 version = "0.1.0"
 dependencies = [
@@ -21624,6 +21681,7 @@ dependencies = [
  "entity_access",
  "entity_access_db_utils",
  "macro_db_migrator",
+ "macro_user_id",
  "sqlx",
  "tokio",
  "tokio-util",
@@ -21734,6 +21792,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "tracing-subscriber",
  "uuid",
  "whatsapp_fake_server",
  "whatsapp_linked",

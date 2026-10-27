@@ -2411,6 +2411,7 @@
       "crates/teams",
       "crates/trigger_context",
       "crates/unfurl",
+      "crates/user_language",
       "crates/user_quota",
       "crates/workspace-hack",
       "services/authentication_service"
@@ -4159,6 +4160,7 @@
       "crates/remote_env_var",
       "crates/roles_and_permissions",
       "crates/s3_key",
+      "crates/saved_views",
       "crates/scheduled_action",
       "crates/secretsmanager_client",
       "crates/share_permission_db_utils",
@@ -4273,12 +4275,14 @@
       "crates/connection_gateway_models",
       "crates/cowlike",
       "crates/macro_tower_layers",
+      "crates/macro_user_id",
       "crates/model-entity",
       "crates/workspace-hack"
     ],
     "connection_gateway_models": [
       "crates/connection_gateway_models",
       "crates/cowlike",
+      "crates/macro_user_id",
       "crates/model-entity",
       "crates/workspace-hack"
     ],
@@ -13377,6 +13381,18 @@
       "crates/stream",
       "crates/workspace-hack"
     ],
+    "sync_router": [
+      "crates/connection_gateway_models",
+      "crates/cowlike",
+      "crates/macro_entrypoint",
+      "crates/macro_env",
+      "crates/macro_env_var",
+      "crates/macro_user_id",
+      "crates/model-entity",
+      "crates/workspace-hack",
+      "services/sync-router",
+      "services/sync-service/bebop-schema"
+    ],
     "sync_service": [
       "crates/macro_sync_service_jwt",
       "crates/worker-rs-otel",
@@ -13861,6 +13877,23 @@
       "crates/model_user",
       "crates/remote_env_var",
       "crates/user_api_key",
+      "crates/workspace-hack"
+    ],
+    "user_language": [
+      "crates/bot_id",
+      "crates/bot_token",
+      "crates/cowlike",
+      "crates/harness_id",
+      "crates/harness_token",
+      "crates/macro_auth",
+      "crates/macro_authorization",
+      "crates/macro_env",
+      "crates/macro_env_var",
+      "crates/macro_user_id",
+      "crates/model-error-response",
+      "crates/model_user",
+      "crates/remote_env_var",
+      "crates/user_language",
       "crates/workspace-hack"
     ],
     "user_link_cleanup_handler": [

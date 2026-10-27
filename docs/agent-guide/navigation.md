@@ -58,8 +58,11 @@ mutation confirmations wait for storage instead of being sent twice.
 
 Verify the all-hidden case without activating the former owner: no held physical
 owner lock after parking, preserved generation/queue, and successful reads/writes
-from a returning tab. Also verify a pending HTTP response settling after parking
-and multiple surviving clients. A drain that Safari has already suspended still
+from a returning tab. Start a query while parked, resume storage from another
+tab, and verify that the original query completes—not just a fresh query key.
+Replacement must not strand an in-flight query when it invalidates its snapshot;
+cache-only reads still never use the network. Also verify a pending HTTP response
+settling after parking and multiple surviving clients. A drain that Safari has already suspended still
 waits for that worker to resume; no deadline kills it or steals its lock. Lifecycle
 telemetry uses `park-started`, `parked`, `unpark-started`, `unpark-completed`, and
 `visibility-handoff-*` owner events.
@@ -72,6 +75,18 @@ Repeat through another handoff and while requests are pending. Interrupted
 optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
 `ownerEvent: coordinator-restarted` distinguishes this from engine replacement
 or a BFCache restore.
+
+Separately, leaving the creating page while its SharedWorker is still downloading
+can fail the survivor before its first ready frame. In an isolated Safari fixture,
+hold that download, connect a second page, and navigate the creator through a
+normal link. Release the asset and verify the survivor initializes on its bounded
+registration retries without a reload. Retries wait 100 ms and 200 ms; navigating
+or disposing the survivor during either wait must stop further constructors.
+Verify BFCache restoration starts fresh without resurrecting the canceled retry.
+Use `graphql_cache.registration_retry` to inspect wait timing and cancellation;
+preserve the scope, existing queue, and conservative storage-failure handling.
+Do not inject this failure into a live account or mistake it for a repeated-ready
+loop.
 
 The same write-safety rule applies when an owner navigates away without restarting
 the coordinator: a surviving tab's enqueue may be committed even if its reply was
@@ -649,7 +664,7 @@ The inline `/app/debug/create-menu-demo` keeps all three layouts for comparison
 without creating data. Mobile continues to use its create sheet.
 
 On mobile, the bottom dock defaults to Notifications, Calendar, Email, Channels,
-Agents, Files, Tasks, Calls, CRM, Reviews, Scheduling,
+Agents, Files, Tasks, Calls, Customers, Reviews, Scheduling,
 and External. Feature-gated views
 appear only when enabled. The navigation island measures its width and fits as
 many fixed-size app buttons as possible, reserving room for More. Search stays

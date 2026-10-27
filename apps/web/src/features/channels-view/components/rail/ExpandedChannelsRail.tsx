@@ -293,8 +293,9 @@ function ChannelOption(props: {
         dnd?.droppable.ref(element);
       }}
       {...(canLabelChannel(props.channel) ? dnd?.draggable.dragActivators : {})}
-      onPointerDown={() => {
+      onPointerDown={(event) => {
         didDrag = false;
+        rail.prefetchRow(rowId(), event);
       }}
       class={cn(
         'min-w-0',
@@ -928,6 +929,9 @@ function RecentConversationCard(props: { channel: ChannelEntity }) {
         focused={item().focused}
         onActivate={(event) =>
           rail.activateRow(rowKeyForChannel(props.channel.id), event)
+        }
+        onPress={(event) =>
+          rail.prefetchRow(rowKeyForChannel(props.channel.id), event)
         }
       />
     </ChannelRailItemContextMenu>
