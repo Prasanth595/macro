@@ -10,6 +10,7 @@ import {
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import type { GroupByField } from '@queries/soup/grouped/types';
 import type { SoupAstBody, SoupAstItemsQueryArgs } from '@queries/soup/items';
+import { match } from 'ts-pattern';
 import {
   EMPTY_TASK_FACET_CONTEXT,
   TASK_FACETS,
@@ -123,16 +124,14 @@ export type BuildTaskQueryOptions = {
 };
 
 /** The Soup CRM association naming the record. */
-export const taskCrmAssociation = (crm: TaskCrmScope) => {
-  switch (crm.type) {
-    case 'activity':
-      return 'activity' as const;
-    case 'company':
-      return { company: crm.id };
-    case 'contact':
-      return { contact: crm.id };
-  }
-};
+export const taskCrmAssociation = (crm: TaskCrmScope) =>
+  match(crm)
+    .with({ type: 'activity' }, () => 'activity' as const)
+    .with({ type: 'company' }, ({ id }) => ({ company: id }))
+    .with({ type: 'contact' }, ({ id }) => ({ contact: id }))
+    .exhaustive(() => {
+      throw new Error('Unsupported CRM task scope');
+    });
 
 /** Builds the concrete Soup AST used only by the production Tasks view. */
 export function buildTaskQuery(
