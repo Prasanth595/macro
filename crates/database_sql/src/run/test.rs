@@ -363,6 +363,34 @@ fn aliases_name_the_result_columns_and_order_it() {
 }
 
 #[test]
+fn plain_rows_order_by_an_alias_or_a_position() {
+    for sql in [
+        "SELECT name AS deal, amount AS total FROM crm.deals ORDER BY total DESC, deal",
+        "SELECT name AS deal, amount AS total FROM crm.deals ORDER BY 2 DESC, 1",
+    ] {
+        let outcome =
+            pollster::block_on(run(&catalog(), sql, &source(deals()), &FakeSink::new())).unwrap();
+
+        assert_eq!(
+            outcome.rows,
+            vec![
+                vec![Some(Cell::Text("Acme".into())), Some(Cell::Number(12000.0))],
+                vec![
+                    Some(Cell::Text("Initech".into())),
+                    Some(Cell::Number(7000.0))
+                ],
+                vec![
+                    Some(Cell::Text("Globex".into())),
+                    Some(Cell::Number(3000.0))
+                ],
+                vec![Some(Cell::Text("Hooli".into())), None],
+            ],
+            "{sql}"
+        );
+    }
+}
+
+#[test]
 fn count_only_groups_ask_for_bins_not_rows() {
     let source = FakeSource {
         rows: deals(),
