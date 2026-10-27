@@ -39,7 +39,8 @@ continuing a stream with missing chunks. Other sockets are unaffected.
 The gateway resolves `macro_service_urls::SyncServiceUrl` at startup. Hosted dev
 and production use the existing sync-service origins; local Docker sets
 `OVERRIDE_SYNC_SERVICE_URL=http://sync-service:8787`. No new secret or Pulumi
-resource is needed. Deploy the updated gateway to every replica before enabling
-`sync-via-gateway`. The frontend selects its transport when a sync source is
-created; rollout updates do not move existing sessions. The env override
-`VITE_SYNC_VIA_GATEWAY=true` enables local testing.
+resource is needed. Overrides must be HTTP(S) origins without credentials,
+non-root paths, queries, or fragments. Deploy the updated gateway to every
+replica before enabling `sync-via-gateway`. The frontend selects its transport
+when a sync source is created; rollout updates do not move existing sessions.
+The env override `VITE_SYNC_VIA_GATEWAY=true` enables local testing.

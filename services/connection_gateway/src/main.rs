@@ -119,7 +119,13 @@ async fn main() -> Result<()> {
     )
     .context("invalid sync service URL")?;
     anyhow::ensure!(
-        matches!(sync_service_url.scheme(), "http" | "https") && sync_service_url.has_host(),
+        matches!(sync_service_url.scheme(), "http" | "https")
+            && sync_service_url.has_host()
+            && sync_service_url.path() == "/"
+            && sync_service_url.query().is_none()
+            && sync_service_url.fragment().is_none()
+            && sync_service_url.username().is_empty()
+            && sync_service_url.password().is_none(),
         "sync service URL must be an HTTP(S) origin",
     );
     let context = context::ApiContext {
