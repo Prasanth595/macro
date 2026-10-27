@@ -25614,7 +25614,7 @@ export const getItemsSoupQueryParams = zod.object({
     ])
     .optional()
     .describe(
-      'Sort method. Property ordering supports DATE, NUMBER, BOOLEAN, SELECT and TAG.\nMissing definitions, unsupported types, and mismatched values sort as missing.\nProperty sorts omit email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at.'
+      'Sort method. Property ordering supports DATE, NUMBER, BOOLEAN, SELECT and TAG.\nMissing definitions, unsupported types, and mismatched values sort as missing.\nFlat property sorts omit calendar events, email, channels, calls, companies, and agent sessions.\nDefaults to viewed_at.'
     ),
   sort_property_definition_id: zod
     .uuid()

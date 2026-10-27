@@ -1868,7 +1868,10 @@ export type GroupedSoupInitialInput = {
   limit?: number | null | undefined;
   /** Direction of property values. Defaults to DESC. */
   sortDirection?: GraphqlSortDirection | null | undefined;
-  /** Sort order within each bin. Defaults to `VIEWED_UPDATED`. */
+  /**
+   * Sort order within each bin. Defaults to `VIEWED_UPDATED`.
+   * Grouped PROPERTY reads retain calendar events; flat PROPERTY reads do not.
+   */
   sortMethod?: GraphqlSimpleSortMethod | null | undefined;
   /** Property definition selected for numeric property sorting. */
   sortPropertyDefinitionId?: string | number | null | undefined;
@@ -2211,6 +2214,7 @@ export type SoupInitialInput = {
   /**
    * Timestamp or selected numeric property sort. Defaults to VIEWED_AT.
    * Frecency is not supported by this GraphQL adapter.
+   * Flat PROPERTY reads omit calendar events, email, channels, calls, companies, and agent sessions.
    */
   sortMethod?: GraphqlSimpleSortMethod | null | undefined;
   /** Property definition selected for numeric property sorting. */
