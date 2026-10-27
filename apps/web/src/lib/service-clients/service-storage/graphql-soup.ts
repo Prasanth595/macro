@@ -914,6 +914,13 @@ function mapGraphqlPropertyValue(
       value: dateValue,
     }))
     .with(
+      { __typename: 'GraphqlDateRangePropertyValue' },
+      ({ rangeStart, rangeEnd }) => ({
+        type: 'DateRange' as const,
+        value: { start: rangeStart, end: rangeEnd },
+      })
+    )
+    .with(
       { __typename: 'GraphqlSelectOptionPropertyValue' },
       ({ optionIds }) => ({
         type: 'SelectOption' as const,

@@ -10,7 +10,8 @@ event contract (schema, sanitization, delivery semantics).
 ## Start here
 
 - `src/domain/team_service.rs`: the main service — creation, invites,
-  membership, role changes, auto-join-domain toggle.
+  membership, role changes, auto-join-domain toggle. Team-wide settings
+  (default link share, interface language) are fields on `PatchTeamRequest`.
 - `src/domain/team_service/invite_link.rs`: the team's shareable invite link
   (`TeamInviteLinkService`) — who may see, create, reset, or turn it off, and
   joining through it via the same direct-join path as domain auto-join.
@@ -49,6 +50,13 @@ event contract (schema, sanitization, delivery semantics).
   `src/inbound/axum_router.rs`.
 - Repair missed teammate DMs: `just crates/teams/backfill_teammate_dms_local`
   (see README's "Delivery semantics" for when this is needed).
+
+## Gotchas
+
+- A trialing subscription that gains its first Max seat ends the trial and
+  starts a new billing cycle immediately. Every other seat change keeps the
+  trial, including on a subscription already trialing on Max, so its scheduled
+  downgrades still apply at the trial's end.
 
 ## Checks
 
