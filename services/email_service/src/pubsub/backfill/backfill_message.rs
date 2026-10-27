@@ -40,16 +40,16 @@ pub async fn backfill_message(
 
     // Insert the message while holding one of the fleet's backfill write slots.
     let slot = write_slot::acquire(ctx).await?;
-    let inserted = email_db_client::messages::insert::insert_message(
-        &ctx.db,
-        p.thread_db_id,
-        &mut message,
-        link.id,
-        // we update the thread metadata once all messages in the thread have been backfilled
-        false,
-    )
-    .await;
-    slot.release().await;
+    let inserted = slot
+        .hold(email_db_client::messages::insert::insert_message(
+            &ctx.db,
+            p.thread_db_id,
+            &mut message,
+            link.id,
+            // we update the thread metadata once all messages in the thread have been backfilled
+            false,
+        ))
+        .await;
     inserted.map_err(|e| map_db_error(e, "Failed to insert final message into database"))?;
 
     record_backfilled_message(ctx, link, &message, &fetched.calendar_parts).await?;
