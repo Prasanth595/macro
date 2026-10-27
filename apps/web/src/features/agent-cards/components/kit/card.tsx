@@ -282,7 +282,7 @@ export function CardHiddenCount(props: {
       <span class="mr-auto text-xs text-ink-subtle">{hidden()} more below</span>
       <button
         type="button"
-        class="text-xs font-medium text-ink-muted hover:text-ink"
+        class="text-xs font-medium text-ink-muted not-touch:hover:text-ink touch:min-h-[44px]"
         onClick={(event) => {
           event.stopPropagation();
           card?.expand();

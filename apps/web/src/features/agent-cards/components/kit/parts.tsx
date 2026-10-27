@@ -205,7 +205,7 @@ export function CardRow(
       class={cn(
         'flex min-w-0 gap-2.5 rounded-lg p-1.5',
         props.top ? 'items-start' : 'items-center',
-        props.onClick && 'not-touch:hover:bg-hover',
+        props.onClick && 'not-touch:hover:bg-hover touch:min-h-[44px]',
         props.class
       )}
     >

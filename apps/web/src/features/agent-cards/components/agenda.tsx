@@ -171,7 +171,7 @@ function AgendaRow(props: { row: AgendaRowView }) {
       type="button"
       data-card-row
       disabled={!props.row.onOpen}
-      class="grid w-full min-w-0 grid-cols-[minmax(0,124px)_2px_minmax(0,1fr)] items-stretch gap-2.5 rounded-lg p-1.5 text-left enabled:not-touch:hover:bg-hover"
+      class="grid w-full min-w-0 grid-cols-[minmax(0,124px)_2px_minmax(0,1fr)] items-stretch gap-2.5 rounded-lg p-1.5 text-left enabled:not-touch:hover:bg-hover touch:min-h-[44px]"
       onClick={(click) => props.row.onOpen?.(click)}
     >
       <span
