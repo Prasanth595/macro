@@ -10,10 +10,11 @@ The single Soup source does not justify that extra pipeline. The previous
 external-source experiment remains archived on `rahul/property-candidates-sources`
 at `4292a28f33`; it is not a contract for future expansion.
 
-Property sorting and date-range grouping cover Soup-owned documents/tasks,
-chats, projects, calendar events, initiatives, and database rows. They omit
-email threads, channels, calls, companies, and propertyless agent sessions.
-Ordinary timestamp queries retain their existing sources and behavior.
+Flat property sorting covers Soup-owned documents/tasks, chats, projects,
+initiatives, and database rows. It omits calendar events, email threads,
+channels, calls, companies, and propertyless agent sessions. Grouped reads
+retain calendar events, matching the existing grouped query. Ordinary timestamp
+queries retain their existing sources and behavior.
 
 DATE filters are evaluated by Soup and OpenSearch. Call, email, and frecency
 interpret DATE literals as false, preserving outer boolean negation. Tasks
@@ -55,6 +56,13 @@ id DESC`. Direction applies only to the property key; ties use newest update,
 then descending ID. Timestamp queries retain their existing SQL ordering and
 keyset expressions without a `sort_key` term.
 
+Flat timestamp queries keep the existing lightweight top clauses; subtype joins
+are added only when task filters need them or a property sort needs the TASK vs
+DOCUMENT namespace. Document-ID arrays start at `$9` for flat timestamp queries
+and `$11` for grouped timestamp queries. Property sorts append only the definition
+ID and cursor key, moving those array starts to `$11` and `$13`, respectively.
+There is no reserved sign-multiplier parameter or `sort_parameters` CTE.
+
 ## Grouping input
 
 Property grouping accepts optional date-range bucketing:
@@ -81,7 +89,9 @@ dates, and have unique keys distinct from `missingValueBucketKey`. Validate rang
 counts and key lengths in REST/GraphQL input conversion before calling the service.
 
 The grouping SQL returns a range index, which Rust maps to the caller's key.
-Bind bounds rather than interpolating values; caller keys never become SQL.
+Interpolate typed UTC bounds with `to_rfc3339()`, as quoted `timestamptz` literals,
+matching the existing date predicates. Never interpolate raw date strings or
+caller bucket keys. Document-ID sets remain bound arrays.
 Missing or cleared dates use the configured missing-value bucket. Keep the
 existing count and row-number windows, per-group limits, and single-group
 load-more behavior. REST keeps raw UUID pool keys; GraphQL keeps typed entities.

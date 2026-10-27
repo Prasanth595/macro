@@ -17,19 +17,11 @@ use uuid::Uuid;
 #[cfg(test)]
 mod test;
 
-/// A bound predicate value, collected in SQL placeholder order.
-#[derive(Debug)]
-pub(in crate::outbound::pg_soup_repo) enum FilterParameter {
-    /// A document ID set.
-    DocumentIds(Vec<String>),
-    /// A date bound.
-    Date(chrono::DateTime<chrono::Utc>),
-}
 /// The id arrays a query binds after its fixed positional parameters.
 #[derive(Debug)]
 pub(in crate::outbound::pg_soup_repo) struct DocumentIdArrays {
     first_slot: usize,
-    arrays: Vec<FilterParameter>,
+    arrays: Vec<Vec<String>>,
 }
 
 impl DocumentIdArrays {
@@ -43,38 +35,13 @@ impl DocumentIdArrays {
     }
 
     /// The arrays to bind, in slot order.
-    pub(in crate::outbound::pg_soup_repo) fn into_binds(self) -> Vec<FilterParameter> {
+    pub(in crate::outbound::pg_soup_repo) fn into_binds(self) -> Vec<Vec<String>> {
         self.arrays
     }
 
-    /// Append collected predicates after the query's existing fixed arguments.
-    pub(in crate::outbound::pg_soup_repo) fn bind_query<'q>(
-        self,
-        mut query: sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments>,
-    ) -> sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments> {
-        for parameter in self.arrays {
-            query = match parameter {
-                FilterParameter::DocumentIds(ids) => query.bind(ids),
-                FilterParameter::Date(date) => query.bind(date),
-            };
-        }
-        query
-    }
-
-    /// Bind a date bound after any previously collected predicate values.
-    pub(in crate::outbound::pg_soup_repo) fn bind_date(
-        &mut self,
-        date: chrono::DateTime<chrono::Utc>,
-    ) -> String {
-        let slot = self.first_slot + self.arrays.len();
-        self.arrays.push(FilterParameter::Date(date));
-        format!("${slot}::timestamptz")
-    }
     fn bind(&mut self, ids: &[Uuid]) -> String {
         let slot = self.first_slot + self.arrays.len();
-        self.arrays.push(FilterParameter::DocumentIds(
-            ids.iter().map(Uuid::to_string).collect(),
-        ));
+        self.arrays.push(ids.iter().map(Uuid::to_string).collect());
         format!("d.id = ANY(${slot}::text[])")
     }
 }

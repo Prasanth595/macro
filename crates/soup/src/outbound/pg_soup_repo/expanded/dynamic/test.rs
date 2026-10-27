@@ -15,7 +15,10 @@ fn grouped_access_shape() {
         false,
         &grouping,
         SimpleSortMethod::ViewedUpdated.into(),
-        &mut DocumentIdArrays::starting_at(12),
+        &mut DocumentIdArrays::starting_at(first_document_id_slot(
+            SimpleSortMethod::ViewedUpdated.into(),
+            true,
+        )),
     );
     let candidates = builder.sql().split("GroupedItems AS").next().unwrap();
     assert!(!candidates.contains("AccessibleItems"));
@@ -53,7 +56,7 @@ fn grouped_candidate_sort_shape() {
                 true,
                 &grouping,
                 sort.into(),
-                &mut DocumentIdArrays::starting_at(12),
+                &mut DocumentIdArrays::starting_at(first_document_id_slot(sort.into(), true)),
             );
             let sql = builder.sql();
             let (candidates, rest) = sql.split_once("GroupedItems AS").unwrap();
@@ -87,6 +90,36 @@ fn grouped_candidate_sort_shape() {
     }
 }
 
+#[test]
+fn flat_timestamp_top_clauses_remain_lightweight() {
+    let filter = EntityFilterAst::mock_empty();
+    for sort in [
+        SimpleSortMethod::CreatedAt,
+        SimpleSortMethod::UpdatedAt,
+        SimpleSortMethod::ViewedAt,
+        SimpleSortMethod::ViewedUpdated,
+    ] {
+        let mut arrays = DocumentIdArrays::starting_at(first_document_id_slot(sort.into(), false));
+        let query = build_query(&filter, false, sort.into(), &mut arrays);
+        let top = query.sql().split("Combined AS").next().unwrap();
+        assert!(!top.contains("JOIN document_sub_type"));
+        assert!(!top.contains("property_entity_type"));
+        assert!(!top.contains("as project_id"));
+        assert!(!top.contains("FROM calendar_events"));
+        assert!(!top.contains("sort_parameters"));
+    }
+    let property = DynamicSort::Property {
+        property_definition_id: SystemPropertyKey::DUE_DATE_UUID,
+        direction: SoupSortDirection::Asc,
+    };
+    let mut arrays = DocumentIdArrays::starting_at(first_document_id_slot(property, false));
+    let query = build_query(&filter, false, property, &mut arrays);
+    let top = query.sql().split("Combined AS").next().unwrap();
+    assert!(top.contains("LEFT JOIN document_sub_type"));
+    assert!(top.contains("THEN 'TASK'::property_entity_type"));
+    assert!(!top.contains("as project_id"));
+    assert!(!query.sql().contains("FROM calendar_events"));
+}
 /// Bounded, synthetic diagnostic. SQLx creates an isolated database; never point
 /// the test harness at a hosted database. No planner settings or timing assertions.
 #[sqlx::test(
@@ -184,10 +217,10 @@ async fn grouped_query_explain_local(pool: PgPool) -> anyhow::Result<()> {
                 false,
                 &grouping,
                 sort.into(),
-                &mut DocumentIdArrays::starting_at(12),
+                &mut DocumentIdArrays::starting_at(first_document_id_slot(sort.into(), true)),
             );
-            // Dynamic AST/grouping SQL cannot use a compile-time macro. Mirror
-            // production's positional binds, including unused reserved slots.
+            // Dynamic AST/grouping SQL cannot use a compile-time macro.
+            // Mirror the production timestamp query's ten fixed parameters.
             let sql = format!(
                 "EXPLAIN (ANALYZE, BUFFERS, VERBOSE, FORMAT JSON) {}",
                 builder.sql()
@@ -207,8 +240,7 @@ async fn grouped_query_explain_local(pool: PgPool) -> anyhow::Result<()> {
                     .bind(SystemPropertyKey::STATUS_UUID)
                     .bind(SystemPropertyKey::ASSIGNEES_UUID)
                     .bind(grouping.group_key.clone())
-                    .bind(entity_type.clone())
-                    .bind(None::<serde_json::Value>);
+                    .bind(entity_type.clone());
                 let plan = query.persistent(false).fetch_one(&pool).await?;
                 println!("EXPLAIN {label} {sort} repetition={repetition}: {plan}");
             }
@@ -261,7 +293,7 @@ fn initiatives_are_opt_in_and_share_the_existing_sql_pagination() {
 #[test]
 fn initiative_name_literals_are_escaped_and_not_like_patterns() {
     let expr = Expr::val(InitiativeLiteral::NameContains("O'Reilly_%".into()));
-    let sql = build_initiative_filter(Some(&expr), &mut DocumentIdArrays::starting_at(1));
+    let sql = build_initiative_filter(Some(&expr));
     assert!(sql.contains("'O''Reilly_%'"));
     assert!(sql.contains("strpos("));
 }

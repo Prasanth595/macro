@@ -94,7 +94,7 @@ pub struct Params {
     limit: Option<u16>,
     /// Sort method. Property ordering supports DATE, NUMBER, BOOLEAN, SELECT and TAG.
     /// Missing definitions, unsupported types, and mismatched values sort as missing.
-    /// Property sorts omit email, channels, calls, companies, and agent sessions.
+    /// Flat property sorts omit calendar events, email, channels, calls, companies, and agent sessions.
     /// Defaults to viewed_at.
     #[serde(default)]
     sort_method: Option<SoupApiSort>,
@@ -155,8 +155,8 @@ pub enum SoupApiSort {
     NotifiedAt,
     /// Sort by the selected property's key with missing values last, then newest update and ID.
     /// Missing definitions and unsupported types use update-time ordering.
-    /// Only Soup-owned property-bearing items participate; email, channels, calls,
-    /// companies, and agent sessions never appear.
+    /// Flat reads omit calendar events, email, channels, calls, companies, and agent sessions.
+    /// Grouped reads retain calendar events.
     Property,
 }
 

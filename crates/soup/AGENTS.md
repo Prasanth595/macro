@@ -79,10 +79,11 @@ rows, initiatives, ...) and get back a single unified, paginated result.
 - Extend the existing dynamic query for property sorts and date-range groups; do not rebuild its source UNION in a candidate pipeline.
 - Keep property definition IDs unchecked like existing filters/grouping; enforce item visibility through the existing source access gates.
 - Order property pages by typed key with explicit ASC/DESC and NULLS LAST, then update timestamp and descending ID; keep timestamp SQL unchanged.
-- Validate caller DATE ranges in REST/GraphQL input conversion; bind bounds and map numeric range indices to caller keys in Rust.
+- Validate caller DATE ranges in REST/GraphQL input conversion; render typed UTC bounds with `to_rfc3339()` and map numeric range indices to caller keys in Rust.
 - Preserve projection-backed hydration, the UUID-keyed item/fact pools, and per-group total/has-more metadata through the shared grouped response.
-- Property sorts and date-range groups omit email, channels, calls, companies, and agent sessions; timestamp queries retain their existing sources.
+- Flat property sorts omit calendar events, email, channels, calls, companies, and agent sessions; grouped reads retain calendar events and timestamp queries retain their existing sources.
 - Preserve deployed timestamp cursor encodings; client query keys restart pages when ranges or selections change.
+- Keep flat timestamp top clauses lightweight; add subtype joins only for existing task filters or property sorts, and bind document-ID arrays after the sort's fixed parameters.
 - `candidate_gates.rs` encodes access-gate SQL shared across repo queries;
   changing it changes what every entity kind can return.
 - Keep the notified feed's notification lookup behind a lateral `OFFSET 0`

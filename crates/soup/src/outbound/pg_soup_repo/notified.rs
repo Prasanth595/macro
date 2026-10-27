@@ -18,7 +18,6 @@
 //! attributes the notification to; the channel row keeps only channel-level
 //! notifications.
 
-use super::expanded::dynamic::DocumentIdArrays;
 use filter_ast::Expr;
 use item_filters::ast::EntityFilterAst;
 use item_filters::ast::agent_session::AgentSessionLiteral;
@@ -263,13 +262,13 @@ pub(super) fn included_types(req: &NotifiedSoupRequest<'_>) -> Vec<&'static str>
 // Entity-specific AST gates make this genuinely dynamic SQL, so a static SQLx
 // macro cannot check the whole statement. Keep request values bound below and
 // generate the gates through the existing typed filter builders.
-fn build_query(filter: Option<&EntityFilterAst>, parameters: &mut DocumentIdArrays) -> String {
+fn build_query(filter: Option<&EntityFilterAst>) -> String {
     format!(
         include_str!("notified/query.sql"),
         document_gate = document_gate(ID_SQL, filter),
         chat_gate = chat_gate(ID_SQL, filter),
         project_gate = project_gate(ID_SQL, filter),
-        initiative_gate = initiative_gate(ID_SQL, filter, parameters),
+        initiative_gate = initiative_gate(ID_SQL, filter),
         channel_gate = channel_gate(ID_SQL, filter),
         channel_thread_gate = channel_thread_gate(ID_SQL, filter),
         email_gate = email_gate(ID_SQL, filter),
@@ -305,8 +304,7 @@ pub(super) async fn notified_soup_page(
         return Ok(Vec::new());
     }
 
-    let mut parameters = DocumentIdArrays::starting_at(9);
-    let sql = build_query(req.filter, &mut parameters);
+    let sql = build_query(req.filter);
 
     let after_ts = req.after.as_ref().map(|a| a.notified_at.naive_utc());
     let after_id = req.after.map(|a| a.entity_id);
@@ -321,8 +319,7 @@ pub(super) async fn notified_soup_page(
         .map(|source| source.auth_entity.as_str())
         .collect();
 
-    let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(sql);
-    let query = builder
+    sqlx::QueryBuilder::<sqlx::Postgres>::new(sql)
         .build()
         .bind(req.user_id.as_ref())
         .bind(&types)
@@ -331,9 +328,7 @@ pub(super) async fn notified_soup_page(
         .bind(req.link_ids)
         .bind(req.limit as i64)
         .bind(&source_ids)
-        .bind(&source_auth_entities);
-    parameters
-        .bind_query(query)
+        .bind(&source_auth_entities)
         // Unnamed statement, same reasoning as the expanded dynamic query:
         // the SQL text varies per filter shape, so a cached prepared
         // statement is rarely reused but would flip to a generic plan.

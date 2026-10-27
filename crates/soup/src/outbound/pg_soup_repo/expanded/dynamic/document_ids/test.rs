@@ -1,9 +1,9 @@
 use super::DocumentIdArrays;
-use crate::domain::models::grouping::ItemGroupingInfo;
+use crate::domain::models::{DynamicSort, SoupSortDirection, grouping::ItemGroupingInfo};
 use crate::outbound::pg_soup_repo::expanded::dynamic::{
     ExpandedDynamicCursorArgs, GroupedDynamicCursorArgs, build_document_filter,
     build_grouped_query, build_query, expanded_dynamic_cursor_soup,
-    expanded_dynamic_cursor_soup_grouped,
+    expanded_dynamic_cursor_soup_grouped, first_document_id_slot,
 };
 use document_sub_type::DocumentSubType;
 use filter_ast::Expr;
@@ -62,17 +62,7 @@ fn strings(ids: &[Uuid]) -> Vec<String> {
 fn render(expr: &Expr<DocumentLiteral>) -> (String, Vec<Vec<String>>) {
     let mut arrays = DocumentIdArrays::starting_at(9);
     let sql = build_document_filter(Some(expr), Some(&mut arrays));
-    (
-        sql,
-        arrays
-            .into_binds()
-            .into_iter()
-            .map(|parameter| match parameter {
-                super::FilterParameter::DocumentIds(ids) => ids,
-                super::FilterParameter::Date(_) => panic!("ID-only predicate bound a date"),
-            })
-            .collect(),
-    )
+    (sql, arrays.into_binds())
 }
 
 /// Soup restricted to the documents `filter` matches.
@@ -185,48 +175,68 @@ fn bind_free_rendering_keeps_every_id_inline() {
 
 #[test]
 fn arrays_follow_each_querys_fixed_binds() {
-    let render = |count| {
-        let filter = tasks(Expr::and(
-            any_of(&absent(1, count)),
-            Expr::is_not(any_of(&absent(2, count))),
-        ));
-        let mut flat_ids = DocumentIdArrays::starting_at(12);
-        let flat = build_query(
-            &filter,
-            false,
-            SimpleSortMethod::UpdatedAt.into(),
-            &mut flat_ids,
-        )
-        .sql()
-        .to_owned();
-        let grouping = GroupingConfig {
-            field: status(Some("TASK")),
-            group_key: None,
-            per_group_limit: None,
+    for sort in [
+        SimpleSortMethod::UpdatedAt.into(),
+        DynamicSort::Property {
+            property_definition_id: SystemPropertyKey::DUE_DATE_UUID,
+            direction: SoupSortDirection::Asc,
+        },
+        DynamicSort::Property {
+            property_definition_id: SystemPropertyKey::DUE_DATE_UUID,
+            direction: SoupSortDirection::Desc,
+        },
+    ] {
+        let flat_first = first_document_id_slot(sort, false);
+        let grouped_first = first_document_id_slot(sort, true);
+        let render = |count| {
+            let filter = tasks(Expr::and(
+                any_of(&absent(1, count)),
+                Expr::is_not(any_of(&absent(2, count))),
+            ));
+            let mut flat_ids = DocumentIdArrays::starting_at(flat_first);
+            let flat = build_query(&filter, false, sort, &mut flat_ids)
+                .sql()
+                .to_owned();
+            let grouping = GroupingConfig {
+                field: status(Some("TASK")),
+                group_key: None,
+                per_group_limit: None,
+            };
+            let mut grouped_ids = DocumentIdArrays::starting_at(grouped_first);
+            let (grouped, _) =
+                build_grouped_query(&filter, false, &grouping, sort, &mut grouped_ids);
+            (
+                flat,
+                flat_ids.into_binds().len(),
+                grouped.sql().to_owned(),
+                grouped_ids.into_binds().len(),
+            )
         };
-        let mut grouped_ids = DocumentIdArrays::starting_at(14);
-        let (grouped, _) = build_grouped_query(
-            &filter,
-            false,
-            &grouping,
-            SimpleSortMethod::UpdatedAt.into(),
-            &mut grouped_ids,
-        );
-        (
-            flat,
-            flat_ids.into_binds().len(),
-            grouped.sql().to_owned(),
-            grouped_ids.into_binds().len(),
-        )
-    };
-    let few = render(2);
-    assert_eq!(few, render(5_000));
-    let (flat, flat_arrays, grouped, grouped_arrays) = few;
-    assert_eq!((flat_arrays, grouped_arrays), (2, 2));
-    assert!(flat.contains("(d.id = ANY($12::text[]) AND (NOT d.id = ANY($13::text[])))"));
-    assert!(!flat.contains("$14"));
-    assert!(grouped.contains("ep.entity_type = $10::property_entity_type"));
-    assert!(grouped.contains("(d.id = ANY($14::text[]) AND (NOT d.id = ANY($15::text[])))"));
+        let few = render(2);
+        assert_eq!(few, render(5_000));
+        let (flat, flat_arrays, grouped, grouped_arrays) = few;
+        assert_eq!((flat_arrays, grouped_arrays), (2, 2));
+        for (sql, first) in [(&flat, flat_first), (&grouped, grouped_first)] {
+            assert!(sql.contains(&format!(
+                "(d.id = ANY(${first}::text[]) AND (NOT d.id = ANY(${}::text[])))",
+                first + 1
+            )));
+            assert!(!sql.contains(&format!("${}", first + 2)));
+            assert!(!sql.contains("sort_parameters"));
+        }
+        assert!(grouped.contains("ep.entity_type = $10::property_entity_type"));
+        if matches!(sort, DynamicSort::Property { .. }) {
+            assert_eq!((flat_first, grouped_first), (11, 13));
+            assert!(flat.contains("WHERE pd.id = $9::uuid"));
+            assert!(flat.contains("$10::double precision"));
+            assert!(grouped.contains("WHERE pd.id = $11::uuid"));
+            assert!(grouped.contains("$12::double precision"));
+        } else {
+            assert_eq!((flat_first, grouped_first), (9, 11));
+            assert!(!flat.contains("property_sort"));
+            assert!(!grouped.contains("property_sort"));
+        }
+    }
 }
 
 async fn flat_page(
@@ -428,7 +438,10 @@ async fn grouped_pages_match_bound_id_sets(pool: PgPool) -> anyhow::Result<()> {
             group_key: None,
             per_group_limit: None,
         };
-        let mut document_ids = DocumentIdArrays::starting_at(12);
+        let mut document_ids = DocumentIdArrays::starting_at(first_document_id_slot(
+            SimpleSortMethod::UpdatedAt.into(),
+            true,
+        ));
         build_grouped_query(
             &filter,
             false,

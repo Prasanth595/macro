@@ -32,6 +32,7 @@ pub struct SoupInitialInput {
     expand: Option<bool>,
     /// Timestamp or selected numeric property sort. Defaults to VIEWED_AT.
     /// Frecency is not supported by this GraphQL adapter.
+    /// Flat PROPERTY reads omit calendar events, email, channels, calls, companies, and agent sessions.
     sort_method: Option<GraphqlSimpleSortMethod>,
     /// Property definition selected for numeric property sorting.
     sort_property_definition_id: Option<ID>,
@@ -95,6 +96,7 @@ pub struct GroupedSoupInitialInput {
     /// Maximum number of items to return per bin. Defaults to 20, max 500.
     limit: Option<u16>,
     /// Sort order within each bin. Defaults to `VIEWED_UPDATED`.
+    /// Grouped PROPERTY reads retain calendar events; flat PROPERTY reads do not.
     sort_method: Option<GraphqlSimpleSortMethod>,
     /// Property definition selected for numeric property sorting.
     sort_property_definition_id: Option<ID>,

@@ -176,11 +176,7 @@ async fn initiative_listing_and_candidate_gate_share_access_rules(
         SELECT candidate.id FROM unnest($2::uuid[]) candidate(id)
         WHERE {}
         ORDER BY candidate.id"#,
-        crate::outbound::pg_soup_repo::candidate_gates::initiative_gate(
-            "candidate.id::text",
-            None,
-            &mut crate::outbound::pg_soup_repo::expanded::dynamic::DocumentIdArrays::starting_at(3)
-        )
+        crate::outbound::pg_soup_repo::candidate_gates::initiative_gate("candidate.id::text", None,)
     ))
     .bind(user().as_ref())
     .bind(

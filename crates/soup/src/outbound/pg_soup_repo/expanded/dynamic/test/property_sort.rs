@@ -19,9 +19,11 @@ const UNSET: Uuid = uuid::uuid!("11111111-0000-0000-0000-000000000000");
 
 fn documents() -> EntityFilterAst {
     EntityFilterAst {
-        document_filter: Some(Arc::new(Expr::is_not(Expr::val(DocumentLiteral::Id(
-            Uuid::nil(),
-        ))))),
+        document_filter: [A, B, C, D, UNSET]
+            .into_iter()
+            .map(|id| Expr::val(DocumentLiteral::Id(id)))
+            .reduce(Expr::or)
+            .map(Arc::new),
         chat_filter: Some(Arc::new(Expr::val(ChatLiteral::Importance(false)))),
         project_filter: Some(Arc::new(Expr::val(ProjectLiteral::Importance(false)))),
         calendar_event_filter: Some(Arc::new(Expr::val(CalendarEventLiteral::Id(Uuid::nil())))),

@@ -10,7 +10,7 @@ mod initiative;
 mod property_filter;
 
 use database_row::{build_database_row_filter, database_row_opted_in, database_row_top_clause};
-pub(in crate::outbound::pg_soup_repo) use document_ids::{DocumentIdArrays, FilterParameter};
+pub(in crate::outbound::pg_soup_repo) use document_ids::DocumentIdArrays;
 use initiative::initiative_top_clause;
 pub(in crate::outbound::pg_soup_repo) use initiative::{
     build_initiative_filter, initiative_access_clause, initiative_opted_in,
@@ -88,14 +88,15 @@ fn sort_key_expression(enabled: bool) -> &'static str {
     }
 }
 
-fn sort_parameters(sort: DynamicSort) -> Option<Uuid> {
-    match sort {
-        DynamicSort::Timestamp(_) => None,
-        DynamicSort::Property {
-            property_definition_id,
-            ..
-        } => Some(property_definition_id),
-    }
+/// First document-ID array after the existing query parameters and optional property sort.
+fn first_document_id_slot(sort: DynamicSort, grouped: bool) -> usize {
+    let fixed_parameters = if grouped { 10 } else { 8 };
+    let property_parameters = if matches!(sort, DynamicSort::Property { .. }) {
+        2
+    } else {
+        0
+    };
+    fixed_parameters + property_parameters + 1
 }
 
 // The non-null and missing-key branches both follow SQL's NULLS LAST order.
@@ -142,20 +143,17 @@ fn property_order(sort: DynamicSort, key: &str, timestamp: &str, id: &str) -> St
     }
 }
 
-fn date_range_group_expression(
-    grouping: &GroupingConfig,
-    parameters: &mut DocumentIdArrays,
-) -> Option<String> {
+fn date_range_group_expression(grouping: &GroupingConfig) -> Option<String> {
     let (_, ranges) = grouping.field.date_ranges()?;
     let date = property_date_expression("ep_group");
     let mut sql = format!("CASE WHEN ep_group.data_type != 'DATE' OR ({date}) IS NULL THEN '-1'");
     for (index, range) in ranges.ranges.iter().enumerate() {
         let start = range
             .start
-            .map(|bound| format!("({date}) >= {}", parameters.bind_date(bound)));
+            .map(|bound| format!("({date}) >= '{}'::timestamptz", bound.to_rfc3339()));
         let end = range
             .end
-            .map(|bound| format!("({date}) < {}", parameters.bind_date(bound)));
+            .map(|bound| format!("({date}) < '{}'::timestamptz", bound.to_rfc3339()));
         let bounds = start
             .into_iter()
             .chain(end)
@@ -195,6 +193,88 @@ static DOCUMENT_TASK_PROPERTY_JOINS: &str = r#"
                     AND ep_status.entity_type = 'TASK'
                     AND ep_status.property_definition_id = $7
 "#;
+
+fn document_top_clause(
+    sort_method: SimpleSortMethod,
+    needs_sub_type_join: bool,
+    property_sort: bool,
+) -> String {
+    let sub_type_join = if needs_sub_type_join || property_sort {
+        r#"                LEFT JOIN document_sub_type dt ON dt.document_id = d.id
+"#
+    } else {
+        ""
+    };
+    let property_column = if property_sort {
+        ", CASE WHEN dt.sub_type = 'task' THEN 'TASK'::property_entity_type ELSE 'DOCUMENT'::property_entity_type END as property_entity_type"
+    } else {
+        ""
+    };
+    format!(
+        r#"
+                SELECT
+                    'document'::text as item_type,
+                    d.id,
+                    {}::timestamptz as sort_ts{property_column}
+                FROM "Document" d
+{}"#,
+        top_sort_expr("d", sort_method),
+        sub_type_join
+    )
+}
+
+fn chat_top_clause(sort_method: SimpleSortMethod, property_sort: bool) -> String {
+    let user_history_join = if top_needs_user_history(sort_method) {
+        r#"                LEFT JOIN "UserHistory" uh ON uh."itemId" = c.id AND uh."itemType" = 'chat' AND uh."userId" = $1
+"#
+    } else {
+        ""
+    };
+    let property_column = if property_sort {
+        ", 'CHAT'::property_entity_type as property_entity_type"
+    } else {
+        ""
+    };
+    format!(
+        r#"
+                SELECT
+                    'chat'::text as item_type,
+                    c.id,
+                    {}::timestamptz as sort_ts{property_column}
+                FROM "Chat" c
+{}"#,
+        top_sort_expr("c", sort_method),
+        user_history_join
+    )
+}
+
+fn project_top_clause(sort_method: SimpleSortMethod, property_sort: bool) -> String {
+    let user_history_join = if top_needs_user_history(sort_method) {
+        r#"                LEFT JOIN "UserHistory" uh
+                    ON uh."itemId" = p.id
+                    AND uh."itemType" = 'project'
+                    AND uh."userId" = $1
+"#
+    } else {
+        ""
+    };
+    let property_column = if property_sort {
+        ", 'PROJECT'::property_entity_type as property_entity_type"
+    } else {
+        ""
+    };
+    format!(
+        r#"
+                SELECT
+                    'project'::text as item_type,
+                    p.id,
+                    {}::timestamptz as sort_ts{property_column}
+                FROM "Project" p
+{}"#,
+        top_sort_expr("p", sort_method),
+        user_history_join
+    )
+}
 
 // -- Grouped top clauses: include project_id for grouping support --
 
@@ -453,71 +533,6 @@ static PROJECT_DETAIL_CLAUSE: &str = r#"
 static INITIATIVE_DETAIL_CLAUSE: &str = include_str!("dynamic/initiative_detail.sql");
 
 static DATABASE_ROW_DETAIL_CLAUSE: &str = include_str!("dynamic/database_row_detail.sql");
-
-static CALENDAR_EVENT_DETAIL_CLAUSE: &str = r#"
-        SELECT
-            'calendar_event' as "item_type",
-            event.id::text as "id",
-            NULL::text as "document_version_id",
-            event.owner_id as "user_id",
-            event.title as "name",
-            NULL::text as "branched_from_id",
-            NULL::bigint as "branched_from_version_id",
-            NULL::bigint as "document_family_id",
-            NULL::text as "file_type",
-            event.created_at as "created_at",
-            event.updated_at as "updated_at",
-            NULL::text as "project_id",
-            NULL::boolean as "is_persistent",
-            NULL::text as "model",
-            NULL::text as "sha",
-            NULL::document_sub_type_value as "sub_type",
-            false as "is_email_attachment",
-            true as "is_important",
-            ARRAY[]::uuid[] as "status_option_ids",
-            NULL::timestamptz as "viewed_at",
-            t.sort_ts as "sort_ts",
-            t.sort_key as "sort_key",
-            NULL::boolean as "is_completed",
-            NULL::timestamptz as "deleted_at",
-            jsonb_build_object(
-                'id', event.id,
-                'ownerId', event.owner_id,
-                'icalUid', event.ical_uid,
-                'title', event.title,
-                'description', event.description,
-                'location', event.location,
-                'status', event.status,
-                'visibility', event.visibility,
-                'transparency', event.transparency,
-                'time', CASE
-                    WHEN event.starts_at IS NOT NULL THEN jsonb_build_object(
-                        'kind', 'timed',
-                        'startsAt', event.starts_at,
-                        'endsAt', event.ends_at,
-                        'timeZone', event.time_zone
-                    )
-                    ELSE jsonb_build_object(
-                        'kind', 'allDay',
-                        'startDate', event.start_date,
-                        'endDate', event.end_date
-                    )
-                END,
-                'organizerEmail', event.organizer_email,
-                'organizerName', event.organizer_name,
-                'conferenceUrl', event.conference_url,
-                'conferenceProvider', event.conference_provider,
-                'isReadOnly', event.is_read_only,
-                'createdAt', event.created_at,
-                'updatedAt', event.updated_at,
-                'lastReminderFiredAt', event.last_reminder_fired_at,
-                'extra', NULL
-            ) as "calendar_event",
-            NULL::jsonb as "database_row"
-        FROM TopItems t
-        INNER JOIN calendar_events event ON event.id::text = t.id
-        WHERE t.item_type = 'calendar_event'
-"#;
 
 // -- Grouped detail clauses: join from GroupedItems, include group columns --
 
@@ -1585,7 +1600,6 @@ fn build_query<'a>(
     let sort_method = sort.timestamp_method();
     let property_sort = matches!(sort, DynamicSort::Property { .. });
     let mut builder = sqlx::QueryBuilder::new(PREFIX);
-    builder.push("sort_parameters AS (SELECT $9::uuid AS property_id, $10::double precision AS reserved, $11::double precision AS cursor_key), ");
 
     let include_initiatives = initiative_opted_in(filter_ast.initiative_filter.as_deref())
         && properties_filter_can_apply_to(
@@ -1695,9 +1709,13 @@ fn build_query<'a>(
 
     if include_documents {
         push_union_separator(&mut builder, &mut needs_separator);
-        // The subtype join selects the canonical DOCUMENT or TASK property namespace.
+        // Subtype is needed only for task-property filters or property-sort namespaces.
         let needs_task_property_joins = document_filter_needs_task_property_joins(document_filter);
-        builder.push(grouped_document_top_clause(sort_method));
+        builder.push(document_top_clause(
+            sort_method,
+            needs_task_property_joins,
+            property_sort,
+        ));
         if optimized_notification_predicate.is_some() && document_notification.is_some() {
             builder.push(build_notification_join("d", "document"));
         }
@@ -1715,7 +1733,7 @@ fn build_query<'a>(
     if include_chats {
         push_union_separator(&mut builder, &mut needs_separator);
         // Chat top clause (lightweight)
-        builder.push(grouped_chat_top_clause(sort_method));
+        builder.push(chat_top_clause(sort_method, property_sort));
         if optimized_notification_predicate.is_some() && chat_notification.is_some() {
             builder.push(build_notification_join("c", "chat"));
         }
@@ -1730,7 +1748,7 @@ fn build_query<'a>(
     if include_projects {
         push_union_separator(&mut builder, &mut needs_separator);
         // Project top clause (lightweight)
-        builder.push(grouped_project_top_clause(sort_method));
+        builder.push(project_top_clause(sort_method, property_sort));
         if optimized_notification_predicate.is_some() && project_notification.is_some() {
             builder.push(build_notification_join("p", "project"));
         }
@@ -1744,10 +1762,9 @@ fn build_query<'a>(
 
     if include_initiatives {
         push_union_separator(&mut builder, &mut needs_separator);
-        builder.push(initiative_top_clause(sort_method, true));
+        builder.push(initiative_top_clause(sort_method, false, property_sort));
         builder.push(build_initiative_filter(
             filter_ast.initiative_filter.as_deref(),
-            document_ids,
         ));
         builder.push(build_properties_filter(
             filter_ast.properties_filter.as_deref(),
@@ -1757,7 +1774,7 @@ fn build_query<'a>(
 
     if include_database_rows {
         push_union_separator(&mut builder, &mut needs_separator);
-        builder.push(database_row_top_clause(sort_method, true));
+        builder.push(database_row_top_clause(sort_method, false, property_sort));
         builder.push(build_database_row_filter(
             filter_ast.database_row_filter.as_deref(),
         ));
@@ -1767,28 +1784,14 @@ fn build_query<'a>(
         ));
     }
 
-    if property_sort
-        && !calendar_event_filter_is_impossible(filter_ast.calendar_event_filter.as_deref())
-        && properties_filter_can_apply_to(
-            filter_ast.properties_filter.as_deref(),
-            &[PropertyEntityType::CalendarEvent],
-        )
-    {
-        push_union_separator(&mut builder, &mut needs_separator);
-        builder.push(grouped_calendar_event_top_clause(sort_method));
-        builder.push(build_calendar_event_filter(
-            filter_ast.calendar_event_filter.as_deref(),
-        ));
-        builder.push(build_properties_filter(
-            filter_ast.properties_filter.as_deref(),
-            "event.id::text",
-        ));
-    }
-
     if !needs_separator {
         builder.push(
-            "SELECT 'document'::text as item_type, NULL::text as id, NULL::timestamptz as sort_ts, NULL::text as project_id, NULL::property_entity_type as property_entity_type WHERE false",
+            "SELECT 'document'::text as item_type, NULL::text as id, NULL::timestamptz as sort_ts",
         );
+        if property_sort {
+            builder.push(", NULL::property_entity_type as property_entity_type");
+        }
+        builder.push(" WHERE false");
     }
 
     builder.push(") all_items ");
@@ -1812,7 +1815,7 @@ fn build_query<'a>(
         builder.push(property_keyset(
             sort,
             "property_sort.key",
-            11,
+            10,
             "all_items.sort_ts",
             "all_items.id",
         ));
@@ -1866,16 +1869,6 @@ fn build_query<'a>(
     if include_database_rows {
         push_union_separator(&mut builder, &mut needs_separator);
         builder.push(DATABASE_ROW_DETAIL_CLAUSE);
-    }
-    if property_sort
-        && !calendar_event_filter_is_impossible(filter_ast.calendar_event_filter.as_deref())
-        && properties_filter_can_apply_to(
-            filter_ast.properties_filter.as_deref(),
-            &[PropertyEntityType::CalendarEvent],
-        )
-    {
-        push_union_separator(&mut builder, &mut needs_separator);
-        builder.push(CALENDAR_EVENT_DETAIL_CLAUSE);
     }
     if !needs_separator {
         builder.push(
@@ -2218,7 +2211,6 @@ async fn expanded_dynamic_cursor_soup_hydrated(
     } = args;
     let query_limit = limit as i64;
     let sort_method_str = cursor.sort_method().timestamp_method().to_string();
-    let property_id = sort_parameters(*cursor.sort_method());
     let (cursor_id, cursor_position) = cursor.vals();
     let cursor_timestamp = cursor_position.map(|position| position.timestamp());
     let cursor_key = cursor_position.and_then(|position| position.key());
@@ -2227,8 +2219,8 @@ async fn expanded_dynamic_cursor_soup_hydrated(
     let assignees_property_id = SystemPropertyKey::ASSIGNEES_UUID;
     let completed_option_id = StatusOption::COMPLETED_UUID.to_string();
 
-    // Filter parameters follow the eleven fixed cursor and sort binds.
-    let mut document_ids = DocumentIdArrays::starting_at(12);
+    let mut document_ids =
+        DocumentIdArrays::starting_at(first_document_id_slot(*cursor.sort_method(), false));
     let mut builder = build_query(
         cursor.filter(),
         exclude_frecency,
@@ -2244,15 +2236,16 @@ async fn expanded_dynamic_cursor_soup_hydrated(
         .bind(cursor_id_str)
         .bind(completed_option_id)
         .bind(status_property_id)
-        .bind(assignees_property_id)
-        .bind(property_id)
-        .bind(1.0_f64)
-        .bind(cursor_key);
-    for value in document_ids.into_binds() {
-        query = match value {
-            FilterParameter::DocumentIds(ids) => query.bind(ids),
-            FilterParameter::Date(date) => query.bind(date),
-        };
+        .bind(assignees_property_id);
+    if let DynamicSort::Property {
+        property_definition_id,
+        ..
+    } = *cursor.sort_method()
+    {
+        query = query.bind(property_definition_id).bind(cursor_key);
+    }
+    for ids in document_ids.into_binds() {
+        query = query.bind(ids);
     }
     let items = query
         // Unnamed statement: the SQL text varies per filter shape and per
@@ -2342,10 +2335,9 @@ const PER_GROUP_LIMIT: i32 = 10;
 fn build_grouped_items_cte(
     builder: &mut QueryBuilder<'_, Postgres>,
     grouping: &GroupingConfig,
-    parameters: &mut DocumentIdArrays,
     sort: DynamicSort,
 ) -> Option<String> {
-    let date_expression = date_range_group_expression(grouping, parameters);
+    let date_expression = date_range_group_expression(grouping);
     let select_expr =
         date_expression.unwrap_or_else(|| group_select_expr(&grouping.field).into_owned());
     builder.push("GroupedItems AS (SELECT t.*, (");
@@ -2384,7 +2376,7 @@ fn build_grouped_items_cte(
     }
     builder.push("), FilteredGroupedItems AS (SELECT * FROM GroupedItems WHERE ");
     if matches!(sort, DynamicSort::Property { .. }) {
-        builder.push(property_keyset(sort, "sort_key", 13, "sort_ts", "id"));
+        builder.push(property_keyset(sort, "sort_key", 12, "sort_ts", "id"));
     } else {
         builder.push("($4::timestamptz IS NULL OR (sort_ts, id::text) < ($4, $5))");
     }
@@ -2415,7 +2407,6 @@ fn build_grouped_query<'a>(
     let sort_method = sort.timestamp_method();
     let property_sort = matches!(sort, DynamicSort::Property { .. });
     let mut builder = sqlx::QueryBuilder::new(PREFIX);
-    builder.push("sort_parameters AS (SELECT $11::uuid AS property_id, $12::double precision AS reserved, $13::double precision AS cursor_key), ");
 
     // Determine which entity types to include based on filters (same logic as build_query)
     let include_initiatives = initiative_opted_in(filter_ast.initiative_filter.as_deref())
@@ -2516,10 +2507,9 @@ fn build_grouped_query<'a>(
 
     if include_initiatives {
         push_union_separator(&mut builder, &mut needs_separator);
-        builder.push(initiative_top_clause(sort_method, true));
+        builder.push(initiative_top_clause(sort_method, true, false));
         builder.push(build_initiative_filter(
             filter_ast.initiative_filter.as_deref(),
-            document_ids,
         ));
         builder.push(build_properties_filter(
             filter_ast.properties_filter.as_deref(),
@@ -2529,7 +2519,7 @@ fn build_grouped_query<'a>(
 
     if include_database_rows {
         push_union_separator(&mut builder, &mut needs_separator);
-        builder.push(database_row_top_clause(sort_method, true));
+        builder.push(database_row_top_clause(sort_method, true, false));
         builder.push(build_database_row_filter(
             filter_ast.database_row_filter.as_deref(),
         ));
@@ -2576,7 +2566,7 @@ fn build_grouped_query<'a>(
     builder.push("), ");
 
     // Rank/count the full group before applying the cursor and page cap.
-    let entity_type_bind = build_grouped_items_cte(&mut builder, grouping, document_ids, sort);
+    let entity_type_bind = build_grouped_items_cte(&mut builder, grouping, sort);
 
     // Hydrate only the rows selected for each group's page.
     let source_table = "FilteredGroupedItems";
@@ -2684,7 +2674,6 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
 
     let query_limit = limit as i64;
     let sort_method_str = cursor.sort_method().timestamp_method().to_string();
-    let property_id = sort_parameters(*cursor.sort_method());
     let (cursor_id, cursor_position) = cursor.vals();
     let cursor_timestamp = cursor_position.map(|position| position.timestamp());
     let cursor_key = cursor_position.and_then(|position| position.key());
@@ -2693,8 +2682,8 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
     let assignees_property_id = SystemPropertyKey::ASSIGNEES_UUID;
     let completed_option_id = StatusOption::COMPLETED_UUID.to_string();
 
-    // Filter parameters follow the thirteen fixed cursor, grouping, and sort binds.
-    let mut document_ids = DocumentIdArrays::starting_at(14);
+    let mut document_ids =
+        DocumentIdArrays::starting_at(first_document_id_slot(*cursor.sort_method(), true));
     let (mut query_builder, entity_type_bind) = build_grouped_query(
         cursor.filter(),
         exclude_frecency,
@@ -2703,8 +2692,7 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
         &mut document_ids,
     );
 
-    // Keep the timestamp sort slot and bind optional grouping/sort slots even
-    // when unused so all filter parameters retain their positions.
+    // Keep main's fixed grouping parameters; property sorts append their two values.
     let mut query = query_builder
         .build_query_as::<'_, GroupedSoupRow>()
         .bind(user_id.as_ref())
@@ -2728,15 +2716,16 @@ pub async fn expanded_dynamic_cursor_soup_grouped(
             }
         }))
         // The entity type of property grouping with an entity type filter.
-        .bind(entity_type_bind)
-        .bind(property_id)
-        .bind(1.0_f64)
-        .bind(cursor_key);
-    for value in document_ids.into_binds() {
-        query = match value {
-            FilterParameter::DocumentIds(ids) => query.bind(ids),
-            FilterParameter::Date(date) => query.bind(date),
-        };
+        .bind(entity_type_bind);
+    if let DynamicSort::Property {
+        property_definition_id,
+        ..
+    } = *cursor.sort_method()
+    {
+        query = query.bind(property_definition_id).bind(cursor_key);
+    }
+    for ids in document_ids.into_binds() {
+        query = query.bind(ids);
     }
 
     let rows: Vec<GroupedSoupRow> = query

@@ -6,7 +6,6 @@
 //! builds the next cursor from this page's length, and a short page here
 //! genuinely means the feed is exhausted.
 
-use super::expanded::dynamic::DocumentIdArrays;
 use activity::VIEW_ACTION_TAGS;
 use model_entity::EntityType;
 use sqlx::{PgPool, Row};
@@ -79,7 +78,6 @@ pub(super) async fn touched_soup_page(
         return Ok(Vec::new());
     }
 
-    let mut parameters = DocumentIdArrays::starting_at(7);
     let view_tags = view_tags_sql();
     let sql = format!(
         r#"
@@ -121,7 +119,7 @@ pub(super) async fn touched_soup_page(
         document_gate = document_gate(ID_SQL, req.filter),
         chat_gate = chat_gate(ID_SQL, req.filter),
         project_gate = project_gate(ID_SQL, req.filter),
-        initiative_gate = initiative_gate(ID_SQL, req.filter, &mut parameters),
+        initiative_gate = initiative_gate(ID_SQL, req.filter),
         channel_gate = channel_gate(ID_SQL, req.filter),
         email_gate = email_gate(ID_SQL, req.filter),
     );
@@ -129,17 +127,14 @@ pub(super) async fn touched_soup_page(
     let after_ts = req.after.as_ref().map(|a| a.occurred_at);
     let after_id = req.after.map(|a| a.entity_id);
 
-    let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(sql);
-    let query = builder
+    sqlx::QueryBuilder::<sqlx::Postgres>::new(sql)
         .build()
         .bind(req.user_id.as_ref())
         .bind(&types)
         .bind(after_ts)
         .bind(after_id)
         .bind(req.link_ids)
-        .bind(req.limit as i64);
-    parameters
-        .bind_query(query)
+        .bind(req.limit as i64)
         // Unnamed statement, same reasoning as the expanded dynamic query:
         // the SQL text varies per filter shape, so a cached prepared
         // statement is rarely reused but would flip to a generic plan.

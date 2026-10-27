@@ -161,7 +161,7 @@ async fn notified_query_explain_local(pool: Pool<Postgres>) -> anyhow::Result<()
         ..EntityFilterAst::default()
     };
     for (label, filter) in [("unfiltered", None), ("unseen", Some(&filter))] {
-        let grouped = build_query(filter, &mut DocumentIdArrays::starting_at(9));
+        let grouped = build_query(filter);
         let plain_join = grouped.replace(
             "CROSS JOIN LATERAL (\n        SELECT event_item_type, secondary_event_item_type,\n            event_item_id, secondary_event_item_id\n        FROM notification\n        WHERE id = un.notification_id\n        OFFSET 0\n    ) n",
             "JOIN notification n ON n.id = un.notification_id",
