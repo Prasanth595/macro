@@ -1,18 +1,30 @@
-# WhatsApp group
+# External chat
 
 ## Scope
 
-Owns the shareable WhatsApp conversation, opened inside External at
-`/external/whatsapp/:groupId`. It has independent message storage and
-queries. It renders with the channel components (`ChannelMessage`,
-`ChannelInput` with Macro-only features off) but never uses channel queries,
-services, membership or context. Pairing, account management and the External
-lists belong to `features/whatsapp-linked` and `features/external-view`.
+Owns the shareable external chat (entity type `external_chat`): a chat from
+an outside messaging provider (WhatsApp today) added to Macro, opened inside
+External at `/external/chat/:chatId`. It has independent message storage and
+queries (DSS `/external-chats`). It renders with the channel components
+(`ChannelMessage`, `ChannelInput` with Macro-only features off) but never uses
+channel queries, services, membership or context. Pairing, account management,
+the provider's chat list and adding a chat belong to the provider feature
+(`features/whatsapp-linked`); the External shell and its per-provider lists
+belong to `features/external-view`. Architecture:
+`docs/architecture/external-chats.md`.
 
 ## Map
 
-- `core/`: feature vocabulary, sending identity, edit eligibility, the
-  Markdown ↔ WhatsApp formatting converters and the `MessageData` mapping.
+- `core/`: feature vocabulary (`ChatSummary`, `ChatDetail`, `ChatMessage`,
+  each carrying its `provider`), sending identity, edit eligibility and the
+  `MessageData` mapping.
+- `providers/index.ts`: the registry. `chatProvider(provider)` returns
+  `{ label, icon, badgeClass, formatting, composerFeatures }`; generic code
+  reads a provider only through it. `providers/identity.ts` holds the label
+  and logos alone for surfaces that must not load formatting code (EntityIcon,
+  notifications, External's sidebar). `providers/whatsapp/` holds the
+  Markdown ↔ WhatsApp formatting converters. A new provider adds a folder and
+  one entry in each map.
 - `context/`: source and action contracts; no production imports.
 - `primitives/conversation.ts`: optimistic sends, idempotency keys, quiet
   retries, reply/edit targets, uploads and read state.
@@ -20,35 +32,40 @@ lists belong to `features/whatsapp-linked` and `features/external-view`.
 - `views/`: conversation composition, scroll and read lifecycle.
 - `queries/`: generated wire decoding, write-failure classification and
   production source construction (spans live here).
-- `whatsapp-group.tsx`: app host and generic ShareModal.
-- `whatsapp-group-entry.tsx`: flag gate for routed and restored panes.
-- `lib/queries/whatsapp-groups`: isolated query keys, reads and the
-  `whatsapp_changed` gateway sync (`sync.ts`).
+- `external-chat.tsx`: app host and generic ShareModal.
+- `external-chat-entry.tsx`: flag gate (`enable-whatsapp-linked`) for routed
+  and restored panes.
+- `lib/queries/external-chats`: isolated query keys, reads, share permissions
+  and the `external_chat_changed` gateway sync (`sync.ts`: `{scope:'chats'}`
+  refreshes the lists, `{scope:'chat', chatId}` one open chat).
+- `lib/service-clients/service-storage/external-chats.ts`: the
+  `/external-chats` client, including `add` (`POST /external-chats`).
 
 ## Gotchas
 
-- Despite the name, this is any added WhatsApp chat: `kind` is `group` or
-  `direct`. A direct chat has no roster (header shows the person) and only
-  its owner sends; shared viewers see "Only <owner> can reply in this chat".
-  User-facing copy says "chat"; code, routes and the entity type keep "group".
-- Viewing follows ordinary entity sharing. WhatsApp membership controls sending.
+- `kind` is `group` or `direct`. A direct chat has no members list (header
+  shows the person) and only its owner sends; shared viewers see "Only
+  <owner> can reply in this chat" (`sendReason: 'not_added'`).
+- Viewing follows ordinary entity sharing. Provider membership controls
+  sending; `sendReason` is DSS's `ExternalChatReplyBlock` (`no_account`,
+  `disconnected`, `not_added`, `not_allowed`, `unavailable`).
 - Members, sharing and Stop syncing live in the generic `SidePanel`
   (`components/chat-details.tsx`), floating and closed by default like an
   in-view email thread. The header is `ViewShell.TopBar` (kept visible on
   touch, under the safe area) with Share in a `HeaderActionGroup` and
   `SidePanel.Toggle`. The host
-  (`whatsapp-group.tsx`, the functional fixture, tests) supplies
+  (`external-chat.tsx`, the functional fixture, tests) supplies
   `SidePanel.Root`; the view renders the `SidePanel.Layout`. While it is
   open on a pane at least 900px wide, the timeline and composer pad
   `SidePanel.FLOATING_CLEARANCE_PX` on the right so the card never covers
   them.
-- Every write uses the viewer's own connected WhatsApp account.
+- Every write uses the viewer's own connected provider account.
 - A draft keeps one idempotency key until DSS records it; unknown outcomes
   retry quietly with that key, so a resend can never arrive twice.
 - Refusals (`{code,message}` from DSS) remove the pending row, toast the
   reason and restore the draft only if the composer is empty.
 - Row actions are getters: `ChannelMessage` reads them once per row.
-- Reads do not poll; DSS pushes `whatsapp_changed`, with one fallback
+- Reads do not poll; DSS pushes `external_chat_changed`, with one fallback
   re-fetch 3 s after opening. Only in-flight sends poll their progress.
 - History imported after adding (`backfill` on the detail) lands older than
   the rows shown; the view keeps its distance from the bottom when rows appear
@@ -59,7 +76,7 @@ lists belong to `features/whatsapp-linked` and `features/external-view`.
   `staticFileIdEndpoint`, and images take Chat's sized variants. Images,
   video and audio play inline: `InboundMedia` hands them to Chat's
   `MediaPreview` (or an audio player); other ready files are
-  `AttachmentChip` links that open the file. `groupMessageData` passes no
+  `AttachmentChip` links that open the file. `chatMessageData` passes no
   attachments to the channel row. DSS's declared width/height reserve the space (keeps
   the open-at-bottom scroll right); stickers, GIFs and voice notes follow the
   attachment's `presentation`. A file whose image, video or audio fails to
@@ -83,7 +100,8 @@ lists belong to `features/whatsapp-linked` and `features/external-view`.
   built from coordinates; nothing is fetched to draw them. Sender-supplied
   links (a location's URL, an event's join link) survive decoding only as
   http(s) (`webLink`).
-- Received text is untrusted: `whatsappToMarkdown` turns every punctuation
+- Received text is untrusted: the provider's `formatting.toMarkdown`
+  (`whatsappToMarkdown`) turns every punctuation
   mark into a `&#NN;` reference, so no Markdown, HTML or Macro tag a sender
   types takes effect. Only what it writes itself is Markdown: WhatsApp's
   formatting, links for bare http(s) URLs (so Chat's link preview applies),
@@ -91,17 +109,19 @@ lists belong to `features/whatsapp-linked` and `features/external-view`.
   Macro users) or the WhatsApp name in bold. Inline code stays a code span
   only when it holds nothing a tag could start with.
 - The composer runs `ChannelInput` with `mentions: 'participants'`: the `@`
-  menu lists the roster (ids are JIDs, minus the sender) and nothing else;
+  menu lists the members (ids are JIDs, minus the sender) and nothing else;
   `composerMentions` turns the chips into `@<digits>` plus `mentions` on the
   text send.
-- Senders show their WhatsApp name (`imported_author`), Macro users included.
+- Senders show their provider name (`imported_author`), Macro users included.
+- Spans are `external_chat.*` with `external_chat.id`; provider account
+  operations stay `whatsapp.*` in `lib/queries/whatsapp-linked`.
 - Use backend limits for text, files, edits and deletes.
 - Keep phone numbers and message bodies out of telemetry.
 - Soup/search registration is deferred; External is the list entry point.
 
 ## Checks
 
-- `bunx vitest run --project app src/features/whatsapp-group src/features/whatsapp-linked`
+- `bunx vitest run --project app src/features/external-chat src/features/whatsapp-linked src/features/external-view`
 - `bunx vitest run src/features/channel` (shared rows and composer)
 - `bun run test:functional -- 'whatsapp-linked.spec.ts$'`
 - `bun run check`
