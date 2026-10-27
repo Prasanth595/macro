@@ -40,7 +40,7 @@ export function usePrFileOperations(
     operations.push(
       {
         group: 'sharing',
-        label: 'Copy GitHub link',
+        label: 'Copy GitHub Link',
         icon: Link,
         action: () =>
           fireAndForget(
@@ -59,7 +59,7 @@ export function usePrFileOperations(
     if (headBranch) {
       operations.push({
         group: 'sharing',
-        label: 'Copy branch name',
+        label: 'Copy Branch Name',
         icon: GitBranch,
         action: () =>
           fireAndForget(

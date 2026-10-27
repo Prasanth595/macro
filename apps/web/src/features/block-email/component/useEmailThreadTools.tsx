@@ -196,14 +196,14 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
 
   const emailActions: BlockTool[] = [
     {
-      label: 'Mark done',
+      label: 'Mark Done',
       icon: CheckIcon,
       action: toggleMarkDone,
       condition: () => isOwnThread() && !isDone(),
       hotkeyToken: TOKENS.entity.action.markDone,
     },
     {
-      label: 'Mark as not done',
+      label: 'Mark Not Done',
       icon: CheckBoldIcon,
       action: toggleMarkDone,
       condition: () =>
@@ -211,14 +211,14 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
       hotkeyToken: TOKENS.entity.action.markNotDone,
     },
     {
-      label: 'Mark unread',
+      label: 'Mark Unread',
       icon: EnvelopeSimpleOpenIcon,
       action: toggleMarkUnread,
       condition: () => isOwnThread() && !emailCtx.isThreadMarkedUnread(),
       hotkeyToken: TOKENS.entity.action.markUnread,
     },
     {
-      label: 'Mark read',
+      label: 'Mark Read',
       icon: EnvelopeSimpleIcon,
       action: toggleMarkUnread,
       condition: () => isOwnThread() && emailCtx.isThreadMarkedUnread(),

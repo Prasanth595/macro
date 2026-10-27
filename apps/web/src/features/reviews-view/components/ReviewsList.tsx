@@ -157,7 +157,7 @@ function ReviewRow(props: {
           />
           <MenuItem
             icon={CopyIcon}
-            text="Copy link"
+            text="Copy Link"
             onClick={() =>
               fireAndForget(copyLink.execute([props.review]), 'reviews-view')
             }

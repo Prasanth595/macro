@@ -36,6 +36,7 @@ import BellSlash from '@icon/system/regular/bell-slash.svg';
 import CaretDown from '@icon/system/regular/caret-down.svg';
 import CaretRight from '@icon/system/regular/caret-right.svg';
 import Check from '@icon/system/regular/check.svg';
+import Clock from '@icon/system/regular/clock.svg';
 import Copy from '@icon/system/regular/copy.svg';
 import DotsThree from '@icon/system/regular/dots-three.svg';
 import Link from '@icon/system/regular/link.svg';
@@ -422,6 +423,20 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
     };
   };
 
+  const snoozeOp = (): SplitFileMenuAction | undefined => {
+    const entity = menuEntity();
+    if (!entity || !muteAction.canExecute(entity)) return undefined;
+    return {
+      label: 'Snooze notifications…',
+      icon: Clock,
+      action: () => {
+        setOpen(false);
+        muteAction.snooze([entity]);
+      },
+      group: 'macro' as const,
+    };
+  };
+
   // Read reactively as well as through the action's imperative gate: `ops` below
   // is a memo, so without a reactive dependency the item would stay missing for
   // the life of this menu if PostHog answered after it was first computed. The
@@ -599,7 +614,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
             .with('moveToProject', () => {
               if (!ownsMenuEntity()) return null;
               return {
-                label: 'Move to Folder',
+                label: 'Move to folder',
                 action: () => {
                   const entity = buildEntityData({
                     id: props.id,
@@ -630,6 +645,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
       .filter((op) => !!op);
     return [
       favoriteOp(),
+      snoozeOp(),
       muteOp(),
       reminderOp(),
       addTagOp(),
