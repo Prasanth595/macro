@@ -406,6 +406,14 @@ export function ThreadList(props: ThreadListProps) {
     if (scroll) writeScroll(...scroll);
   }
 
+  // The core reads scrollHeight for the end offset, forcing a layout whenever
+  // rows just mounted (the initial scroll to latest, each reconcile frame,
+  // every end check). The scroller holds only the sizer, max(viewport, total),
+  // and writeScroll commits that before scrolling, so the virtualizer's own
+  // sizes give the same extent without a layout.
+  virtualizer.getMaxScrollOffset = () =>
+    Math.max(0, virtualizer.getTotalSize() - virtualizer.getSize());
+
   // Markdown fills a row in child effects. Measuring the empty shell can
   // shrink the sizer and clamp scrollTop before paint, so wait a microtask.
   const queueRowMeasurement = (row: HTMLDivElement) => {
