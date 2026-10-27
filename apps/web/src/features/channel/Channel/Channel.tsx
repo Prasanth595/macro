@@ -101,6 +101,7 @@ import {
 } from '../Input';
 import { ChannelInputContainer } from '../Input/ChannelInputContainer';
 import { hasSendableInputContent } from '../Input/utils/sendable-content';
+import type { ChannelOpenTrace } from '../observability';
 import { decodeSystemActivity } from '../queries/system-activity';
 import { SystemActivity } from '../SystemActivity';
 import { ChannelThread } from '../Thread';
@@ -158,6 +159,8 @@ export type ChannelProps = {
   onHandleReady?: (handle: ChannelHandle) => void;
   /** Whether to auto-focus the channel input on mount. Defaults to `!isTouchDevice()`. */
   autofocus?: boolean;
+  /** The surface's `channel.open` trace, told when the first messages render. */
+  openTrace?: ChannelOpenTrace;
 };
 
 export type MessageTimelineStateSnapshot = {
@@ -267,6 +270,24 @@ export function Channel(props: ChannelProps) {
     queryReadyGate(messagesQuery)
       ? (messagesQuery.data as MessageTimelineData)
       : undefined
+  );
+
+  // An empty channel renders no list, so its first page is also its paint.
+  const openedFromCache = queryReadyGate(messagesQuery);
+  createEffect(
+    on(
+      () => queryReadyGate(messagesQuery) && messageIndex.entryKeys.length,
+      (entries) => {
+        if (entries === false) return;
+        props.openTrace?.timeline(entries, openedFromCache);
+        if (entries === 0) props.openTrace?.rendered();
+      }
+    )
+  );
+  createEffect(
+    on(messagesLoadResult.error, (error) => {
+      if (error) props.openTrace?.fail(messagesQuery.error);
+    })
   );
 
   const messageById = () => messageIndex.byId;
@@ -695,6 +716,7 @@ export function Channel(props: ChannelProps) {
 
   const onThreadListReady = (navigation: ThreadListNavigation) => {
     setThreadListNavigation(navigation);
+    props.openTrace?.rendered();
     finishLatestNavigation();
     return () =>
       setThreadListNavigation((current) =>

@@ -27,6 +27,10 @@ It exercises the real resize solver, scroll container, and Lexical layout primit
 Discussion link scrolling has a backend-free browser regression:
 `bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
 
+Opening a channel has a backend-free budget that CI runs: `just test-channel-browser`
+pins the requests and script-forced layouts of a channel switch through the app's own
+Vite config (see the [channel-open rule](../../.agents/rules/web/channel-open.md)).
+
 Phone sheets stacked on each other (Connect email over Settings, Add guests,
 RSVP scope and the delete confirmation over event details) have a backend-free
 browser regression for backdrop taps that must not press what the scrim covers,

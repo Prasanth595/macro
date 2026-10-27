@@ -104,6 +104,31 @@ export function initializeUiOperationTelemetry(): () => void {
   return disposeObservers;
 }
 
+const DISCRETE_INPUTS = new Set(['click', 'keydown', 'pointerup', 'touchend']);
+
+/**
+ * The discrete input whose handler was running at `time` (a
+ * `performance.now()` value), for work an input started synchronously, such as
+ * a view mounted by a click. Event Timing reports an input after its next
+ * paint, so ask once something has painted. Undefined when the input was
+ * faster than the observer threshold or telemetry is off.
+ */
+export function inputHandledAt(
+  time: number
+): { type: string; start: number } | undefined {
+  for (const observer of observers) collect(observer.takeRecords());
+  const entry = timings.findLast(
+    (timing) =>
+      timing.kind === 'event' &&
+      DISCRETE_INPUTS.has(timing.name) &&
+      timing.processingStart !== undefined &&
+      timing.processingEnd !== undefined &&
+      timing.processingStart <= time &&
+      time <= timing.processingEnd
+  );
+  return entry && { type: entry.name, start: entry.start };
+}
+
 /** Normalize legacy epoch timestamps, rejecting missing/future timestamps. */
 function inputTime(event: Event | undefined, now: number): number | undefined {
   if (!event || !Number.isFinite(event.timeStamp) || event.timeStamp <= 0)

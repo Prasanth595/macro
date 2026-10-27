@@ -364,6 +364,13 @@ fn test_job_runs_signup_browser_tests_after_vitest() {
         vitest < browser,
         "browser tests run after vitest: {test_job}"
     );
+    let channel = test_job
+        .find("just test-channel-browser")
+        .expect("channel-open budget step");
+    assert!(
+        browser < channel,
+        "the channel budget runs with the other browser tests: {test_job}"
+    );
     assert!(
         test_job.contains("playwright: 'true'"),
         "the Test job installs Playwright's Chromium: {test_job}"

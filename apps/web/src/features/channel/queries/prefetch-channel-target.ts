@@ -1,3 +1,4 @@
+import { noteChannelPrefetch } from '@channel/observability';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
 import { notificationTargetSpan } from '@notifications/notification-open-trace';
@@ -45,6 +46,7 @@ export async function prefetchChannelTarget(
  * is reused as is.
  */
 export function prefetchLatestChannelMessages(channelId: string): void {
+  noteChannelPrefetch(channelId);
   fireAndForget(
     Telemetry.span('channel.timeline.prefetch', async (span) => {
       span.setAttr('channel.id', channelId);
