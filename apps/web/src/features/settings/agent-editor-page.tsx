@@ -27,13 +27,20 @@ import { usePipedreamConnectedSlugs } from '@queries/pipedream-connectors';
 import type { AgentMcpServer } from '@service-storage/generated/schemas/agentMcpServer';
 import type { AgentMcpServers } from '@service-storage/generated/schemas/agentMcpServers';
 import { ApiKeyInput, Button, cn, InputGroup } from '@ui';
-import { createSignal, type JSX, Match, Show, Switch } from 'solid-js';
+import { createSignal, Match, Show, Switch } from 'solid-js';
 import { match } from 'ts-pattern';
-import { ChannelMultiSelect } from '../channel/Bots/ChannelMultiSelect';
 import { AgentCreateWizard, type WizardStep } from './agent-create-wizard';
 import { CursorConnectPage } from './CursorConnectPage';
+import {
+  AgentChannelFields,
+  AgentShareFields,
+} from './components/agent-access-fields';
 import { AgentAvatar } from './components/agent-avatar';
 import { agentFaceImage } from './components/agent-face-paint';
+import {
+  AdvancedGroup,
+  AgentFormSection,
+} from './components/agent-form-sections';
 import { AgentModelPicker } from './components/agent-model-picker';
 import { AgentInstructionsEditor } from './components/instructions-editor';
 import { SettingsSelect } from './components/settings-select';
@@ -52,7 +59,7 @@ import {
   slugAgentTag,
 } from './core/agent-settings';
 import { PipedreamAppPicker } from './PipedreamAppPicker';
-import { ChoiceRow, SettingsPage, SettingsSection } from './primitives';
+import { ChoiceRow, SettingsPage } from './primitives';
 import { RuntimePairingPage } from './RuntimePairingPage';
 
 /**
@@ -512,7 +519,6 @@ export function AgentEditorPage(props: {
         <label class="flex flex-col gap-1.5">
           <span class="text-xs font-medium text-ink">Name</span>
           <input
-            autofocus
             class="settings-input w-full"
             placeholder="Bug fixer"
             value={name()}
@@ -664,43 +670,12 @@ export function AgentEditorPage(props: {
   );
 
   const shareFields = () => (
-    <>
-      <fieldset class="grid grid-cols-1 gap-2 @min-[440px]:grid-cols-2">
-        <legend class="sr-only">Share</legend>
-        <ChoiceRow
-          name="agent-share"
-          value="private"
-          checked={share() === 'Private'}
-          title="Private"
-          description={
-            props.canMakePrivate
-              ? 'Only you can use and manage this agent.'
-              : 'Only the agent creator can make it private.'
-          }
-          disabled={!props.canMakePrivate}
-          onChange={() => setShare('Private')}
-        />
-        <ChoiceRow
-          name="agent-share"
-          value="team"
-          checked={share() === 'Team'}
-          title="Team"
-          description={
-            props.canShareWithTeam
-              ? 'Your team can use this agent in shared channels.'
-              : 'Create or join a team before sharing agents.'
-          }
-          disabled={!props.canShareWithTeam}
-          onChange={() => setShare('Team')}
-        />
-      </fieldset>
-      <Show when={!props.canShareWithTeam}>
-        <p class="mt-3 border-t border-edge-muted pt-3 text-xs text-ink-extra-muted">
-          Team agents need a team owner. Create or join a team in Team settings
-          to enable this option.
-        </p>
-      </Show>
-    </>
+    <AgentShareFields
+      share={share()}
+      canMakePrivate={props.canMakePrivate}
+      canShareWithTeam={props.canShareWithTeam}
+      onChange={setShare}
+    />
   );
 
   const advancedOptions = (options: { channels: boolean }) => (
@@ -820,35 +795,12 @@ export function AgentEditorPage(props: {
   );
 
   const channelFields = () => (
-    <>
-      <fieldset class="flex flex-col gap-2">
-        <legend class="sr-only">Channels</legend>
-        <ChoiceRow
-          name="agent-channel-mode"
-          value="all"
-          checked={channelMode() === 'all'}
-          title="All channels"
-          description="The agent can be mentioned in every channel, like @macro."
-          onChange={() => setChannelMode('all')}
-        />
-        <ChoiceRow
-          name="agent-channel-mode"
-          value="selected"
-          checked={channelMode() === 'selected'}
-          title="Specific channels"
-          description="Only members of selected channels can use this agent."
-          onChange={() => setChannelMode('selected')}
-        />
-      </fieldset>
-      <Show when={channelMode() === 'selected'}>
-        <div class="mt-3 border-t border-edge-muted pt-3">
-          <ChannelMultiSelect
-            channelIds={selectedChannelIds()}
-            onChange={setSelectedChannelIds}
-          />
-        </div>
-      </Show>
-    </>
+    <AgentChannelFields
+      mode={channelMode()}
+      channelIds={selectedChannelIds()}
+      onModeChange={setChannelMode}
+      onChannelIdsChange={setSelectedChannelIds}
+    />
   );
 
   const editForm = () => (
@@ -1030,37 +982,5 @@ export function AgentEditorPage(props: {
         </Show>
       </Match>
     </Switch>
-  );
-}
-
-function AgentFormSection(props: {
-  title: string;
-  description: string;
-  actions?: JSX.Element;
-  children: JSX.Element;
-}) {
-  return (
-    <SettingsSection
-      title={props.title}
-      description={props.description}
-      actions={props.actions}
-    >
-      <div class="pt-2">{props.children}</div>
-    </SettingsSection>
-  );
-}
-
-/** A titled group inside the Advanced section, split by a hairline. */
-function AdvancedGroup(props: {
-  title: string;
-  description: string;
-  children: JSX.Element;
-}) {
-  return (
-    <section class="mt-4 border-t border-ink/[0.06] pt-4">
-      <h3 class="text-xs font-medium text-ink">{props.title}</h3>
-      <p class="mt-0.5 text-xs text-ink-muted">{props.description}</p>
-      <div class="mt-2">{props.children}</div>
-    </section>
   );
 }

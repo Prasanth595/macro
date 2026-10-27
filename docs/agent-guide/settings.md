@@ -600,7 +600,7 @@ until edited), the instructions, `Where should it run?`, `Who can use it?`
 agent mentioned, as an owner, and as an assignee, above the `Channels` choice and
 `Create agent`. The backdrop glows in the face's color. A created agent without
 an uploaded picture saves a picture of its face as its avatar; the wizard ends on
-`<name> is ready` with `Message <name>` and `Done`. Agents listed without any
+`<name> is ready` with `Done` and, under it, `Message <name>`. Agents listed without any
 picture show a face derived from their @tag.
 
 Editing an existing agent opens a full-page form. The

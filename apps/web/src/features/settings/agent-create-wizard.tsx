@@ -17,7 +17,7 @@ import {
 } from './core/agent-face';
 import { SettingsSurface } from './primitives';
 
-export const WIZARD_STEPS = [
+const WIZARD_STEPS = [
   'look',
   'name',
   'instructions',
@@ -209,13 +209,16 @@ export function AgentCreateWizard(props: {
           }
         >
           {(created) => (
-            <>
+            <div class="flex flex-col items-center gap-2">
+              <Button type="submit" variant="cta" size="xl" class="min-w-44">
+                Done
+              </Button>
               <Show when={props.onMessage}>
                 {(onMessage) => (
                   <Button
                     type="button"
-                    variant="outline"
-                    size="xl"
+                    variant="ghost"
+                    size="md"
                     onClick={() => onMessage()(created())}
                   >
                     <ChatIcon />
@@ -223,10 +226,7 @@ export function AgentCreateWizard(props: {
                   </Button>
                 )}
               </Show>
-              <Button type="submit" variant="cta" size="xl" class="min-w-44">
-                Done
-              </Button>
-            </>
+            </div>
           )}
         </Show>
       }
