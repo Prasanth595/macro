@@ -581,6 +581,9 @@ pub enum CreditPurchaseStatus {
     /// The card was declined. The invoice stays open for the provider's
     /// retries; buying again retries it instead of charging twice.
     Declined,
+    /// The payer has no card on file. Nothing was reserved or charged; the
+    /// payer can buy the same pack through checkout instead.
+    PaymentMethodRequired,
 }
 
 /// A one-time credit purchase charged to the payer's card on file.

@@ -526,6 +526,17 @@ pub trait PaymentGateway: Send + Sync + 'static {
         scope: SubscriptionScope,
     ) -> impl Future<Output = Result<bool>> + Send;
 
+    /// Whether a charge in `scope` has a card to collect from: the
+    /// subscription's or the customer's default payment method, or a legacy
+    /// default source. `Ok(false)` when there is none (for example after the
+    /// payer removed their card in the billing portal) or no active or
+    /// trialing subscription matches `scope`.
+    fn has_payment_method(
+        &self,
+        customer_id: &str,
+        scope: SubscriptionScope,
+    ) -> impl Future<Output = Result<bool>> + Send;
+
     /// The current period of the customer's subscription in `scope`. Active or
     /// trialing subscriptions win over past-due or unpaid ones. `Ok(None)` when
     /// no non-canceled subscription exists or the gateway cannot read

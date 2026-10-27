@@ -1002,6 +1002,24 @@ where
         if !entitlement.is_metered() {
             return Err(BillingError::FreePlan);
         }
+        // A payer who removed their card can't be charged off-session; send
+        // them to checkout instead of opening an invoice nobody can pay.
+        let customer_id = self
+            .entitlements
+            .stripe_customer_id(&entitlement.payer)
+            .await?
+            .ok_or(BillingError::NoStripeCustomer)?;
+        let scope = SubscriptionScope::from(&entitlement.scope);
+        if !self
+            .payments
+            .has_payment_method(&customer_id, scope)
+            .await?
+        {
+            return Ok(CreditPurchase {
+                amount_cents,
+                status: CreditPurchaseStatus::PaymentMethodRequired,
+            });
+        }
         let limit = Self::purchase_limit_cents(&entitlement, &settings, user);
         let reload = match self
             .repo

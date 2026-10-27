@@ -784,9 +784,13 @@ struct FakePayments {
     payments: Arc<Mutex<Vec<(Uuid, String)>>>,
     period_reply: Arc<Mutex<PeriodReply>>,
     period_requests: Arc<Mutex<Vec<(String, SubscriptionScope)>>>,
+    no_card: Arc<Mutex<bool>>,
 }
 
 impl FakePayments {
+    fn remove_card(&self) {
+        *self.no_card.lock().unwrap() = true;
+    }
     fn set_pay(&self, outcome: PayOutcome) {
         *self.pay_outcome.lock().unwrap() = outcome;
     }
@@ -843,6 +847,13 @@ impl PaymentGateway for FakePayments {
             PayOutcome::Declined => Ok(false),
             PayOutcome::Error => Err(BillingError::Payment(anyhow::anyhow!("card declined"))),
         }
+    }
+    async fn has_payment_method(
+        &self,
+        _customer_id: &str,
+        _scope: SubscriptionScope,
+    ) -> Result<bool> {
+        Ok(!*self.no_card.lock().unwrap())
     }
     async fn subscription_period(
         &self,
@@ -3618,6 +3629,42 @@ async fn a_payer_buys_credits_on_the_card_on_file() {
     assert_eq!(reloads[0].kind, CreditReloadKind::Purchase);
     assert_eq!(reloads[0].status, CreditReloadStatus::Paid);
     assert_eq!(reloads[0].purchased_by.as_deref(), Some(payer.as_ref()));
+}
+
+#[tokio::test]
+async fn a_purchase_without_a_card_on_file_asks_for_checkout_and_charges_nothing() {
+    let (svc, repo, payments, _) = premium_service(0);
+    payments.remove_card();
+    let payer = user("payer@x.com");
+
+    let purchase = svc.purchase_credits(&payer, 2_500).await.unwrap();
+
+    assert_eq!(
+        purchase,
+        CreditPurchase {
+            amount_cents: 2_500,
+            status: CreditPurchaseStatus::PaymentMethodRequired,
+        }
+    );
+    assert!(payments.opened_reloads().is_empty());
+    assert!(payments.payments().is_empty());
+    assert!(repo.reloads().is_empty());
+    assert_eq!(repo.state.lock().unwrap().balance, 0);
+}
+
+#[tokio::test]
+async fn a_team_member_without_a_team_card_on_file_reserves_nothing() {
+    let (svc, repo, payments) = purchase_team(Some(5_000));
+    payments.remove_card();
+
+    let purchase = svc
+        .purchase_credits(&user("member@x.com"), 2_500)
+        .await
+        .unwrap();
+
+    assert_eq!(purchase.status, CreditPurchaseStatus::PaymentMethodRequired);
+    assert!(repo.reloads().is_empty());
+    assert!(payments.opened_reloads().is_empty());
 }
 
 #[tokio::test]
