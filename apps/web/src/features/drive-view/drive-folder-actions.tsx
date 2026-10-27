@@ -1,5 +1,6 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
 import {
+  makeCopyAction,
   makeCopyEntityIdAction,
   makeCopyLinkAction,
   makeDeleteAction,
@@ -33,6 +34,7 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
 
   const copyLink = makeCopyLinkAction();
   const copyEntityId = makeCopyEntityIdAction();
+  const duplicate = makeCopyAction();
   const share = makeShareAction();
   const notificationSource = useGlobalNotificationSource();
   const mute = makeMuteAction({
@@ -89,6 +91,14 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
         text="Move to folder"
         onClick={() => editFolder('moveToProject')}
       />
+      <Show when={duplicate.canExecute(entity())}>
+        <MenuItem
+          text="Duplicate"
+          onClick={() =>
+            fireAndForget(duplicate.execute([entity()]), 'drive-view')
+          }
+        />
+      </Show>
       <MenuItem
         text="Copy Link"
         onClick={() =>

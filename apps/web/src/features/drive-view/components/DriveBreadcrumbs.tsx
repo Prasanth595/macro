@@ -46,6 +46,7 @@ function FolderBreadcrumbMenu(props: {
       group: 'sharing',
     },
     { op: 'rename' },
+    { op: 'copy' },
     { op: 'moveToProject' },
     { op: 'delete' },
   ];

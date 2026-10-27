@@ -2,6 +2,7 @@
 
 import { scheduledActionKeys } from '@app/features/routines/queries/keys';
 import {
+  canDuplicateItemType,
   copyItem,
   deleteItem,
   moveToFolder,
@@ -401,11 +402,11 @@ function getSoupEntityProjectId(entityId: string): string | undefined {
 }
 
 export function createBulkCopyDssEntityMutation() {
-  // Only support chat + document, same as single-copy version
-  const isUnsupportedEntity = (entity: EntityData) => {
-    const type = entity.type;
-    return type !== 'chat' && type !== 'document';
-  };
+  const isUnsupportedEntity = (entity: EntityData) =>
+    (entity.type !== 'chat' &&
+      entity.type !== 'document' &&
+      entity.type !== 'project') ||
+    !canDuplicateItemType(entity.type);
 
   return useMutation(() => ({
     mutationFn: async ({
@@ -422,7 +423,7 @@ export function createBulkCopyDssEntityMutation() {
       const results = await Promise.all(
         entities.map((e) =>
           copyItem({
-            itemType: e.type as 'document' | 'chat',
+            itemType: e.type,
             id: e.id,
             name: typeof name === 'function' ? name(e.name) : name,
           })

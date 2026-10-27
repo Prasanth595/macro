@@ -19,6 +19,7 @@ import {
   bulkRevertDelete as bulkRevertDeleteOp,
   copyItem as copyItemOp,
   deleteItem as deleteItemOp,
+  FOLDER_DUPLICATE_LIMIT_HINT,
   getItemAccessLevel as getItemAccessLevelOp,
   moveToFolder as moveToFolderOp,
   permanentlyDelete as permanentlyDeleteOp,
@@ -80,15 +81,15 @@ export const useItemOperations = createSingletonRoot(() => {
   );
 
   const copyItem = createCallback(
-    async (args: {
-      itemType: Exclude<ItemType, 'project'>;
-      id: string;
-      name: string;
-    }) => {
+    async (args: { itemType: ItemType; id: string; name: string }) => {
       const id = await copyItemOp(args);
       const success = id !== null;
       if (success) {
         toast.success(`${args.name} copied`);
+      } else if (args.itemType === 'project') {
+        toast.failure('Unable to duplicate folder', {
+          subtext: FOLDER_DUPLICATE_LIMIT_HINT,
+        });
       } else {
         toast.failure('Unable to copy item');
       }

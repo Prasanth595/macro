@@ -17,6 +17,7 @@ import {
   type BlockName,
   useBlockAliasedName,
 } from '@core/block';
+import { canDuplicateItemType } from '@core/component/FileList/itemOperations';
 import { useItemOperations } from '@core/component/FileList/useItemOperations';
 import { Permissions } from '@core/component/SharePermissions';
 import { toast } from '@core/component/Toast/Toast';
@@ -580,15 +581,10 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
               };
             })
             .with('copy', () => {
+              if (!canDuplicateItemType(props.itemType)) return null;
               return {
                 label: 'Duplicate',
                 action: async () => {
-                  if (props.itemType === 'project') {
-                    console.warn(
-                      'Attempting to copy project!. This should not happen'
-                    );
-                    return;
-                  }
                   const res = await itemOperations.copyItem({
                     itemType: props.itemType,
                     id: props.id,

@@ -125,8 +125,13 @@ or a folder at any depth for **Open in new split**, **Open in current split**, a
 **Open fullscreen** (when multiple splits are open). Opening a location in a new
 split clears search and filters in the destination, leaving the original split
 unchanged. Folder menus also offer Favorite/Unfavorite, Snooze notifications…,
-Mute/Unmute notifications, Move to folder, Copy Link, Copy ID, Share, and
+Mute/Unmute notifications, Move to folder, Duplicate, Copy Link, Copy ID, Share, and
 owner-only Rename and Delete, matching the folder's row menu in the Drive list.
+**Duplicate** on a folder (also in its "…" menu and row menu) makes "<name> copy"
+beside it (or at the top level without edit access to its parent), copying its
+subfolders, documents, tasks, and chats; email threads filed in it stay with the
+original. Folders with more than 100 subfolders, documents, and chats can't be
+duplicated, and a failed copy leaves nothing behind.
 A folder's Share dialog, when the owner belongs to a team, has Team access
 (None, View, Comment, or Edit) without a Link sharing card or Link tab.
 Favorites use the same open actions and **Remove from favorites** menu as Tasks.
