@@ -450,6 +450,7 @@ dependencies = [
  "genai_telemetry",
  "github",
  "harness_id",
+ "jev",
  "kafka_util",
  "lexical_client",
  "macro_authorization",
