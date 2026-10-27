@@ -19,9 +19,10 @@ mod test;
 
 /// Concurrent backfill message writes across the fleet. A healthy write (the
 /// contacts upsert plus the message transaction) averages about 100 ms, so
-/// twelve slots admit roughly 120 messages a second while the database is
-/// healthy, and fewer as it slows down.
-const CAPACITY: u32 = 12;
+/// twenty slots admit roughly 200 messages a second while the database is
+/// healthy, above normal busy hours, and fewer as it slows down. Unbounded,
+/// 125 to 250 backfill workers could write at once.
+const CAPACITY: u32 = 20;
 /// Frees the slot of a crashed worker. A held slot renews it every
 /// [`RENEW_EVERY`], so a write that outlasts it keeps its slot.
 const LEASE: Duration = Duration::from_secs(120);
