@@ -238,6 +238,8 @@ where
             if !self.sync.exists(document_id).await? {
                 return Err(error);
             }
+            tracing::Span::current().record("seeded", false);
+            tracing::info!(error = ?error, "another peer seeded the Word document first");
         }
         Ok(())
     }
