@@ -130,7 +130,9 @@ it('lets team-paid members add credits within the team limit, without Auto-Reloa
   render(() => <UsageSettingsView context={lab.usage} />);
   expect(screen.getByText(/credits remaining/)).toBeTruthy();
   expect(
-    screen.getByText(/You can add \$[\d,.]+ more this month, within your team's/)
+    screen.getByText(
+      /You can add \$[\d,.]+ more this month, within your team's/
+    )
   ).toBeTruthy();
   expect(screen.queryByText('Automatic reload')).toBeNull();
   expect(screen.queryByRole('button', { name: /Automatic reload/ })).toBeNull();
