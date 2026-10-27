@@ -1,6 +1,14 @@
 mod delete_message;
 mod receive_messages;
 
+use aws_sdk_sqs::types::MessageSystemAttributeName;
+use std::time::Duration;
+
+#[cfg(test)]
+mod test;
+
+const MAX_VISIBILITY_TIMEOUT_SECONDS: i32 = 43_200;
+
 #[derive(Clone, Debug)]
 pub struct SQSWorker {
     inner: aws_sdk_sqs::Client,
@@ -57,6 +65,47 @@ impl SQSWorker {
     pub async fn delete_message(&self, receipt_handle: &str) -> anyhow::Result<()> {
         delete_message::delete_message(&self.inner, &self.queue_url, receipt_handle).await
     }
+
+    /// Hides a received message for `visibility_timeout` from now, after which
+    /// SQS delivers it again unless it is deleted first. The timeout is rounded
+    /// up to whole seconds and cut to SQS's 12-hour limit.
+    #[tracing::instrument(skip(self, message), fields(message_id = message.message_id), err)]
+    pub async fn change_message_visibility(
+        &self,
+        message: &aws_sdk_sqs::types::Message,
+        visibility_timeout: Duration,
+    ) -> anyhow::Result<()> {
+        let Some(receipt_handle) = message.receipt_handle.as_ref() else {
+            anyhow::bail!("no receipt handle found for message");
+        };
+        self.inner
+            .change_message_visibility()
+            .queue_url(&self.queue_url)
+            .receipt_handle(receipt_handle)
+            .visibility_timeout(visibility_timeout_seconds(visibility_timeout))
+            .send()
+            .await?;
+        Ok(())
+    }
+}
+
+fn visibility_timeout_seconds(visibility_timeout: Duration) -> i32 {
+    let seconds = visibility_timeout
+        .as_secs()
+        .saturating_add(u64::from(visibility_timeout.subsec_nanos() > 0));
+    i32::try_from(seconds).map_or(MAX_VISIBILITY_TIMEOUT_SECONDS, |seconds| {
+        seconds.min(MAX_VISIBILITY_TIMEOUT_SECONDS)
+    })
+}
+
+/// How many times SQS has delivered `message`, counting this delivery.
+pub fn receive_count(message: &aws_sdk_sqs::types::Message) -> Option<u32> {
+    message
+        .attributes()?
+        .get(&MessageSystemAttributeName::ApproximateReceiveCount)?
+        .parse()
+        .ok()
+        .filter(|count| *count > 0)
 }
 
 #[tracing::instrument(skip(sqs_worker, message), fields(message_id=message.message_id, message_receipt_handle=message.receipt_handle))]

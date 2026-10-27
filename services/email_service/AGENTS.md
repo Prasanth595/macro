@@ -97,6 +97,18 @@ the gateway `/email` prefix.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
   Skip the bad address with a WARN that omits it (the parse error echoes it)
   instead of failing the step; see `pubsub::util::build_contact_connections`.
+- Rate-limited gmail_ops and inbox-sync operations back off with jitter
+  (`pubsub/rate_limit_backoff.rs`): the primary worker delays the retry-queue
+  send, and retry workers extend the message's visibility. A Gmail quota 429
+  or 403 backs off from 15–30 s, doubling. A request-gate refusal, or a
+  "Too many concurrent requests" 429 (after which the gate lowers the
+  mailbox's cap), waits any `retry_after` plus 0.5–2 s, growing by half per
+  attempt, so the work keeps returning within seconds while a burst drains.
+  Attempts are numbered from SQS's `ApproximateReceiveCount`, which
+  `sqs_worker` requests on every receive.
+  Delays are capped at 300 s so the retry queue's 100 deliveries end within
+  the 12-hour expiry of pending label write markers; keep that bound when
+  changing the cap or `maxReceiveCount`.
 
 ## Related
 

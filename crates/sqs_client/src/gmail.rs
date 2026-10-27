@@ -3,6 +3,12 @@ use anyhow::Context;
 use aws_sdk_sqs::types::SendMessageBatchRequestEntry;
 use models_email::gmail::gmail_ops::GmailOpsPubsubMessage;
 use models_email::gmail::inbox_sync::InboxSyncPubsubMessage;
+use std::time::Duration;
+
+#[cfg(test)]
+mod test;
+
+const MAX_DELAY_SECONDS: i32 = 900;
 
 impl SQS {
     pub fn gmail_inbox_sync_queue(mut self, gmail_inbox_sync_queue: &str) -> Self {
@@ -32,19 +38,27 @@ impl SQS {
         message: InboxSyncPubsubMessage,
     ) -> anyhow::Result<()> {
         if let Some(gmail_inbox_sync_queue) = &self.gmail_inbox_sync_queue {
-            return enqueue_notification(&self.inner, gmail_inbox_sync_queue, &message).await;
+            return enqueue_notification(&self.inner, gmail_inbox_sync_queue, &message, None).await;
         }
         anyhow::bail!("gmail_inbox_sync_queue is not configured")
     }
 
-    /// Sends a notification message to the Gmail retry inbox sync queue
-    #[tracing::instrument(skip(self))]
+    /// Sends a notification message to the Gmail retry inbox sync queue, which
+    /// delivers it after `delay`.
+    #[tracing::instrument(skip(self, message), fields(link_id = %message.link_id), err)]
     pub async fn enqueue_gmail_retry_inbox_sync_notification(
         &self,
         message: InboxSyncPubsubMessage,
+        delay: Duration,
     ) -> anyhow::Result<()> {
         if let Some(gmail_inbox_sync_retry_queue) = &self.gmail_inbox_sync_retry_queue {
-            return enqueue_notification(&self.inner, gmail_inbox_sync_retry_queue, &message).await;
+            return enqueue_notification(
+                &self.inner,
+                gmail_inbox_sync_retry_queue,
+                &message,
+                Some(delay),
+            )
+            .await;
         }
         anyhow::bail!("gmail_inbox_sync_retry_queue is not configured")
     }
@@ -56,7 +70,7 @@ impl SQS {
         message: GmailOpsPubsubMessage,
     ) -> anyhow::Result<()> {
         if let Some(gmail_ops_queue) = &self.gmail_ops_queue {
-            return enqueue_notification(&self.inner, gmail_ops_queue, &message).await;
+            return enqueue_notification(&self.inner, gmail_ops_queue, &message, None).await;
         }
         anyhow::bail!("gmail_ops_queue is not configured")
     }
@@ -115,32 +129,49 @@ impl SQS {
         Ok(())
     }
 
-    /// Sends a message to the Gmail operations retry queue
+    /// Sends a message to the Gmail operations retry queue, which delivers it
+    /// after `delay`.
     #[tracing::instrument(skip(self, message), fields(link_id = %message.link_id), err)]
     pub async fn enqueue_gmail_ops_retry_notification(
         &self,
         message: GmailOpsPubsubMessage,
+        delay: Duration,
     ) -> anyhow::Result<()> {
         if let Some(gmail_ops_retry_queue) = &self.gmail_ops_retry_queue {
-            return enqueue_notification(&self.inner, gmail_ops_retry_queue, &message).await;
+            return enqueue_notification(&self.inner, gmail_ops_retry_queue, &message, Some(delay))
+                .await;
         }
         anyhow::bail!("gmail_ops_retry_queue is not configured")
     }
 }
 
-#[tracing::instrument(skip(sqs_client, message))]
+#[tracing::instrument(skip(sqs_client, message), err)]
 async fn enqueue_notification<T: serde::Serialize + std::fmt::Debug>(
     sqs_client: &aws_sdk_sqs::Client,
     queue_url: &str,
     message: &T,
+    delay: Option<Duration>,
 ) -> anyhow::Result<()> {
     let message_str = serde_json::to_string(message)?;
 
-    sqs_client
+    let mut request = sqs_client
         .send_message()
         .queue_url(queue_url)
-        .message_body(message_str)
-        .send()
-        .await?;
+        .message_body(message_str);
+
+    if let Some(delay) = delay {
+        request = request.delay_seconds(delay_seconds(delay));
+    }
+
+    request.send().await?;
     Ok(())
+}
+
+/// Rounds `delay` up to whole seconds, so the message never arrives early, and
+/// cuts it to SQS's 15-minute `DelaySeconds` limit.
+fn delay_seconds(delay: Duration) -> i32 {
+    let seconds = delay
+        .as_secs()
+        .saturating_add(u64::from(delay.subsec_nanos() > 0));
+    i32::try_from(seconds).map_or(MAX_DELAY_SECONDS, |seconds| seconds.min(MAX_DELAY_SECONDS))
 }

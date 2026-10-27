@@ -1,5 +1,6 @@
 use crate::pubsub::context::PubSubContext;
 use crate::pubsub::inbox_sync::email_api_error::handle_operation_error;
+use crate::pubsub::rate_limit_backoff::PROVIDER_BACKOFF;
 use crate::pubsub::util::{
     cg_refresh_email, complete_transaction_with_processing_error, publish_email_event,
 };
@@ -27,9 +28,10 @@ use uuid::Uuid;
 mod test;
 
 /// Compares a db message's labels to the gmail message's labels, adding/removing as necessary
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(skip(ctx, sqs_message))]
 pub async fn update_labels(
     ctx: &PubSubContext,
+    sqs_message: &aws_sdk_sqs::types::Message,
     link: &link::Link,
     payload: &UpdateLabelsPayload,
 ) -> result::Result<(), ProcessingError> {
@@ -52,6 +54,29 @@ pub async fn update_labels(
 
     let db_message = match db_message_opt {
         Some(m) => m,
+        None if !ctx.retry_worker => {
+            // An UpsertMessage for this message may still be waiting out a
+            // rate limit. Look again after its first retry instead of fetching
+            // the message a second time now.
+            ctx.sqs_client
+                .enqueue_gmail_retry_inbox_sync_notification(
+                    InboxSyncPubsubMessage {
+                        link_id: link.id,
+                        operation: InboxSyncOperation::UpdateLabels(payload.clone()),
+                    },
+                    PROVIDER_BACKOFF,
+                )
+                .await
+                .map_err(|e| {
+                    ProcessingError::Retryable(DetailedError {
+                        reason: FailureReason::SqsEnqueueFailed,
+                        source: e.context("Failed to defer label update for a missing message"),
+                    })
+                })?;
+            tracing::debug!(%provider_message_id, link_id = %link.id,
+                "Message not in database yet, label update deferred");
+            return Ok(());
+        }
         None => {
             // if message exists in gmail but not in db, we should try to upsert it
             ctx.sqs_client
@@ -72,13 +97,10 @@ pub async fn update_labels(
                     })
                 })?;
 
-            return Err(ProcessingError::NonRetryable(DetailedError {
-                reason: FailureReason::MessageNotFoundInDatabase,
-                source: anyhow::anyhow!(
-                    "Message {} not found in database. Upsert message queued.",
-                    provider_message_id
-                ),
-            }));
+            // The upsert stores the message with its current labels.
+            tracing::debug!(%provider_message_id, link_id = %link.id,
+                "Message not in database, upsert queued instead of a label update");
+            return Ok(());
         }
     };
 
@@ -101,6 +123,7 @@ pub async fn update_labels(
         Err(error) => {
             return Err(handle_operation_error(
                 ctx,
+                sqs_message,
                 link.id,
                 InboxSyncOperation::UpdateLabels(payload.clone()),
                 error,
