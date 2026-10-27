@@ -4,6 +4,9 @@ import type { JSX } from 'solid-js';
 type ClickEvent = Parameters<
   JSX.EventHandler<HTMLButtonElement, MouseEvent>
 >[0];
+type AuxClickEvent = Parameters<
+  JSX.EventHandler<HTMLButtonElement, PointerEvent>
+>[0];
 type KeyEvent = Parameters<
   JSX.EventHandler<HTMLButtonElement, KeyboardEvent>
 >[0];
@@ -33,11 +36,6 @@ export function createButtonActivation(
     return true;
   }
 
-  function handleClick(event: ClickEvent, handler: Handlers['onClick']) {
-    if (blockUnavailable(event)) return;
-    callHandler(event, handler);
-  }
-
   function handleKey(
     event: KeyEvent,
     handler: Handlers['onKeyDown'],
@@ -62,8 +60,14 @@ export function createButtonActivation(
   }
 
   return {
-    onClick: (event: ClickEvent) => handleClick(event, handlers.onClick),
-    onAuxClick: (event: ClickEvent) => handleClick(event, handlers.onAuxClick),
+    onClick: (event: ClickEvent) => {
+      if (blockUnavailable(event)) return;
+      callHandler(event, handlers.onClick);
+    },
+    onAuxClick: (event: AuxClickEvent) => {
+      if (blockUnavailable(event)) return;
+      callHandler(event, handlers.onAuxClick);
+    },
     onKeyDown: (event: KeyEvent) =>
       handleKey(event, handlers.onKeyDown, 'Enter'),
     onKeyUp: (event: KeyEvent) => handleKey(event, handlers.onKeyUp, ' '),

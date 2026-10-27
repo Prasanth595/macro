@@ -116,6 +116,7 @@ import { useNavigate } from '@solidjs/router';
 import { useQuery, useQueryClient } from '@tanstack/solid-query';
 import {
   Button,
+  ButtonGroup,
   CopyButton,
   cn,
   Dropdown,
@@ -2345,7 +2346,8 @@ export function ShareTrigger(props: {
       sharePermission.teamShareAccessLevel
     );
   });
-  const iconSize = () => isTouchDevice() || props.size === 'md' ? 'icon-md' : 'icon-sm';
+  const iconSize = () =>
+    isTouchDevice() || props.size === 'md' ? 'icon-md' : 'icon-sm';
 
   return (
     <HeaderActionGroup label="Sharing" size={props.size}>
@@ -2355,7 +2357,8 @@ export function ShareTrigger(props: {
         onPointerEnter={warmShareDialog}
         onFocusIn={warmShareDialog}
       >
-        <HeaderActionButton grouped
+        <HeaderActionButton
+          grouped
           size={isTouchDevice() ? undefined : props.size}
           label="Share"
           tooltip={
@@ -2384,7 +2387,7 @@ export function ShareTrigger(props: {
         />
 
         <CopyButton
-          grouped
+          as={ButtonGroup.Button}
           variant="ghost"
           tooltip="Copy Share Link"
           size={iconSize()}

@@ -29,10 +29,11 @@ function SizesDemo() {
     <div class="flex items-center gap-3">
       <For each={['sm', 'md', 'lg', 'icon-md'] as const}>
         {(size) => (
-          <CopyButton aria-label={"Copy example"} tooltip={"Copy example"}
+          <CopyButton
+            aria-label="Copy example"
+            tooltip="Copy example"
             size={size}
             variant="outline"
-            
             onClick={() => navigator.clipboard.writeText('Copied from Macro')}
           >
             <CopyIcon />

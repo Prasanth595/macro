@@ -1,36 +1,41 @@
 import type { HotkeyToken } from '@core/hotkey/tokens';
 import {
-  Button as KobalteButton,
   type ButtonRootProps,
+  Button as KobalteButton,
 } from '@kobalte/core/button';
 import type { PolymorphicProps } from '@kobalte/core/polymorphic';
 import {
+  type ComponentProps,
   For,
+  type JSX,
   Show,
   splitProps,
-  type ComponentProps,
-  type JSX,
   type ValidComponent,
 } from 'solid-js';
-import { Hotkey } from './Hotkey';
-import { Tooltip } from './ButtonTooltip';
-import { cn } from '../utils/classname';
 import { createButtonActivation } from '../utils/button-activation';
-import { iconControlSizes, labeledControlSizes } from '../utils/control-sizes';
 import {
   gradientRaisedButtonStyles,
   raisedButtonStyles,
 } from '../utils/button-finishes';
+import { cn } from '../utils/classname';
+import { iconControlSizes, labeledControlSizes } from '../utils/control-sizes';
 import {
-  outlineReflectionStyles,
   type OutlineFinish,
+  outlineReflectionStyles,
 } from '../utils/outline-reflection';
 import { createVariants, type VariantProps } from '../utils/variants';
+import { Hotkey } from './Hotkey';
+import { Tooltip } from './Tooltip';
+
 const buttonFrames = {
-  primary: 'bg-button-primary-bg text-button-primary-ink border-transparent shadow-button',
-  secondary: 'bg-button-secondary-bg text-ink border-border-secondary dark-mode:border-transparent shadow-button',
-  outline: 'bg-transparent text-ink border-border-secondary bg-none shadow-none',
-  ghost: 'bg-button-tertiary-bg text-ink-muted border-transparent bg-none shadow-none',
+  primary:
+    'bg-button-primary-bg text-button-primary-ink border-transparent shadow-button',
+  secondary:
+    'bg-button-secondary-bg text-ink border-border-secondary dark-mode:border-transparent shadow-button',
+  outline:
+    'bg-transparent text-ink border-border-secondary bg-none shadow-none',
+  ghost:
+    'bg-button-tertiary-bg text-ink-muted border-transparent bg-none shadow-none',
   accent: 'bg-accent text-button-accent-ink border-transparent shadow-button',
   danger: 'bg-button-danger-bg text-failure border-transparent shadow-button',
   success: 'bg-button-success-bg text-success border-transparent shadow-button',
@@ -48,39 +53,42 @@ const buttonStyles = createVariants(
       primary: cn(
         buttonFrames.primary,
         'not-data-disabled:hover:bg-button-primary-hover not-data-disabled:active:bg-button-primary-pressed aria-pressed:bg-button-primary-pressed aria-pressed:not-data-disabled:hover:bg-button-primary-pressed aria-expanded:bg-button-primary-pressed aria-expanded:not-data-disabled:hover:bg-button-primary-pressed focus-visible:outline-button-primary-ink',
-        buttonPressedStyles,
+        buttonPressedStyles
       ),
       secondary: cn(
         buttonFrames.secondary,
         'not-data-disabled:hover:bg-button-secondary-hover not-data-disabled:active:bg-button-secondary-pressed aria-pressed:bg-button-secondary-pressed aria-pressed:not-data-disabled:hover:bg-button-secondary-pressed aria-expanded:bg-button-secondary-pressed aria-expanded:not-data-disabled:hover:bg-button-secondary-pressed',
-        buttonPressedStyles,
+        buttonPressedStyles
       ),
       outline: cn(
         buttonFrames.outline,
         'not-data-disabled:hover:bg-button-outline-hover not-data-disabled:active:bg-button-outline-pressed aria-pressed:bg-button-outline-pressed aria-pressed:not-data-disabled:hover:bg-button-outline-pressed aria-expanded:bg-button-outline-pressed aria-expanded:not-data-disabled:hover:bg-button-outline-pressed',
-        buttonPressedStyles,
+        buttonPressedStyles
       ),
       ghost: cn(
         buttonFrames.ghost,
         'not-data-disabled:hover:bg-button-tertiary-hover not-data-disabled:hover:text-ink not-data-disabled:active:bg-button-tertiary-pressed not-data-disabled:active:text-ink aria-pressed:bg-button-tertiary-pressed aria-pressed:text-ink aria-pressed:not-data-disabled:hover:bg-button-tertiary-pressed aria-expanded:bg-button-tertiary-pressed aria-expanded:text-ink aria-expanded:not-data-disabled:hover:bg-button-tertiary-pressed',
-        buttonPressedStyles,
+        buttonPressedStyles
       ),
       accent: cn(
         buttonFrames.accent,
         'not-data-disabled:hover:bg-button-accent-hover not-data-disabled:active:bg-button-accent-pressed aria-pressed:bg-button-accent-pressed aria-pressed:not-data-disabled:hover:bg-button-accent-pressed aria-expanded:bg-button-accent-pressed aria-expanded:not-data-disabled:hover:bg-button-accent-pressed focus-visible:outline-button-accent-ink',
-        buttonPressedStyles,
+        buttonPressedStyles
       ),
       danger: cn(
         buttonFrames.danger,
         'not-data-disabled:hover:bg-button-danger-hover not-data-disabled:active:bg-button-danger-pressed aria-pressed:bg-button-danger-pressed aria-pressed:not-data-disabled:hover:bg-button-danger-pressed aria-expanded:bg-button-danger-pressed aria-expanded:not-data-disabled:hover:bg-button-danger-pressed',
-        buttonPressedStyles,
+        buttonPressedStyles
       ),
       success: cn(
         buttonFrames.success,
         'not-data-disabled:hover:bg-button-success-hover not-data-disabled:active:bg-button-success-pressed aria-pressed:bg-button-success-pressed aria-pressed:not-data-disabled:hover:bg-button-success-pressed aria-expanded:bg-button-success-pressed aria-expanded:not-data-disabled:hover:bg-button-success-pressed',
-        buttonPressedStyles,
+        buttonPressedStyles
       ),
-      link: cn(buttonFrames.link, 'underline-offset-4 not-data-disabled:hover:text-link-hover not-data-disabled:hover:underline'),
+      link: cn(
+        buttonFrames.link,
+        'underline-offset-4 not-data-disabled:hover:text-link-hover not-data-disabled:hover:underline'
+      ),
     },
     size: {
       ...labeledControlSizes,
@@ -108,7 +116,6 @@ export type ButtonClassOptions = {
   fullWidth?: boolean;
   class?: string;
 };
-
 
 const raisedBorderButtonStyles = cn(
   raisedButtonStyles,
@@ -197,7 +204,12 @@ export type ButtonProps<T extends ValidComponent = 'button'> = PolymorphicProps<
     }
 >;
 
-/** Actions use Button; navigation uses anchors. Finishes are explicitly opt-in. */
+/**
+ * Actions use Button; navigation uses anchors. Finishes are explicitly opt-in.
+ * @do Set aria-label for icon-only actions and use an explicit icon-* size.
+ * @do Use tooltip strings for content only, or options for hotkeys and placement.
+ * @dont Use Button for links or size descendant icons through the control.
+ */
 export function Button<T extends ValidComponent = 'button'>(
   props: ButtonProps<T>
 ) {

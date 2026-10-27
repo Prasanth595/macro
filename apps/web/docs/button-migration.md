@@ -27,8 +27,8 @@ Keep Button-specific helpers and materials within the app's shared UI and theme 
 - Remove `depth`, `glass`, and `noTouchResize`. Finishes are opt-in through `finish`; `appearance="bare"` leaves the face to a composed control.
 - `aria-expanded` drives expanded-state styling, not Kobalte's broader `data-expanded` state.
 - ButtonGroup uses a compound API: `ButtonGroup.Button` inherits group size and variant; standalone Button remains independent. Frame colors and finishes reuse Button's recipe without adding whole-group hover states. Segments retain their own hover, pressed, disabled, and focus states.
-- Group roots use native `aria-label` rather than `label`, and no longer accept `depth`. Existing action groups use `variant="secondary" finish="raised"`; omitting `finish` keeps the plain frame. CopyButton opts into a segment with `grouped`.
-- Reusable controls opt into grouped rendering explicitly: CopyButton, HeaderActionButton, list/filter/group/sort menus, and email controls expose `grouped`. Custom `BlockTool.buttonComponent` callbacks receive the same option. A segment outside a group keeps ordinary Button styling, preserving frame-free touch layouts.
+- Group roots use native `aria-label` rather than `label`, and no longer accept `depth`. Existing action groups use `variant="secondary" finish="raised"`; omitting `finish` keeps the plain frame. CopyButton opts into a segment with `as={ButtonGroup.Button}`.
+- CopyButton uses its polymorphic `as` prop for composition. HeaderActionButton, list/filter/group/sort menus, and email controls expose `grouped`. Custom `BlockTool.buttonComponent` callbacks receive the same option. A segment outside a group keeps ordinary Button styling, preserving frame-free touch layouts.
 - HeaderActionGroup defaults to `sm` sizing with a minimum-height frame and accepts `size="md"`. Grouped labelled actions inherit the frame size. Header frames and the task document's split action omit the transparent border so it does not add 2px around their segments. The task split action uses `sm`/`icon-sm`, including when its label collapses. Calendar navigation and view selectors retain compact header sizing. Keep standalone New/Search controls and touch targets unchanged.
 - Email header groups currently trial `md` / `icon-md` (32px), including filters, reading-pane controls, reminders, read/done actions, Ask Macro, Create task, sharing, navigation, and the details toggle. Icon dimensions remain unchanged. Email icon actions pass their size through `HeaderActionButton`, which omits the visible label while retaining its accessible name and tooltip; header wrappers do not resize or pad descendant buttons. Touch controls retain their existing behavior.
 - The email inbox trigger centers its avatar or overlapping avatar group in a fixed icon slot without shrinking the avatars or changing its button hit area.
@@ -36,6 +36,8 @@ Keep Button-specific helpers and materials within the app's shared UI and theme 
 - Buttons are actions. Navigation uses anchors; the `link` variant is a visual treatment.
 
 Shared wrappers follow the same API: number steppers and split navigation use `aria-label` plus `tooltip`, with shortcut hints inside tooltip options. Split navigation retains default action names and shortcuts, while explicit tooltip options replace those defaults. Number-stepper examples and scheduling controls use the new props directly.
+
+Tooltips share one implementation in `components/ui/components/Tooltip.tsx`: the assembled wrapper and compound `Root`, `Trigger`, `Portal`, and `Content` parts use the same policy and presentation. Button composes the parts around its own trigger. Trigger disposal closes the popup through lifecycle cleanup, without observing document-wide mutations. Use string tooltip shorthand when only content is needed; use an options object for placement, shortcuts, or disabled state, without redundant fallbacks.
 
 Group controls explicitly instead of relying on descendant selectors:
 
@@ -104,4 +106,4 @@ MACRO_DEV_HTTPS=false MACRO_DEV_PROXY=true PORT=3007 bun run dev:server --strict
 
 Proxy forwarding was enabled after CORS errors were reported. The failing response was not captured, so this is a development transport workaround rather than a confirmed endpoint-level diagnosis.
 
-Checks, builds, tests, formatting, browser verification, probes, and hooks remain paused. The implementation and caller migration are unverified. Starting the server does not establish rendering, type, accessibility, or interaction correctness.
+Targeted CI-repair validation covers TypeScript, Biome, and affected unit suites. Browser verification and a full local build remain unperformed; starting the preview does not establish visual correctness.

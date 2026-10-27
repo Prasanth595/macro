@@ -20,7 +20,7 @@ import { storageServiceClient } from '@service-storage/client';
 import type { MessageThread } from '@service-storage/messages';
 import { createCallback } from '@solid-primitives/rootless';
 import { makePersisted } from '@solid-primitives/storage';
-import { Button, ButtonGroup, CopyButton, Dropdown } from '@ui';
+import { ButtonGroup, CopyButton, Dropdown } from '@ui';
 import { type Component, createSignal, For, type JSX, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { useMarkdownDocument } from '../context/markdown-document-context';
@@ -331,14 +331,17 @@ export function DispatchAgentButton(
 
   return (
     <Dropdown open={open()} onOpenChange={setOpen}>
-      <ButtonGroup finish="raised"
+      <ButtonGroup
+        finish="raised"
         variant="secondary"
         size={props.showPrimaryLabel ? 'sm' : 'icon-sm'}
         class="border-0"
       >
         <Dynamic
-          component={lastUsed().key === 'copy' ? CopyButton : ButtonGroup.Button}
-          {...(lastUsed().key === 'copy' ? { grouped: true } : {})}
+          component={
+            lastUsed().key === 'copy' ? CopyButton : ButtonGroup.Button
+          }
+          {...(lastUsed().key === 'copy' ? { as: ButtonGroup.Button } : {})}
           onClick={executeLastUsed}
           tooltip={lastUsed().name}
           class="@max-[600px]/split-header:w-7 @max-[600px]/split-header:p-0"
@@ -354,10 +357,12 @@ export function DispatchAgentButton(
           </Show>
         </Dynamic>
         <ButtonGroup.Divider />
-        <Dropdown.Trigger as={ButtonGroup.Button} aria-label={"Agent options"} tooltip={"Agent options"}
+        <Dropdown.Trigger
+          as={ButtonGroup.Button}
+          aria-label="Agent options"
+          tooltip="Agent options"
           variant="secondary"
           size="icon-sm"
-          
         >
           <CaretDown class="size-3.5!" />
         </Dropdown.Trigger>

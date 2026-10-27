@@ -10,7 +10,11 @@ describe('Button', () => {
   it('disables activation while loading and preserves its accessible name', () => {
     const [loading, setLoading] = createSignal(false);
     const onClick = vi.fn();
-    render(() => <Button loading={loading()} onClick={onClick}>Save</Button>);
+    render(() => (
+      <Button loading={loading()} onClick={onClick}>
+        Save
+      </Button>
+    ));
     const button = screen.getByRole('button', { name: 'Save' });
     fireEvent.click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
@@ -32,7 +36,9 @@ describe('Button', () => {
     render(() => (
       <ButtonGroup variant="secondary" size="sm">
         <ButtonGroup.Button>Save</ButtonGroup.Button>
-        <ButtonGroup.Button variant="accent" size="lg">Publish</ButtonGroup.Button>
+        <ButtonGroup.Button variant="accent" size="lg">
+          Publish
+        </ButtonGroup.Button>
         <Button>Independent</Button>
       </ButtonGroup>
     ));

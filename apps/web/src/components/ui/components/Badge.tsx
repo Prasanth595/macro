@@ -62,7 +62,11 @@ export function badgeClasses(options: BadgeClassOptions = {}): string {
 export function badgeTriggerClasses(options: BadgeClassOptions = {}): string {
   const { variant = 'ghost', size = 'md', class: className } = options;
   return cn(
-    buttonClasses({ variant, size, class: className }),
+    buttonClasses({
+      variant: variant ?? 'ghost',
+      size: size ?? 'md',
+      class: className,
+    }),
     'focus-visible:ring-2 focus-visible:ring-accent/20',
     'rounded-full'
   );
