@@ -32,13 +32,14 @@ const EXPECTED_REQUESTS = [
 ];
 
 /**
- * Layouts forced by scripts while the second channel opens. Eight today:
- * measuring the viewport, positioning at the latest message, one batched row
- * measurement and its scroll correction, the composer editor's selection, and
- * the scrollbar. Two more absorb frame timing. Measuring rows one at a time
- * added a layout per mounted row.
+ * Layouts forced by scripts while the second channel opens. Seven today:
+ * measuring the viewport, the scroll to the latest message, one batched row
+ * measurement and its scroll correction, the composer editor's selection, the
+ * scrollbar's once-per-frame read, and the list publishing its scroll state.
+ * Two more absorb frame timing. Measuring rows one at a time added a layout
+ * per mounted row.
  */
-const FORCED_LAYOUT_BUDGET = 10;
+const FORCED_LAYOUT_BUDGET = 9;
 
 const TIMELINE = /\/messages\/channel\/([^/]+)\/timeline$/;
 
