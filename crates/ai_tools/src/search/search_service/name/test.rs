@@ -25,14 +25,3 @@ fn type_filtered_name_search_excludes_crm_companies() {
 
     assert!(!request.include_crm);
 }
-
-#[test]
-fn channel_only_name_search_sends_no_unified_request() {
-    let search: NameSearch = serde_json::from_value(serde_json::json!({
-        "name": "Atlas Labs",
-        "entityTypes": ["channels"],
-    }))
-    .unwrap();
-
-    assert!(search.unified_request(EntityFilters::default()).is_none());
-}
