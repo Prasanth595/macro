@@ -46,8 +46,8 @@ remain readable and retain the manual-creation protection against sync cleanup.
 
 ## Remaining implementation sequence
 
-1. **Identity and ownership contract** — contact worker with Gab and the consent
-   owner. The agreed pilot model is stable UUID identity with deduplication
+1. **Identity and ownership contract** — contact worker with the CRM triage and
+   consent owners. The agreed pilot model is stable UUID identity with deduplication
    within each personal/team ownership scope. Matching identifiers across teams
    must not merge records or reveal private records. Email normalization trims
    and lowercases without stripping plus tags or dots. Aliases, shared and
@@ -70,7 +70,7 @@ remain readable and retain the manual-creation protection against sync cleanup.
    reuse properties/database storage for imported fields, and add domain
    management with an explicit primary. Company merge owns its survivor,
    conflicts, domain union and durable redirects; do not auto-merge by name.
-5. **Pilot and verification** — Gab decides launch scope after migration and
+5. **Pilot and verification** — the launch owner decides scope after migration and
    permission tests. Initially exercise manual team-owned creation only; broad
    personal-contact capture remains off this change. Verify repeat/concurrent
    imports, phone-only then email-added records, cross-team isolation, link and
@@ -82,7 +82,7 @@ The GQL backfill worker continues against main's existing contact APIs; this
 stage adds no dependency to that work. Consent/exclusions and company merging
 remain separate coordinated deliveries. No external implementation is assumed.
 
-No hands-on Attio comparison or p50/p95 benchmark has been completed. Measure
+No hands-on reference CRM comparison or p50/p95 benchmark has been completed. Measure
 create/find/link/import clicks, required fields, errors and recovery, plus open
 and save latency on small and realistic datasets before claiming parity. Search
 work and search performance measurement remain outside this non-search change.

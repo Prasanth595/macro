@@ -1,12 +1,22 @@
 # Documents
 
+For gateway sync rollout checks, use PostHog flag `sync-via-gateway` (dev and
+production) and recreate document sessions after the client receives the updated
+flag. A reload can initially read PostHog's cached value; open sessions do not
+change transport when the remote value changes. Off or unavailable uses a
+direct sync-service WebSocket per document; on multiplexes document frames over
+the connection gateway. Confirm the hosted `sync_router` is provisioned before
+enabling. Local stacks can override with `VITE_SYNC_VIA_GATEWAY=true` or `false`.
+
 The document header has separate Share, Copy Share Link, and Side Panel buttons.
 They are borderless with a soft rounded background on hover. Share opens the
 sharing dialog; copying a link is a separate action.
 
 With `enable-calendar-meeting-notes` enabled, owned markdown documents' Share
 panel also lists **Meeting links** (under the **Link** tab on mobile).
-Each shows its occurrence and optional team view grant.
+Each shows its occurrence and optional team view grant. Toggle **Also share with
+<team>** here to update that link’s team access; changes save immediately.
+Calendar notes’ **Options → Share** opens this same dialog.
 Use **Unlink** and confirm to remove that grant without deleting the document.
 This remains available when the meeting is cancelled or no longer shared with
 you; unavailable meeting details are hidden. See [Calendar meeting notes](calendar.md#meeting-notes).
@@ -14,6 +24,25 @@ Turning the flag off does not revoke saved grants. If meeting access cannot be
 checked, the share status uses **Restricted** instead of claiming **Just me**;
 known public, team, or shared access still appears.
 This status follows the current document and account when navigating with Share open.
+
+When meeting notes are enabled, the document side panel’s **References** section
+also lists linked calendar events, including when there are no document or message
+references. Each row uses the same single-line style, with the meeting title and
+date inline. Open a row to jump to
+your calendar copy; meetings shared through a channel or team without a personal
+copy use a read-only event preview. The preview also works when the Calendar
+view is disabled. Readers see only
+meetings they can view in detail. Owners retain safe
+unavailable-meeting entries, which can be removed through Share. Linking or
+unlinking updates the References count.
+
+Verify a note linked to two meetings, a note with both message and calendar
+references, a rescheduled one-time event, and a recurring occurrence. A cancelled
+instance must never open a later instance. Check full-detail team sharing, a
+reader who can see both entities, a reader with document-only access, and the
+feature flag off. On phone, open References from the document side panel and
+follow a meeting without leaving a sheet over the calendar. Closing a read-only
+meeting preview must return to the document details sheet.
 
 Verify **Public → View** links in a fresh signed-out browser context. The
 `/app/drive/md/<id>` route (including folder/tab document links and legacy
@@ -97,12 +126,17 @@ being assigned, except the task's default Project placeholder. Long values trunc
 or wrap within the value column without
 covering the pin or remove controls.
 Escape cancels an inline text or number draft without saving it.
-Hover or focus an inline property pill to find **Unpin** (keeps its saved
-value) and **Delete from item** where removal is allowed (removes the assignment,
-without deleting the shared property definition). Task builtins cannot be deleted
-from these pills. Pins are saved with the document, including an explicitly empty
-pin list. Tasks initially show Status, Priority, Assignees, and Project when enabled;
-changing pins keeps the other defaults unless they are explicitly unpinned.
+Hover or focus an inline property pill to find a filled, icon-only **Unpin**
+button separated by a gap (keeps its saved value). In a single-row hover card,
+it sits to the right of the value. In a column hover card, it sits to the right
+of the key, above a full-width divider; values keep the full width below.
+Long keys wrap without displacing the Unpin button.
+**Delete from item** stays below, where removal is allowed (removes the
+assignment without deleting the shared property definition). Task builtins cannot
+be deleted from these pills. Pins are saved with the document, including an
+explicitly empty pin list. Tasks initially show Status, Priority, Assignees, and
+Project when enabled; changing pins keeps the other defaults unless they are
+explicitly unpinned.
 
 Markdown code blocks have a **Copy Code** button in both editable and read-only
 views. Successful copies briefly animate the icon to a solid green check-circle;
@@ -2920,9 +2954,10 @@ updates live and shows each collaborator's caret with their name
   open editors patch agent edits in as they land. `ReadWordDocument` lists
   every paragraph, table cell and content control with its id. `EditWordDocument`
   applies an atomic batch of `replaceText`, `setText`, `formatText`,
-  `insertParagraph`, `setStyle` and `delete` operations to those ids. Both
-  refuse a DOCX nobody has opened in the editor yet: it has no live copy.
-  `EditDocument` still rejects DOCX.
+  `insertParagraph`, `setStyle` and `delete` operations to those ids. A DOCX
+  nobody has opened yet (an upload or a duplicate) gets its live copy from the
+  first tool call, seeded exactly as the editor seeds it, so nobody has to open
+  it first. `EditDocument` still rejects DOCX.
 
 ## Document history
 
@@ -3004,3 +3039,15 @@ types do not show these tabs.
 In a disposable Markdown document, change several paragraphs in one edit, then
 undo and redo. Verify the text, paragraph count, and a second peer agree after
 each operation; wait for saving to finish and reload to check persistence.
+
+### Task mention status
+
+Task @mention pills and @mention menu rows display the same circular
+completion/status icon as task rows; pills do not repeat it after the title.
+The icon updates in place as preview data changes; unknown status uses
+an empty circle, and subtype-only previews use their completion flag. See
+[tasks](tasks.md#task-status-icons) for states and the browser regression.
+
+Sharing labels describe their audience: Only people with access, Anyone with the link, and Team members with the link. Permission choices say Can view, Can comment, and Can edit. Copying a restricted link still does not grant access. The existing immediately opening dialog and its deferred loading remain unchanged.
+
+Drive's existing New controls open a wide menu with icons and short descriptions for creation and uploads, while preserving the current destination and feature gates.

@@ -26,6 +26,7 @@ export default defineConfig({
       { find: './use-crm', replacement: `${directory}/preview-adapters.ts` },
     ],
   },
+  optimizeDeps: { esbuildOptions: { target: 'esnext' } },
   server: {
     host: '127.0.0.1',
     strictPort: true,

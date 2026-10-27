@@ -1,5 +1,8 @@
 import { createSignal } from 'solid-js';
 
+// Keep the full adapter surface available when Vite scans other CRM views.
+export * from '../../views/use-crm';
+
 export const [created, setCreated] = createSignal('');
 export const useCreateCompanyMutation = () => ({
   isPending: false,

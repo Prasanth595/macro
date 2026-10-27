@@ -42,7 +42,9 @@ The four activity tabs show CRM-linked content, not the whole app: Tasks and
 Calls require a Companies or Contacts reference; Notes are linked Markdown
 documents (excluding tasks, snippets, and skills); Email is your own mailbox's
 threads with CRM company domains or contact addresses. Lists page as you scroll.
-Empty CRM scope never falls back to all content. A loading failure offers
+Empty CRM scope never falls back to all content. Activity loads directly with a
+server-resolved scope; it does not fetch every company and contact first. Hidden
+companies and contacts stay excluded even for admins. A loading failure offers
 **Try again**. Tasks has **New task**, with Companies and Contacts visible in
 place of Status. Choose a CRM association when creating a task from this feed.
 Opening Task through the global Create menu while Customers is focused uses the
@@ -383,3 +385,5 @@ properties. `Prepare export` fetches every page and shows a count and three-row 
 it does not download. `Download CSV` saves the prepared snapshot using the selected
 columns. Changing scope requires preparing again. Cancel stops preparation. CSV uses UTF-8,
 quoted fields, original date timestamps and spreadsheet formula escaping.
+
+The existing CRM New menus use icons and muted descriptions for Company, Contact, and Pipeline. Pipeline availability and permissions are unchanged.

@@ -42,7 +42,9 @@ channel-shared one: the meeting's iCalendar UID and organizer, only the
 requester as a guest, no join link, nobody notified. Refused with
 `invalid_input` for an invitation, which is answered from the calendar
 instead, `already_on_calendar` when the meeting is already on one of
-their calendars, and `copy_refused` when Google will not import it.
+their calendars, whichever calendar is named (it cannot be added to
+another of theirs either), and `copy_refused` when Google will not
+import it.
 
 #### Parameters
 
@@ -483,6 +485,27 @@ Update provider-neutral read, trash, spam, or star state.
 #### Returns
 
 `Promise`\<`void`\>
+
+***
+
+### archiveMany()
+
+> `static` **archiveMany**(`client`, `threads`, `archived?`): `Promise`\<`EmailThread`[]\>
+
+Archive many threads (or unarchive with `false`), sending one request per
+100 threads. Resolves to the threads whose state could not change.
+
+#### Parameters
+
+| Parameter | Type | Default value |
+| ------ | ------ | ------ |
+| `client` | `MacroClient` | `undefined` |
+| `threads` | `EmailThread`[] | `undefined` |
+| `archived?` | `boolean` | `true` |
+
+#### Returns
+
+`Promise`\<`EmailThread`[]\>
 
 ***
 
