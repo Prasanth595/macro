@@ -96,7 +96,7 @@ describe('activity association lookups', () => {
     expect(deepest).toBeLessThan(24);
   });
 
-  it('pages authorized metadata without blocking rows and drops names when the input leaves', async () => {
+  it('bounds metadata requests and clears cached labels after a failed refresh', async () => {
     const record: SoupApiItem = {
       tag: 'crmContact',
       frecency_score: 0,
@@ -118,13 +118,13 @@ describe('activity association lookups', () => {
     };
     const request = vi
       .fn<typeof storageServiceClient.getSoupAstItems>()
-      .mockResolvedValueOnce(ok({ items: [], next_cursor: 'page-two' }))
       .mockResolvedValueOnce(
         ok({
           items: [
             record,
             { ...record, data: { ...record.data, id: 'hidden', hidden: true } },
           ],
+          next_cursor: 'unused-continuation',
         })
       );
     const entity: EntityData = {
@@ -163,11 +163,18 @@ describe('activity association lookups', () => {
           },
         ])
       );
-      expect(request).toHaveBeenCalledTimes(2);
+      expect(request).toHaveBeenCalledTimes(1);
       expect(request.mock.calls[0][0].body.crmf).toEqual({
         l: { email: 'person@example.com' },
       });
-      expect(request.mock.calls[1][0].params.cursor).toBe('page-two');
+      request.mockRejectedValueOnce(new Error('Access changed'));
+      await source.refetch();
+      expect(source.isError()).toBe(true);
+      expect(source.forEntity(entity)).toEqual([]);
+      request.mockResolvedValueOnce(ok({ items: [record] }));
+      await source.refetch();
+      expect(source.isError()).toBe(false);
+      expect(source.forEntity(entity)).toHaveLength(1);
       setItems([]);
       await vi.waitFor(() => expect(source.forEntity(entity)).toEqual([]));
     } finally {

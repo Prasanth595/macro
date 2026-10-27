@@ -80,9 +80,11 @@ Explicit property links say **Linked to**; exact participant-address matches in
 Email say **Email match** and do not create a property link. Two records remain
 visible, with additional records in a keyboard- and touch-accessible menu.
 `queries/activity-associations.ts` resolves only the loaded rows' references and
-participant addresses in bounded batches. It keeps exact contact IDs separate
-from email-deduplicated discovery, omits inaccessible/hidden records, and shares
-Soup invalidation. Metadata failures do not block the feed; the view offers Retry.
+participant addresses in batches of at most 100, with one request per batch.
+It keeps exact contact IDs separate from email-deduplicated discovery, omits
+inaccessible/hidden records, and shares Soup invalidation. A failed metadata
+refresh removes that batch's cached links until a successful Retry; the feed
+itself stays visible.
 Record-detail lists and activity membership/pagination remain unchanged.
 
 Activity extends the existing authorized CRM association path rather than

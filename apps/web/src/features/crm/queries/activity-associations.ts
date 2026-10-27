@@ -132,40 +132,39 @@ function associationQueryOptions(
           span.setAttr('crm.association.kind', lookup.kind);
           span.setAttr('crm.association.target_count', lookup.values.length);
           const records: ActivityAssociationRecord[] = [];
-          let cursor: string | null = null;
-          do {
-            const page = await throwOnErr(() =>
-              deps.storage.getSoupAstItems({
-                params: { cursor },
-                body: {
-                  ...activityAssociationLookupBody(lookup),
-                  limit: LOOKUP_BATCH_SIZE,
-                  sort_method: 'updated_at',
-                },
-                signal: createSoupRequestSignal(signal),
-              })
-            );
-            for (const item of page.items) {
-              if (!isDisplayableSoupItem(item)) continue;
-              const entity = mapApiSoupItemToEntity(item);
-              if (entity.type === 'crm_company' && !entity.hidden) {
-                records.push({
-                  type: 'company',
-                  id: entity.id,
-                  name: entity.name,
-                });
-              }
-              if (entity.type === 'crm_contact' && !entity.hidden) {
-                records.push({
-                  type: 'contact',
-                  id: entity.id,
-                  name: entity.name,
-                  email: entity.email,
-                });
-              }
+          // Exact IDs select at most one record each. Email queries deduplicate
+          // contacts by normalized address before pagination, so a batch fits
+          // in one response even when an address occurs in many teams.
+          const page = await throwOnErr(() =>
+            deps.storage.getSoupAstItems({
+              params: {},
+              body: {
+                ...activityAssociationLookupBody(lookup),
+                limit: LOOKUP_BATCH_SIZE,
+                sort_method: 'updated_at',
+              },
+              signal: createSoupRequestSignal(signal),
+            })
+          );
+          for (const item of page.items) {
+            if (!isDisplayableSoupItem(item)) continue;
+            const entity = mapApiSoupItemToEntity(item);
+            if (entity.type === 'crm_company' && !entity.hidden) {
+              records.push({
+                type: 'company',
+                id: entity.id,
+                name: entity.name,
+              });
             }
-            cursor = page.next_cursor ?? null;
-          } while (cursor);
+            if (entity.type === 'crm_contact' && !entity.hidden) {
+              records.push({
+                type: 'contact',
+                id: entity.id,
+                name: entity.name,
+                email: entity.email,
+              });
+            }
+          }
           span.setAttr('crm.association.record_count', records.length);
           return records;
         }
@@ -215,7 +214,9 @@ export function createActivityAssociations(
     () => deps.client
   );
   const records = createMemo(() =>
-    queries.flatMap((query) => (queryReadyGate(query) ? query.data : []))
+    queries.flatMap((query) =>
+      !query.isError && queryReadyGate(query) ? query.data : []
+    )
   );
   return {
     forEntity: (entity) =>

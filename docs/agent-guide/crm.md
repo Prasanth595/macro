@@ -58,8 +58,10 @@ parent item. The first two records appear inline; **+N** opens the remaining
 records by mouse, keyboard, or touch. Long labels have tooltips on desktop.
 Email participant-address matches are labeled **Email match**, not saved links;
 domain-only matches do not invent a contact association. Association details
-load independently of the feed, and a metadata failure offers **Retry** without
-hiding the items. Verify these interactions at desktop and phone widths.
+load independently of the feed. A failed metadata refresh hides its cached
+chips and offers **Retry** without hiding the items; a successful retry restores
+only the records that remain accessible. Verify these interactions at desktop
+and phone widths.
 
 Verify activity loading with a CRM containing thousands of companies and
 contacts, not only an empty fixture. Opening a tab must settle without repeated
