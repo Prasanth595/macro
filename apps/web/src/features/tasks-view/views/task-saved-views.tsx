@@ -2,6 +2,7 @@ import { replacePaneSearchParams } from '@app/lib/split-router';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
+import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { writeClipboardData } from '@core/util/dataTransfer';
 import { fireAndForget } from '@core/util/fireAndForget';
 import BookmarkIcon from '@phosphor/bookmark-simple.svg';
@@ -318,8 +319,14 @@ function TaskSavedViewRows(props: {
   onAction?: (action: () => void) => void;
   dialogOwner?: Owner | null;
 }) {
-  const { savedViews, savedViewsList, selectSavedView, closeTask } =
-    useTasksView();
+  const {
+    savedViews,
+    savedViewsList,
+    selectSavedView,
+    startSavedView,
+    closeTask,
+  } = useTasksView();
+  const [attachCreateHotkeys] = useHotkeyDOMScope('create-saved-view', true);
   const viewerId = useUserId();
   const owner = props.dialogOwner ?? getOwner();
   const selectedId = () => {
@@ -375,12 +382,20 @@ function TaskSavedViewRows(props: {
           <Show
             when={!creating() && !views().loading() && items()?.length === 0}
           >
-            <div class="space-y-1 px-3 py-2 text-xs text-ink-muted">
-              <p>No saved views yet</p>
-              <p>
-                Set up your filters, layout, grouping, and sort order, then
-                choose Save view to keep them here.
-              </p>
+            <div class="flex flex-col items-center gap-3 px-3 py-4 text-center">
+              <BookmarkIcon
+                aria-hidden="true"
+                class="size-8 text-ink-muted opacity-50"
+              />
+              <p class="text-xs text-ink-muted">No saved views yet</p>
+              <Button
+                ref={attachCreateHotkeys}
+                size="sm"
+                variant="cta"
+                onClick={() => run(startSavedView)}
+              >
+                Create view
+              </Button>
             </div>
           </Show>
           <Show when={views().error()}>
