@@ -9,7 +9,8 @@ use crate::domain::{
         GithubDraftOutcome, GithubExchangeTokenResponse, GithubMergeMethod, GithubMergeOutcome,
         GithubMergeRejection, GithubPullRequestDetails, GithubPullRequestMerge,
         GithubPullRequestMergeability, GithubPullRequestMergeabilityEntry, GithubPullRequestNumber,
-        GithubPullRequestUpdateRejection, GithubRepositoryMergeSettings, GithubUserInfo,
+        GithubPullRequestState, GithubPullRequestUpdateRejection, GithubRepositoryMergeSettings,
+        GithubStateOutcome, GithubUserInfo,
     },
     ports::GithubOauth,
 };
@@ -565,6 +566,70 @@ impl GithubOauth for GithubOauthImpl {
         }
 
         Ok(GithubDraftOutcome::Changed { draft })
+    }
+
+    #[tracing::instrument(skip(self, access_token), err)]
+    async fn set_pull_request_state(
+        &self,
+        access_token: &str,
+        owner: &str,
+        repo: &str,
+        number: u64,
+        state: GithubPullRequestState,
+    ) -> Result<GithubStateOutcome, Self::Err> {
+        /// The request body GitHub takes, and the field of the pull request it
+        /// answers with.
+        #[derive(serde::Serialize, serde::Deserialize)]
+        struct PullRequestState {
+            state: GithubPullRequestState,
+        }
+
+        let response = self
+            .client
+            .patch(format!(
+                "{}/repos/{owner}/{repo}/pulls/{number}",
+                self.api_base_url()
+            ))
+            .header("Authorization", format!("Bearer {access_token}"))
+            .header("Accept", "application/vnd.github+json")
+            .header("User-Agent", USER_AGENT)
+            .header("X-GitHub-Api-Version", "2022-11-28")
+            .json(&PullRequestState { state })
+            .timeout(REQUEST_TIMEOUT)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if status.is_success() {
+            let changed: PullRequestState = response.json().await?;
+            return Ok(GithubStateOutcome::Changed {
+                state: changed.state,
+            });
+        }
+
+        // The statuses GitHub documents for this endpoint, each a decision
+        // about the pull request rather than a failure to reach GitHub.
+        let rejection = match status {
+            reqwest::StatusCode::FORBIDDEN => GithubPullRequestUpdateRejection::Forbidden,
+            reqwest::StatusCode::NOT_FOUND => GithubPullRequestUpdateRejection::NotFound,
+            reqwest::StatusCode::UNPROCESSABLE_ENTITY => GithubPullRequestUpdateRejection::Invalid,
+            _ => {
+                let error_body = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "unknown error".to_string());
+                anyhow::bail!(
+                    "failed to change pull request state (status {status}): {error_body}"
+                );
+            }
+        };
+        let message = response
+            .json::<GithubErrorBody>()
+            .await
+            .map(|body| body.message)
+            .unwrap_or_else(|_| "GitHub declined to change the pull request.".to_string());
+
+        Ok(GithubStateOutcome::Rejected { rejection, message })
     }
 
     #[tracing::instrument(skip(self, access_token, pull_requests), fields(count = pull_requests.len()), err)]

@@ -37,8 +37,9 @@ pub use pull_request::{
     MergeGithubPullRequestResponse, latest_reviews,
 };
 pub use update::{
-    GithubDraftOutcome, GithubPullRequestUpdateRejection, SetGithubPullRequestDraftRequest,
-    SetGithubPullRequestDraftResponse,
+    GithubDraftOutcome, GithubPullRequestState, GithubPullRequestUpdateRejection,
+    GithubStateOutcome, SetGithubPullRequestDraftRequest, SetGithubPullRequestDraftResponse,
+    SetGithubPullRequestStateRequest, SetGithubPullRequestStateResponse,
 };
 
 /// A pull request's latest data, for the record stored for one source.
