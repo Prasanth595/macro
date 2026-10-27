@@ -68,10 +68,7 @@ export function ProjectsSidebar(props: ProjectsSidebarProps) {
       </CollapsibleSection.Header>
       <CollapsibleSection.Content>
         <Suspense fallback={<ProjectsSidebarSkeleton />}>
-          <ViewSidebar.Nav
-            aria-label="My projects"
-            class="max-h-52 overflow-y-auto overscroll-contain"
-          >
+          <ViewSidebar.Nav aria-label="My projects">
             <For each={source.rows()}>
               {({ project }) => (
                 <ViewSidebar.Item
