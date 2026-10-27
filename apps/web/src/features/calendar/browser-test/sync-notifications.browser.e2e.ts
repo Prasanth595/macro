@@ -46,6 +46,33 @@ test('queues calendar warnings in the shared persistent region', async ({
   await expect(notices).toContainText('work@example.test');
 });
 
+test('shares one notice and dismissal across simultaneous calendar views', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const notices = page.locator('[data-macro-toast]:visible');
+  await expect(notices).toHaveCount(1);
+  await page
+    .getByRole('button', { name: 'Open second view', exact: true })
+    .click();
+  await expect(notices).toHaveCount(1);
+  await page
+    .getByRole('button', { name: 'Close first view', exact: true })
+    .click();
+  await expect(notices).toHaveCount(1);
+  await notices.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(notices).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'Open first view', exact: true })
+    .click();
+  await expect(notices).toHaveCount(0);
+  await page.getByRole('button', { name: 'Recover', exact: true }).click();
+  await page.getByRole('button', { name: 'Retry sync', exact: true }).click();
+  await expect(notices).toHaveCount(1);
+  await notices.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(notices).toHaveCount(0);
+});
+
 for (const theme of ['light', 'dark']) {
   test(`wraps long calendar labels without clipping the ${theme} toast`, async ({
     page,

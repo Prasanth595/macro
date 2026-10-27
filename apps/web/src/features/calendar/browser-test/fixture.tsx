@@ -2,7 +2,7 @@ import '@fontsource-variable/inter';
 import '../../../index.css';
 import { ToastRegion } from '@core/component/Toast/ToastRegion';
 import { Button } from '@ui';
-import { createSignal } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import { macroDarkTheme } from '../../theme/themes/macro-dark';
 import { macroLightTheme } from '../../theme/themes/macro-light';
@@ -23,6 +23,8 @@ function Fixture() {
     'Google Calendar snapshot could not be fully normalized: Google event private-event has an invalid interval\nTracing spans: account_id=private-account'
   );
   const [second, setSecond] = createSignal(false);
+  const [firstView, setFirstView] = createSignal(true);
+  const [secondView, setSecondView] = createSignal(false);
   const warnings = () => [
     ...(error()
       ? [
@@ -68,9 +70,17 @@ function Fixture() {
           Connection issue
         </Button>
         <Button onClick={() => setSecond(true)}>Second calendar</Button>
+        <Button onClick={() => setSecondView(true)}>Open second view</Button>
+        <Button onClick={() => setFirstView(false)}>Close first view</Button>
+        <Button onClick={() => setFirstView(true)}>Open first view</Button>
       </div>
       <ToastRegion />
-      <CalendarSyncNotifications warnings={warnings()} loaded />
+      <Show when={firstView()}>
+        <CalendarSyncNotifications warnings={warnings()} loaded />
+      </Show>
+      <Show when={secondView()}>
+        <CalendarSyncNotifications warnings={warnings()} loaded />
+      </Show>
     </main>
   );
 }

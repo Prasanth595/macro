@@ -106,8 +106,9 @@ Invalid event data shows **Check event details**, temporary failures show
 reply**. Sidebar badges and calendar settings use the same readable descriptions;
 provider diagnostics and tracing details never appear in these surfaces.
 Repeated retries do not duplicate a toast or reopen a dismissed one while the
-calendar view stays mounted. Recovery removes the notice, and a later failure
-can notify again. Multiple calendar warnings queue one at a time. Setup and
+calendar view stays mounted. Home previews and Calendar splits share the same
+notice and dismissal while either remains open. Recovery removes the notice,
+and a later failure can notify again. Multiple calendar warnings queue one at a time. Setup and
 reconnect actions keep precedence over sync notices.
 Verify dismissal, retry, recovery, and long calendar labels in both themes on
 desktop and phone with
