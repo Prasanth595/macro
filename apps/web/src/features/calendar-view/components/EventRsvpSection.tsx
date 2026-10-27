@@ -1,6 +1,6 @@
 import type { CalendarEvent } from '@app/features/calendar/types';
 import { OutlookRsvpAction } from '@app/features/calendar/views/event-replacement';
-import SpinnerIcon from '@phosphor/spinner-gap.svg';
+import SpinnerIcon from '@icon/system/regular/spinner-gap.svg';
 import type { AttendeeResponseStatus } from '@service-storage/generated/schemas/attendeeResponseStatus';
 import { Button } from '@ui';
 import { createMemo, For, Show } from 'solid-js';
@@ -37,10 +37,13 @@ export function EventRsvpSection(props: {
   const isRecurring = () =>
     props.event.recurrenceLines.length > 0 ||
     props.event.recurrenceId !== undefined;
+  // A snapshot lists the viewer only so Google would take the copy; an answer
+  // there would never reach the organizer.
   const canRespond = () =>
     selfAttendee() !== undefined &&
     !props.event.isReadOnly &&
-    !props.event.isCancelled;
+    !props.event.isCancelled &&
+    !props.event.isSnapshot;
 
   const rsvp = createCalendarRsvpController(() =>
     canRespond()

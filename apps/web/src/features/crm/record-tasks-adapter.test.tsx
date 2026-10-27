@@ -2,13 +2,23 @@ import type { TasksViewProviderProps } from '@app/features/tasks-view/tasks-view
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import type { JSX, ParentProps } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
+import { CrmActivityTasks } from './activity-tasks-adapter';
 import type { CrmRecordScope } from './core/record';
 import { CrmRecordTasks } from './record-tasks-adapter';
 
-const { openWithSplit, popoverSplit, adaptive } = vi.hoisted(() => ({
-  openWithSplit: vi.fn(),
-  popoverSplit: vi.fn(),
-  adaptive: vi.fn(() => false),
+const { openWithSplit, popoverSplit, adaptive, openTaskComposer } = vi.hoisted(
+  () => ({
+    openWithSplit: vi.fn(),
+    popoverSplit: vi.fn(),
+    adaptive: vi.fn(() => false),
+    openTaskComposer: vi.fn(),
+  })
+);
+vi.mock('./context/crm-context', () => ({
+  useCrmContext: () => ({ openTaskComposer }),
+}));
+vi.mock('@app/features/tasks-view/tasks-content', () => ({
+  TasksContent: () => null,
 }));
 
 vi.mock('@components/app/split-layout/layout', () => ({
@@ -30,7 +40,18 @@ vi.mock('@app/features/tasks-view/tasks-view-context', () => ({
       >
         Open task
       </button>
-      {props.children}
+      <button
+        type="button"
+        onClick={() =>
+          props.onCreateTask?.({
+            dueDate: new Date('2026-10-01T12:00:00Z'),
+            composerContext: { key: 'crm-board', initialPropertyValues: {} },
+          })
+        }
+      >
+        Create scoped task
+      </button>
+      {!props.onCreateTask && props.children}
     </>
   ),
   useTasksView: () => ({ state: { search: '' }, setState: vi.fn() }),
@@ -110,4 +131,13 @@ it('preserves the request to open a task in a new split', () => {
     { type: 'task', id: 'task-1' },
     { preferNewSplit: true }
   );
+});
+
+it('forwards board and Gantt creation defaults through the CRM composer', () => {
+  render(() => <CrmActivityTasks />);
+  fireEvent.click(screen.getByRole('button', { name: 'Create scoped task' }));
+  expect(openTaskComposer).toHaveBeenCalledWith({
+    dueDate: new Date('2026-10-01T12:00:00Z'),
+    composerContext: { key: 'crm-board', initialPropertyValues: {} },
+  });
 });

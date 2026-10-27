@@ -395,8 +395,22 @@ export type BookingLinkMentionItem = {
   };
 };
 
+/** A calendar event found by unified search, mentioned the way Copy event copies it. */
+export type CalendarEventMentionItem = {
+  kind: 'calendarEvent';
+  id: string;
+  data: {
+    eventId: string;
+    title: string;
+    /** Pins one instance of a recurring series; absent for a single event. */
+    occurrenceKey?: string;
+    /** When the mentioned instance starts, for the menu row. */
+    when?: string;
+  };
+};
+
 /**
- * MentionItem = QuickAccessItem + Date + Group + BookingLink.
+ * MentionItem = QuickAccessItem + Date + Group + BookingLink + CalendarEvent.
  * Used in MentionsMenu to unify all mentionable item types.
  */
 export type AgentSessionMentionItem = Omit<
@@ -404,12 +418,21 @@ export type AgentSessionMentionItem = Omit<
   'kind'
 > & { kind: 'agentSession' };
 
+/** A WhatsApp group in Macro; not a Soup entity, so it has its own kind. */
+export type WhatsAppGroupMentionItem = {
+  kind: 'whatsappGroup';
+  id: string;
+  data: { id: string; name: string };
+};
+
 export type MentionItem =
   | QuickAccessItem
   | DateMentionItem
   | GroupMentionItem
   | AgentSessionMentionItem
-  | BookingLinkMentionItem;
+  | BookingLinkMentionItem
+  | CalendarEventMentionItem
+  | WhatsAppGroupMentionItem;
 
 /**
  * Type guard for DateMentionItem.

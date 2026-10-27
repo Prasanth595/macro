@@ -4,22 +4,23 @@ import {
   type ComposerAddMenuGroup,
 } from '@channel/Input/ComposerAddMenu';
 import { useSettingsState } from '@core/constant/SettingsState';
+import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
 import { isMobile } from '@core/mobile/isMobile';
 import { PipedreamConnectorIcon } from '@core/pipedream/ConnectorIcon';
+import LightningIcon from '@icon/system/regular/lightning.svg';
+import PaperclipIcon from '@icon/system/regular/paperclip.svg';
+import PlugsIcon from '@icon/system/regular/plugs.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
 import BooksIcon from '@phosphor/books.svg';
-import LightningIcon from '@phosphor/lightning.svg';
-import PaperclipIcon from '@phosphor/paperclip.svg';
-import PlugsIcon from '@phosphor/plugs.svg';
-import PlusIcon from '@phosphor/plus.svg';
 import { Button, Dialog } from '@ui';
 import { createSignal, lazy, Show, Suspense } from 'solid-js';
 import type { ProviderId } from '../../settings/connections/model';
 import { providerIcon } from '../../settings/connections/provider-meta';
 import { useConnectionsModel } from '../../settings/connections/use-connections-model';
 
-const ConnectionsPage = lazy(async () => ({
-  default: (await import('../../settings/connections/ConnectionsPage'))
-    .ConnectionsPage,
+const IntegrationsView = lazy(async () => ({
+  default: (await import('../../settings/connections/integrations-view'))
+    .IntegrationsView,
 }));
 const LeftoverRow = lazy(async () => ({
   default: (await import('../../settings/connections/leftover-row'))
@@ -42,6 +43,7 @@ export function AgentComposerAddMenu(props: {
 }) {
   const connections = useConnectionsModel();
   const settings = useSettingsState();
+  const isTabAvailable = useSettingsTabAvailable();
   const [drawerOpen, setDrawerOpen] = createSignal(false);
   const [target, setTarget] = createSignal<Target>();
   const openTarget = (next: Target) => {
@@ -203,13 +205,18 @@ export function AgentComposerAddMenu(props: {
               <Show
                 when={selected.kind === 'other' ? selected : undefined}
                 fallback={
-                  <ConnectionsPage
-                    initialMode={
-                      selected.kind === 'overview' ? selected.mode : undefined
-                    }
+                  <IntegrationsView
                     initialProvider={
                       selected.kind === 'provider'
                         ? selected.provider
+                        : undefined
+                    }
+                    onOpenLocalAgents={
+                      isTabAvailable('Harness')
+                        ? () => {
+                            setTarget(undefined);
+                            settings.openSettings('Harness');
+                          }
                         : undefined
                     }
                     onOpenMacroMcp={() => {

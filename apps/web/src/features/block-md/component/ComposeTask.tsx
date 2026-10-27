@@ -1,3 +1,13 @@
+import {
+  ComposeTaskTitleEditor,
+  TaskTitleAccessory,
+} from '../../task-composer/components/title-editor';
+
+export {
+  ComposeTaskTitleEditor,
+  TaskTitleAccessory,
+} from '../../task-composer/components/title-editor';
+
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useMacroMentionLinkResolver } from '@components/app/split-layout/split-router/mention-links';
@@ -12,12 +22,12 @@ import { useUserId } from '@core/context/user';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { buildSimpleEntityUrl } from '@core/util/url';
+import ArrowSquareOutIcon from '@icon/system/regular/arrow-square-out.svg';
+import ArrowsOutIcon from '@icon/system/regular/arrows-out.svg';
+import PaperclipIcon from '@icon/system/regular/paperclip.svg';
+import SplitIcon from '@icon/system/regular/square-half.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import { Telemetry } from '@macro-inc/observability';
-import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
-import ArrowsOutIcon from '@phosphor/arrows-out.svg';
-import PaperclipIcon from '@phosphor/paperclip.svg';
-import SplitIcon from '@phosphor/square-half.svg';
-import XIcon from '@phosphor/x.svg';
 import { Modals } from '@property/component/modal';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { PropertiesProvider } from '@property/context/PropertiesContext';
@@ -63,10 +73,6 @@ import {
   taskSubmissionDraftStorage,
   taskSubmissionKey,
 } from '../util/taskComposerSubmissions';
-import { ComposeTaskTitleEditor } from './ComposeTaskTitleEditor';
-
-export { ComposeTaskTitleEditor } from './ComposeTaskTitleEditor';
-
 import { EditorSystemMessage } from './EditorSystemMessage';
 import { InlinePropertyValue } from './InlinePropertyValue';
 import { RecoverTaskDrafts } from './RecoverTaskDrafts';
@@ -74,14 +80,6 @@ import { TaskComposerPropertyEditor } from './TaskComposerPropertyEditor';
 import { SimilarTasksSection } from './TaskDuplicateList';
 
 type ComposerTagLayoutMode = 'bottom' | 'title';
-
-/**
- * Wrapper for controls that sit beside the composer title (the inline tags
- * pill) so they stay centered on the title's *first* line rather than drifting
- * to the middle of a title that wraps onto several lines. `h-7` matches the
- * `text-xl/7` line box of {@link ComposeTaskTitleEditor}; keep the two in sync.
- */
-export const COMPOSER_TITLE_LINE_CLASS = 'flex h-7 shrink-0 items-center';
 
 /**
  * Toast preview component for successful task creation.
@@ -762,14 +760,14 @@ export function ComposeTask(props: ComposeTaskProps) {
       <EntityComposer.Main>
         <EntityComposer.Title>
           <Show when={tagLayoutMode() === 'title'}>
-            <div class={COMPOSER_TITLE_LINE_CLASS}>
+            <TaskTitleAccessory>
               <InlineTagsPill
                 docTags={composerTags}
                 showPlaceholder
                 class="shrink-0"
                 onActiveChange={handleTitleTagPickerActive}
               />
-            </div>
+            </TaskTitleAccessory>
           </Show>
           <ComposeTaskTitleEditor
             value={title}
@@ -909,7 +907,9 @@ export function ComposeTask(props: ComposeTaskProps) {
         </div>
       </Show>
 
-      <EntityComposer.Footer class="items-center">
+      {/* The team switch, Create More and Create Task need about 400px; a
+          phone is narrower, so the actions wrap to their own row. */}
+      <EntityComposer.Footer class="flex-wrap items-center">
         <Show when={team()}>
           {(team) => (
             <Tooltip label={sharingHint()} tabIndex={0}>

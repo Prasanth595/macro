@@ -6,6 +6,7 @@ import {
   useEntityActionHotkeys,
 } from '@app/features/next-soup/actions';
 import { DateGroupHeading } from '@app/features/next-soup/soup-view/date-group-heading';
+import { t } from '@app/lib/i18n';
 import { useInfiniteScrollSentinel } from '@app/lib/primitives/infinite-scroll-sentinel';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
@@ -24,12 +25,12 @@ import {
   ListEntity,
   ListLayoutProvider,
 } from '@entity';
+import ArrowSquareOutIcon from '@icon/system/regular/arrow-square-out.svg';
+import SplitIcon from '@icon/system/regular/columns.svg';
+import CopyIcon from '@icon/system/regular/copy.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
+import StarIcon from '@icon/system/regular/star.svg';
 import { ContextMenu } from '@kobalte/core/context-menu';
-import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
-import SplitIcon from '@phosphor/columns.svg';
-import CopyIcon from '@phosphor/copy.svg';
-import SpinnerIcon from '@phosphor/spinner.svg';
-import StarIcon from '@phosphor/star.svg';
 import type { GithubLinkStatus } from '@queries/auth/github-link';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { Button } from '@ui';
@@ -148,10 +149,10 @@ function ReviewRow(props: {
         />
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
-        <ContextMenuContent class="w-56 text-xs text-ink-muted">
+        <ContextMenuContent class="min-w-56 max-w-[22rem] text-xs text-ink-muted">
           <MenuItem
             icon={SplitIcon}
-            text="Open in new split"
+            text={t('entityActions.openInNewSplit')}
             disabled={!globalSplitManager()?.canAppendSplit()}
             onClick={() => {
               if (globalSplitManager()?.canAppendSplit())
@@ -162,8 +163,8 @@ function ReviewRow(props: {
             icon={StarIcon}
             text={
               props.favoriteAction.isFavorited(props.review)
-                ? 'Remove from favorites'
-                : 'Add to favorites'
+                ? t('entityActions.removeFromFavorites')
+                : t('entityActions.addToFavorites')
             }
             onClick={() =>
               fireAndForget(
@@ -174,14 +175,14 @@ function ReviewRow(props: {
           />
           <MenuItem
             icon={CopyIcon}
-            text="Copy link"
+            text={t('entityActions.copyLinkCommand')}
             onClick={() =>
               fireAndForget(copyLink.execute([props.review]), 'reviews-view')
             }
           />
           <MenuItem
             icon={ArrowSquareOutIcon}
-            text="Open on GitHub"
+            text={t('entityActions.openOnGitHub')}
             onClick={() =>
               window.open(
                 props.review.metadata.url,
@@ -332,6 +333,7 @@ export function ReviewsList(props: ReviewsListProps) {
             class="grid flex-1 place-items-center text-ink-muted"
           >
             <SpinnerIcon
+              aria-hidden={false}
               aria-label="Loading reviews"
               class="size-5 animate-spin"
             />
@@ -350,6 +352,7 @@ export function ReviewsList(props: ReviewsListProps) {
               class="grid flex-1 place-items-center text-ink-muted"
             >
               <SpinnerIcon
+                aria-hidden={false}
                 aria-label="Loading reviews"
                 class="size-5 animate-spin"
               />
