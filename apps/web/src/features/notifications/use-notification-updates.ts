@@ -154,6 +154,8 @@ export function handleNotificationUpdate(notification: UnifiedNotification) {
     .with({ tag: 'call_started' }, () => {
       refreshChannel(notification);
     })
+    // DSS's `whatsapp_changed` push already refreshes what an open page shows.
+    .with({ tag: 'whatsapp_group_message' }, () => {})
     .with({ tag: 'new_email' }, () => {
       refreshEmailThread(notification);
     })

@@ -4,10 +4,11 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from '@solidjs/testing-library';
 import { createSignal, type JSX } from 'solid-js';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   type ConversationFilters,
   EMPTY_CONVERSATION_FILTERS,
@@ -57,6 +58,10 @@ vi.mock('@core/user', () => ({
   getDisplayName: () => '',
   tryMacroId: (id: string) => id,
 }));
+
+beforeEach(() => {
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+});
 
 afterEach(() => {
   cleanup();
@@ -143,6 +148,8 @@ describe('mixed Agents sidebar', () => {
     const openPage = vi.fn();
     render(() => (
       <AgentsSidebar
+        onCreateAgent={vi.fn()}
+        onCreateRoutine={vi.fn()}
         filters={filters()}
         grouping="status"
         onFilterChange={vi.fn()}
@@ -202,8 +209,16 @@ describe('mixed Agents sidebar', () => {
     expect(screen.queryByRole('button', { name: /Plan launch/ })).toBeNull();
     expect(screen.queryByText('Archived')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
-    expect(openPage).toHaveBeenCalledWith('new');
+    fireEvent.keyDown(
+      screen.getByRole('button', { name: 'New conversation or agent' }),
+      { key: 'ArrowDown' }
+    );
+    fireEvent.keyDown(
+      await screen.findByRole('menuitem', { name: 'Conversation' }),
+      { key: 'Enter' }
+    );
+    await Promise.resolve();
+    await waitFor(() => expect(openPage).toHaveBeenCalledWith('new'));
   });
 
   it('keeps paging while filters leave too few conversations to scroll', () => {
@@ -211,6 +226,8 @@ describe('mixed Agents sidebar', () => {
     const clear = vi.fn();
     render(() => (
       <AgentsSidebar
+        onCreateAgent={vi.fn()}
+        onCreateRoutine={vi.fn()}
         filters={{ ...EMPTY_CONVERSATION_FILTERS, type: ['code'] }}
         grouping="none"
         onFilterChange={vi.fn()}
@@ -250,6 +267,8 @@ describe('mixed Agents sidebar', () => {
     const change = vi.fn(setShow);
     render(() => (
       <AgentsSidebar
+        onCreateAgent={vi.fn()}
+        onCreateRoutine={vi.fn()}
         filters={EMPTY_CONVERSATION_FILTERS}
         grouping="none"
         onFilterChange={vi.fn()}
@@ -318,6 +337,8 @@ describe('mixed Agents sidebar', () => {
   it('opens rename and delete on a session or chat right-click', async () => {
     render(() => (
       <AgentsSidebar
+        onCreateAgent={vi.fn()}
+        onCreateRoutine={vi.fn()}
         filters={EMPTY_CONVERSATION_FILTERS}
         grouping="none"
         onFilterChange={vi.fn()}
@@ -424,6 +445,8 @@ describe.each(['home', 'sidebar'] as const)('%s agent rows', (surface) => {
         />
       ) : (
         <AgentsSidebar
+          onCreateAgent={vi.fn()}
+          onCreateRoutine={vi.fn()}
           filters={EMPTY_CONVERSATION_FILTERS}
           grouping="none"
           onFilterChange={vi.fn()}
