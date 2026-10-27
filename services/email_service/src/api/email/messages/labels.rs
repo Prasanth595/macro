@@ -14,6 +14,9 @@ use models_email::service;
 use sqlx::types::Uuid;
 use utoipa::ToSchema;
 
+#[cfg(test)]
+mod test;
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, ToSchema)]
 pub struct UpdateLabelBatchRequest {
     pub message_ids: Vec<Uuid>,
@@ -331,18 +334,14 @@ pub async fn handler(
             .is_err()
     {
         // Gmail never learns about this change.
-        failed_ids = revert_unsent_write(
+        failed_ids = undo_unsent_write(
             &ctx.db,
             link.id,
             &thread_ids,
             &provider_message_ids,
             pending_write_id,
         )
-        .await
-        .inspect_err(|e| {
-            tracing::error!(error=?e, "Failed to revert label write after enqueue failure");
-        })
-        .unwrap_or_default();
+        .await?;
     }
 
     Ok((
@@ -357,6 +356,31 @@ pub async fn handler(
         }),
     )
         .into_response())
+}
+
+/// Undoes a write that could not be queued and returns the messages put back,
+/// which the response lists as failed. If that fails too, the change stays in
+/// the database without ever reaching Gmail, so the request fails rather than
+/// reporting success.
+async fn undo_unsent_write(
+    db: &sqlx::PgPool,
+    link_id: Uuid,
+    thread_ids: &[Uuid],
+    message_ids: &[Uuid],
+    write_id: Uuid,
+) -> Result<Vec<Uuid>, Response> {
+    revert_unsent_write(db, link_id, thread_ids, message_ids, write_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(error=?e, "Failed to revert label write after enqueue failure");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    message: "unable to queue the label change".into(),
+                }),
+            )
+                .into_response()
+        })
 }
 
 /// Puts the labels of a write Gmail will never receive back in the state
