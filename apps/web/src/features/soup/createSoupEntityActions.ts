@@ -13,6 +13,7 @@ import {
   makeCopyLinkAction,
   makeCreateReminderAction,
   makeDeleteAction,
+  makeDownloadAction,
   makeFavoriteAction,
   makeGithubLinkAction,
   makeMarkDoneAction,
@@ -157,6 +158,7 @@ export function createSoupEntityActions(
     userId: () => userId(),
   });
   const githubLinkAction = makeGithubLinkAction();
+  const downloadAction = makeDownloadAction();
   const allProperties = useAllProperties();
   const taskProperty = (propertyId: string) =>
     allProperties().find(({ id }) => id === propertyId);
@@ -493,6 +495,14 @@ export function createSoupEntityActions(
           label: 'Copy Branch Name',
           hotkeyToken: TOKENS.entity.action.copyBranchName,
           onClick: handle(copyBranchNameAction.executeWithSoup),
+        });
+      }
+
+      if (downloadAction.canExecute(entities[0])) {
+        middleItems.push({
+          id: 'download',
+          label: 'Download',
+          onClick: handle(downloadAction.executeWithSoup),
         });
       }
 

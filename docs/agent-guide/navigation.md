@@ -1140,7 +1140,11 @@ Rename for documents, chats, folders, calls, agent sessions, and channels you
 take part in (not DMs); Duplicate for
 documents and chats; Move to folder for documents, chats, folders, and email;
 Delete for email and owned documents, chats, folders, calls, agent sessions, and
-routines. Tasks add **Set status**, **Set priority**, and **Set assignee**,
+routines. **Download** saves uploaded files (images, video, code, PowerPoint,
+Photoshop, Illustrator, Figma, other uploads) and Word documents as `.docx`;
+Markdown documents, canvases, native spreadsheets, and PDFs download from their
+open view instead, since their download needs the loaded editor (a PDF's
+includes its markup). Tasks add **Set status**, **Set priority**, and **Set assignee**,
 which open the property editor like their shortcuts. Agent sessions add
 **Archive** / **Unarchive** for their owner. Calls offer **Share**. Pull
 requests offer **Open in new split**, **Copy GitHub Link**, **Open on GitHub**,
