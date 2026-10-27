@@ -96,6 +96,8 @@ A Home URL containing only the channel `threadId` opens that thread's root,
 not the latest message. Reloading or opening the same URL on touch retains the
 target; an explicit reply `messageId` still takes precedence.
 
+![Thread-only Home URL targeting its root message](images/conversation-thread-target.png)
+
 Items in the 256px desktop rail use single-line pills with 16px icons: profile photos for
 DMs and model logos for AI chats (Claude sunburst or ChatGPT knot). Other items
 use the same glyphs as entity rows elsewhere: document file-type and
