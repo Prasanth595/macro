@@ -62,6 +62,7 @@ function setup(
     return <button>Add column</button>;
   }
   const onOpen = vi.fn();
+  const onLoadMore = vi.fn();
   const onClearCells = vi.fn(async () => true);
   const onCellFocus = vi.fn();
   const onDuplicate = vi.fn(async () => true);
@@ -85,6 +86,7 @@ function setup(
       rows={records()}
       isUnsavedRow={(rowId) => rowId === unsavedRow()}
       hasMoreRows={hasMoreRows()}
+      onLoadMore={onLoadMore}
       columns={columns()}
       titleColumnId="name"
       sort={[]}
@@ -120,6 +122,7 @@ function setup(
   return {
     onAddColumnMount,
     onOpen,
+    onLoadMore,
     onClearCells,
     onCellFocus,
     onDuplicate,
@@ -174,6 +177,38 @@ describe('spreadsheet interactions', () => {
     expect(
       screen.getByRole('row', { name: 'Table summary' }).textContent
     ).toContain('2records in view');
+  });
+
+  it('shows placeholder rows past the loaded records while pages remain', () => {
+    const { setHasMoreRows } = setup();
+    expect(document.querySelectorAll('[data-grid-pending-row]').length).toBe(0);
+    setHasMoreRows(true);
+    expect(
+      document.querySelectorAll('[data-grid-pending-row]').length
+    ).toBeGreaterThan(0);
+    expect(document.querySelectorAll('[data-grid-row-id]').length).toBe(2);
+    setHasMoreRows(false);
+    expect(document.querySelectorAll('[data-grid-pending-row]').length).toBe(0);
+  });
+
+  it('requests the next page half a page before the last loaded record', async () => {
+    const { setRecords, setHasMoreRows, onLoadMore } = setup();
+    setRecords(
+      Array.from({ length: 1000 }, (_, index) => ({
+        rowId: `record-${index}`,
+        cells: { name: `Record ${index}` },
+      }))
+    );
+    setHasMoreRows(true);
+    const grid = screen.getByRole('grid').parentElement!;
+    grid.scrollTop = 700 * 43;
+    fireEvent.scroll(grid);
+    await new Promise(requestAnimationFrame);
+    expect(onLoadMore).not.toHaveBeenCalled();
+    // 760 of 1000: 240 records before the end.
+    grid.scrollTop = 760 * 43;
+    fireEvent.scroll(grid);
+    await waitFor(() => expect(onLoadMore).toHaveBeenCalled());
   });
 
   it('opens an edit requested synchronously when the table becomes ready', async () => {

@@ -2,7 +2,7 @@
 export class GridResizeObserver implements ResizeObserver {
   constructor(private readonly callback: ResizeObserverCallback) {}
   observe(target: Element) {
-    const height = target.querySelector('[role="grid"]') ? 400 : 41;
+    const height = target.querySelector('[role="grid"]') ? 400 : 43;
     const size = { inlineSize: 800, blockSize: height };
     this.callback(
       [

@@ -5,6 +5,12 @@ import PencilIcon from '@phosphor/pencil-simple.svg';
 import TrashIcon from '@phosphor/trash.svg';
 import { Key } from '@solid-primitives/keyed';
 import { createElementSize } from '@solid-primitives/resize-observer';
+import {
+  createVirtualizer,
+  defaultRangeExtractor,
+  measureElement,
+  type Range,
+} from '@tanstack/solid-virtual';
 import { DragDropProvider, DragOverlay } from '@thisbeyond/solid-dnd';
 import { getHashedPaletteColor } from '@ui/utils/palette';
 import {
@@ -18,8 +24,8 @@ import {
   on,
   onCleanup,
   Show,
+  untrack,
 } from 'solid-js';
-import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import { createHorizontalReorder } from '../../../components/drag-drop/create-horizontal-reorder';
 import { createReorderItem } from '../../../components/drag-drop/create-reorder';
 import { DragSessionSensors } from '../../../components/drag-drop/drag-session-sensors';
@@ -87,6 +93,10 @@ const EDITOR_FIELDS =
   'input:not([type="checkbox"]), textarea, [contenteditable="true"]';
 /** Portaled editors keep the cell current while they hold focus. */
 const PORTALED_EDITORS = '[role="dialog"], [role="listbox"]';
+const ROW_HEIGHT = 43;
+// Half a 500-record page: the next page is requested well before the last row.
+const PREFETCH_ROW_COUNT = 250;
+const PENDING_ROW_COUNT = 100;
 
 export type DatabaseTableProps = {
   model: DatabaseTableModel;
@@ -156,58 +166,43 @@ export function DatabaseTable(props: DatabaseTableProps) {
   );
   let scrollContainer!: HTMLDivElement;
   let gridElement!: HTMLDivElement;
-  let virtualizer: VirtualizerHandle | undefined;
   const [header, setHeader] = createSignal<HTMLDivElement>();
   const headerSize = createElementSize(header);
   const [focusedRow, setFocusedRow] = createSignal<string>();
   let pendingFocus: { rowId: string; column: number } | undefined;
-  let revealFrame: number | undefined;
   const cellElement = (rowId: string, column: number) => {
     const index = selection.rowIndex().get(rowId);
     return gridElement?.querySelector<HTMLElement>(
       `[data-grid-row="${index}"][data-grid-column="${column}"]`
     );
   };
-  const cellIsVisible = (cell: HTMLElement) => {
-    // Virtualized rows are hidden until measured; focusing before then is ignored.
-    if (getComputedStyle(cell).visibility !== 'hidden') return true;
-    if (revealFrame === undefined)
-      revealFrame = requestAnimationFrame(() => {
-        revealFrame = undefined;
-        editRequestedCell();
-        focusRequestedCell();
-      });
-    return false;
-  };
-  onCleanup(() => {
-    if (revealFrame !== undefined) cancelAnimationFrame(revealFrame);
-  });
   const revealRow = (rowId: string) => {
     setFocusedRow(rowId);
     const index = selection.rowIndex().get(rowId);
-    if (index === undefined || !virtualizer) return;
+    const item =
+      index === undefined ? undefined : virtualizer.measurementsCache[index];
+    // Before the grid mounts there is nothing to scroll.
+    if (!item || !gridElement) return;
+    // Rows start below the sticky header, which also covers the top of the viewport.
     const headerHeight = headerSize.height ?? 40;
     const summaryHeight =
       gridElement.querySelector<HTMLElement>('[data-grid-summary]')
         ?.offsetHeight ?? 0;
-    const top = virtualizer.getItemOffset(index) + headerHeight;
-    const bottom = top + virtualizer.getItemSize(index);
-    if (top < scrollContainer.scrollTop + headerHeight)
-      virtualizer.scrollToIndex(index, {
-        align: 'start',
-        offset: -headerHeight,
-      });
+    if (item.start < scrollContainer.scrollTop + headerHeight)
+      virtualizer.scrollToOffset(item.start - headerHeight);
     else if (
-      bottom >
+      item.end >
       scrollContainer.scrollTop + scrollContainer.clientHeight - summaryHeight
     )
-      virtualizer.scrollToIndex(index, { align: 'end', offset: summaryHeight });
+      virtualizer.scrollToOffset(
+        item.end + summaryHeight - scrollContainer.clientHeight
+      );
   };
   const focusRequestedCell = () => {
     if (!pendingFocus) return;
     const { rowId, column } = pendingFocus;
     const cell = cellElement(rowId, column);
-    if (!cell || !cellIsVisible(cell)) return;
+    if (!cell) return;
     pendingFocus = undefined;
     const columnId = columns()[column - 1]?.id;
     const editor = columnId ? control(rowId, columnId) : undefined;
@@ -252,7 +247,7 @@ export function DatabaseTable(props: DatabaseTableProps) {
     const column =
       columns().findIndex(({ id }) => id === pendingEdit?.columnId) + 1;
     const cell = cellElement(pendingEdit.rowId, column);
-    if (!cell || !cellIsVisible(cell)) return;
+    if (!cell) return;
     pendingEdit = undefined;
     editor.edit();
   };
@@ -363,6 +358,69 @@ export function DatabaseTable(props: DatabaseTableProps) {
         ? (rows, columns) => props.onClearCells!(rows, columns)
         : undefined,
   });
+  const rowIds = createMemo(() => [...selection.rowIndex().keys()]);
+  // One menu for every row: right-click (or a long press) picks its row and cell.
+  const [contextTarget, setContextTarget] = createSignal<{
+    rowId: string;
+    columnId?: string;
+  }>();
+  const contextRowId = () => contextTarget()?.rowId ?? '';
+  const keptRows = createMemo(() =>
+    [
+      ...new Set([focusedRow(), contextTarget()?.rowId, props.highlightRowId]),
+    ].flatMap((rowId) => {
+      const index =
+        rowId === undefined ? undefined : selection.rowIndex().get(rowId);
+      return index === undefined ? [] : [index];
+    })
+  );
+  // Placeholder rows past the loaded ones, so a fast scroll lands on rows that
+  // fill in rather than on empty space while the next page loads.
+  const pendingRows = () => (props.hasMoreRows ? PENDING_ROW_COUNT : 0);
+  const virtualizer = createVirtualizer<HTMLDivElement, HTMLDivElement>({
+    get count() {
+      return rowIds().length + pendingRows();
+    },
+    get getItemKey() {
+      const ids = rowIds();
+      return (index: number) => ids[index] ?? index;
+    },
+    getScrollElement: () => scrollContainer,
+    get scrollMargin() {
+      return headerSize.height ?? 40;
+    },
+    estimateSize: () => ROW_HEIGHT,
+    // Only the ResizeObserver measures: a synchronous read per new row forces
+    // a layout on every scroll frame. A grid without layout (a hidden pane)
+    // measures 0; keep the estimate so every row doesn't mount at once.
+    measureElement: (element, entry, instance) =>
+      (entry
+        ? measureElement(element, entry, instance)
+        : instance.itemSizeCache.get(
+            instance.options.getItemKey(instance.indexFromElement(element))
+          )) || ROW_HEIGHT,
+    overscan: 6,
+    get rangeExtractor() {
+      const kept = keptRows();
+      return (range: Range) =>
+        [...new Set([...defaultRangeExtractor(range), ...kept])].sort(
+          (a, b) => a - b
+        );
+    },
+  });
+  // The adapter reconciles items by index; copies let rows key by record.
+  const virtualItems = () =>
+    virtualizer.getVirtualItems().map((item) => ({ ...item }));
+  createEffect(() => {
+    const last = virtualizer.getVirtualItems().at(-1);
+    if (
+      props.hasMoreRows &&
+      last &&
+      last.index >= rowIds().length - PREFETCH_ROW_COUNT &&
+      !props.isUnsavedRow?.(focusedRow() ?? '')
+    )
+      untrack(() => props.onLoadMore?.());
+  });
   props.controlsRef?.({
     editCell: (rowId, columnId) => {
       pendingEdit = { rowId, columnId };
@@ -374,7 +432,6 @@ export function DatabaseTable(props: DatabaseTableProps) {
       renameRequestedHeader();
     },
   });
-  const rowIds = createMemo(() => [...selection.rowIndex().keys()]);
   createEffect(
     on(
       () => props.highlightRowId,
@@ -504,21 +561,6 @@ export function DatabaseTable(props: DatabaseTableProps) {
         next.querySelector<HTMLElement>('button, input, [tabindex]') ?? next
       ).focus();
   }
-  // One menu for every row: right-click (or a long press) picks its row and cell.
-  const [contextTarget, setContextTarget] = createSignal<{
-    rowId: string;
-    columnId?: string;
-  }>();
-  const contextRowId = () => contextTarget()?.rowId ?? '';
-  const keptRows = createMemo(() =>
-    [
-      ...new Set([focusedRow(), contextTarget()?.rowId, props.highlightRowId]),
-    ].flatMap((rowId) => {
-      const index =
-        rowId === undefined ? undefined : selection.rowIndex().get(rowId);
-      return index === undefined ? [] : [index];
-    })
-  );
   const rowButtons = new Map<string, HTMLButtonElement>();
   let afterClose: (() => void) | undefined;
   const deferAction = (action: () => void) => {
@@ -559,17 +601,6 @@ export function DatabaseTable(props: DatabaseTableProps) {
       <div
         ref={scrollContainer}
         class="@container/database-grid min-h-0 flex-1 overflow-auto overscroll-x-none scroll-py-10"
-        onScroll={(event) => {
-          const container = event.currentTarget;
-          if (
-            !props.isUnsavedRow?.(focusedRow() ?? '') &&
-            container.scrollHeight -
-              container.scrollTop -
-              container.clientHeight <
-              800
-          )
-            props.onLoadMore?.();
-        }}
       >
         <div
           ref={(grid) => {
@@ -727,176 +758,210 @@ export function DatabaseTable(props: DatabaseTableProps) {
                 }}
               >
                 {/* Keep unchanged records and their editors mounted across reads. */}
-                <Virtualizer
-                  ref={(handle) => {
-                    virtualizer = handle;
-                  }}
-                  data={rowIds()}
-                  scrollRef={scrollContainer}
-                  startMargin={headerSize.height ?? 40}
-                  itemSize={41}
-                  bufferSize={240}
-                  keepMounted={keptRows()}
+                <div
+                  class="relative shrink-0"
+                  style={{ height: `${virtualizer.getTotalSize()}px` }}
                 >
-                  {(rowId, index) => {
-                    const initial = rows()[index()];
-                    const row = createMemo(
-                      () => rows()[selection.rowIndex().get(rowId)!] ?? initial
-                    );
-                    const highlighted = () =>
-                      props.highlightRowId === row().rowId;
-                    return (
-                      <div
-                        ref={(element: HTMLElement) => {
-                          createEffect(
-                            on(highlighted, (isHighlighted) => {
-                              if (!isHighlighted) return;
-                              element.scrollIntoView({ block: 'nearest' });
-                              const first = columns()[0];
-                              if (first)
-                                control(row().rowId, first.id)?.focus();
-                            })
-                          );
-                        }}
-                        role="row"
-                        data-grid-row-id={row().rowId}
-                        data-highlighted={highlighted() ? '' : undefined}
-                        aria-rowindex={index() + 2}
-                        class="group grid min-h-10 border-b border-edge-muted/60 [contain-intrinsic-size:auto_41px] [content-visibility:auto] hover:bg-hover/50"
-                        classList={{ 'bg-accent/15': highlighted() }}
-                        style={{ 'grid-template-columns': template() }}
-                      >
-                        <div
-                          role="gridcell"
-                          aria-colindex={1}
-                          tabindex={-1}
-                          // Opaque so cells scrolled beneath it stay hidden; the
-                          // overlay repeats the row's hover and highlight tint.
-                          class="sticky left-0 z-1 flex items-center justify-center border-r border-edge-muted/40 bg-panel outline-none before:pointer-events-none before:absolute before:inset-0 group-hover:before:bg-hover/50 group-data-highlighted:before:bg-accent/15 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ink/50"
-                          data-grid-cell
-                          data-grid-row={index()}
-                          data-grid-column={0}
-                        >
-                          <Show
-                            when={!props.isUnsavedRow?.(row().rowId)}
-                            fallback={
-                              <span class="text-[10px] tabular-nums text-ink-placeholder">
-                                {index() + 1}
-                              </span>
-                            }
+                  <Key each={virtualItems()} by={(item) => item.key}>
+                    {(item) => {
+                      const rowId = item().key;
+                      const index = () => item().index;
+                      const position = () => ({
+                        transform: `translateY(${item().start - virtualizer.options.scrollMargin}px)`,
+                      });
+                      if (typeof rowId !== 'string')
+                        return (
+                          <div
+                            aria-hidden="true"
+                            data-grid-pending-row
+                            class="absolute inset-x-0 top-0 grid h-[43px] border-b border-edge-muted/60"
+                            style={{
+                              ...position(),
+                              'grid-template-columns': template(),
+                            }}
                           >
-                            <button
-                              ref={(button) => {
-                                rowButtons.set(rowId, button);
-                                queueMicrotask(focusRequestedCell);
-                                onCleanup(() => {
-                                  if (rowButtons.get(rowId) === button)
-                                    rowButtons.delete(rowId);
-                                });
-                              }}
-                              type="button"
-                              class="relative grid size-7 place-items-center rounded text-[10px] tabular-nums text-ink-placeholder outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ink/50"
-                              aria-label={`Open ${props.getRowTitle(row())}`}
-                              title="Open record"
-                              onClick={() => props.onOpen(row().rowId)}
-                            >
-                              <span class="group-hover:opacity-0 group-focus-within:opacity-0">
-                                {index() + 1}
-                              </span>
-                              <ArrowSquareOutIcon class="absolute size-3.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" />
-                            </button>
-                          </Show>
-                        </div>
-                        <Key each={columns()} by="id">
-                          {(column, columnIndex) => {
-                            const columnId = column().id;
-                            const presence = () =>
-                              presenceAt(row().rowId, column().id);
-                            return (
-                              <div
-                                role="gridcell"
-                                aria-selected={selection.contains(
-                                  index(),
-                                  columnIndex()
-                                )}
-                                aria-colindex={columnIndex() + 2}
-                                tabindex={-1}
-                                class="relative min-w-0 border-r border-edge-muted/40 px-0.5 py-0.5 outline-none focus-within:ring-1 focus-within:ring-inset focus-within:ring-ink/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ink/50"
-                                classList={{
-                                  'bg-accent/15 ring-1 ring-inset ring-accent/50':
-                                    selection.contains(index(), columnIndex()),
-                                }}
-                                data-grid-cell
-                                data-grid-row={index()}
-                                data-grid-column={columnIndex() + 1}
-                                data-remote-users={
-                                  presence().length
-                                    ? presence()
-                                        .map(({ user }) => user.userId)
-                                        .join(' ')
-                                    : undefined
-                                }
-                                style={presenceOutline(
-                                  presence()[0]?.user,
-                                  presence()[0]
-                                    ? {
-                                        top:
-                                          index() === presence()[0].bounds.top,
-                                        bottom:
-                                          index() ===
-                                          presence()[0].bounds.bottom,
-                                        left:
-                                          columnIndex() ===
-                                          presence()[0].bounds.left,
-                                        right:
-                                          columnIndex() ===
-                                          presence()[0].bounds.right,
-                                      }
-                                    : undefined
-                                )}
-                              >
-                                {props.renderCell(row, column, {
-                                  onReady: (editor) =>
-                                    register(rowId, columnId, editor),
-                                  onNavigate: (direction) =>
-                                    navigate(
-                                      row().rowId,
-                                      column().id,
-                                      direction
-                                    ),
-                                  onNavigateRow: (direction) =>
-                                    navigateRow(
-                                      row().rowId,
-                                      column().id,
-                                      direction
-                                    ),
-                                })}
-                                <Show when={presence().length}>
-                                  <span class="pointer-events-none absolute top-0 left-0 z-1 flex gap-px">
-                                    <For
-                                      each={presence().filter(
-                                        ({ bounds }) =>
-                                          bounds.top === index() &&
-                                          bounds.left === columnIndex()
-                                      )}
-                                    >
-                                      {({ user }) => (
-                                        <PresenceTag user={user} below />
-                                      )}
-                                    </For>
-                                  </span>
-                                </Show>
-                              </div>
+                            <div class="sticky left-0 z-1 border-r border-edge-muted/40 bg-panel" />
+                            <For each={columns()}>
+                              {() => (
+                                <div class="flex items-center border-r border-edge-muted/40 px-2">
+                                  <span class="h-2 w-1/2 rounded-full bg-hover" />
+                                </div>
+                              )}
+                            </For>
+                          </div>
+                        );
+                      const initial = rows()[index()];
+                      const row = createMemo(
+                        () =>
+                          rows()[selection.rowIndex().get(rowId)!] ?? initial
+                      );
+                      const highlighted = () =>
+                        props.highlightRowId === row().rowId;
+                      return (
+                        <div
+                          ref={(element: HTMLDivElement) => {
+                            // Observed once `data-index` is set; sizes are cached by record.
+                            queueMicrotask(() =>
+                              virtualizer.measureElement(element)
+                            );
+                            createEffect(
+                              on(highlighted, (isHighlighted) => {
+                                if (!isHighlighted) return;
+                                element.scrollIntoView({ block: 'nearest' });
+                                const first = columns()[0];
+                                if (first)
+                                  control(row().rowId, first.id)?.focus();
+                              })
                             );
                           }}
-                        </Key>
-                        <Show when={hasAddColumn()}>
-                          <div role="gridcell" />
-                        </Show>
-                      </div>
-                    );
-                  }}
-                </Virtualizer>
+                          role="row"
+                          data-index={index()}
+                          data-grid-row-id={row().rowId}
+                          data-highlighted={highlighted() ? '' : undefined}
+                          aria-rowindex={index() + 2}
+                          class="group absolute inset-x-0 top-0 grid min-h-10 border-b border-edge-muted/60 [contain-intrinsic-size:auto_43px] [content-visibility:auto] hover:bg-hover/50"
+                          classList={{ 'bg-accent/15': highlighted() }}
+                          style={{
+                            ...position(),
+                            'grid-template-columns': template(),
+                          }}
+                        >
+                          <div
+                            role="gridcell"
+                            aria-colindex={1}
+                            tabindex={-1}
+                            // Opaque so cells scrolled beneath it stay hidden; the
+                            // overlay repeats the row's hover and highlight tint.
+                            class="sticky left-0 z-1 flex items-center justify-center border-r border-edge-muted/40 bg-panel outline-none before:pointer-events-none before:absolute before:inset-0 group-hover:before:bg-hover/50 group-data-highlighted:before:bg-accent/15 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ink/50"
+                            data-grid-cell
+                            data-grid-row={index()}
+                            data-grid-column={0}
+                          >
+                            <Show
+                              when={!props.isUnsavedRow?.(row().rowId)}
+                              fallback={
+                                <span class="text-[10px] tabular-nums text-ink-placeholder">
+                                  {index() + 1}
+                                </span>
+                              }
+                            >
+                              <button
+                                ref={(button) => {
+                                  rowButtons.set(rowId, button);
+                                  queueMicrotask(focusRequestedCell);
+                                  onCleanup(() => {
+                                    if (rowButtons.get(rowId) === button)
+                                      rowButtons.delete(rowId);
+                                  });
+                                }}
+                                type="button"
+                                class="relative grid size-7 place-items-center rounded text-[10px] tabular-nums text-ink-placeholder outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ink/50"
+                                aria-label={`Open ${props.getRowTitle(row())}`}
+                                title="Open record"
+                                onClick={() => props.onOpen(row().rowId)}
+                              >
+                                <span class="group-hover:opacity-0 group-focus-within:opacity-0">
+                                  {index() + 1}
+                                </span>
+                                <ArrowSquareOutIcon class="absolute size-3.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" />
+                              </button>
+                            </Show>
+                          </div>
+                          <Key each={columns()} by="id">
+                            {(column, columnIndex) => {
+                              const columnId = column().id;
+                              const presence = () =>
+                                presenceAt(row().rowId, column().id);
+                              return (
+                                <div
+                                  role="gridcell"
+                                  aria-selected={selection.contains(
+                                    index(),
+                                    columnIndex()
+                                  )}
+                                  aria-colindex={columnIndex() + 2}
+                                  tabindex={-1}
+                                  class="relative min-w-0 border-r border-edge-muted/40 px-0.5 py-0.5 outline-none focus-within:ring-1 focus-within:ring-inset focus-within:ring-ink/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ink/50"
+                                  classList={{
+                                    'bg-accent/15 ring-1 ring-inset ring-accent/50':
+                                      selection.contains(
+                                        index(),
+                                        columnIndex()
+                                      ),
+                                  }}
+                                  data-grid-cell
+                                  data-grid-row={index()}
+                                  data-grid-column={columnIndex() + 1}
+                                  data-remote-users={
+                                    presence().length
+                                      ? presence()
+                                          .map(({ user }) => user.userId)
+                                          .join(' ')
+                                      : undefined
+                                  }
+                                  style={presenceOutline(
+                                    presence()[0]?.user,
+                                    presence()[0]
+                                      ? {
+                                          top:
+                                            index() ===
+                                            presence()[0].bounds.top,
+                                          bottom:
+                                            index() ===
+                                            presence()[0].bounds.bottom,
+                                          left:
+                                            columnIndex() ===
+                                            presence()[0].bounds.left,
+                                          right:
+                                            columnIndex() ===
+                                            presence()[0].bounds.right,
+                                        }
+                                      : undefined
+                                  )}
+                                >
+                                  {props.renderCell(row, column, {
+                                    onReady: (editor) =>
+                                      register(rowId, columnId, editor),
+                                    onNavigate: (direction) =>
+                                      navigate(
+                                        row().rowId,
+                                        column().id,
+                                        direction
+                                      ),
+                                    onNavigateRow: (direction) =>
+                                      navigateRow(
+                                        row().rowId,
+                                        column().id,
+                                        direction
+                                      ),
+                                  })}
+                                  <Show when={presence().length}>
+                                    <span class="pointer-events-none absolute top-0 left-0 z-1 flex gap-px">
+                                      <For
+                                        each={presence().filter(
+                                          ({ bounds }) =>
+                                            bounds.top === index() &&
+                                            bounds.left === columnIndex()
+                                        )}
+                                      >
+                                        {({ user }) => (
+                                          <PresenceTag user={user} below />
+                                        )}
+                                      </For>
+                                    </span>
+                                  </Show>
+                                </div>
+                              );
+                            }}
+                          </Key>
+                          <Show when={hasAddColumn()}>
+                            <div role="gridcell" />
+                          </Show>
+                        </div>
+                      );
+                    }}
+                  </Key>
+                </div>
               </div>
             </ContextMenu.Trigger>
             <ContextMenu.Portal>
