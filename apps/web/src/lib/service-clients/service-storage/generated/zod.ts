@@ -17829,6 +17829,11 @@ export const getDocumentBranchNameResponse = zod
       .string()
       .describe('The git branch name for the task document.'),
     shortId: zod.string().describe('The short id of the document.'),
+    taskReference: zod
+      .string()
+      .describe(
+        'The id to paste into GitHub so the pull request links to this task.'
+      ),
   })
   .describe('Branch name response.');
 
@@ -22800,6 +22805,81 @@ export const getFormTallyResponse = zod
       ),
   })
   .describe("How the table's rows answer each choice question.");
+
+/**
+ * @summary The team's GitHub task status automation. A team that has never saved a
+policy gets every switch on.
+ */
+export const getGithubTaskStatusAutomationResponse = zod
+  .object({
+    completeOnMerge: zod
+      .boolean()
+      .describe(
+        'Move linked tasks to \"Completed\" when a pull request merges.'
+      ),
+    resetOnClose: zod
+      .boolean()
+      .describe(
+        'Move linked tasks to \"Not Started\" when a pull request closes unmerged.'
+      ),
+    reviewOnOpen: zod
+      .boolean()
+      .describe(
+        'Move a newly linked task to \"In Review\" when its pull request is open.'
+      ),
+  })
+  .describe(
+    "Whether GitHub pull request events may move a team's tasks.\n\nA team with no saved row uses [`GithubTaskStatusPolicy::default`], which\nkeeps every automatic move on. Linking a pull request does not consult\nthis policy."
+  );
+
+/**
+ * @summary Replace the team's GitHub task status automation. Linking pull requests is
+unchanged; only the automatic status moves follow these switches. Requires
+a team admin or owner.
+ */
+export const putGithubTaskStatusAutomationBody = zod
+  .object({
+    completeOnMerge: zod
+      .boolean()
+      .describe(
+        'Move linked tasks to \"Completed\" when a pull request merges.'
+      ),
+    resetOnClose: zod
+      .boolean()
+      .describe(
+        'Move linked tasks to \"Not Started\" when a pull request closes unmerged.'
+      ),
+    reviewOnOpen: zod
+      .boolean()
+      .describe(
+        'Move a newly linked task to \"In Review\" when its pull request is open.'
+      ),
+  })
+  .describe(
+    "Whether GitHub pull request events may move a team's tasks.\n\nA team with no saved row uses [`GithubTaskStatusPolicy::default`], which\nkeeps every automatic move on. Linking a pull request does not consult\nthis policy."
+  );
+
+export const putGithubTaskStatusAutomationResponse = zod
+  .object({
+    completeOnMerge: zod
+      .boolean()
+      .describe(
+        'Move linked tasks to \"Completed\" when a pull request merges.'
+      ),
+    resetOnClose: zod
+      .boolean()
+      .describe(
+        'Move linked tasks to \"Not Started\" when a pull request closes unmerged.'
+      ),
+    reviewOnOpen: zod
+      .boolean()
+      .describe(
+        'Move a newly linked task to \"In Review\" when its pull request is open.'
+      ),
+  })
+  .describe(
+    "Whether GitHub pull request events may move a team's tasks.\n\nA team with no saved row uses [`GithubTaskStatusPolicy::default`], which\nkeeps every automatic move on. Linking a pull request does not consult\nthis policy."
+  );
 
 /**
  * @summary List the repositories and authors among the GitHub pull requests visible to the caller.

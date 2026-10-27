@@ -6,8 +6,10 @@ import { copyBranchNameToClipboard } from '@core/util/branchName';
 import { openInNewSplitForMention } from '@core/util/openInNewSplit';
 import { useSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
 import GithubIcon from '@icon/mcp-github.svg';
+import CopyIcon from '@icon/system/regular/copy.svg';
 import GitBranch from '@icon/system/regular/git-branch.svg';
 import { useDocumentGithubPullRequestsQuery } from '@queries/storage/github-pull-requests';
+import { useTaskGithubReferenceQuery } from '@queries/storage/github-task-automation';
 import type { GithubPullRequest } from '@service-storage/generated/schemas';
 import { badgeTriggerClasses, CopyButton, Layer } from '@ui';
 import { cn } from '@ui/utils/classname';
@@ -153,6 +155,34 @@ function PullRequestPill(props: { pr: GithubPullRequest }): JSX.Element {
   );
 }
 
+function TaskReferenceButton(props: { blockId: string }): JSX.Element {
+  const reference = useTaskGithubReferenceQuery(() => props.blockId);
+
+  return (
+    <Show when={reference.data}>
+      {(taskReference) => (
+        <CopyButton
+          variant="outline"
+          size="sm"
+          noTouchResize
+          depth={2}
+          tooltip="Copy task id. Paste it in a pull request title, description, branch, or comment to link this task."
+          aria-label={`Copy task id ${taskReference()}`}
+          class={badgeTriggerClasses({
+            variant: 'outline',
+            size: 'sm',
+            class: 'gap-1.5 bg-surface-2 border border-edge font-mono text-xs',
+          })}
+          onClick={() => navigator.clipboard.writeText(taskReference())}
+        >
+          <CopyIcon class="size-3 shrink-0" />
+          <span>{taskReference()}</span>
+        </CopyButton>
+      )}
+    </Show>
+  );
+}
+
 function InlineTaskGithubPullRequestsContent(props: {
   blockId: string;
 }): JSX.Element {
@@ -168,6 +198,7 @@ function InlineTaskGithubPullRequestsContent(props: {
 
   return (
     <>
+      <TaskReferenceButton blockId={props.blockId} />
       <Show when={isWaitingForPullRequests()}>
         <InlineTaskGithubPullRequestsSkeleton />
       </Show>

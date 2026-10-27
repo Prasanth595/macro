@@ -19,6 +19,21 @@ field access, resolved from the caller's team memberships.
 
 ## Methods
 
+### githubTaskStatus()
+
+> **githubTaskStatus**(): `Promise`\<[`GithubTaskStatusPolicy`](../../../../../generated/storage/types.gen/type-aliases/GithubTaskStatusPolicy.md)\>
+
+Whether GitHub pull request events move this team's tasks.
+
+Linking is separate and always happens. The API only exposes the caller's
+current team, so this rejects for any other team.
+
+#### Returns
+
+`Promise`\<[`GithubTaskStatusPolicy`](../../../../../generated/storage/types.gen/type-aliases/GithubTaskStatusPolicy.md)\>
+
+***
+
 ### members()
 
 > **members**(): `Promise`\<[`TeamMembership`](../interfaces/TeamMembership.md)[]\>
@@ -29,6 +44,25 @@ the caller's current team, so this rejects for any other team.
 #### Returns
 
 `Promise`\<[`TeamMembership`](../interfaces/TeamMembership.md)[]\>
+
+***
+
+### setGithubTaskStatus()
+
+> **setGithubTaskStatus**(`policy`): `Promise`\<[`GithubTaskStatusPolicy`](../../../../../generated/storage/types.gen/type-aliases/GithubTaskStatusPolicy.md)\>
+
+Replace whether GitHub pull request events move this team's tasks.
+Requires a team admin. Linking is unchanged.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `policy` | [`GithubTaskStatusPolicy`](../../../../../generated/storage/types.gen/type-aliases/GithubTaskStatusPolicy.md) |
+
+#### Returns
+
+`Promise`\<[`GithubTaskStatusPolicy`](../../../../../generated/storage/types.gen/type-aliases/GithubTaskStatusPolicy.md)\>
 
 ***
 

@@ -2,6 +2,7 @@ import type {
   Team as TeamRecord,
   TeamRole,
 } from '../../../generated/auth/types.gen';
+import type { GithubTaskStatusPolicy } from '../../../generated/storage/types.gen';
 import { MacroError, MacroNotFoundError, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
@@ -76,5 +77,38 @@ export class Team extends MacroEntity<TeamRecord> {
       user: User.byId(this.client, m.user_id),
       role: m.role,
     }));
+  }
+
+  /**
+   * Whether GitHub pull request events move this team's tasks.
+   *
+   * Linking is separate and always happens. The API only exposes the caller's
+   * current team, so this rejects for any other team.
+   */
+  async githubTaskStatus(): Promise<GithubTaskStatusPolicy> {
+    await this.requireCurrentTeam();
+    return unwrap(await this.client.storage.getGithubTaskStatusAutomation());
+  }
+
+  /**
+   * Replace whether GitHub pull request events move this team's tasks.
+   * Requires a team admin. Linking is unchanged.
+   */
+  async setGithubTaskStatus(
+    policy: GithubTaskStatusPolicy,
+  ): Promise<GithubTaskStatusPolicy> {
+    await this.requireCurrentTeam();
+    return unwrap(
+      await this.client.storage.putGithubTaskStatusAutomation({ body: policy }),
+    );
+  }
+
+  private async requireCurrentTeam(): Promise<void> {
+    const res = unwrap(await this.client.auth.getTeam());
+    if (!res || res.team.id !== this.id) {
+      throw new MacroError(
+        'GitHub task status is only available for the current team (see Team.current)',
+      );
+    }
   }
 }

@@ -1535,6 +1535,10 @@ export type BranchNameResponse = {
      * The short id of the document.
      */
     shortId: string;
+    /**
+     * The id to paste into GitHub so the pull request links to this task.
+     */
+    taskReference: string;
 };
 
 export type BulkWakeupRequest = {
@@ -8047,6 +8051,28 @@ export type GithubRepositoryFacet = {
      * The numeric GitHub repository id, which survives renames and transfers.
      */
     repositoryId: string;
+};
+
+/**
+ * Whether GitHub pull request events may move a team's tasks.
+ *
+ * A team with no saved row uses [`GithubTaskStatusPolicy::default`], which
+ * keeps every automatic move on. Linking a pull request does not consult
+ * this policy.
+ */
+export type GithubTaskStatusPolicy = {
+    /**
+     * Move linked tasks to "Completed" when a pull request merges.
+     */
+    completeOnMerge: boolean;
+    /**
+     * Move linked tasks to "Not Started" when a pull request closes unmerged.
+     */
+    resetOnClose: boolean;
+    /**
+     * Move a newly linked task to "In Review" when its pull request is open.
+     */
+    reviewOnOpen: boolean;
 };
 
 /**
@@ -21125,6 +21151,68 @@ export type InstallSyncErrors = {
      */
     401: unknown;
 };
+
+export type GetGithubTaskStatusAutomationData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/github/task-status-automation';
+};
+
+export type GetGithubTaskStatusAutomationErrors = {
+    /**
+     * Authentication failed
+     */
+    401: unknown;
+    /**
+     * The caller is not a member of a team
+     */
+    403: unknown;
+    /**
+     * Internal server error
+     */
+    500: unknown;
+};
+
+export type GetGithubTaskStatusAutomationResponses = {
+    /**
+     * The team's GitHub task status automation
+     */
+    200: GithubTaskStatusPolicy;
+};
+
+export type GetGithubTaskStatusAutomationResponse = GetGithubTaskStatusAutomationResponses[keyof GetGithubTaskStatusAutomationResponses];
+
+export type PutGithubTaskStatusAutomationData = {
+    body: GithubTaskStatusPolicy;
+    path?: never;
+    query?: never;
+    url: '/github/task-status-automation';
+};
+
+export type PutGithubTaskStatusAutomationErrors = {
+    /**
+     * Authentication failed
+     */
+    401: unknown;
+    /**
+     * The caller is not a team admin
+     */
+    403: unknown;
+    /**
+     * Internal server error
+     */
+    500: unknown;
+};
+
+export type PutGithubTaskStatusAutomationResponses = {
+    /**
+     * The saved GitHub task status automation
+     */
+    200: GithubTaskStatusPolicy;
+};
+
+export type PutGithubTaskStatusAutomationResponse = PutGithubTaskStatusAutomationResponses[keyof PutGithubTaskStatusAutomationResponses];
 
 export type GetGithubPullRequestFacetsData = {
     body?: never;

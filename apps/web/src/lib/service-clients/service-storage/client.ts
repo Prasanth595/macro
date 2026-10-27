@@ -44,6 +44,7 @@ import type { Bot } from './generated/schemas/bot';
 import type { BotChannel } from './generated/schemas/botChannel';
 import type { BotOwnerProfile } from './generated/schemas/botOwnerProfile';
 import type { BotToken } from './generated/schemas/botToken';
+import type { BranchNameResponse } from './generated/schemas/branchNameResponse';
 import type { CalendarJoinRequest } from './generated/schemas/calendarJoinRequest';
 import { CalendarJoinRequestErrorCode } from './generated/schemas/calendarJoinRequestErrorCode';
 import type { CalendarJoinRequestsResponse } from './generated/schemas/calendarJoinRequestsResponse';
@@ -125,6 +126,7 @@ import type { GithubPullRequestChangesResponse } from './generated/schemas/githu
 import type { GithubPullRequestFacets } from './generated/schemas/githubPullRequestFacets';
 import type { GithubPullRequestsResponse } from './generated/schemas/githubPullRequestsResponse';
 import type { GithubPullRequestTasksResponse } from './generated/schemas/githubPullRequestTasksResponse';
+import type { GithubTaskStatusPolicy } from './generated/schemas/githubTaskStatusPolicy';
 import type { GroupedSoupGroupPage } from './generated/schemas/groupedSoupGroupPage';
 import type { GroupedSoupInitialPage } from './generated/schemas/groupedSoupInitialPage';
 import type { GroupedSoupSort } from './generated/schemas/groupedSoupSort';
@@ -1798,20 +1800,35 @@ export const storageServiceClient = {
   }: {
     documentId: string;
   }): Promise<
-    Result<
-      { shortId: string; branchName: string },
-      ResultError<FetchWithTokenErrorCode>[]
-    >
+    Result<BranchNameResponse, ResultError<FetchWithTokenErrorCode>[]>
   > {
-    return (
-      await dssFetch<{ shortId: string; branchName: string }>(
-        `/documents/${documentId}/branch_name`,
-        { method: 'GET' }
-      )
-    ).map((result) => ({
-      shortId: result.shortId,
-      branchName: result.branchName,
-    }));
+    return await dssFetch<BranchNameResponse>(
+      `/documents/${documentId}/branch_name`,
+      { method: 'GET' }
+    );
+  },
+
+  async getGithubTaskStatusAutomation(): Promise<
+    Result<GithubTaskStatusPolicy, ResultError<FetchWithTokenErrorCode>[]>
+  > {
+    return await dssFetch<GithubTaskStatusPolicy>(
+      '/github/task-status-automation',
+      { method: 'GET' }
+    );
+  },
+
+  async putGithubTaskStatusAutomation(
+    body: GithubTaskStatusPolicy
+  ): Promise<
+    Result<GithubTaskStatusPolicy, ResultError<FetchWithTokenErrorCode>[]>
+  > {
+    return await dssFetch<GithubTaskStatusPolicy>(
+      '/github/task-status-automation',
+      {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }
+    );
   },
 
   async getDocumentGithubPullRequests({

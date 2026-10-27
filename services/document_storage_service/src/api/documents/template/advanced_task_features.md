@@ -10,11 +10,13 @@ Similarly, any Channel message can be turned into a task, by hovering the messag
 
 # GitHub integration
 
-Macro tasks integrate with GitHub: as you create, review, and merge branches, the task automatically moves to “In Progress,” “In Review,” or “Done,” and the task records which pull request is associated with it.
+Macro tasks integrate with GitHub. Mention the task id, such as `ENG-42`, anywhere GitHub can see it — the branch name, pull request title, description, or a comment — and Macro links that pull request to the task. There are no magic words. One pull request can name several tasks, and one task can have several pull requests.
 
-To connect your GitHub, go to [the Connections page](https://macro.com/app/settings/connections) in Settings. 
+To connect your GitHub, go to [the Connections page](https://macro.com/app/settings/connections) in Settings.
 
-To associate a task with a branch, simply copy a task's branch name, with its special Macro identifier, and use that as your branch name. There's a button for that under the task title, or press `cmd+k` and search "Copy branch name". 
+The task id is on the task, next to the branch button. You can also copy a branch name, which already contains the id, from under the task title or with `cmd+k` and "Copy branch name".
+
+By default, opening a linked pull request moves the task to “In Review,” merging it moves the task to “Done,” and closing it without merging moves the task back to “Not Started.” A team admin can turn each of those off in Team settings. Linking still happens either way. 
 
 # Macro MCP
 

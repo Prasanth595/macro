@@ -446,9 +446,9 @@ otherwise from a GitHub priority label (`P0`–`P3`, `priority: high`, `urgent`,
 they show where the PR was started, the **channel messages** its agents were
 started from (for example an @mention), **Customer**s (CRM companies in linked
 tasks' Companies property, or a company whose thread started a session),
-**Ticket**s (tasks the PR text, branch, or comments mention as `MACRO-<id>`, and
-tasks whose thread started a session), the GitHub labels, the author, the diff
-size, comments, and the linked agent sessions chip. A channel pill names the
+**Ticket**s (tasks the PR text, branch, or comments mention as `ENG-42` or
+`MACRO-<id>`, and tasks whose thread started a session), the GitHub labels,
+the author, the diff size, comments, and the linked agent sessions chip. A channel pill names the
 channel; hovering it previews the starting message in the same card as message
 mentions, and clicking opens the channel at that message (Shift-click for
 another split). Several channel messages stack as overlapping pills that spread

@@ -13651,6 +13651,70 @@
         }
       }
     },
+    "/github/task-status-automation": {
+      "get": {
+        "tags": ["github"],
+        "summary": "The team's GitHub task status automation. A team that has never saved a\npolicy gets every switch on.",
+        "operationId": "get_github_task_status_automation",
+        "responses": {
+          "200": {
+            "description": "The team's GitHub task status automation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubTaskStatusPolicy"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed"
+          },
+          "403": {
+            "description": "The caller is not a member of a team"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "put": {
+        "tags": ["github"],
+        "summary": "Replace the team's GitHub task status automation. Linking pull requests is\nunchanged; only the automatic status moves follow these switches. Requires\na team admin or owner.",
+        "operationId": "put_github_task_status_automation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GithubTaskStatusPolicy"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The saved GitHub task status automation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubTaskStatusPolicy"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed"
+          },
+          "403": {
+            "description": "The caller is not a team admin"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/github_pull_requests/facets": {
       "get": {
         "tags": ["github_pull_requests"],
@@ -21086,7 +21150,7 @@
       "BranchNameResponse": {
         "type": "object",
         "description": "Branch name response.",
-        "required": ["shortId", "branchName"],
+        "required": ["shortId", "branchName", "taskReference"],
         "properties": {
           "branchName": {
             "type": "string",
@@ -21095,6 +21159,10 @@
           "shortId": {
             "type": "string",
             "description": "The short id of the document."
+          },
+          "taskReference": {
+            "type": "string",
+            "description": "The id to paste into GitHub so the pull request links to this task."
           }
         }
       },
@@ -31224,6 +31292,25 @@
           "repositoryId": {
             "type": "string",
             "description": "The numeric GitHub repository id, which survives renames and transfers."
+          }
+        }
+      },
+      "GithubTaskStatusPolicy": {
+        "type": "object",
+        "description": "Whether GitHub pull request events may move a team's tasks.\n\nA team with no saved row uses [`GithubTaskStatusPolicy::default`], which\nkeeps every automatic move on. Linking a pull request does not consult\nthis policy.",
+        "required": ["reviewOnOpen", "completeOnMerge", "resetOnClose"],
+        "properties": {
+          "completeOnMerge": {
+            "type": "boolean",
+            "description": "Move linked tasks to \"Completed\" when a pull request merges."
+          },
+          "resetOnClose": {
+            "type": "boolean",
+            "description": "Move linked tasks to \"Not Started\" when a pull request closes unmerged."
+          },
+          "reviewOnOpen": {
+            "type": "boolean",
+            "description": "Move a newly linked task to \"In Review\" when its pull request is open."
           }
         }
       },

@@ -1089,6 +1089,7 @@ export * from './githubPullRequestTasksResponse';
 export * from './githubPullRequestUser';
 export * from './githubPullRequestUserLogin';
 export * from './githubRepositoryFacet';
+export * from './githubTaskStatusPolicy';
 export * from './githubUserFacet';
 export * from './githubUserFacetLogin';
 export * from './gitRefDto';

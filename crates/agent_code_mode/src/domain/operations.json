@@ -533,6 +533,8 @@
   "storage.getFormResponseSummary": "Get Form Response Summary",
   "storage.getFormTally": "Get Form Tally",
   "storage.installSync": "Install Sync",
+  "storage.getGithubTaskStatusAutomation": "Get Github Task Status Automation",
+  "storage.putGithubTaskStatusAutomation": "Put Github Task Status Automation",
   "storage.getGithubPullRequestFacets": "Get Github Pull Request Facets",
   "storage.getGithubPullRequest": "Get Github Pull Request",
   "storage.getGithubPullRequestChanges": "Get Github Pull Request Changes",

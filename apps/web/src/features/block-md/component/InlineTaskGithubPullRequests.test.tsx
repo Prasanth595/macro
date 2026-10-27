@@ -6,6 +6,7 @@ import { InlineTaskGithubPullRequests } from './InlineTaskGithubPullRequests';
 const mocks = vi.hoisted(() => ({
   openWithSplit: vi.fn(),
   pullRequests: [] as GithubPullRequest[],
+  taskReference: undefined as string | undefined,
 }));
 
 vi.mock('../context/markdown-document-context', () => ({
@@ -20,6 +21,9 @@ vi.mock('@queries/storage/github-pull-requests', () => ({
     isFetching: false,
     data: { pullRequests: mocks.pullRequests },
   }),
+}));
+vi.mock('@queries/storage/github-task-automation', () => ({
+  useTaskGithubReferenceQuery: () => ({ data: mocks.taskReference }),
 }));
 vi.mock('@components/app/split-layout/layout', () => ({
   useSplitLayout: () => ({ openWithSplit: mocks.openWithSplit }),
@@ -47,6 +51,7 @@ const pullRequest: GithubPullRequest = {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  mocks.taskReference = undefined;
 });
 
 it('opens a synced pull request in a new split instead of GitHub', () => {
@@ -60,6 +65,18 @@ it('opens a synced pull request in a new split instead of GitHub', () => {
     { type: 'pr', id: 'pr-entity' },
     { preferNewSplit: true }
   );
+});
+
+it('copies the task id used to link a pull request', () => {
+  mocks.pullRequests = [];
+  mocks.taskReference = 'ENG-42';
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal('navigator', { clipboard: { writeText } });
+  render(() => <InlineTaskGithubPullRequests />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Copy task id ENG-42' }));
+
+  expect(writeText).toHaveBeenCalledWith('ENG-42');
 });
 
 it('links a pull request Macro has not synced to GitHub', () => {

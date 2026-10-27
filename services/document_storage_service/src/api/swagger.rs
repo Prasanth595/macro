@@ -114,6 +114,7 @@ use favorites::inbound::axum_router::{
     AddFavoriteRequest, FavoriteEntityRef, ReorderFavoritesRequest,
 };
 use foreign_entity::domain::models::ForeignEntity;
+use github::domain::models::GithubTaskStatusPolicy;
 use github_pull_requests::domain::models::{
     GithubLabelFacet, GithubPullRequestFacets, GithubRepositoryFacet, GithubUserFacet,
     StoredGithubPullRequest,
@@ -515,6 +516,8 @@ use utoipa::OpenApi;
 
         // /github
         github::inbound::github_sync_router::install_sync_handler,
+        github::inbound::github_sync_router::get_task_status_automation,
+        github::inbound::github_sync_router::put_task_status_automation,
 
         // /internal/sync_service
         sync_service_hex::inbound::axum_router::bulk_wakeup_handler,
@@ -993,6 +996,7 @@ use utoipa::OpenApi;
             CreateViewRequest,
             ExcludeDefaultViewRequest,
             BranchNameResponse,
+            GithubTaskStatusPolicy,
             ShortIdResponse,
             documents_hex::domain::models::GithubPullRequest,
             documents_hex::domain::models::GithubPullRequestCheckRun,

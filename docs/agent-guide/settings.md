@@ -269,7 +269,8 @@ seconds (pointer, or Space/Enter); releasing early cancels.
 Left nav (feature and platform gates still apply):
 
 - **Team · <team name>** (just **Team** without a team): General (name, slug,
-  GitHub autolink, default link sharing, Delete Team), Members (member list,
+  GitHub autolink, GitHub task status switches, default link sharing, Delete
+  Team), Members (member list,
   roles and seat plans, **Invite**, pending invites, auto-join and
   members-can-invite), Connections (Slack import, GitHub App). Without a team
   only General shows, with pending invitations or **Create Team**. Search

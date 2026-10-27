@@ -14,6 +14,6 @@ Sometimes we'll write up documents describing new features. We can then ask the 
 
 ![](https://static-file-service.macro.com/file/742a705b-ef81-4f2b-aab8-b4358292e1a3)
 
-Managing task status happens automatically, using the GitHub integration. As you create, review, and merge branches, the task automatically moves to “In Progress,” “In Review,” or “Done,” and the task records which pull request is associated with it.
+Managing task status happens through the GitHub integration. Mention the task id, such as `ENG-42`, on a branch or pull request and Macro links them. Opening a pull request moves the task to “In Review,” and merging it moves the task to “Done,” unless the team has turned that move off. The task records which pull request is associated with it.
 
 The beauty of Macro is that all of the places a conversation about a task might happen—whether it's in the initial report, in the task itself, or on the pull request—all get linked together, automatically, without doing any additional work.

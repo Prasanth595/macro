@@ -46,6 +46,19 @@ export const githubPullRequestRefreshKeys = createQueryKeys(
   }
 );
 
+export const githubTaskStatusAutomationKeys = createQueryKeys(
+  'githubTaskStatusAutomation',
+  {
+    current: null,
+  }
+);
+
+export const taskGithubReferenceKeys = createQueryKeys('taskGithubReference', {
+  detail: (documentId: string) => ({
+    queryKey: [documentId],
+  }),
+});
+
 export const documentGithubPullRequestsKeys = createQueryKeys(
   'documentGithubPullRequests',
   {

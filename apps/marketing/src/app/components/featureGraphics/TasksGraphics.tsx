@@ -3264,11 +3264,12 @@ const faqItems: { q: string; a: JSX.Element }[] = [
     q: 'Does the GitHub integration really update status for me?',
     a: (
       <>
-        Yes. Copy a task's branch name into your editor, and the task follows
-        the pull request from there: it goes to <strong>In Review</strong> when
-        you open the PR, and <strong>Done</strong> when it merges. The task
-        records which pull request is associated with it, so status updates
-        itself instead of waiting on standup. See the{' '}
+        Yes. Mention the task id, such as <strong>ENG-42</strong>, in the
+        branch name, pull request title, description, or a comment. The task
+        goes to <strong>In Review</strong> when you open the PR and{' '}
+        <strong>Done</strong> when it merges, unless your team turns those
+        moves off. The task records which pull request is associated with it.
+        See the{' '}
         <a
           href="https://docs.macro.com/integrations/github"
           target="_blank"

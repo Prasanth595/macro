@@ -12,11 +12,15 @@ import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import TrashIcon from '@icon/system/regular/trash.svg';
 import XIcon from '@icon/system/regular/x.svg';
 import {
+  useGithubTaskStatusAutomationQuery,
+  usePutGithubTaskStatusAutomationMutation,
+} from '@queries/storage/github-task-automation';
+import {
   useDeleteTeamMutation,
   usePatchTeamMutation,
 } from '@queries/team/teams';
 import type { Team as TeamSummary } from '@service-auth/generated/schemas/team';
-import { Button, Dialog, Panel, Tabs, Tooltip } from '@ui';
+import { Button, Dialog, Panel, Tabs, ToggleSwitch, Tooltip } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import {
   SettingsCard,
@@ -81,13 +85,32 @@ function SaveCancelButtons(props: {
   );
 }
 
-/** Team › General: name, slug, link sharing, and deletion. */
+/** Team › General: name, slug, GitHub linking, link sharing, and deletion. */
 export function TeamGeneral(props: { team: TeamSummary }) {
   const { teamQuery, isOwner, isAdminOrOwner } = useTeamViewer(
     () => props.team
   );
 
   const patchTeamMutation = usePatchTeamMutation();
+  const statusAutomation = useGithubTaskStatusAutomationQuery(
+    () => !!props.team.id
+  );
+  const statusAutomationMutation = usePutGithubTaskStatusAutomationMutation();
+  const statusPolicy = () =>
+    statusAutomation.data ?? {
+      reviewOnOpen: true,
+      completeOnMerge: true,
+      resetOnClose: true,
+    };
+  const statusAutomationPending = () =>
+    statusAutomation.isLoading || statusAutomationMutation.isPending;
+
+  const setStatusAutomation = (
+    patch: Partial<ReturnType<typeof statusPolicy>>
+  ) => {
+    if (!isAdminOrOwner() || statusAutomationPending()) return;
+    statusAutomationMutation.mutate({ ...statusPolicy(), ...patch });
+  };
   const deleteTeamMutation = useDeleteTeamMutation();
 
   const [showDeleteTeamModal, setShowDeleteTeamModal] = createSignal(false);
@@ -388,6 +411,55 @@ export function TeamGeneral(props: { team: TeamSummary }) {
                 <CopyIcon class="size-4" />
                 Copy target URL
               </Button>
+            </SettingsRow>
+
+            <SettingsRow
+              label="Review on pull request"
+              description="Move a linked task to In Review when its pull request opens. Mentioning the task id still links the pull request either way."
+              hideDescriptionOnMobile
+            >
+              <ToggleSwitch
+                size="md"
+                label="Review on pull request"
+                labelClass="sr-only"
+                checked={statusPolicy().reviewOnOpen}
+                disabled={!isAdminOrOwner() || statusAutomationPending()}
+                onChange={(enabled) =>
+                  setStatusAutomation({ reviewOnOpen: enabled })
+                }
+              />
+            </SettingsRow>
+            <SettingsRow
+              label="Complete on merge"
+              description="Mark a linked task completed when a pull request merges. Turn this off when a task needs more than one pull request."
+              hideDescriptionOnMobile
+            >
+              <ToggleSwitch
+                size="md"
+                label="Complete on merge"
+                labelClass="sr-only"
+                checked={statusPolicy().completeOnMerge}
+                disabled={!isAdminOrOwner() || statusAutomationPending()}
+                onChange={(enabled) =>
+                  setStatusAutomation({ completeOnMerge: enabled })
+                }
+              />
+            </SettingsRow>
+            <SettingsRow
+              label="Reset when a pull request closes"
+              description="Move a linked task back to Not Started when its pull request closes without merging."
+              hideDescriptionOnMobile
+            >
+              <ToggleSwitch
+                size="md"
+                label="Reset when a pull request closes"
+                labelClass="sr-only"
+                checked={statusPolicy().resetOnClose}
+                disabled={!isAdminOrOwner() || statusAutomationPending()}
+                onChange={(enabled) =>
+                  setStatusAutomation({ resetOnClose: enabled })
+                }
+              />
             </SettingsRow>
 
             <Show when={isAdminOrOwner()}>

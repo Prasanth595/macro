@@ -13,4 +13,6 @@ export interface BranchNameResponse {
   branchName: string;
   /** The short id of the document. */
   shortId: string;
+  /** The id to paste into GitHub so the pull request links to this task. */
+  taskReference: string;
 }

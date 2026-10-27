@@ -497,6 +497,19 @@ export class Document
     return branchName;
   }
 
+  /**
+   * The id to paste into GitHub so a pull request links to this task,
+   * such as `ENG-42` or `MACRO-{short id}`.
+   */
+  async githubTaskReference(): Promise<string> {
+    const { taskReference } = unwrap(
+      await this.client.storage.getDocumentBranchName({
+        path: { document_id: this.id },
+      }),
+    );
+    return taskReference;
+  }
+
   /** The document's URL in the Macro web app. */
   webUrl(): string {
     return `${this.client.webAppUrl}/app/md/${this.id}`;

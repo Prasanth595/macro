@@ -259,6 +259,23 @@ GitHub pull requests associated with the document.
 
 ***
 
+### githubTaskReference()
+
+> **githubTaskReference**(): `Promise`\<`string`\>
+
+The id to paste into GitHub so a pull request links to this task,
+such as `ENG-42` or `MACRO-{short id}`.
+
+#### Returns
+
+`Promise`\<`string`\>
+
+#### Inherited from
+
+[`Document`](../../../documents/document/classes/Document.md).[`githubTaskReference`](../../../documents/document/classes/Document.md#githubtaskreference)
+
+***
+
 ### meetingNotes()
 
 > **meetingNotes**(): `Promise`\<\{ `eventTitle`: `string`; `note`: [`CalendarNote`](../../../calendar/note/classes/CalendarNote.md); \}[]\>

@@ -4,13 +4,25 @@ icon: "github"
 description: "Link pull requests to tasks and let task statuses update themselves as you ship."
 ---
 
-Macro integrates with GitHub so your tasks stay in sync with the code that closes them. To connect, link your GitHub account in **Settings → Integrations**.
+Macro integrates with GitHub so your tasks stay in sync with the code that closes them. To connect, link your GitHub account in **Settings → Integrations**, then install the GitHub App from **Settings → Team → Connections**.
 
-### Tasks that track your PRs
+### Link a pull request
 
-Create a branch for a task and Macro keeps the task's status up to date automatically: **In Progress** when you create the branch, **In Review** when you open the pull request, and **Completed** when it merges.
+Mention the task id anywhere GitHub can see it: the branch name, the pull request title, the description, or a comment. Macro links that pull request to the task. There are no magic words. `closes ENG-42` and `refs ENG-42` do the same thing as writing `ENG-42` on its own.
 
-> With a task selected, press <kbd>shift</kbd>\+<kbd>cmd</kbd>\+<kbd>b</kbd> to copy a branch name for it.
+The id is the team slug plus the task number, like `ENG-42`. It is shown on the task, next to the branch button. A task that is not on a team uses `MACRO-` plus its short id instead.
+
+One pull request can mention several tasks, and one task can have several pull requests. You can add the id to a pull request that already exists.
+
+> With a task selected, press <kbd>shift</kbd>\+<kbd>cmd</kbd>\+<kbd>b</kbd> to copy a branch name. The branch name already contains the task id.
+
+GitHub's own autolink, under **Settings → Team → General**, is separate. It turns `ENG-42` into a clickable link inside GitHub. Copy the target URL there and set `ENG-` as the reference prefix.
+
+### Task status
+
+By default, opening a linked pull request moves the task to **In Review**, merging it moves the task to **Completed**, and closing it without merging moves the task back to **Not Started**.
+
+A team admin can turn each of those off under **Settings → Team → General**. Linking still happens. Turn **Complete on merge** off when a task needs more than one pull request, or when the work is not done the moment the code merges.
 
 The linked pull request appears directly on the task with its title, PR number, and diff size, so anyone looking at the task can jump straight to the code:
 
