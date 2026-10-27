@@ -97,7 +97,10 @@ impl LocalEnv {
         } else {
             frontend::https_origin(instance)?
         };
-        let infra = InfraEnv::local(&frontend_origin);
+        // Presigned file URLs are opened by a browser that may be on another
+        // machine (a laptop on the tailnet), so they use this machine's name,
+        // which the proxy certificate covers in both flavors, not localhost.
+        let infra = InfraEnv::local(&frontend::https_origin(instance)?);
         Ok(LocalEnv {
             // Both local flavors run against local infra (`local` env defaults).
             environment: mode.environment_var(),
@@ -226,13 +229,13 @@ struct InfraEnv {
 }
 
 impl InfraEnv {
-    fn local(frontend_origin: &str) -> Self {
+    fn local(browser_origin: &str) -> Self {
         InfraEnv {
             database_url: "postgres://user:password@postgres:5432/macrodb".into(),
             redis_uri: "redis://redis:6379".into(),
             opensearch_url: "http://search:9200".into(),
             local_aws_url: "http://localstack:4566".into(),
-            local_aws_public_url: format!("{frontend_origin}/local-storage"),
+            local_aws_public_url: format!("{browser_origin}/local-storage"),
             // The broker's in-network listener (see docker/docker-compose-databases.yml);
             // host processes use localhost:9092 instead.
             kafka_brokers: "kafka:29092".into(),
@@ -242,6 +245,12 @@ impl InfraEnv {
     fn write(&self, env: &mut BTreeMap<String, String>) {
         env.insert("DATABASE_URL".into(), self.database_url.clone());
         env.insert("DATABASE_URL_READONLY".into(), self.database_url.clone());
+        // The session service's advisory locks need a session that no pooler
+        // multiplexes. Locally nothing pools, so it is the same database.
+        env.insert(
+            "WHATSAPP_SESSION_LOCK_DATABASE_URL".into(),
+            self.database_url.clone(),
+        );
         env.insert("REDIS_URI".into(), self.redis_uri.clone());
         env.insert(
             "DOCUMENT_STORAGE_SERVICE_REDIS_URI".into(),
@@ -380,6 +389,10 @@ impl InfraEnv {
         env.insert(
             "CODEX_OAUTH_KMS_KEY_ID".into(),
             resources::CODEX_OAUTH_KMS_ALIAS.into(),
+        );
+        env.insert(
+            "WHATSAPP_SESSION_KMS_KEY_ID".into(),
+            resources::WHATSAPP_SESSION_KMS_ALIAS.into(),
         );
         // Dummy creds: the SDK talks to LocalStack, never real AWS.
         env.insert("AWS_ACCESS_KEY_ID".into(), "test".into());
@@ -685,6 +698,9 @@ impl BootStubEnv {
         // The worker is opt-in and ships paused; an explicit env-file can enable it.
         env.insert("SLACK_IMPORT_ENABLED".into(), "false".into());
         env.insert("SLACK_IMPORT_CONCURRENCY".into(), "1".into());
+        // whatsapp_session_service's per-replica account cap and drain step.
+        env.insert("WHATSAPP_SESSION_MAX_ACCOUNTS".into(), "500".into());
+        env.insert("WHATSAPP_SESSION_DRAIN_BATCH".into(), "20".into());
         // connection_gateway config reads `REDIS_HOST` (a Redis URL, not a
         // hostname — see `redis::Client::open`).
         env.insert("REDIS_HOST".into(), "redis://redis:6379".into());

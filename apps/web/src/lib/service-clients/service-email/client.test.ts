@@ -1,24 +1,22 @@
 import { ok } from 'neverthrow';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { emailClient } from './client';
+import { expect, it, vi } from 'vitest';
 
-const { fetchMock } = vi.hoisted(() => ({ fetchMock: vi.fn() }));
+const fetchWithToken = vi.hoisted(() => vi.fn());
 vi.mock('@core/constant/servers', () => ({
   SERVER_HOSTS: {
-    'email-service': 'https://gateway.test/email',
-    'calendar-service': 'https://gateway.test/calendar',
+    'email-service': 'https://gateway.example/email',
+    'calendar-service': 'https://gateway.example/calendar',
   },
 }));
-vi.mock('@core/util/fetchWithToken', () => ({ fetchWithToken: fetchMock }));
+vi.mock('@core/util/fetchWithToken', () => ({ fetchWithToken }));
 
-beforeEach(() => fetchMock.mockReset().mockResolvedValue(ok([])));
+import { emailClient } from './client';
 
-describe('email client URLs', () => {
-  it('requests inbox settings operations from the email service once', async () => {
-    await emailClient.settingsOperations('link-1');
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://gateway.test/email/email/settings/operations',
-      { headers: { 'X-Email-Link-Id': 'link-1' } }
-    );
-  });
+it('scopes settings polling to the inbox and adds the email host once', async () => {
+  fetchWithToken.mockResolvedValue(ok([]));
+  await emailClient.settingsOperations('inbox-1');
+  expect(fetchWithToken).toHaveBeenCalledWith(
+    'https://gateway.example/email/email/settings/operations',
+    { headers: { 'X-Email-Link-Id': 'inbox-1' } }
+  );
 });
