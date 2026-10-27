@@ -30,6 +30,11 @@ stacks. Process isolation belongs to
   An import review only starts its write: its `review.decided` is quiet, and
   its `review.settled` comes from the import when the write ends; only an
   import that could not start settles here.
+- `src/domain/reviews/views.rs`: a view is a review with nothing saved.
+  `PresentView` (`inbound/reviews.rs`) and `POST /agent-sessions/{id}/views`
+  (`execution.views.present`) share the review's authorization, check the view
+  with `dynamic_ui::view_problems`, and stream it as a completed `PresentView`
+  call (`view_<id>`) through `ReviewActions::present_view`.
 - `src/domain/documentation.rs`: Jev selection of generated SDK docs, rendered
   into the per-turn prompt (top four, 48 KiB) or returned for a
   `DescribeCodeTools` `task` (every relevant entity, 32 KiB).
