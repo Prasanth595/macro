@@ -2,7 +2,7 @@ import { createRoot } from 'solid-js';
 import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  downloadFile: vi.fn(async () => ({ saved: true })),
+  downloadFile: vi.fn(async (_blob: Blob, _name: string) => ({ saved: true })),
   downloadExportedDocument: vi.fn(async () => new Uint8Array([9])),
 }));
 vi.mock('@filesystem/download', () => ({ downloadFile: mocks.downloadFile }));

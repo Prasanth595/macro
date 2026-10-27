@@ -58,6 +58,7 @@ function pullRequest(
       draft: false,
       checks: [
         {
+          id: 1,
           name: 'ci',
           status: 'completed',
           conclusion: 'success',
@@ -160,7 +161,9 @@ describe('PullRequestActionsButton', () => {
   it('keeps Merge disabled until every check passes', () => {
     const { setDetail } = setup(
       pullRequest({
-        checks: [{ name: 'ci', status: 'in_progress', conclusion: null }],
+        checks: [
+          { id: 2, name: 'ci', status: 'in_progress', conclusion: null },
+        ],
       })
     );
 

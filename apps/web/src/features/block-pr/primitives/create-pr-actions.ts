@@ -9,7 +9,13 @@ import { queryClient } from '@queries/client';
 import { soupKeys } from '@queries/soup/keys';
 import { useSetGithubPullRequestDraftMutation } from '@queries/storage/pr-draft';
 import { useSetGithubPullRequestStateMutation } from '@queries/storage/pr-state';
-import { type Accessor, type Component, getOwner, type Owner } from 'solid-js';
+import {
+  type Accessor,
+  type Component,
+  getOwner,
+  type JSX,
+  type Owner,
+} from 'solid-js';
 import {
   invalidatePrForeignEntity,
   type PrForeignEntityData,
@@ -32,7 +38,7 @@ export type PrActionKey =
 export type PrAction = {
   key: PrActionKey;
   label: string;
-  icon: Component;
+  icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
   run: () => void;
   /** Why the action can't run yet; only Merge waits, on checks. */
   disabledReason?: string;
