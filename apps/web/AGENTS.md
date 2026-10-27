@@ -209,6 +209,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   Publish recovery reset outcomes before parking while retaining the read pause.
   Bound foreground resume reads to one second without killing an owner, stealing
   its lock, replaying writes, or treating intentional parking as a failure.
+- Coalesce broad browser cache-change hints across the coordinator's in-flight
+  backlog, not the engine's per-message queue; keep reset fences, mutation
+  settlements, and query-specific invalidations immediate.
 - Retry still-current query reads once when engine replacement invalidates their
   snapshot; do not strand urql's in-flight key or revive torn-down or superseded reads.
   Keep network forwarding deduplicated and cache-only reads off the network.

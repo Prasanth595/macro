@@ -234,6 +234,20 @@ invalidate reset data/leases even if the next owner only opens existing storage.
 Reset completion accounting likewise follows accepted readiness, not whether
 that epoch remains active; its read pause stays in force during the drain.
 
+Catch-up writes keep their individual transactions and replies, but the
+coordinator coalesces broad `cache-changed` and `cache-hydrated` hints across its
+accepted in-flight backlog. The engine's local queue is insufficient: separate
+MessagePort deliveries can make it look idle between queued commits. Each channel
+keeps its latest revision and the union of search buckets; an unscoped hint stays
+unscoped, and hydration never becomes an authoritative invalidation. Publish when
+the last outstanding commit sends its hint or the remaining replies drain,
+including failed/no-op tails. A batch also flushes after 64 completed requests so
+continuous traffic cannot starve subscribers. Single-request updates, reset fences,
+query dependency pushes, and mutation settlements remain immediate. Flush accepted
+hints on owner departure/failure and when the last waiting caller leaves; never
+carry them into another engine's revision space. `graphql_cache.change_batch`
+records how many hints each coalesced broadcast replaced, without payloads.
+
 While parked or transitioning, `waiting` pauses read/init deadlines without
 creating a second page-side request queue. Reads, writes, and teardown retain
 coordinator admission order. A visible consumer starts a one-second read budget
@@ -277,7 +291,8 @@ failure/navigation recovery applies. Owner telemetry adds `park-started`, `parke
 The backend-free `parking.browser.e2e.ts` exercises physical release, retained
 clients/storage, a query admitted while parked completing across replacement
 without network fallback, a response settled after parking, and notification
-receipt while parked without duplicate delivery when persistence resumes.
+receipt while parked without duplicate delivery when persistence resumes, and
+five queued catch-up commits producing one visible-cache refresh on return.
 
 Every departure rejects already-routed optimistic enqueues whose replies were
 lost as `admitted-enqueue-uncertain`, including requests from surviving tabs.
