@@ -1,4 +1,3 @@
-import { useExperimentalFeatures } from '@app/features/experimental-features/experimental-features';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import BellIcon from '@icon/system/regular/bell-simple.svg';
 import BugIcon from '@icon/system/regular/bug.svg';
@@ -10,7 +9,6 @@ import CreditCardIcon from '@icon/system/regular/credit-card.svg';
 import DesktopIcon from '@icon/system/regular/desktop.svg';
 import DeviceMobileIcon from '@icon/system/regular/device-mobile-speaker.svg';
 import EmailIcon from '@icon/system/regular/envelope-simple.svg';
-import FlaskIcon from '@icon/system/regular/flask.svg';
 import GaugeIcon from '@icon/system/regular/gauge.svg';
 import HardDrivesIcon from '@icon/system/regular/hard-drives.svg';
 import KeyIcon from '@icon/system/regular/key.svg';
@@ -224,12 +222,6 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
     label: 'Developer',
     items: [
       {
-        tab: 'Experimental Features',
-        label: 'Experimental Features',
-        icon: FlaskIcon,
-        keywords: ['experiments', 'god mode', 'universal input', 'command k'],
-      },
-      {
         tab: 'Harness',
         label: 'Runtimes',
         icon: HardDrivesIcon,
@@ -268,7 +260,6 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
  * existing/bookmarked URLs.
  */
 const SETTINGS_TAB_SLUGS: Record<SettingsTab, string> = {
-  'Experimental Features': 'experimental-features',
   Account: 'account',
   'API Keys': 'api-keys',
   Notifications: 'notifications',
@@ -328,7 +319,6 @@ export const settingsSlugToTab = (
  * surface a tab the panel won't render.
  */
 export const useSettingsTabAvailable = () => {
-  const experiments = useExperimentalFeatures();
   const calendarSchedulingFlag = useFeatureFlag(enableCalendarScheduling);
   const botManagementFlag = useFeatureFlag(botManagement);
   const chatV3AgentsFlag = useFeatureFlag(enableChatV3Agents);
@@ -338,8 +328,6 @@ export const useSettingsTabAvailable = () => {
 
   return (tab: SettingsTab): boolean => {
     switch (tab) {
-      case 'Experimental Features':
-        return experiments.available();
       case 'Appearance':
       case 'Account':
       case 'Notifications':

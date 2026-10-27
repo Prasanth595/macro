@@ -1,14 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() =>
-    localStorage.setItem(
-      'macro:experimental:god-mode:experimental-fixture',
-      'true'
-    )
-  );
-});
-
 async function openMenu(page: Page, eligible = true) {
   await page.goto(`/?command-menu${eligible ? '&eligible' : ''}`);
   await page

@@ -30,8 +30,8 @@ const {
 vi.mock('@core/context/user', () => ({
   useUserId: () => () => 'dock-test-user',
 }));
-vi.mock('@app/features/experimental-features/experimental-features', () => ({
-  useExperimentalFeatures: () => ({ godMode: () => false }),
+vi.mock('@app/features/universal-input/use-universal-input', () => ({
+  useUniversalInputEnabled: () => () => false,
 }));
 vi.mock('@core/constant/SettingsState', () => ({
   useSettingsState: () => ({ settingsOpen: () => false, toggleSettings }),

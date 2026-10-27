@@ -570,23 +570,16 @@ uses an open envelope, calendar invitations use a calendar, and pull requests
 retain their open/merged/closed glyphs and status colors. Direct messages may
 show the other participant's avatar instead of a glyph.
 
-### Universal Input in Command K and mobile Search (God Mode)
+### Universal Input in Command K and mobile Search
 
-Home always uses its usual agent or classic chat composer and suggestions.
-Universal Input is available inside Command K and the mobile Search bar. **God Mode** is on by default
-for eligible staff with **enable-universal-input**, unless they have explicitly turned it off
-in **Settings → Experimental Features**. The Settings page and its search result
-require a signed-in `@macro.com` account plus PostHog **enable-experimental-features**.
-God Mode also requires **enable-universal-input**. Development/local builds enable
-both rollout gates by default; the email restriction still applies. The God Mode
-preference applies immediately and is remembered locally per account. The God Mode
-row is hidden when **enable-universal-input** is off, and that flag always disables
-the composer regardless of preference. The Experimental Features flag and email
-restriction also gate the composer; direct links obey the same page gate.
-Use `VITE_ENABLE_EXPERIMENTAL_FEATURES` and `VITE_ENABLE_UNIVERSAL_INPUT` for local
-overrides. In deployed builds, both gates follow PostHog.
+Home keeps its usual agent or classic chat composer and suggestions.
+PostHog **enable-universal-input** is the only control for Universal Input in
+Command K and mobile Search. When enabled, the composer is available immediately;
+there is no Settings page, account-domain restriction, or saved opt-out.
+Development/local builds enable the flag by default. Use
+`VITE_ENABLE_UNIVERSAL_INPUT` for a local override; deployed builds follow PostHog.
 
-The Lexical input supports rich text and **@** mentions; there are no formatting
+Command K’s Lexical input supports rich text and **@** mentions; there are no formatting
 or mention instruction cues and no Suggestions list beneath it.
 Type directly; predictions refresh while typing, at most once every 200 ms with
 separate classification and field-extraction queues. Each queue keeps one request
@@ -1074,7 +1067,7 @@ Opens a dialog with a focused `Search...` textbox and bubble-style category radi
 the top hit. Also exposes commands: `Create`, `Change theme`, `MCP setup`. Keys: Tab cycles
 category, Esc closes. The category strip and footer have transparent backgrounds.
 
-With **God Mode** enabled in **Settings → Experimental Features**, typing at least **3 words or 24
+With PostHog **enable-universal-input** enabled, typing at least **3 words or 24
 characters** turns the menu into the shared Universal Input composer. The current
 text and insertion point transfer to its rich input in the same header row, with
 the same type size and padding. There is no additional title. The Macro logo hides

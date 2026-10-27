@@ -1,4 +1,5 @@
 import { createSignal } from 'solid-js';
+import type { CommandContactSource } from '../../command/useCommandItems';
 
 export const [openedSearchResult, setOpenedSearchResult] =
   createSignal<unknown>();
@@ -10,10 +11,11 @@ export function useSplitLayout() {
     },
   };
 }
-export function useCrmContactDiscovery() {
+export function useCrmContactDiscovery(): CommandContactSource {
   return {
     contacts: () => [],
     isLoading: () => false,
+    error: () => undefined,
     hasMore: () => false,
     isLoadingMore: () => false,
     loadMore: async () => {},

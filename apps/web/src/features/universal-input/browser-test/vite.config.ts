@@ -19,6 +19,30 @@ export default defineConfig({
       name: 'composer-test-adapters',
       enforce: 'pre',
       resolveId(source, importer) {
+        if (importer?.endsWith('/mobile/MobileSearchResults.tsx')) {
+          if (
+            [
+              './create-mobile-search-entry',
+              '@core/context/user',
+              '@components/app/split-layout/layoutUtils',
+            ].includes(source)
+          )
+            return `${directory}/mobile-search-app-fixture.ts`;
+          if (
+            [
+              '@app/features/crm/record-adapter',
+              '@queries/storage/databases',
+              '@components/app/split-layout/layout',
+            ].includes(source)
+          )
+            return `${directory}/search-app-fixture.ts`;
+        }
+        if (
+          source === '@components/app/split-layout/layoutUtils' &&
+          (importer?.endsWith('/mobile/create-search-result-window.ts') ||
+            importer?.endsWith('/mobile/create-search-scroll-restoration.ts'))
+        )
+          return `${directory}/mobile-search-app-fixture.ts`;
         if (importer?.endsWith('/mobile/MobileSearchInput.tsx')) {
           if (source === '@components/app/mobile/use-mobile-nav')
             return `${directory}/search-app-fixture.ts`;
@@ -46,12 +70,6 @@ export default defineConfig({
           source === '../universal-input/universal-input'
         )
           return `${directory}/command-input-fixture.tsx`;
-        if (
-          importer?.endsWith('/experimental-features/experimental-features.ts')
-        ) {
-          if (source === '@core/context/user')
-            return `${directory}/experimental-user-fixture.ts`;
-        }
         // Keep the app-wide entity-search menu outside this composer fixture.
         // The real shared editors, formatting tools and recipient controls run here.
         if (

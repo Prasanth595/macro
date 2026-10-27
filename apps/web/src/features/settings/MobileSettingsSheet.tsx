@@ -33,7 +33,6 @@ type MobileSettingsSheetProps = {
   groups: SettingsTabGroup[];
   searchGroups?: SettingsTabGroup[];
   emailSignatures?: boolean;
-  godMode?: boolean;
   name: string;
   email: string;
   avatar: JSX.Element;
@@ -50,7 +49,6 @@ export function MobileSettingsSheet(props: MobileSettingsSheetProps) {
   const results = createMemo(() =>
     searchSettings(props.searchGroups ?? props.groups, query(), {
       emailSignatures: props.emailSignatures,
-      godMode: props.godMode,
     })
   );
   let mainScrollTop = 0;

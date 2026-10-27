@@ -1,6 +1,5 @@
 import { isListViewID } from '@app/constants/list-views';
 import { useCrmContactDiscovery } from '@app/features/crm/record-adapter';
-import { useExperimentalFeatures } from '@app/features/experimental-features/experimental-features';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { globalSplitManager } from '@app/signal/splitLayout';
@@ -50,6 +49,7 @@ import {
   Switch,
 } from 'solid-js';
 import type { InputLayoutParts } from '../universal-input/context/capabilities';
+import { useUniversalInputEnabled } from '../universal-input/use-universal-input';
 import { defaultCommandResultIndex } from './core/default-result-index';
 import { shouldUseUniversalInput } from './core/universal-input-mode';
 import { createCommandResultOpener } from './open-command-result';
@@ -158,7 +158,7 @@ type CommandMenuInnerProps = {
 };
 
 export function CommandMenuInner(props: CommandMenuInnerProps) {
-  const experiments = useExperimentalFeatures();
+  const universalInputEnabled = useUniversalInputEnabled();
   const [expanded, setExpanded] = createSignal(false);
   let selection = { start: 0, end: 0 };
   let typing = false;
@@ -168,7 +168,7 @@ export function CommandMenuInner(props: CommandMenuInnerProps) {
   let disposed = false;
   let loading: Promise<unknown> | undefined;
   const eligible = () =>
-    experiments.godMode() &&
+    universalInputEnabled() &&
     !props.items &&
     !props.disableDefaultAction &&
     !CommandState.isInCommandScope() &&

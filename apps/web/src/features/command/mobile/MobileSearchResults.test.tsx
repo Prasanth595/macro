@@ -53,8 +53,8 @@ vi.mock('@app/lib/split-router', async (importOriginal) => ({
 vi.mock('@app/lib/analytics/posthog', () => ({
   useFeatureFlag: () => () => ({ enabled: true }),
 }));
-vi.mock('@app/features/experimental-features/experimental-features', () => ({
-  useExperimentalFeatures: () => ({ godMode: () => false }),
+vi.mock('../../universal-input/use-universal-input', () => ({
+  useUniversalInputEnabled: () => () => false,
 }));
 vi.mock('@app/features/crm/record-adapter', () => ({
   useCrmContactDiscovery: vi.fn(),

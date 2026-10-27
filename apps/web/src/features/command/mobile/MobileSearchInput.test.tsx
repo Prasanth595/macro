@@ -4,8 +4,8 @@ import { MobileSearchInput } from './MobileSearchInput';
 import { SearchState } from './mobileSearchState';
 
 const navigate = vi.fn();
-vi.mock('@app/features/experimental-features/experimental-features', () => ({
-  useExperimentalFeatures: () => ({ godMode: () => false }),
+vi.mock('../../universal-input/use-universal-input', () => ({
+  useUniversalInputEnabled: () => () => false,
 }));
 vi.mock('@components/app/mobile/use-mobile-nav', () => ({
   useForegroundMobileView: () => () => 'search',

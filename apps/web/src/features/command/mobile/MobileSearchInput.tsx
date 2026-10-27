@@ -1,4 +1,3 @@
-import { useExperimentalFeatures } from '@app/features/experimental-features/experimental-features';
 import { FloatRegion } from '@components/app/mobile/float-regions/FloatRegion';
 import {
   useForegroundMobileView,
@@ -9,8 +8,8 @@ import { lazyNamed } from '@core/util/lazyNamed';
 import XIcon from '@icon/system/regular/x.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { CommandMenuSearchInput } from '@ui';
-import { createMemo, createSignal, Show, Suspense } from 'solid-js';
-import { shouldUseUniversalInput } from '../core/universal-input-mode';
+import { createSignal, Show, Suspense } from 'solid-js';
+import { useUniversalInputEnabled } from '../../universal-input/use-universal-input';
 import { SearchState } from './mobileSearchState';
 
 const MobileUniversalInput = lazyNamed(
@@ -24,13 +23,8 @@ export function MobileSearchInput() {
   const [container, setContainer] = createSignal<HTMLDivElement>();
   const inputSize = createElementSize(container);
   let inputRef: HTMLTextAreaElement | undefined;
-  const experiments = useExperimentalFeatures();
+  const universalInputEnabled = useUniversalInputEnabled();
   const [sending, setSending] = createSignal(false);
-  const composing = createMemo(
-    (previous: boolean) =>
-      shouldUseUniversalInput(SearchState.query(), previous),
-    false
-  );
 
   const foregroundView = useForegroundMobileView();
   const navigate = useMobileNavNavigate();
@@ -46,7 +40,8 @@ export function MobileSearchInput() {
   // keyboard). The Search view only exists for searching, so exiting from it
   // returns to the default view.
   const handleClear = () => {
-    if (composing()) SearchState.session().setQuery('');
+    if (universalInputEnabled() && SearchState.session().universalInputActive())
+      SearchState.session().setQuery('');
     SearchState.close();
     if (foregroundView() === 'search') navigate('home');
   };
@@ -54,7 +49,11 @@ export function MobileSearchInput() {
   return (
     <>
       <Show
-        when={experiments.godMode() && composing() && SearchState.session()}
+        when={
+          universalInputEnabled() &&
+          SearchState.session().universalInputActive() &&
+          SearchState.session()
+        }
         keyed
       >
         {(session) => (
@@ -99,7 +98,7 @@ export function MobileSearchInput() {
           as="textarea"
           ref={inputRef}
           id="mobile-search-input"
-          aria-label={experiments.godMode() ? 'Search or create' : 'Search'}
+          aria-label={universalInputEnabled() ? 'Search or create' : 'Search'}
           readOnly={sending()}
           aria-busy={sending()}
           enterkeyhint="enter"

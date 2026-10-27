@@ -56,6 +56,49 @@ test('keeps the mobile editor focused as forms appear above it and Enter adds a 
   expect(await original?.evaluate((element) => element.isConnected)).toBe(true);
 });
 
+test('replaces the normal results and filter tabs with the card until the input is cleared', async ({
+  page,
+}) => {
+  const failures: string[] = [];
+  page.on('pageerror', (error) => failures.push(error.message));
+  await page.goto('/?mobile-search&eligible&legacy');
+  await page
+    .getByRole('button', { name: 'Open mobile search', exact: true })
+    .tap();
+  const input = page.getByRole('textbox', {
+    name: 'Search or create',
+    exact: true,
+  });
+  const filters = page.locator('header[aria-label="Search filters"]');
+  const results = page.getByRole('region', {
+    name: 'Search results',
+    exact: true,
+  });
+  await input.fill('John');
+  await expect(filters).toBeVisible();
+  await expect(results).toBeVisible();
+  const original = await input.elementHandle();
+  await input.fill('notification clicks are broken');
+  await expect(
+    page.getByRole('button', { name: 'Create task', exact: true })
+  ).toBeEnabled();
+  await expect(filters).not.toBeVisible();
+  await expect(results).not.toBeVisible();
+  await input.fill('short');
+  await expect(filters).not.toBeVisible();
+  await expect(results).not.toBeVisible();
+  expect(
+    await original?.evaluate((element) => element === document.activeElement)
+  ).toBe(true);
+  await input.fill('');
+  await expect(filters).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Create task', exact: true })
+  ).not.toBeVisible();
+  await expect(input).toBeFocused();
+  expect(failures).toEqual([]);
+});
+
 test('keeps mobile email unsent until Send and submits the visible draft once', async ({
   page,
 }) => {
@@ -161,10 +204,10 @@ test('uses live global search filters on mobile and opens a filtered hit directl
   await expect(input).not.toBeVisible();
 });
 
-test('keeps ordinary mobile search when God Mode is unavailable and closes cleanly', async ({
+test('keeps ordinary mobile search when the rollout flag is off and closes cleanly', async ({
   page,
 }) => {
-  await page.goto('/?mobile-search&eligible&external&legacy');
+  await page.goto('/?mobile-search&eligible&no-universal');
   await page
     .getByRole('button', { name: 'Open mobile search', exact: true })
     .tap();

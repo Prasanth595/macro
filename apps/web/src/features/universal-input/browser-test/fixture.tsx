@@ -22,16 +22,15 @@ import { buildAgentRoster } from '../../agents-view/core/roster';
 import { createDocumentComposerTags } from '../../block-md/util/documentComposerProperties';
 import { CommandMenu } from '../../command/CommandMenu';
 import { MobileSearchInput } from '../../command/mobile/MobileSearchInput';
+import { MobileSearchResults } from '../../command/mobile/MobileSearchResults';
 import { SearchState } from '../../command/mobile/mobileSearchState';
 import { CommandState } from '../../command/state';
 import type { CommandMenuItem } from '../../command/useCommandItems';
 import { CommandResults } from '../../command/views/command-results';
 import { ComposeSubjectField } from '../../email-compose/components/compose-subject-field';
-import { useExperimentalFeatures } from '../../experimental-features/experimental-features';
 import { searchNeedsKeywords } from '../../next-soup/core/search-filters';
 import { SearchbarInput } from '../../next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { parsePropertyDraft } from '../../property/utils/parse-property-draft';
-import { ExperimentalFeatures } from '../../settings/ExperimentalFeatures';
 import type { InputLayoutParts } from '../context/capabilities';
 import { resolveSearchFilters } from '../core/search';
 import { composerRecipientOptions } from '../queries/composer-recipients';
@@ -392,7 +391,6 @@ export function UniversalInputFixture(
     },
   ]);
   const params = new URLSearchParams(window.location.search);
-  const experiments = useExperimentalFeatures();
   if (!props.embedded) {
     useHotKeyRoot();
     attachGlobalDOMScope(document.body);
@@ -637,6 +635,7 @@ export function UniversalInputFixture(
                     {JSON.stringify(openedSearchResult())}
                   </output>
                   <Show when={SearchState.isOpen()}>
+                    <MobileSearchResults />
                     <FloatRegion region="dock">
                       <div class="flex px-(--mobile-chrome-gutter)">
                         <MobileSearchInput />
@@ -652,17 +651,6 @@ export function UniversalInputFixture(
                 </Show>
                 <Show when={!props.embedded && params.has('compact-subject')}>
                   <CompactSubjectFixture />
-                </Show>
-                <Show
-                  when={
-                    !props.embedded &&
-                    params.has('settings') &&
-                    experiments.available()
-                  }
-                >
-                  <div class="h-[500px]" data-testid="experimental-settings">
-                    <ExperimentalFeatures />
-                  </div>
                 </Show>
                 <Show when={!props.embedded && params.has('command-menu')}>
                   <button onClick={CommandState.open}>Open Command K</button>

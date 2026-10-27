@@ -23,13 +23,6 @@ export type SettingsSearchResult = Setting & {
 // Keep individual controls here so finding a setting doesn't require its page name.
 const SETTINGS: Setting[] = [
   {
-    tab: 'Experimental Features',
-    title: 'God Mode',
-    target: 'God Mode',
-    keywords:
-      'universal input command k composer tasks events emails notes experiments',
-  },
-  {
     tab: 'CRM',
     title: 'Stages',
     target: 'Stages',
@@ -322,7 +315,7 @@ function tokenScore(query: string, candidate: string): number {
 export function searchSettings(
   groups: readonly SettingsTabGroup[],
   query: string,
-  options: { emailSignatures?: boolean; godMode?: boolean } = {}
+  options: { emailSignatures?: boolean } = {}
 ): SettingsSearchResult[] {
   const tokens = words(query);
   if (!tokens.length) return [];
@@ -342,8 +335,7 @@ export function searchSettings(
       (setting) =>
         setting.tab === page.tab &&
         (options.emailSignatures !== false ||
-          setting.title !== 'Email signatures') &&
-        (options.godMode !== false || setting.title !== 'God Mode')
+          setting.title !== 'Email signatures')
     ).map((setting) => ({
       ...setting,
       target: settingsTarget(setting.target),

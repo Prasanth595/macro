@@ -44,13 +44,15 @@ the build-time `VITE_ENABLE_GRAPHQL_SOUP=true` override; see the
 
 Category/mode changes keep the same input mounted and focused. Return inserts
 a newline and keeps the keyboard open; the Search bar expands with the text.
-For eligible users with God Mode enabled, three words or 24 characters reveal
+When **enable-universal-input** is on, three words or 24 characters reveal
 Universal Input's suggested form above the bar. The editor stays mounted while
 classification and extraction update the form. Shorter edits keep the form until
-the input is cleared. Forms scroll within the space above the keyboard; use their
+the input is cleared. While the card is active, the normal search results and top
+category tabs are hidden; clearing the input restores them. Forms scroll within
+the space above the keyboard; use their
 explicit action button to create or send, or **Save as draft** to save an email.
-Manual field edits keep precedence over later predictions. The same PostHog gates
-and account preference as Command K apply; turning God Mode off keeps normal
+Manual field edits keep precedence over later predictions. The same PostHog flag
+as Command K applies; when it is off, the view keeps normal
 live search. Closing Search clears the input and its unsent suggested form.
 For Search intent, the shared global-search filters and results update live above
 the bar. Open a filtered result directly; there is no separate Search submit action.

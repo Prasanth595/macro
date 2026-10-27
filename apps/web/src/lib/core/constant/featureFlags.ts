@@ -768,19 +768,13 @@ export const enableChatV3Agents = defineFlag({
   default: onInDev,
 });
 
-/** Makes Universal Input available to the God Mode preference in Command K. */
+/** Enables Universal Input in Command K and mobile Search. */
 export const enableUniversalInput = defineFlag({
   key: 'enable-universal-input',
   env: 'ENABLE_UNIVERSAL_INPUT',
   default: DEV_MODE_ENV || import.meta.env.DEV || undefined,
 });
 
-/** Settings also checks the signed-in email belongs to macro.com. */
-export const enableExperimentalFeatures = defineFlag({
-  key: 'enable-experimental-features',
-  env: 'ENABLE_EXPERIMENTAL_FEATURES',
-  default: DEV_MODE_ENV || import.meta.env.DEV || undefined,
-});
 // Private conversations with agent personas. On in dev; there is no PostHog
 // flag. Override with VITE_ENABLE_AGENT_DMS.
 export const ENABLE_AGENT_DMS = defineFlag({

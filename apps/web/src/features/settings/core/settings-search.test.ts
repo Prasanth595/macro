@@ -4,17 +4,6 @@ import { searchSettings } from './settings-search';
 
 const search = (query: string) => searchSettings(SETTINGS_TAB_GROUPS, query);
 describe('individual settings search', () => {
-  it('finds God Mode only when Experimental Features is an available page', () => {
-    expect(search('god mode')[0]).toMatchObject({
-      tab: 'Experimental Features',
-      target: 'god-mode',
-    });
-    const groups = SETTINGS_TAB_GROUPS.map((group) => ({
-      ...group,
-      items: group.items.filter((item) => item.tab !== 'Experimental Features'),
-    }));
-    expect(searchSettings(groups, 'god mode')).toEqual([]);
-  });
   it('finds agent tools on the unified Integrations page', () => {
     expect(
       search('agent apps').find(
@@ -33,16 +22,6 @@ describe('individual settings search', () => {
     });
     expect(search('working hours')).toEqual([]);
     expect(search('reschedule')).toEqual([]);
-  });
-  it('omits God Mode when its own rollout is disabled', () => {
-    expect(
-      searchSettings(SETTINGS_TAB_GROUPS, 'god mode', { godMode: false }).some(
-        (result) => result.title === 'God Mode'
-      )
-    ).toBe(false);
-    expect(
-      searchSettings(SETTINGS_TAB_GROUPS, 'god mode', { godMode: true })[0]
-    ).toMatchObject({ title: 'God Mode' });
   });
   it('finds and targets a signature without knowing its page', () => {
     expect(search('signatre')[0]).toMatchObject({

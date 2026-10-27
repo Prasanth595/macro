@@ -1,13 +1,13 @@
-# Command K input inference
+# Universal Input inference
 
-The web client exposes this composer only through Command K. God Mode defaults on
-for `@macro.com` accounts with both `enable-experimental-features` and
-`enable-universal-input`, and can be turned off in Settings > Experimental Features.
-The Settings page requires `enable-experimental-features`; its God Mode row also
-requires `enable-universal-input`. Home always uses its normal
-composer. Menu drafts are transient and are discarded when the menu closes.
+The web client exposes this composer through Command K and mobile Search.
+The `enable-universal-input` feature flag is the only activation control; there
+is no Settings toggle, account-domain restriction, or saved opt-out. Home keeps
+its normal composer. Command K drafts are discarded when the menu closes.
+On mobile, the card replaces the normal results and category tabs, above the
+expanding Search input and virtual keyboard. Clearing the input restores search.
 
-Command K classifies draft snapshots with the same Jev classifier used by
+The composer classifies draft snapshots with the same Jev classifier used by
 Routines. When configured, Cloudflare Clairic extracts editable fields through
 Workers AI. Clairic uses typed text and list fields for the selected intent.
 Task deadlines and event timing are extracted separately by Nemotron as structured

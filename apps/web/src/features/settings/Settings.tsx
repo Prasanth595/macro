@@ -1,5 +1,4 @@
 import { useViewShell, ViewShell } from '@app/components/view-shell';
-import { useExperimentalFeatures } from '@app/features/experimental-features/experimental-features';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   useParams,
@@ -92,7 +91,6 @@ export function SettingsPanel(props: SettingsPanelProps) {
   // from people without a team.
   const navTabs = createMemo(() => navGroups().flatMap((group) => group.items));
   const signatures = useFeatureFlag(enableEmailSignatures);
-  const experiments = useExperimentalFeatures();
 
   const activeNavigationTab = activeTabId;
 
@@ -102,7 +100,6 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const searchResults = createMemo(() =>
     searchSettings(searchGroups(), searchQuery(), {
       emailSignatures: signatures().enabled,
-      godMode: experiments.godModeAvailable(),
     })
   );
 

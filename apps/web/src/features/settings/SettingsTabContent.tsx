@@ -30,11 +30,6 @@ const RoutineSettings = lazyNamed(
   'RoutineSettings'
 );
 
-const ExperimentalFeatures = lazyNamed(
-  () => import('./ExperimentalFeatures'),
-  'ExperimentalFeatures'
-);
-
 /** Shared forms for desktop panels and mobile sheet detail pages. */
 export function SettingsTabContent(props: { tab: SettingsTab }) {
   const isAvailable = useSettingsTabAvailable();
@@ -48,9 +43,6 @@ export function SettingsTabContent(props: { tab: SettingsTab }) {
         </div>
       }
     >
-      <Show when={isCurrentTab('Experimental Features')}>
-        <ExperimentalFeatures />
-      </Show>
       <Show when={isCurrentTab('Account')}>
         <Account />
       </Show>

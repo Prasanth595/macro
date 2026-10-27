@@ -2,9 +2,7 @@
 export function useFeatureFlag(flag?: { key: string }) {
   return () => ({
     enabled:
-      ['enable-universal-input', 'enable-experimental-features'].includes(
-        flag?.key ?? ''
-      ) &&
+      flag?.key === 'enable-universal-input' &&
       new URLSearchParams(window.location.search).has('eligible') &&
       !(
         flag?.key === 'enable-universal-input' &&
