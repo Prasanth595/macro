@@ -41,9 +41,9 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
 - **FE-62** Lay out a desktop header as one row: title or breadcrumbs, then
   view tabs on the left; islands on the right in the order filters, view
   options, New, Search (detail views: entity actions, sharing, navigation,
-  detail toggle). Header groups use `sm` labelled segments and `icon-sm`
-  icon-only segments (28px controls); Tabs, New, and Search retain `md` sizing.
-  Keep 8px between islands. Filter, sort, group, and download live in the header, never
+  detail toggle). Detail-header groups use `sm` labelled segments and `icon-sm`
+  icon-only segments (28px controls); Drive and Tasks list-header groups use
+  `md` / `icon-md`, matching Tabs, New, and Search. Keep 8px between islands. Filter, sort, group, and download live in the header, never
   in a second toolbar row; only active filter chips sit below it.
 - **FE-63** Style controls only through their props (`variant`, `size`, `finish`,
   `fullWidth`); `class` on a control is for placement (margin,

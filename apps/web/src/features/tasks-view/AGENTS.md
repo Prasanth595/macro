@@ -26,6 +26,7 @@ Main Tasks and reusable task-list hosts. Projects and CRM embed `TasksViewProvid
 - Keep saved-view names and menus in the mobile picker; overlay creation above the filter drawer footer on a drawer-colored backing without blocking the last scrollable controls, and put Save changes at the footer's right edge, opposite Clear all.
 - Place the saved-view picker after Filters and before built-in mobile tabs; show rows without a duplicate section header or create button inside its drawer.
 - Keep mobile pills in a flex wrapper inside the header so their shadow margins cannot collapse the header and overlap task content.
+- Keep desktop list-header filters, layout, sort, and grouping at `md` / `icon-md` (32px), matching New and Search; preserve the mobile filter drawer.
 - Show one local New view draft row after creation starts; prefill its save dialog with New view, replace the row on confirmed save, and remove it on cancellation or navigation without adding fake cached records.
 - Close the selected-view menu before opening a dialog, discard deferred actions after account or selection changes, and close dialogs after account, saved-view, or built-in-tab navigation.
 - Own mobile action dialogs outside closing drawers; finish drawer closure before opening a dialog, and reopen filters after cancellation only within the same navigation scope.

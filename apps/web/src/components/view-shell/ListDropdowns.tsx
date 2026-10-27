@@ -36,6 +36,7 @@ type SingleSelectDropdownProps<TId extends string> = {
   value: TId;
   options: ListControlOption<TId>[];
   onChange: (value: TId) => void;
+  size?: ButtonSize;
   triggerRef?: (element: HTMLButtonElement) => void;
   class?: string;
   contentClass?: string;
@@ -56,7 +57,7 @@ function SingleSelectDropdown<TId extends string>(
         as={props.grouped ? ButtonGroup.Button : Button}
         ref={props.triggerRef}
         variant="ghost"
-        size={props.grouped ? 'icon-sm' : 'icon-md'}
+        size={props.size ?? (props.grouped ? 'icon-sm' : 'icon-md')}
         class={props.class}
       >
         {props.icon}

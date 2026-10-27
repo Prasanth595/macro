@@ -83,10 +83,11 @@ function DesktopTasksControls() {
 
   return (
     <>
-      <HeaderActionGroup label="Task filters">
+      <HeaderActionGroup label="Task filters" size="md">
         <div class="shrink-0" ref={tourTarget(TASKS_TOUR.filter)}>
           <ListFilterDropdown
             grouped
+            size={filters.activeCount() ? 'md' : 'icon-md'}
             label="Filter tasks"
             activeCount={filters.activeCount()}
             groups={filters.groups()}
@@ -104,12 +105,12 @@ function DesktopTasksControls() {
           />
         </div>
       </HeaderActionGroup>
-      <HeaderActionGroup label="Task layout">
+      <HeaderActionGroup label="Task layout" size="md">
         <ButtonGroup.Button
           aria-label="List"
           tooltip="List"
           variant="ghost"
-          size="icon-sm"
+          size="icon-md"
           aria-pressed={state.layout === 'list'}
           onClick={() => setState('layout', 'list')}
         >
@@ -119,7 +120,7 @@ function DesktopTasksControls() {
           aria-label="Board"
           tooltip="Board"
           variant="ghost"
-          size="icon-sm"
+          size="icon-md"
           aria-pressed={state.layout === 'board'}
           onClick={() => setState('layout', 'board')}
         >
@@ -130,7 +131,7 @@ function DesktopTasksControls() {
             aria-label="Gantt"
             tooltip="Gantt"
             variant="ghost"
-            size="icon-sm"
+            size="icon-md"
             aria-pressed={state.layout === 'gantt'}
             onClick={() => setState('layout', 'gantt')}
           >
@@ -138,7 +139,7 @@ function DesktopTasksControls() {
           </ButtonGroup.Button>
         </Show>
       </HeaderActionGroup>
-      <HeaderActionGroup label="Task view options">
+      <HeaderActionGroup label="Task view options" size="md">
         <Show
           when={!isBoardSearch()}
           fallback={
@@ -152,6 +153,7 @@ function DesktopTasksControls() {
         >
           <ListSortDropdown
             grouped
+            size="icon-md"
             label="Sort tasks"
             value={primarySort()}
             options={TASK_SORT_OPTIONS}
@@ -163,6 +165,7 @@ function DesktopTasksControls() {
         </Show>
         <ListGroupDropdown
           grouped
+          size="icon-md"
           label="Group by"
           value={state.groupBy}
           options={groupOptions()}
