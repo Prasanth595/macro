@@ -6,7 +6,7 @@ use axum::{
     http::Request,
 };
 use jev::domain::{JevError, Probability, YesNoQuestion};
-use macro_authorization::{InternalIdentityClaims, MacroAuthorizationError};
+use macro_authorization::{InternalIdentityClaims, MacroAuthorizationError, ValidatedCredential};
 use model_user::UserContext;
 use rootcause::Report;
 use serde_json::{Value, json};
@@ -15,6 +15,13 @@ use tower::ServiceExt;
 #[derive(Clone)]
 struct Identity;
 impl MacroAuthorizationService for Identity {
+    async fn authorize_identity(
+        &self,
+        jwt: &str,
+    ) -> Result<ValidatedCredential, Report<MacroAuthorizationError>> {
+        self.authorize(jwt).await.map(ValidatedCredential::session)
+    }
+
     async fn authorize(&self, jwt: &str) -> Result<UserContext, Report<MacroAuthorizationError>> {
         if jwt != "valid" {
             return Err(Report::new(MacroAuthorizationError::InvalidCredentials));

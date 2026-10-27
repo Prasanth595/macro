@@ -659,6 +659,8 @@ no formatting button or toolbar row; keyboard formatting remains available. Choo
 email mode. Authored mentions are included when sending a message.
 AI uses the existing agent/model picker, including connection and agent creation
 entries; the main Universal Input remains its prompt.
+The model picker supports searching on desktop and touch layouts. Escape closes
+the picker while keeping Command K and its prompt open.
 Task extraction waits for the field catalog before sending available names/options;
 classification continues independently while it loads. Task creation uses those
 definitions to retain all selected assignees. Explicit priority,

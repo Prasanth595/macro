@@ -586,3 +586,46 @@ test('keeps a partially typed Cc address while inference updates unrelated field
     'private@example.org'
   );
 });
+
+test('keeps Command K open while searching and choosing an AI model', async ({
+  page,
+}) => {
+  await page.goto('/?command-menu&eligible&legacy&classification=ai');
+  await page
+    .getByRole('button', { name: 'Open Command K', exact: true })
+    .click();
+  const text = 'Help me plan the launch';
+  await page.getByPlaceholder('Search...', { exact: true }).fill(text);
+  const dialog = page.getByRole('dialog');
+  const input = dialog.getByRole('textbox', {
+    name: 'Your input',
+    exact: true,
+  });
+  await expect(input).toHaveText(text);
+  const picker = dialog.getByRole('button', { name: 'Model', exact: true });
+  await picker.click();
+  const search = page.getByRole('textbox', {
+    name: 'Search models',
+    exact: true,
+  });
+  await search.fill('GPT-5');
+  await page
+    .getByRole('menuitem', { name: /GPT-5/ })
+    .or(page.getByRole('radio', { name: /GPT-5/ }))
+    .click();
+  await expect(search).not.toBeVisible();
+  await expect(input).toHaveText(text);
+  await picker.click();
+  await search.click();
+  await search.press('Escape');
+  await expect(search).not.toBeVisible();
+  await expect(input).toBeVisible();
+  await input.click();
+  await expect(input).toBeFocused();
+  await input.press('ControlOrMeta+Enter');
+  await expect(page.getByTestId('command-submission-count')).toHaveText('1');
+  await expect(page.getByTestId('last-command-submission')).toContainText(
+    'gpt-5'
+  );
+  await expect(input).not.toBeVisible();
+});
