@@ -39,6 +39,13 @@ Composer typeahead menus choosing the side with room for their full list
 phone screen and below one near the top, have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/LexicalMarkdown/directive/browser-test/playwright.config.ts`.
 
+Event details placement has a backend-free browser regression: the desktop
+popover stays beside its event when join requests arrive after it opens, and
+slides into a short window; the phone drawer shows late requests:
+`bunx playwright test --config src/features/calendar-view/browser-test/playwright.config.ts`.
+Keep the popover's `flip` limited to `left-start`: an end fallback re-places it
+above the event whenever a late section changes its height.
+
 Meeting-note creation, linking, optional team access, retry, and unlinking have desktop and
 phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
@@ -62,6 +69,10 @@ Gate event notes and document Share meeting-link controls with
 `enable-calendar-meeting-notes` before mounting their query sources; it defaults
 on in dev and uses PostHog in production.
 See `docs/agent-guide/calendar.md` at the repo root.
+
+Channel composer draft persistence has a backend-free browser regression:
+`bunx playwright test --config src/features/channel/Input/browser-test/playwright.config.ts`.
+It types a draft, remounts the composer over it, and checks the blank lines survive.
 
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
@@ -140,6 +151,8 @@ The shared plain-text Lexical codec is `packages/lexical-core/canvas-text.ts`.
 
 Keep persistent list hotkeys free of mounted-view closures, and clear
 virtualizer accessors when their view unmounts.
+Keep editor newline handling local; result-opening handlers must yield
+Shift+Enter while an editor owns focus instead of adding shared hotkey flags.
 
 - Reuse `src/components/WorkspaceTexture.tsx` for the onboarding and Create
   detail panel grain; pass the surface accent and a unique SVG filter ID.
@@ -151,9 +164,15 @@ plugin redirects external popups and breaks the embedded iframe's return path.
 `pipedream-connect.html` is a separate Vite entry, served at
 `/app/pipedream-connect.html`, without a Macro browser login. The Connect token
 and one-time state travel only in its URL fragment, which the page removes on
-load. Its **Return to Macro** link is consumed by the Tauri navigation bridge
+load. When Connect finishes it opens the `macro://` callback itself, keeping
+**Return to Macro** as a fallback link; the Tauri navigation bridge consumes it
 without changing the active route. Backend registration still verifies account
-ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
+ownership. Done, logout, and the ten-minute timeout retire pending callbacks.
+
+Connect can close without reporting success (an OAuth provider severs its
+consent popup's opener) even though Pipedream created the account. Every close
+without success, on web and native, asks `/pipedream/mcp/recover` to register
+the user's newest account for that app from the last fifteen minutes.
 
 ### General
 
@@ -212,6 +231,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Mobile dock customization shares the navigation island’s measured capacity; persist ordering per user with `mobile-dock-order.ts`, preserve gated destinations, and keep Search and More fixed. Reorder handles drag without a hold delay; the rest of each row scrolls.
 - Share sidebar and mobile dock unread presence through `components/app/use-navigation-unread.ts`; keep badges reactive to read/done changes, guard all query data with `queryReadyGate` so pending preferences or paused queries cannot suspend the shell, and avoid fetching extra pages for counts.
 - Name Home thread rows from their latest scoped notification, including document mentions and reactions; use the thread author only when no notification exists. Document rows whose newest outstanding notification is a comment, and calendar event rows whose newest is a join request, say who did it (`row-notification.ts`).
+- Use `ChannelTitleIcon` for conversation breadcrumbs so DMs retain participant or agent avatars and named channels retain their pictures; suppress avatar actions inside breadcrumb buttons.
+- Normalize thread-only conversation URLs in `channelsSearch` before Home, Chat, or touch views derive their message target.
 - Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
 - Include known Macro users in typed All/People name searches without requiring a DM or CRM contact; resolve a matching person to their existing one-to-one DM while preserving name/email matching.
 - Key mobile name-result history ordering and scroll anchors by the other participant for one-to-one DMs, preserving a person's position when their conversation is created; keep group DMs keyed by channel.
@@ -277,12 +298,19 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Always persist composer sends in account-scoped IndexedDB and dispatch through the fetch-only email client, without a feature flag; cache health and unrelated mutation queues must not gate delivery. See `docs/architecture/email.md` for state and rollout invariants.
 - Retry cache bootstrap on reconnect/foreground or draft Retry only when storage was proven untouched; retain the same scope and block draft sync until the replacement queue is readable.
 - Touch email replies and forwards use the full-screen composer with the shared new-email header actions; preserve thread state underneath and flush local edits before closing.
+- Include unsynced email working copies in Drafts and mobile name search even
+  before a GraphQL save, and warm sending accounts alongside backfill. Preserve
+  inbox, alias, and facet scope.
 - Draft autosaves preserve active email thread messages; evict inactive legacy
   caches on save and the active cache on thread exit. Revalidate GraphQL thread
   pages only when a save cannot patch the message list (missing snapshot or a
   move between inboxes).
 - Keep email card resize motion on its content wrapper so message and inline
   reply transitions preserve the card's focus target and return to natural height.
+- Task composer submissions retain an account/context-scoped local copy until
+  the create response confirms success; never clear newer composer input from a
+  late callback or automatically retry an uncertain create. Keep recovery copies
+  through restarts and remove them on explicit logout. See the Tasks walkthrough.
 - Shared server-state queries and mutations live in `src/lib/queries`; keep
   feature-specific query orchestration with its owning feature.
 - Refresh the channel list's bounded unread edge when opening a conversation,

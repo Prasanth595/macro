@@ -9,7 +9,17 @@ the message text, including link labels and mention names, once per preview.
 Verify wide and narrow rows and channel/thread cards; links and mentions remain
 interactive inside the opened conversation.
 
+Conversation headers and shared detail breadcrumbs use the same identity icon:
+the recipient for human DMs, the persona for agent DMs, and the channel picture
+or glyph for named channels. Message and thread breadcrumbs resolve identity
+from their parent channel rather than the message or thread ID.
+
 ## Message links
+
+A channel search namespace with `threadId` and no `messageId` targets the thread
+root. Home, Chat, and the full-screen touch conversation normalize this URL in
+the shared channel search schema; an explicit message continues to target its
+reply within that thread.
 
 Bare URLs, common bare domains, and email addresses are clickable in opened
 messages, including agent/API messages and older messages. Explicit Markdown

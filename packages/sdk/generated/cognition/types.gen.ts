@@ -27,7 +27,7 @@ export type AddServerRequest = {
  * Everything we use AI for. The wire / DB form of each variant is its
  * `snake_case` name.
  */
-export type AiFeature = 'chat' | 'memory' | 'automation' | 'dynamic_completions_api' | 'chat_rename' | 'call_summary' | 'channel_bot' | 'ai_projection' | 'ai_editing' | 'import' | 'agent_session' | 'agent_repository_choice' | 'dictation' | 'image_generation';
+export type AiFeature = 'chat' | 'memory' | 'automation' | 'dynamic_completions_api' | 'chat_rename' | 'call_summary' | 'channel_bot' | 'ai_projection' | 'ai_editing' | 'import' | 'agent_session' | 'agent_repository_choice' | 'agent_mode_choice' | 'dictation' | 'image_generation';
 
 /**
  * A structured part within an assistant message.
@@ -1388,6 +1388,21 @@ export type PipedreamConnectionResponse = {
      * Human-readable display name.
      */
     server_name: string;
+};
+
+/**
+ * Request body for recovering a connect flow whose result the Connect UI
+ * never reported.
+ */
+export type PipedreamRecoverRequest = {
+    /**
+     * The Pipedream app the flow was connecting, by name slug.
+     */
+    app_slug: string;
+    /**
+     * Optional display name for the connector, as for completion.
+     */
+    server_name?: string | null;
 };
 
 /**
@@ -3269,6 +3284,28 @@ export type UpdatePipedreamMcpConnectionResponses = {
 };
 
 export type UpdatePipedreamMcpConnectionResponse = UpdatePipedreamMcpConnectionResponses[keyof UpdatePipedreamMcpConnectionResponses];
+
+export type RecoverPipedreamMcpConnectionData = {
+    body: PipedreamRecoverRequest;
+    path?: never;
+    query?: never;
+    url: '/pipedream/mcp/recover';
+};
+
+export type RecoverPipedreamMcpConnectionErrors = {
+    401: string;
+    404: ErrorResponse;
+    500: ErrorResponse;
+    501: ErrorResponse;
+};
+
+export type RecoverPipedreamMcpConnectionError = RecoverPipedreamMcpConnectionErrors[keyof RecoverPipedreamMcpConnectionErrors];
+
+export type RecoverPipedreamMcpConnectionResponses = {
+    200: PipedreamConnectionResponse;
+};
+
+export type RecoverPipedreamMcpConnectionResponse = RecoverPipedreamMcpConnectionResponses[keyof RecoverPipedreamMcpConnectionResponses];
 
 export type CreatePipedreamMcpTokenData = {
     body?: never;

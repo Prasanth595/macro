@@ -25,6 +25,8 @@ import type { Sdk as StorageSdk } from '../../generated/storage/sdk.gen';
 import type { Sdk as UnfurlSdk } from '../../generated/unfurl/sdk.gen';
 
 export const agentHarnessExcluded = [
+  'classify', // Command K inference is app-internal.
+  'extract', // Command K inference is app-internal.
   'loadAgentModelsHandler',
   'discoverAgentCapabilitiesHandler',
   'previewAgentSessions',
@@ -176,6 +178,7 @@ export const cognitionExcluded = [
   'listPipedreamMcpConnections',
   'mcpAuthCallback',
   'mcpOauthClientMetadata',
+  'recoverPipedreamMcpConnection',
   'rejectToolCall',
   // Channel discovery shares the app-only import workflow below.
   'discoverHandler',

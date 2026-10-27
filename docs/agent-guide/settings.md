@@ -473,7 +473,9 @@ Reference captures from the isolated billing fixture: [returning customer](media
 and [subscription recovery](media/billing/subscription-recovery.png). These show
 phone-width layouts; payment-provider interactions are covered separately.
 
-`Get Max` keeps standard paid terms. Prices read `/ month` for solo users and
+`Get Max` keeps standard paid terms and never offers a trial. A Pro trial that
+upgrades to Max is charged today; the card says `Charged today. The Pro trial ends.`
+A paid Pro upgrade stays prorated for the rest of the period. Prices read `/ month` for solo users and
 `per seat / month` for team accounts. Each card puts its button beside the price when wide enough and below
 the price when narrow. Free lists 2 connected email accounts; Pro and Max list
 unlimited connected email accounts. Pro users see a Max card (`Upgrade to Max`); Max
@@ -512,7 +514,9 @@ Team members who cannot manage billing see the notice without its action.
 
 `Team → Members` (`/app/settings/team-members`; on a paid team each row shows the seat's plan,
 and admins/owners can move a seat between Pro and Max with the `Seat plan`
-menu; Max upgrades are immediate and prorated, Pro downgrades start at renewal.
+menu; Max upgrades are immediate and prorated, except the first Max seat on a
+trialing team, which ends the trial and bills Max for a new cycle today.
+Pro downgrades start at renewal.
 **Keep Max** appears only for a confirmed pending downgrade and cancels it;
 failed scheduled-plan reads offer **Try again**, while teams without applicable
 scheduled plans show no retry notice). CRM (a `Team CRM` switch that admins use to enable or disable it;
@@ -528,8 +532,8 @@ connected) or `Specific apps`, which reveals a `Search connectors` box over the 
 Pipedream catalog (results are `option` rows; picking one adds it) and a row per picked app
 with a connected / not-connected dot for the *current viewer* plus an inline `Connect`
 that opens the Pipedream Connect flow inside the web page. Native apps open
-consent in the system browser; choose **Return to Macro** after authorization
-to save the connection in the waiting app. Unconnected picks never block
+consent in the system browser, which returns to the waiting app on its own after
+authorization (**Return to Macro** is the fallback link). Unconnected picks never block
 saving; each teammate connects their own account. An agent session that calls a picked
 but unconnected app gets a tool result saying so, and the agent's reply renders a
 `Connect <app>` chip that opens Agents → Connections for that app. The same page
