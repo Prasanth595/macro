@@ -23,16 +23,12 @@ import {
   isRectFlushWith,
 } from '@core/component/LexicalMarkdown/utils';
 import type { PortalScope } from '@core/component/ScopedPortal';
-import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { onElementConnect } from '@core/util/onElementConnect';
-import { buildSimpleEntityUrl } from '@core/util/url';
-import ArrowSquareOutIcon from '@icon/system/regular/arrow-square-out.svg';
 import ArrowsOutIcon from '@icon/system/regular/arrows-out.svg';
 import PaperclipIcon from '@icon/system/regular/paperclip.svg';
-import SplitIcon from '@icon/system/regular/square-half.svg';
 import XIcon from '@icon/system/regular/x.svg';
 import { mergeRegister } from '@lexical/utils';
 import { Telemetry } from '@macro-inc/observability';
@@ -90,6 +86,7 @@ import { EditorSystemMessage } from './EditorSystemMessage';
 import { InlinePropertyValue } from './InlinePropertyValue';
 import { TaskComposerPropertyEditor } from './TaskComposerPropertyEditor';
 import { SimilarTasksSection } from './TaskDuplicateList';
+import { showTaskCreatedToast } from './taskCreatedToast';
 
 type ComposerTagLayoutMode = 'bottom' | 'title';
 
@@ -602,51 +599,6 @@ export function ComposeTask(props: ComposeTaskProps) {
     return true;
   };
 
-  const showTaskCreatedToast = async (
-    documentId: string,
-    optimisticSnapshot: Uint8Array | undefined
-  ) => {
-    // Auto-copy link to clipboard
-    const url = buildSimpleEntityUrl({ type: 'task', id: documentId });
-    let linkCopied = false;
-    try {
-      await navigator.clipboard.writeText(url);
-      linkCopied = true;
-    } catch {
-      toast.failure('Failed to copy link to clipboard');
-    }
-
-    const snapshotParams = optimisticSnapshot
-      ? { params: { optimisticSnapshot }, preserveParams: true as const }
-      : {};
-
-    toast.success('Task created', {
-      subtext: linkCopied ? 'Link copied' : undefined,
-      actions: [
-        {
-          label: 'Open',
-          icon: ArrowSquareOutIcon,
-          onClick: () => {
-            openWithSplit(
-              { type: 'task', id: documentId, ...snapshotParams },
-              { referredFrom: null }
-            );
-          },
-        },
-        {
-          label: 'Open (New Split)',
-          icon: SplitIcon,
-          onClick: () => {
-            openWithSplit(
-              { type: 'task', id: documentId, ...snapshotParams },
-              { referredFrom: null, preferNewSplit: true }
-            );
-          },
-        },
-      ],
-    });
-  };
-
   // A retry keeps its host context and creation policy, not one-shot editor callbacks.
   const reopenForRetry = () =>
     popoverSplit({
@@ -721,10 +673,7 @@ export function ComposeTask(props: ComposeTaskProps) {
       if (props.onSuccess) {
         props.onSuccess({ documentId, title: taskTitle, content: taskContent });
       } else {
-        fireAndForget(
-          showTaskCreatedToast(documentId, initialSnapshot),
-          'compose-task'
-        );
+        showTaskCreatedToast(documentId, initialSnapshot, openWithSplit);
       }
       props.onCreateTask?.(taskTitle, taskContent);
       return;
@@ -755,10 +704,7 @@ export function ComposeTask(props: ComposeTaskProps) {
     if (props.onSuccess) {
       props.onSuccess({ documentId, title: taskTitle, content: taskContent });
     } else {
-      fireAndForget(
-        showTaskCreatedToast(documentId, initialSnapshot),
-        'compose-task'
-      );
+      showTaskCreatedToast(documentId, initialSnapshot, openWithSplit);
     }
     props.onCreateTask?.(taskTitle, taskContent);
   };

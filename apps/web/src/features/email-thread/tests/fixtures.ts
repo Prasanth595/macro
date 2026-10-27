@@ -50,6 +50,7 @@ export function createThreadContext(
       isThreadMarkedRead: () => false,
       markThreadUnread: () => false,
       markThreadRead: () => false,
+      canActOnSender: () => false,
       blockSender: () => false,
       markSenderSignal: () => false,
       markSenderNoise: () => false,

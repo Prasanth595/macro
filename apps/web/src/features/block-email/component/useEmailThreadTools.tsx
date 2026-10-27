@@ -271,14 +271,14 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
       label: 'Sender → Noise',
       icon: NoiseIcon,
       action: () => emailCtx.markSenderNoise(),
-      condition: isOwnThread,
+      condition: () => isOwnThread() && emailCtx.canActOnSender(),
     },
     {
       group: 'sender',
       label: 'Block Sender',
       icon: ProhibitIcon,
       action: () => emailCtx.blockSender(),
-      condition: isOwnThread,
+      condition: () => isOwnThread() && emailCtx.canActOnSender(),
     },
   ];
 

@@ -72,6 +72,7 @@ export function createThreadActionAdapter(
   return {
     ...completion,
     ...read,
+    canActOnSender: () => getSenderEmail() !== undefined,
     blockSender,
     markSenderSignal,
     markSenderNoise,
