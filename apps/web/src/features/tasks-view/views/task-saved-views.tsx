@@ -453,7 +453,7 @@ export function TaskSavedViewsPicker() {
           scopeKey={viewerId()}
           label={
             views().view().kind === 'default'
-              ? 'Saved views'
+              ? t('viewMenus.savedViews')
               : taskSavedViewTitle(views().view())
           }
         >
