@@ -1,7 +1,7 @@
-import ArrowsClockwiseIcon from '@phosphor/arrows-clockwise.svg';
-import CheckIcon from '@phosphor/check.svg';
-import LinkIcon from '@phosphor/link.svg';
-import LockIcon from '@phosphor/lock-simple.svg';
+import ArrowsClockwiseIcon from '@icon/system/regular/arrows-clockwise.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import LinkIcon from '@icon/system/regular/link.svg';
+import LockIcon from '@icon/system/regular/lock-simple.svg';
 import type {
   RoutineTemplate,
   TemplateVariable,

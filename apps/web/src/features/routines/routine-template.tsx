@@ -14,7 +14,7 @@ import { getDestinationFromOptions } from '@core/util/destination';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { buildSimpleEntityUrl } from '@core/util/url';
 import { Telemetry } from '@macro-inc/observability';
-import PaperPlaneIcon from '@phosphor/paper-plane-tilt.svg';
+import PaperPlaneIcon from '@icon/system/regular/paper-plane-tilt.svg';
 import type {
   ActionTrigger,
   RoutineTemplate,

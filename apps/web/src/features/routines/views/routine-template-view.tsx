@@ -1,8 +1,8 @@
 import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
-import CaretRightIcon from '@phosphor/caret-right.svg';
-import ClockCounterIcon from '@phosphor/clock-counter-clockwise.svg';
-import LightningIcon from '@phosphor/lightning.svg';
-import PlayIcon from '@phosphor/play.svg';
+import CaretRightIcon from '@icon/system/regular/caret-right.svg';
+import ClockCounterIcon from '@icon/system/regular/clock-counter-clockwise.svg';
+import LightningIcon from '@icon/system/regular/lightning.svg';
+import PlayIcon from '@icon/system/regular/play.svg';
 import type { RoutineTemplate } from '@service-scheduled-action/generated/schemas';
 import { Badge, Layer } from '@ui';
 import { For, type JSX, Show } from 'solid-js';

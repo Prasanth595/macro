@@ -1,5 +1,5 @@
-import ClockCounterIcon from '@phosphor/clock-counter-clockwise.svg';
-import LightningIcon from '@phosphor/lightning.svg';
+import ClockCounterIcon from '@icon/system/regular/clock-counter-clockwise.svg';
+import LightningIcon from '@icon/system/regular/lightning.svg';
 import { Badge, Button } from '@ui';
 import { For, Show } from 'solid-js';
 

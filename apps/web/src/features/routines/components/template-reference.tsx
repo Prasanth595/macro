@@ -1,8 +1,8 @@
-import ClockIcon from '@phosphor/clock.svg';
-import FileIcon from '@phosphor/file-text.svg';
-import HashIcon from '@phosphor/hash.svg';
-import LockIcon from '@phosphor/lock-simple.svg';
-import UserIcon from '@phosphor/user.svg';
+import ClockIcon from '@icon/system/regular/clock.svg';
+import FileIcon from '@icon/system/regular/file-text.svg';
+import HashIcon from '@icon/system/regular/hash.svg';
+import LockIcon from '@icon/system/regular/lock-simple.svg';
+import UserIcon from '@icon/system/regular/user.svg';
 import type { TemplateVariable } from '@service-scheduled-action/generated/schemas';
 import { cn } from '@ui';
 import { type JSX, Match, Switch } from 'solid-js';

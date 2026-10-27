@@ -12,6 +12,7 @@
 - [ActivateScheduledActionTemplateErrors](type-aliases/ActivateScheduledActionTemplateErrors.md)
 - [ActivateScheduledActionTemplateResponse](type-aliases/ActivateScheduledActionTemplateResponse.md)
 - [ActivateScheduledActionTemplateResponses](type-aliases/ActivateScheduledActionTemplateResponses.md)
+- [AgentMcpServer](type-aliases/AgentMcpServer.md)
 - [AgentTask](type-aliases/AgentTask.md)
 - [AgentTaskAgent](type-aliases/AgentTaskAgent.md)
 - [AiAdmissionErrorBody](type-aliases/AiAdmissionErrorBody.md)

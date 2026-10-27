@@ -43,6 +43,10 @@ field and mutate.
 - [`AccessRequest`](../../sharing/access/classes/AccessRequest.md)
 - [`Team`](../../teams/team/classes/Team.md)
 - [`Webhook`](../../webhooks/webhook/classes/Webhook.md)
+- [`WhatsAppAccount`](../../whatsapp/account/classes/WhatsAppAccount.md)
+- [`WhatsAppChat`](../../whatsapp/chat/classes/WhatsAppChat.md)
+- [`WhatsAppMessage`](../../whatsapp/message/classes/WhatsAppMessage.md)
+- [`WhatsAppSend`](../../whatsapp/send/classes/WhatsAppSend.md)
 
 ## Type Parameters
 

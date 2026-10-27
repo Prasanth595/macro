@@ -14,6 +14,7 @@
 #![deny(missing_docs)]
 
 mod connection;
+mod group_change;
 mod media;
 mod phone;
 mod signal;
@@ -36,6 +37,7 @@ use whatsmeow::store::{MemoryStore, StoreError};
 use whatsmeow::types::Jid;
 use whatsmeow_signal::LibsignalCurveSignatures;
 
+pub use group_change::GroupChange;
 pub use phone::{FakePhone, ReceivedMessage, ReceivedReceipt};
 pub use signal::{TestSignal, test_root_key, test_signal};
 
@@ -90,6 +92,9 @@ pub enum SendError {
     /// Uploading an attachment to the media host failed.
     #[error("media upload: {0}")]
     Upload(#[source] whatsmeow::upload::UploadError),
+    /// Encrypting with an earlier message's secret (a poll vote) failed.
+    #[error("message secret: {0}")]
+    MessageSecret(#[source] whatsmeow::errors::ClientError),
 }
 
 impl SendError {
@@ -344,6 +349,8 @@ impl FakeWhatsApp {
                 .iter()
                 .map(|phone| phone.phone().to_owned())
                 .collect(),
+            admins: Vec::new(),
+            description: None,
         };
         let group_node = state.group_node(&group);
         let creator = state
@@ -385,6 +392,15 @@ impl FakeWhatsApp {
         drop(state);
         self.shared.changed();
         group
+    }
+
+    /// From now on, messages in the group name their sender by LID only
+    /// (no `participant_pn`), so receivers must know the sender's pair.
+    pub fn address_by_lid_only(&self, group: &Jid) {
+        self.shared
+            .lock()
+            .lid_only_groups
+            .insert(group.user.clone());
     }
 
     /// The linked devices of a user, as phone-number device JIDs.

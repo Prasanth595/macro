@@ -357,6 +357,15 @@ export const storageExcluded = [
   'jobProcessingResultHandler',
   'joinChannelByCode',
   'leaveOrEndCall',
+  // Pairing, passkey handoff, and rollout configuration belong to the app session.
+  'linkedCancelPairing',
+  'linkedConfiguration',
+  'linkedConnect',
+  'linkedDisconnect',
+  'linkedPairing',
+  'linkedPasskey',
+  // The roster group listing is superseded by the chat list (linkedChats).
+  'linkedGroups',
   // Live meeting admission and participant previews are app session flows.
   'meetingGuestJoin',
   // Browser setup reserves an empty RTC room before creating a meeting.

@@ -1,7 +1,7 @@
-import CheckIcon from '@phosphor/check.svg';
-import LightningIcon from '@phosphor/lightning.svg';
-import UserIcon from '@phosphor/user.svg';
-import WarningIcon from '@phosphor/warning-circle.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import LightningIcon from '@icon/system/regular/lightning.svg';
+import UserIcon from '@icon/system/regular/user.svg';
+import WarningIcon from '@icon/system/regular/warning-circle.svg';
 import { ActionDialogShell, Badge, Button, Dialog } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
 import {
