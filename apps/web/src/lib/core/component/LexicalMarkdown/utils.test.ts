@@ -75,4 +75,13 @@ describe('setEditorStateFromMarkdown', () => {
     ]);
     expect(editorStateAsMarkdown(editor)).toBe(draft);
   });
+  it('imports external markdown without the empty-paragraph sentinel', () => {
+    const editor = makeEditor();
+
+    setEditorStateFromMarkdown(editor, 'hello\n\n \n\nworld', 'external');
+
+    expect(
+      editor.read(() => $getRoot().getTextContent()).includes('\u200b')
+    ).toBe(false);
+  });
 });

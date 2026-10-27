@@ -12,7 +12,11 @@ import {
 } from 'lexical';
 import { describe, expect, it } from 'vitest';
 import { SupportedNodeTypes } from '../node-list';
-import { ALL_TRANSFORMERS, INTERNAL_TRANSFORMERS } from '../transformers';
+import {
+  ALL_TRANSFORMERS,
+  EXTERNAL_TRANSFORMERS,
+  INTERNAL_TRANSFORMERS,
+} from '../transformers';
 import { protectEmptyParagraphLines } from '../transformers/transformers';
 
 function makeEditor() {
@@ -46,18 +50,24 @@ function exportMarkdown(editor: LexicalEditor): string {
   return editor.read(() => $convertToMarkdownString(INTERNAL_TRANSFORMERS));
 }
 
-function importMarkdown(markdown: string): LexicalEditor {
+function importMarkdown(markdown: string, protect = true): LexicalEditor {
   const editor = makeEditor();
   editor.update(
     () => {
       $convertFromMarkdownString(
-        protectEmptyParagraphLines(markdown),
+        protect
+          ? protectEmptyParagraphLines(markdown, ALL_TRANSFORMERS)
+          : markdown,
         ALL_TRANSFORMERS
       );
     },
     { discrete: true }
   );
   return editor;
+}
+
+function textContent(editor: LexicalEditor): string {
+  return editor.read(() => $getRoot().getTextContent());
 }
 
 function paragraphs(editor: LexicalEditor): string[] {
@@ -86,10 +96,35 @@ describe('empty paragraphs in internal markdown', () => {
   it('leaves a lone space inside fenced code as content', () => {
     const markdown = '```\na\n \nb\n```';
 
-    expect(protectEmptyParagraphLines(markdown)).toBe(markdown);
+    expect(protectEmptyParagraphLines(markdown, ALL_TRANSFORMERS)).toBe(
+      markdown
+    );
+    expect(textContent(importMarkdown(markdown))).toBe('a\n \nb');
+  });
+
+  it.each([
+    ['a shorter fence inside a longer one', '````\n```\n \n````'],
+    ['an unclosed fence', '```\na\n \nb'],
+  ])('keeps the sentinel out of %s', (_name, markdown) => {
+    expect(protectEmptyParagraphLines(markdown, ALL_TRANSFORMERS)).toBe(
+      markdown
+    );
+    // Lexical's own normalizer decides what happens to the space from here.
+    expect(textContent(importMarkdown(markdown))).toBe(
+      textContent(importMarkdown(markdown, false))
+    );
+  });
+
+  it('protects a blank line after a fence that closes on its own line', () => {
+    expect(protectEmptyParagraphLines('```a```\n \nb', ALL_TRANSFORMERS)).toBe(
+      '```a```\n\u200b\nb'
+    );
+  });
+
+  it('leaves markdown alone when nothing will read the sentinel', () => {
     expect(
-      importMarkdown(markdown).read(() => $getRoot().getTextContent())
-    ).toBe('a\n \nb');
+      protectEmptyParagraphLines('a\n\n \n\nb', EXTERNAL_TRANSFORMERS)
+    ).toBe('a\n\n \n\nb');
   });
 
   it('keeps a soft line break inside one paragraph', () => {

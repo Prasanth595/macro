@@ -343,7 +343,7 @@ export function setEditorStateFromMarkdown(
     });
   }
   const transformers = weakTransformersByEditor.get(editor)![target];
-  const source = protectEmptyParagraphLines(markdown);
+  const source = protectEmptyParagraphLines(markdown, transformers);
 
   if (!inUpdate) {
     editor.update(() => {
