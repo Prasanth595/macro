@@ -2,7 +2,7 @@ import {
   type AgentKind,
   isCoderHarness,
 } from '@app/features/agents-view/core/agent-kind';
-import { isLargeModelCatalog } from '@core/component/AI/component/input/modelCatalog';
+import { modelLabel } from '@core/component/AI/constant/model-label';
 import { toast } from '@core/component/Toast/Toast';
 import { usePipedreamMcpFlag } from '@core/pipedream/flag';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -167,12 +167,15 @@ export function AgentEditorPage(props: {
   const selectedCatalogOptions = () =>
     selectedModelOptions().map((model) => ({
       id: model.id,
-      label: model.name,
+      // The built-in runtime reports slugs as names; other runtimes name
+      // their own models.
+      label:
+        harnessId() === IN_MEMORY_HARNESS.id
+          ? modelLabel(model.id, model.name)
+          : model.name,
       description: model.description ?? undefined,
       group: model.group ?? undefined,
     }));
-  const selectedHarnessUsesCatalog = () =>
-    isLargeModelCatalog(selectedCatalogOptions());
   const [channelMode, setChannelMode] = createSignal<ChannelMode>(
     props.agent?.channel_scope ?? 'all'
   );
@@ -265,9 +268,7 @@ export function AgentEditorPage(props: {
       query={selectedModelQuery()}
       runtimeName={selectedHarness()?.name}
       available={selectedModelData()?.status === 'available'}
-      options={selectedModelOptions()}
-      catalogOptions={selectedCatalogOptions()}
-      usesCatalog={selectedHarnessUsesCatalog()}
+      options={selectedCatalogOptions()}
       value={selectedDefaultModelId()}
       onChange={setDefaultModelId}
     />
@@ -851,6 +852,7 @@ export function AgentEditorPage(props: {
           <AgentFormSection
             title="Advanced"
             description={advancedSummary({ channels: true })}
+            expanded={advancedOpen()}
             actions={
               <Button
                 type="button"

@@ -206,6 +206,13 @@ export const ENABLE_SCRIPTING = defineFlag({
   default: false,
 }).enabled;
 
+// Deployed dev and production defer to PostHog: the router must be provisioned
+// before enabling gateway sync. Local stacks can use the env override.
+export const syncViaGateway = defineFlag({
+  key: 'sync-via-gateway',
+  env: 'SYNC_VIA_GATEWAY',
+});
+
 export const ENABLE_PDF_MULTISPLIT = defineFlag({
   env: 'ENABLE_PDF_MULTISPLIT',
   default: true,
@@ -768,6 +775,13 @@ export const enableChatV3Agents = defineFlag({
   default: onInDev,
 });
 
+/** Enables Universal Input in Command K and mobile Search. */
+export const enableUniversalInput = defineFlag({
+  key: 'enable-universal-input',
+  env: 'ENABLE_UNIVERSAL_INPUT',
+  default: DEV_MODE_ENV || import.meta.env.DEV || undefined,
+});
+
 // Private conversations with agent personas. On in dev; there is no PostHog
 // flag. Override with VITE_ENABLE_AGENT_DMS.
 export const ENABLE_AGENT_DMS = defineFlag({
@@ -895,4 +909,16 @@ export const enableAiUsageBilling = defineFlag({
 export const enableInAppTours = defineFlag({
   key: 'enable-in-app-tours',
   env: 'ENABLE_IN_APP_TOURS',
+});
+
+/**
+ * Personal WhatsApp linked devices: the External tab, pairing, adding chats
+ * to Macro and sharing them by mention in channels. Off in dev too: dev has no WhatsApp session
+ * service, so the tab would only show errors. Override locally with
+ * VITE_ENABLE_WHATSAPP_LINKED=true. Backend switches gate each operation
+ * independently.
+ */
+export const enableWhatsappLinked = defineFlag({
+  key: 'enable-whatsapp-linked',
+  env: 'ENABLE_WHATSAPP_LINKED',
 });

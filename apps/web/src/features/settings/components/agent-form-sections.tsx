@@ -6,6 +6,7 @@ export function AgentFormSection(props: {
   title: string;
   description: string;
   actions?: JSX.Element;
+  expanded?: boolean;
   children: JSX.Element;
 }) {
   return (
@@ -13,6 +14,7 @@ export function AgentFormSection(props: {
       title={props.title}
       description={props.description}
       actions={props.actions}
+      expanded={props.expanded}
     >
       <div class="pt-2">{props.children}</div>
     </SettingsSection>

@@ -4,23 +4,19 @@ import type { useAgentModelsQueries } from '@queries/agents/models';
 import { Button } from '@ui';
 import type { ComponentProps } from 'solid-js';
 import { Show } from 'solid-js';
-import { SettingsSelect } from './settings-select';
 
 type ModelQuery = ReturnType<typeof useAgentModelsQueries>[number];
 
 /**
  * The default-model field for one runtime: loading, retryable error,
- * unsupported, and empty states, then a select or, for a large catalog, the
- * searchable catalog picker.
+ * unsupported, and empty states, then the searchable catalog picker.
  */
 export function AgentModelPicker(props: {
   /** The runtime's model query; absent when it has no model discovery. */
   query?: ModelQuery;
   runtimeName?: string;
   available: boolean;
-  options: ComponentProps<typeof SettingsSelect>['options'];
-  catalogOptions: ComponentProps<typeof ModelCatalogPicker>['options'];
-  usesCatalog: boolean;
+  options: ComponentProps<typeof ModelCatalogPicker>['options'];
   value: string;
   onChange: (id: string) => void;
 }) {
@@ -41,12 +37,14 @@ export function AgentModelPicker(props: {
           <Show
             when={!query.isPending}
             fallback={
-              <SettingsSelect
-                label="Default model"
+              <ModelCatalogPicker
+                value={null}
                 options={[]}
                 placeholder="Loading models…"
-                onChange={props.onChange}
-                disabled
+                onSelect={props.onChange}
+                ariaLabel="Default model"
+                triggerClass="w-full justify-between"
+                pending
               />
             }
           >
@@ -87,26 +85,15 @@ export function AgentModelPicker(props: {
                     </p>
                   }
                 >
-                  <Show
-                    when={props.usesCatalog}
-                    fallback={
-                      <SettingsSelect
-                        label="Default model"
-                        options={props.options}
-                        value={props.value}
-                        onChange={props.onChange}
-                      />
-                    }
-                  >
-                    <ModelCatalogPicker
-                      value={props.value}
-                      options={props.catalogOptions}
-                      onSelect={props.onChange}
-                      ariaLabel="Default model"
-                      triggerClass="w-full justify-between"
-                      contentClass="overflow-hidden"
-                    />
-                  </Show>
+                  <ModelCatalogPicker
+                    value={props.value}
+                    options={props.options}
+                    onSelect={props.onChange}
+                    ariaLabel="Default model"
+                    triggerClass="w-full justify-between"
+                    contentClass="overflow-hidden"
+                    placement="bottom-start"
+                  />
                 </Show>
               </Show>
             </Show>
