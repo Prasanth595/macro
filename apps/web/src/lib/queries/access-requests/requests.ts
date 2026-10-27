@@ -11,8 +11,10 @@ import { callKeys } from '../call/keys';
 import { queryClient } from '../client';
 import { refreshActiveGraphqlPreviewQueries } from '../preview/active-queries';
 import { refreshActiveGraphqlSoupQueries } from '../soup/graphql/active-queries';
+import { soupKeys } from '../soup/keys';
 import { invalidateAllSoup } from '../soup/normalized-cache';
 import { databasesKeys, entityKeys } from '../storage/keys';
+import { invalidateWhatsappGroup } from '../whatsapp-groups';
 import { accessRequestKeys } from './keys';
 
 export function fetchAccessRequestState(entity: ShareEntity, offset = 0) {
@@ -48,8 +50,13 @@ export function invalidateAccessRequests(entity: ShareEntity) {
 }
 export function refreshSharedAccess(entity: ShareEntity) {
   fireAndForget(invalidateAccessRequests(entity), 'access-requests');
+  if (entity.entityType === 'whatsapp_group') {
+    invalidateWhatsappGroup(entity.entityId);
+    return;
+  }
   // Permissions change list membership even when the item was never cached.
   invalidateAllSoup();
+  queryClient.invalidateQueries({ queryKey: soupKeys.search._def });
   fireAndForget(refreshActiveGraphqlSoupQueries(), 'access-requests');
   const includesDescendants = entity.entityType === 'project';
   fireAndForget(

@@ -1,21 +1,28 @@
 # Calls
 
-## Calls — `/app/component/calls`
+## Calls — `/app/calls`
 
-On desktop a collapsible sidebar holds the search field (`Search calls`, `⌘F`),
+On desktop a collapsible sidebar starts with the shared outlined `New` button,
+with `Search calls` immediately left of collapse. Search reveals its field above
+New. The sidebar also holds
 the views `All` / `Missed` / `Unattended`, a `Type` section (`Internal` /
 `External`; External means at least one guest without a Macro account joined),
 a `Channels` section listing channels seen in loaded calls, and `Tags`. Choosing
 a type, channel, or tag shows only that one; choosing it again clears it. These
-refinements carry across the three views. Sort, group, filter, and `New call`
-sit in the list's top bar. Phones keep pill tabs and the header search.
+refinements carry across the three views. The desktop header uses one row:
+title, an outlined filter group, a view-options group, `New`, and an expandable
+Search icon. Command-F expands and focuses search; Close or Escape clears it
+and restores the icon. Phones keep pill tabs and the header search.
 With `enable-quick-calls` enabled, `New call` opens a menu with `Start an instant
 call`, `Call a channel or contact`, and `Manage call links`; without the flag it
 opens the recipient picker directly. `Start an instant call` opens `/app/meet/new`
 without creating a meeting, the same setup reached from `New Call` beside
 Calendar's `New event` or `Create` → `Call` (`C C`). Scheduled calls are created
 through Calendar and can be shared with people who do not have a Macro account.
-The channel/contact option opens the recipient picker.
+The channel/contact option opens the recipient picker. Starting a channel call
+connects the creator without waiting for recording, transcription, or recipient
+notification delivery. Verify that a second participant still receives the ring
+and can join, and that leaving immediately does not leave a recording running.
 Recordings, transcriptions
 and summaries appear here; empty state notes "Calls are available to agents."
 
@@ -43,11 +50,12 @@ Business or Enterprise API key) is the only setup; there are no sync controls.
 Within about 30 seconds the backend registers a Granola webhook at the widest
 scope the key allows, and removing or disabling the connection stops sync. Notes
 whose first summary is generated, edited, or shared after that are imported as
-private calls about a minute after Granola finishes the summary; history is not
-backfilled. Imported calls appear in `All` and `Attended`, never in a channel's
-`Calls` tab, and open in the normal call detail with title, summary, attendees
+private calls about a minute after Granola finishes the summary, and appear in
+Soup lists without a refresh; history is not backfilled. Imported calls appear
+in `All` and `Attended`, never in a channel's `Calls` tab, and open in the
+normal call detail with title, summary, attendees
 (shown as guests), and transcript but no recording. Rename and delete do not
-apply to imported calls yet. Webhooks require a public HTTPS `MCP_PUBLIC_URL`;
+apply to imported calls yet. Webhooks require a public HTTPS cognition callback origin (`CognitionPublicUrl`);
 on a laptop stack, expose the webhook path with a tunnel such as Tailscale Funnel.
 
 A channel's `Calls` tab lists that channel's recordings with the same rows, filtered
@@ -62,6 +70,30 @@ preserving a surviving participant's position where possible. Verify that draggi
 does not pin someone, tapping pins the displayed person, and a participant who
 leaves during a held touch cannot be selected. Exercise speaker changes and
 departures during row gestures on a physical iPhone as well as the simulator.
+
+Leaving a native iOS call is final. The drawer's **Leave** and CallKit's end
+button both end the CallKit call, its LiveKit room, the drawer and PiP, even
+when the native session has already lost track of the call. PiP and the drawer appear only while a call is active, so
+restoring a PiP left over from an ended call dismisses it instead of opening
+an empty drawer. A call the user left is never rejoined automatically: a
+native snapshot that still reports it is ended natively, and only tapping
+Join in that channel lets the call back in. A CallKit answer handled more
+than 60 seconds after it was fulfilled is dropped rather than joined. Verify
+on a physical iPhone that Leave from the drawer, from the lock screen, and
+right before backgrounding the app each end the call without a PiP or drawer
+returning, and that tapping Join afterwards still rejoins a call that is
+still running.
+
+Native call logs go to the unified log (subsystem: the app's bundle id,
+category `CallKit`) at notice level, so they survive on the device. Collect
+them from a connected iPhone with
+`sudo log collect --device-udid <udid> --start '<time>' --output calls.logarchive`
+and read them with `log show --predicate 'category == "CallKit"' calls.logarchive`.
+They never contain identities, names, or device names; participants appear
+as LiveKit SIDs. The app's `call_action` analytics record `callId` on `joined`
+and `left`, what started each join (`trigger`: `user`, `deep_link`, `restore`,
+`auto_rejoin`), and why each leave ran (`leaveReason`: `user_initiated`,
+`native_ended`, `join_cancelled`, `stale_native_session`).
 
 If a recording fails to play, reload the page to obtain a fresh recording link,
 or use **Open or download recording**. The playback warning does not assume
@@ -163,18 +195,14 @@ and shows the current local time before the call name. Owners can click the name
 to rename it, then Save or press Enter; Cancel or Escape discards the edit. Guests and other participants see a
 read-only name.
 
-Join-preview and in-call controls use the standard Macro icon buttons. Pause
-over the microphone, camera, or background group to reveal an animated settings popover
-above the call toolbar; click its caret to keep it open. Brief pointer passes
-do not open settings, and moving into the popover keeps it open. Settings
-respect reduced-motion preferences. The toolbar and settings panels use Macro's
-shared glass surface in both light and dark themes.
-Audio settings include microphone, speaker, and noise suppression. Camera
-settings include the camera selector. Clicking the background icon toggles the
-selected effect off/on, restoring the last blur strength or image (Strong blur
-by default). Its hover panel contains the same None, Light blur, Strong blur,
-and image-upload menu as the join screen; the caret pins this panel for keyboard
-and touch access. Click outside or press Escape to close the settings.
+Join-preview and in-call controls use the standard Macro icon buttons. In a
+call, the microphone and camera are split buttons (`ButtonGroup`): the left half
+toggles the device (pressed while on), and the caret opens a settings menu above
+the toolbar on click only; hovering opens nothing. **Audio settings** lists
+microphones, speakers (when the browser can choose one), and noise suppression.
+**Video settings** lists cameras and the background effects as tiles: None,
+Light blur, Strong blur, a selected custom image, and Upload. Screen share and
+Leave call are separate buttons. Click outside or press Escape to close a menu.
 The controls also work by keyboard and touch.
 
 ### Browser call diagnostics
@@ -243,12 +271,17 @@ joining a standalone call never makes its content available to the wider team.
 
 Android channel calls use a native call activity rather than browser media.
 After joining, the themed drawer shows a large participant tile and a horizontally
-scrolling participant strip; tap a strip tile to make it primary. Speaker toggles
+scrolling participant strip without the transcription agent; tap a strip tile to make it primary. Speaker toggles
 speaker mode (hold it for headset/Bluetooth routing), Mute and Video control capture, and **Leave** ends the call.
 The local primary video tile exposes Switch camera. Swipe the drawer handle down,
-tap outside the drawer, or use Back to enter PiP on supported devices; **Open call
-controls** in the web call controls restores the native surface. Leaving the channel does
-not end the call. Incoming calls expose Answer/Decline in the **Calls** notification
-channel, including while locked/backgrounded. PiP is a native, device-dependent
+tap outside the drawer, or use Back to shrink it to a thumbnail over Macro, as on
+iOS: tap it to reopen the drawer, drag it to another corner, or drag it past a side
+to tuck it away (an edge tab brings it back once someone else is in the call). Leaving the app continues the call in system PiP (you and the
+active speaker); tapping PiP shows Android's menu with Mute, **Leave** and expand,
+which reopens the drawer. **Open call controls** in the web call controls also
+reopens the drawer. Leaving the channel does not end the call. Incoming calls
+expose Answer/Decline in the **Calls** notification channel, including while
+locked/backgrounded; while Android 14+ blocks full-screen notifications, a toast
+offers **Allow** (system setting) or **Hide**. PiP is a native, device-dependent
 flow. Browser-only tests cannot validate Telecom, FCM wakeup or background media;
 follow the hardware matrix in [Android development](../development/android.md#native-calling).

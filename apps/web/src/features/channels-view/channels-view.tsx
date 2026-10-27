@@ -1,28 +1,36 @@
-import { ViewShell } from '@app/components/view-shell';
+import { ViewShell, ViewSidebar } from '@app/components/view-shell';
 import { SearchState } from '@app/features/command/mobile/mobileSearchState';
 import { markChannelNotificationsSeenOnOpen } from '@app/features/next-soup/utils';
 import { MaybeSoupEntityActionDrawerManager } from '@app/features/soup';
 import { withEntityNotifications } from '@app/features/soup/entity-notifications';
 import { ViewTour } from '@app/features/tours/ViewTour';
 import { SplitRouter } from '@app/lib/split-router';
+import { ChannelLoading } from '@channel/Channel/ChannelLoading';
 import { useChannelByIdQuery } from '@channel/Channel/channel-entity';
 import { DebugSuspense } from '@channel/DebugSuspense';
+import { prefetchChannelTarget } from '@channel/queries/prefetch-channel-target';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { SplitPanel } from '@components/app/split-panel';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+import { useIsAuthenticated } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ListEntityMetadataQueryProvider } from '@entity';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
+import { useFavoritesData } from '@queries/favorites/favorites';
 import {
   createContext,
+  createEffect,
   createMemo,
   createSignal,
+  on,
   onMount,
   Show,
   useContext,
 } from 'solid-js';
 import { ChannelsViewProvider, useChannelsView } from './channels-view-context';
 import { ChannelDetailView } from './components/ChannelDetailView';
+import { MAX_PINNED_CHANNELS } from './components/ChannelPins';
 import { ChannelsMobileView } from './components/ChannelsMobileView';
 import { ChannelThreadsView } from './components/ChannelThreadsView';
 import { ChannelsRail } from './components/rail/ChannelsRail';
@@ -58,9 +66,24 @@ function MobileChannelsList(props: { sources: ChannelsSources }) {
     scope: () => 'recents',
     source: () => props.sources.recents,
   });
+  const favoritesData = useFavoritesData({ entityType: ['channel'] });
+  // Recents carry the latest message and unread state; the channel list
+  // covers favorites that have not surfaced in Recents yet.
+  const pinned = createMemo(() => {
+    const channelsById = new Map(
+      deduplicateChannels([props.sources.recents.items(), listChannels()]).map(
+        (channel) => [channel.id, channel]
+      )
+    );
+    return (favoritesData()?.favorites ?? [])
+      .filter((favorite) => favorite.entityType === 'channel')
+      .flatMap((favorite) => channelsById.get(favorite.entityId) ?? [])
+      .slice(0, MAX_PINNED_CHANNELS);
+  });
   return (
     <ChannelsMobileView
       source={mobileSearchSource}
+      pinned={pinned()}
       searchQuery={mobileSearchText()}
       onClearSearch={() => SearchState.setQuery('')}
     />
@@ -165,6 +188,7 @@ function ChannelsViewRoot() {
                         name="ChannelsView.rail"
                         fallback={
                           <SpinnerIcon
+                            aria-hidden={false}
                             aria-label="Loading channels"
                             class="size-5 animate-spin"
                           />
@@ -193,9 +217,9 @@ function ChannelsViewRoot() {
                               fallback={() => (
                                 <>
                                   <ViewShell.TopBar>
-                                    <span class="text-sm font-semibold">
+                                    <ViewSidebar.Title caret={false}>
                                       Chat
-                                    </span>
+                                    </ViewSidebar.Title>
                                   </ViewShell.TopBar>
                                   <div class="flex min-h-0 flex-1 items-center justify-center px-6 text-center">
                                     <div class="flex max-w-sm flex-col gap-2">
@@ -225,6 +249,7 @@ function ChannelsViewRoot() {
                   fallback={
                     <div class="grid size-full place-items-center text-ink-muted">
                       <SpinnerIcon
+                        aria-hidden={false}
                         aria-label="Loading channels"
                         class="size-5 animate-spin"
                       />
@@ -246,6 +271,17 @@ function ChannelDetailRouteContent() {
   const { selectedChannel } = useChannelsView();
   const notificationSource = useGlobalNotificationSource();
   const channelId = createMemo(() => selectedChannel()?.id);
+  const authenticated = useIsAuthenticated();
+  const target = createMemo(() => selectedChannel()?.target);
+  createEffect(
+    on([channelId, target, authenticated], ([id, destination, signedIn]) => {
+      if (!id || !destination || signedIn !== true) return;
+      fireAndForget(
+        prefetchChannelTarget(id, destination),
+        'channel-target-prefetch'
+      );
+    })
+  );
   const sources = useContext(ChannelSourcesContext);
   const loaded = createMemo(() =>
     resolveSelectedChannel(
@@ -294,7 +330,10 @@ function ChannelDetailRouteContent() {
   };
 
   return (
-    <DebugSuspense name="ChannelsView.detail-content">
+    <DebugSuspense
+      name="ChannelsView.detail-content"
+      fallback={<ChannelLoading />}
+    >
       <Show
         when={visibleChannel()}
         fallback={
@@ -304,21 +343,17 @@ function ChannelDetailRouteContent() {
                 {loaded()?.name ?? 'Conversation'}
               </span>
             </ViewShell.TopBar>
-            <div
-              class="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-ink-muted"
-              role="status"
-            >
-              <h2>
-                {unavailable()
-                  ? 'Conversation unavailable'
-                  : 'Loading conversation'}
-              </h2>
-              <Show when={unavailable()}>
+            <Show when={unavailable()} fallback={<ChannelLoading />}>
+              <div
+                class="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-ink-muted"
+                role="status"
+              >
+                <h2>Conversation unavailable</h2>
                 <button type="button" onClick={retry}>
                   Retry
                 </button>
-              </Show>
-            </div>
+              </div>
+            </Show>
           </>
         }
       >
@@ -334,7 +369,10 @@ function ChannelDetailRouteContent() {
 
 export function ChannelDetailRouteView() {
   return (
-    <DebugSuspense name="ChannelsView.detail-route">
+    <DebugSuspense
+      name="ChannelsView.detail-route"
+      fallback={<ChannelLoading />}
+    >
       <ChannelDetailRouteContent />
     </DebugSuspense>
   );

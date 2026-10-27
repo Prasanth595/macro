@@ -1,7 +1,7 @@
 import { ScopedPortal } from '@core/component/ScopedPortal';
 import Dialog from '@corvu/dialog';
-import Check from '@phosphor/check.svg';
-import Trash from '@phosphor/trash-simple.svg';
+import Check from '@icon/system/regular/check.svg';
+import Trash from '@icon/system/regular/trash-simple.svg';
 import { Button, cn } from '@ui';
 import SignaturePad from 'signature_pad';
 import { createSignal, type JSX, onCleanup, onMount, Show } from 'solid-js';
@@ -166,8 +166,7 @@ function SignatureEditor(props: SignatureEditorProps) {
         <Dialog.Content
           class={cn(
             'fixed z-modal w-[426px] max-w-[calc(100vw-2rem)] p-3',
-            'bg-surface shadow',
-            'rounded-lg border border-edge',
+            'elevated-surface',
             'flex-col justify-start inline-flex gap-3',
             'dialog-content-open-animation'
           )}
