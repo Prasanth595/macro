@@ -8,6 +8,17 @@ message addressed to a named channel, task search facets, and unsupported docume
 sender wording retained as keywords. Fields without an expectation are left
 unconstrained.
 
+`generalization.json` adds 35 separately authored variations covering retrieval
+versus creation, questions versus record lists, opening actions with conflicting
+body topics, multiword channel recipients, weekday order/abbreviations, and
+supported versus unsupported search filters. This is a development regression
+suite, not an untouched holdout; validate final rules on fresh phrases as well.
+Follow the [prompt evaluation guidance](../prompts/README.md) and
+do not change expectations to accommodate predictions. Run the command below,
+adding `--suite crates/universal_input/eval/generalization.json`; save a separate
+before/after report because each suite has its own fixture hash. Intent-only
+expectations check routing, while the search and calendar groups also check fields.
+
 The clock is fixed at **2026-10-27 12:00 UTC**. All three dinner variants expect
 the upcoming Monday, **November 2 at 19:00**. Tomorrow morning is
 **October 28 at 08:00**, and a task due in one week is due **November 3**. These

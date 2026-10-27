@@ -3,6 +3,9 @@
 All editable classification and extraction instructions live in this folder.
 Keep classification questions within Jev's 500-character limit; the intent
 prompt contract test enforces it.
+Describe intent boundaries in classification questions without copying behavior
+baseline inputs into those questions; use independently authored phrases to
+validate the rules rather than teaching the classifier each expected answer.
 
 | Files | Used for |
 | --- | --- |
