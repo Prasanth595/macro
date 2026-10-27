@@ -340,7 +340,7 @@ async fn run() -> anyhow::Result<()> {
         config
             .typesafe_api_key
             .value()
-            .map(jev::outbound::TypesafeJev::new)
+            .map(jev::outbound::SystemOneJev::typesafe)
             .transpose()?
             .map(|provider| jev::domain::JevClassifier::new(provider, recorder.clone())),
         universal_input::domain::temporal::WithTemporalExtraction::new(
