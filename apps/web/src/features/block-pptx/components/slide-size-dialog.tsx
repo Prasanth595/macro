@@ -239,7 +239,7 @@ export function SlideSizeDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant="accent"
+            variant="primary"
             type="submit"
             data-testid="pptx-slide-size-ok"
           >

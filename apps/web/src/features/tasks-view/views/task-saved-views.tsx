@@ -455,7 +455,7 @@ export function TaskSaveViewButton() {
   return (
     <Show when={visible()}>
       <HeaderActionGroup label="Save task view">
-        <ButtonGroup.Button variant="accent" onClick={() => create()}>
+        <ButtonGroup.Button variant="primary" onClick={() => create()}>
           Save view
         </ButtonGroup.Button>
       </HeaderActionGroup>
@@ -484,7 +484,7 @@ export function TaskSavedViewCreateBanner(props: TaskSavedViewDialogProps) {
       >
         <InfoIcon class="size-4 shrink-0 text-accent" aria-hidden="true" />
         <span class="min-w-0 flex-1">Save these filters as a view</span>
-        <Button size="sm" variant="accent" onClick={showCreate}>
+        <Button size="sm" variant="primary" onClick={showCreate}>
           <BookmarkIcon class="size-4" aria-hidden="true" />
           Save view
         </Button>
@@ -638,7 +638,7 @@ export function TaskSavedViewActions(props: TaskSavedViewDialogProps = {}) {
               <>
                 <Show when={selected()?.record.ownerId === viewerId()}>
                   <ButtonGroup.Button
-                    variant="accent"
+                    variant="primary"
                     class="touch:order-last"
                     disabled={update.isPending || !!selected()?.issues.length}
                     title={
@@ -660,7 +660,7 @@ export function TaskSavedViewActions(props: TaskSavedViewDialogProps = {}) {
               </>
             }
           >
-            <ButtonGroup.Button variant="accent" onClick={() => showCreate()}>
+            <ButtonGroup.Button variant="primary" onClick={() => showCreate()}>
               Save view
             </ButtonGroup.Button>
             <ButtonGroup.Button variant="ghost" onClick={leaveSavedView}>

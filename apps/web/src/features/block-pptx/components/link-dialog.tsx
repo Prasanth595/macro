@@ -326,7 +326,7 @@ export function LinkDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant="accent"
+            variant="primary"
             type="submit"
             data-testid="pptx-link-ok"
             disabled={!link()}

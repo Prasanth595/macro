@@ -48,7 +48,7 @@ export function ScheduleEditorForm(props: {
         <Button
           data-save-schedule
           type="submit"
-          variant="accent"
+          variant="primary"
           disabled={props.saving || props.editingRange}
         >
           {props.saving ? 'Saving…' : 'Save schedule'}

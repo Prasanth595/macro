@@ -262,7 +262,7 @@ export function HeaderFooterDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant="accent"
+            variant="primary"
             data-testid="pptx-hf-apply-all"
             disabled={ro()}
             onClick={() => apply(true)}

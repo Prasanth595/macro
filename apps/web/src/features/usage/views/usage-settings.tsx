@@ -136,7 +136,7 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                     description="Subscribe to a paid plan to keep going."
                   >
                     <Button
-                      variant="accent"
+                      variant="primary"
                       size="sm"
                       onClick={props.context.openPlans}
                     >
@@ -279,7 +279,7 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                 <Show when={developer().openBillingLab}>
                   {(open) => (
                     <Button
-                      variant="accent"
+                      variant="primary"
                       size="sm"
                       class="self-start"
                       onClick={open()}
@@ -291,7 +291,7 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                 <div class="flex flex-wrap gap-2">
                   <Button
                     variant={
-                      developer().plan() === 'free' ? 'accent' : 'outline'
+                      developer().plan() === 'free' ? 'primary' : 'outline'
                     }
                     size="sm"
                     aria-pressed={developer().plan() === 'free'}
@@ -301,7 +301,7 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                   </Button>
                   <Button
                     variant={
-                      developer().plan() === 'paid' ? 'accent' : 'outline'
+                      developer().plan() === 'paid' ? 'primary' : 'outline'
                     }
                     size="sm"
                     aria-pressed={developer().plan() === 'paid'}
@@ -326,7 +326,7 @@ export function UsageSettingsView(props: { context: UsageContext }) {
                     Open paid usage-limit dialog
                   </Button>
                   <Button
-                    variant={developer().beforeLaunch() ? 'accent' : 'outline'}
+                    variant={developer().beforeLaunch() ? 'primary' : 'outline'}
                     size="sm"
                     aria-pressed={developer().beforeLaunch()}
                     onClick={developer().previewBeforeLaunch}

@@ -817,7 +817,7 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
             </div>
             <Show when={effectiveActiveTab() === 'share' && props.canForward}>
               <Button
-                variant="accent"
+                variant="primary"
                 size="sm"
                 class="shrink-0 ml-2"
                 disabled={

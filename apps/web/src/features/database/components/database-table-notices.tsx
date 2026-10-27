@@ -40,7 +40,7 @@ export function SaveFailureNotice(props: {
         <p class="mt-1 text-ink-muted">{props.message}</p>
       </div>
       <Button
-        variant="accent"
+        variant="primary"
         size="xs"
         class="shrink-0"
         disabled={props.pending}
@@ -147,7 +147,7 @@ export function DraftFailureNotice(props: {
     >
       <span class="flex-1">{props.message}</span>
       <Button
-        variant="accent"
+        variant="primary"
         size="xs"
         disabled={props.pending}
         onClick={props.onAction}

@@ -96,7 +96,7 @@ export function PermissionOptions(props: PermissionOptionsProps) {
           <Button
             type="button"
             size="md"
-            variant="accent"
+            variant="primary"
             tooltip={option().name}
             disabled={props.disabled}
             onClick={() => props.onSelect(option().id)}

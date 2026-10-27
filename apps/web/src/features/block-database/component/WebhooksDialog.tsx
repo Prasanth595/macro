@@ -187,7 +187,7 @@ export function WebhooksDialog(props: {
               </Button>
               <Button
                 type="button"
-                variant="accent"
+                variant="primary"
                 disabled={pending()}
                 onClick={() => fireAndForget(create(), 'database-webhooks')}
               >

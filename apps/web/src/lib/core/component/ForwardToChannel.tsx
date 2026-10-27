@@ -669,7 +669,7 @@ export function ForwardToChannel(props: ForwardToChannelProps) {
                   Cancel
                 </Button>
                 <Button
-                  variant="accent"
+                  variant="primary"
                   disabled={selectedOptions().length === 0 || isSubmitting()}
                   onClick={() => {
                     const options = selectedOptions();

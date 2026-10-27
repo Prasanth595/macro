@@ -87,7 +87,7 @@ function DialogShell(props: {
           </Button>
           <Show when={props.onOk}>
             <Button
-              variant="accent"
+              variant="primary"
               size="sm"
               data-testid={`${props.testId}-ok`}
               onClick={() => props.onOk?.()}

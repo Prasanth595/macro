@@ -198,7 +198,7 @@ export default function StaticMarkdownStreamDebug() {
           </div>
           <div class="flex items-center gap-2">
             <Button
-              variant="accent"
+              variant="primary"
               size="sm"
               onClick={startStream}
               disabled={isStreaming()}

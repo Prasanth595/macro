@@ -149,7 +149,7 @@ export function EquationEditorPanel(props: {
         <span class="flex-1" />
         <Button
           size="xs"
-          variant="accent"
+          variant="primary"
           data-testid="pptx-equation-insert"
           disabled={props.readonly || (isNew() && !eq.latex().trim())}
           onClick={() => fireAndForget(eq.commit(), 'pptx-editor')}

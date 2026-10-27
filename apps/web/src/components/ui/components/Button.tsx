@@ -29,7 +29,6 @@ const buttonFrames = {
     'bg-transparent text-ink border-border-secondary bg-none shadow-none',
   ghost:
     'bg-button-tertiary-bg text-ink-muted border-transparent bg-none shadow-none',
-  accent: 'bg-accent text-button-accent-ink border-transparent shadow-button',
   danger: 'bg-button-danger-bg text-failure border-transparent shadow-button',
   success: 'bg-button-success-bg text-success border-transparent shadow-button',
   link: 'border-transparent bg-transparent text-link shadow-none',
@@ -61,11 +60,6 @@ const buttonStyles = createVariants(
       ghost: cn(
         buttonFrames.ghost,
         'not-data-disabled:hover:bg-button-tertiary-hover not-data-disabled:hover:text-ink not-data-disabled:active:bg-button-tertiary-pressed not-data-disabled:active:text-ink aria-pressed:bg-button-tertiary-pressed aria-pressed:text-ink aria-pressed:not-data-disabled:hover:bg-button-tertiary-pressed aria-expanded:bg-button-tertiary-pressed aria-expanded:text-ink aria-expanded:not-data-disabled:hover:bg-button-tertiary-pressed',
-        buttonPressedStyles
-      ),
-      accent: cn(
-        buttonFrames.accent,
-        'not-data-disabled:hover:bg-button-accent-hover not-data-disabled:active:bg-button-accent-pressed aria-pressed:bg-button-accent-pressed aria-pressed:not-data-disabled:hover:bg-button-accent-pressed aria-expanded:bg-button-accent-pressed aria-expanded:not-data-disabled:hover:bg-button-accent-pressed focus-visible:outline-button-accent-ink',
         buttonPressedStyles
       ),
       danger: cn(
@@ -125,9 +119,6 @@ const buttonFinishes: Partial<
     raised: cn(raisedButtonStyles, 'dark-mode:shadow-button'),
   },
   outline: { raised: raisedBorderButtonStyles },
-  accent: {
-    raised: raisedButtonStyles,
-  },
   danger: {
     raised: raisedButtonStyles,
   },

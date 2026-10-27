@@ -423,7 +423,7 @@ export function PrintDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant="accent"
+            variant="primary"
             data-testid="pptx-print-go"
             disabled={pages().length === 0 || !!progress()}
             onClick={() => fireAndForget(print(), 'pptx-print')}

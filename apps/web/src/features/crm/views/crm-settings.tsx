@@ -436,7 +436,7 @@ function StageEditorRow(props: {
           <Tooltip label="Save">
             <Button
               aria-label="Save stage name"
-              variant="accent"
+              variant="primary"
               size="icon-sm"
               disabled={props.pending || !hasChanged()}
               onClick={commit}

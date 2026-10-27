@@ -42,7 +42,7 @@ export function MeetingList(props: {
                 <div class="flex gap-2">
                   <Button
                     size="sm"
-                    variant="accent"
+                    variant="primary"
                     onClick={() => props.onJoin(meeting)}
                   >
                     Join call

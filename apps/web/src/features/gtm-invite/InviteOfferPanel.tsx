@@ -81,7 +81,7 @@ export function InviteOfferPanel(props: {
 
       <div class="flex flex-col gap-3">
         <Button
-          variant="accent"
+          variant="primary"
           size="xl"
           disabled={props.finishing}
           onClick={() => props.onStartCheckout()}

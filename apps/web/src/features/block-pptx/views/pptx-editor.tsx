@@ -2532,7 +2532,7 @@ export function PptxEditor() {
             <Button
               aria-label="Present"
               size="sm"
-              variant="accent"
+              variant="primary"
               class="h-6 gap-1 px-2 text-xs"
               tooltip="Present from current slide (⇧F5)"
               data-testid="pptx-present"

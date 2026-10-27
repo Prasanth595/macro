@@ -36,7 +36,7 @@ describe('Button', () => {
     render(() => (
       <ButtonGroup variant="secondary" size="sm">
         <ButtonGroup.Button>Save</ButtonGroup.Button>
-        <ButtonGroup.Button variant="accent" size="lg">
+        <ButtonGroup.Button variant="primary" size="lg">
           Publish
         </ButtonGroup.Button>
         <Button>Independent</Button>
@@ -46,7 +46,7 @@ describe('Button', () => {
     expect(save.getAttribute('data-variant')).toBe('secondary');
     expect(save.getAttribute('data-size')).toBe('sm');
     const publish = screen.getByRole('button', { name: 'Publish' });
-    expect(publish.getAttribute('data-variant')).toBe('accent');
+    expect(publish.getAttribute('data-variant')).toBe('primary');
     expect(publish.getAttribute('data-size')).toBe('lg');
     const independent = screen.getByRole('button', { name: 'Independent' });
     expect(independent.getAttribute('data-variant')).toBe('primary');

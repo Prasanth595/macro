@@ -169,7 +169,7 @@ export function PollComposer(props: {
         </Button>
         <Button
           type="submit"
-          variant="accent"
+          variant="primary"
           size="sm"
           disabled={!ready() || props.pending}
           aria-busy={props.pending}

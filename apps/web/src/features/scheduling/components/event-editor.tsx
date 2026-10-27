@@ -833,7 +833,7 @@ export function EventEditor(props: EventEditorProps) {
           <div class="flex min-w-0 max-w-full flex-col items-end gap-2">
             <Button
               type="submit"
-              variant="accent"
+              variant="primary"
               size="lg"
               disabled={props.saving}
               aria-invalid={primaryError() ? true : undefined}

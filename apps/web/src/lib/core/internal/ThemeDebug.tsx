@@ -29,14 +29,12 @@ const INK_VARIANTS = [
 const BUTTON_VARIANTS = [
   'ghost',
   'outline',
-  'accent',
   'secondary',
   'danger',
   'primary',
 ] as const;
 const BUTTON_CONTENT_VARIANTS = [
   'outline',
-  'accent',
   'secondary',
   'primary',
 ] as const;
@@ -435,7 +433,7 @@ function ThemeDebug() {
                     <div class="flex flex-wrap gap-2">
                       <Button variant="ghost">Ghost</Button>
                       <Button variant="outline">Base</Button>
-                      <Button variant="accent">Active</Button>
+                      <Button variant="primary">Active</Button>
                       <Button variant="danger">Danger</Button>
                     </div>
                   </Panel.Body>

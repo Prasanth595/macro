@@ -526,7 +526,7 @@ function InboxRow(props: {
         <div class="flex max-w-full flex-wrap items-center gap-2 shrink-0">
           <Show when={props.link.needs_reauth}>
             <Button
-              variant="accent"
+              variant="primary"
               size="md"
               onClick={props.onReconnect}
               aria-label={`Reconnect ${props.link.email_address}`}

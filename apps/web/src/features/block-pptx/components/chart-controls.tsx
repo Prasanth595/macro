@@ -565,7 +565,7 @@ export function ChartDataEditor(props: {
           </Button>
           <Button
             size="sm"
-            variant="accent"
+            variant="primary"
             data-testid="pptx-chart-apply"
             disabled={
               props.readonly || busy() || (chart() ? !chart()!.editable : false)
@@ -686,7 +686,7 @@ export function ChartDesignTab(props: {
         </RibbonPopover>
         <RibbonTextButton
           aria-label="Data labels"
-          variant={chart()?.dataLabels ? 'accent' : 'ghost'}
+          variant={chart()?.dataLabels ? 'primary' : 'ghost'}
           aria-pressed={!!chart()?.dataLabels}
           disabled={ro()}
           onClick={() =>

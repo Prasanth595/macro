@@ -772,7 +772,7 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
               Cancel
             </Button>
             <Button
-              variant="accent"
+              variant="primary"
               class={cn('gap-3 ', pending() && 'gap-1.5')}
               onClick={handleCreateProperty}
               disabled={!canSubmit()}

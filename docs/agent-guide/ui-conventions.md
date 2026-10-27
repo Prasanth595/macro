@@ -40,6 +40,7 @@ On touch devices, low-emphasis header actions remain borderless with their
 existing hover and pressed states. Emphasized variants retain their treatment,
 including an active call's green ink. Button size does not change variant colors
 or framing. Button's only optional finish is `finish="raised"`; omit it for plain styling.
+Primary Buttons use the theme accent and its resolved contrast color. Use secondary or outline for neutral actions; there is no separate accent variant or inverse neutral primary.
 Inline calendar-invitation text actions remove the transparent border to keep alignment.
 
 ## Canonical desktop surfaces

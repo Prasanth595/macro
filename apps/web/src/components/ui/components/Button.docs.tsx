@@ -15,7 +15,6 @@ const VARIANTS: ButtonVariant[] = [
   'secondary',
   'outline',
   'ghost',
-  'accent',
   'danger',
   'success',
   'link',
@@ -99,7 +98,7 @@ function StatesDemo() {
         Disabled
       </Button>
       <Button
-        variant="accent"
+        variant="primary"
         loading={loading()}
         onClick={() => setLoading(true)}
       >

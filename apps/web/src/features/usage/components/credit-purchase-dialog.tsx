@@ -118,7 +118,7 @@ export function CreditPurchaseDialog(props: {
               when={props.onViewPlans}
               fallback={
                 <Button
-                  variant="accent"
+                  variant="primary"
                   disabled={props.disabled || props.pending}
                   onClick={props.onCheckout}
                 >
@@ -127,7 +127,7 @@ export function CreditPurchaseDialog(props: {
               }
             >
               {(viewPlans) => (
-                <Button variant="accent" onClick={viewPlans()}>
+                <Button variant="primary" onClick={viewPlans()}>
                   View plans
                 </Button>
               )}

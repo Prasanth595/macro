@@ -152,7 +152,7 @@ export function ChannelInviteModal(props: {
                 Cancel
               </Button>
               <Button
-                variant="accent"
+                variant="primary"
                 onClick={() => fireAndForget(addPeople(), 'channel-invite')}
                 disabled={!canAdd()}
               >

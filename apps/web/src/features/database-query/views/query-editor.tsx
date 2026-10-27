@@ -238,7 +238,7 @@ export function QueryEditor(props: {
           <Show when={!canAccept()}>
             <div class="flex items-center justify-end gap-2">
               <Button
-                variant="accent"
+                variant="primary"
                 type="submit"
                 size="sm"
                 disabled={!canAsk()}
@@ -442,7 +442,7 @@ export function QueryEditor(props: {
                 <Button variant="ghost" size="sm" onClick={editPrompt}>
                   Edit
                 </Button>
-                <Button variant="accent" size="sm" onClick={accept}>
+                <Button variant="primary" size="sm" onClick={accept}>
                   {props.saveLabel ?? 'Insert'}
                   <Hotkey shortcut="enter" theme="current" aria-hidden="true" />
                 </Button>

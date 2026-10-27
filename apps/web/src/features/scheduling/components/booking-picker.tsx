@@ -257,7 +257,7 @@ export function BookingPicker(props: {
                   </For>
                   <Button
                     type="submit"
-                    variant="accent"
+                    variant="primary"
                     disabled={flow.submitting() || props.preview}
                   >
                     {props.preview

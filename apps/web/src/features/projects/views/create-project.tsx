@@ -207,7 +207,7 @@ export function CreateProject(props: {
           />
           <EntityComposer.Submit
             type="submit"
-            variant="accent"
+            variant="primary"
             size="sm"
             class="ml-auto"
             hasContent={Boolean(composer.name().trim())}

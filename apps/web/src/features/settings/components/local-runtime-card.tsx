@@ -434,7 +434,7 @@ export function LocalRuntimeCard() {
                         <div class="flex items-center gap-2">
                           <Button
                             type="button"
-                            variant="accent"
+                            variant="primary"
                             size="sm"
                             disabled={busy() || !selectedAgent()}
                             onClick={() =>
@@ -483,7 +483,7 @@ export function LocalRuntimeCard() {
                   <div class="mt-4">
                     <Button
                       type="button"
-                      variant="accent"
+                      variant="primary"
                       size="sm"
                       onClick={openSetup}
                     >

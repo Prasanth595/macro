@@ -194,7 +194,7 @@ export function ExportDialog(props: {
           </Button>
           <Button
             size="sm"
-            variant="accent"
+            variant="primary"
             data-testid="pptx-export-run"
             disabled={!!progress() || indexes().length === 0}
             onClick={() => fireAndForget(run(), 'pptx-export')}

@@ -132,7 +132,7 @@ export function SavedViewForm(
         </Button>
         <Button
           type="submit"
-          variant="accent"
+          variant="primary"
           disabled={props.pending || !name().trim()}
         >
           {props.pending ? 'Saving…' : (props.submitLabel ?? 'Save view')}

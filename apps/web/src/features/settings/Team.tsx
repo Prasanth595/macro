@@ -235,7 +235,7 @@ function UserInviteRow(props: {
           </Show>
         </Button>
         <Button
-          variant="accent"
+          variant="primary"
           class="px-2 py-1"
           disabled={props.isAccepting || props.isDeclining}
           onClick={props.onAccept}
@@ -570,7 +570,7 @@ function EmptyTeamState() {
               Create a team to collaborate with others and manage access
               together.
             </p>
-            <Button variant="accent" onClick={() => setShowCreateModal(true)}>
+            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
               <PlusIcon class="size-4" />
               Create Team
             </Button>

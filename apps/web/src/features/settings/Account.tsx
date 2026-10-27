@@ -881,7 +881,7 @@ function BundleUpdateRow() {
         </span>
         <Show when={action()}>
           {(a) => (
-            <Button variant="accent" size="sm" onClick={a().action}>
+            <Button variant="primary" size="sm" onClick={a().action}>
               {a().label}
             </Button>
           )}
@@ -902,7 +902,7 @@ function NativeUpdateRow() {
           </span>
           <Show when={tauri?.nativeUpdateStatus().status === 'Ready'}>
             <Button
-              variant="accent"
+              variant="primary"
               size="sm"
               onClick={() =>
                 fireAndForget(tauri?.restartNativeUpdate(), 'native-updates')

@@ -38,7 +38,7 @@ export function SendButton(props: SendButtonProps) {
 
   return (
     <Button
-      variant="accent"
+      variant="primary"
       size={local.appearance === 'composer' ? 'icon-md' : 'icon-sm'}
       draggable={false}
       aria-label={

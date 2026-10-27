@@ -457,7 +457,7 @@ export function CreateChannelModal() {
                     if (step() === 'invite')
                       fireAndForget(finishInvites(), 'create-channel');
                   }}
-                  variant="accent"
+                  variant="primary"
                   disabled={
                     (step() !== 'invite' && !channelName()) ||
                     createChannelMutation.isPending ||

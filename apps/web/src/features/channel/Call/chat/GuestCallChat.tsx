@@ -94,7 +94,7 @@ function GuestCallChatContent(props: GuestCallChatProps) {
             />
           </TextField>
           <Button
-            variant="accent"
+            variant="primary"
             type="submit"
             class="mt-2"
             disabled={!chat.ready() || chat.sending() || !content().trim()}

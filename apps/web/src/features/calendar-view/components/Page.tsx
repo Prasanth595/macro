@@ -178,7 +178,7 @@ function CalendarPageDataStatus(props: {
             <Button
               aria-label="Retry loading calendar"
               tooltip="Retry loading calendar"
-              variant="accent"
+              variant="primary"
               size="sm"
               onClick={() =>
                 fireAndForget(

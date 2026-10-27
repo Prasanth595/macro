@@ -153,7 +153,7 @@ export function LibraryUpdatesDialog(props: {
             <Show when={props.canEdit}>
               <div class="flex justify-end">
                 <Button
-                  variant="accent"
+                  variant="primary"
                   size="sm"
                   data-testid="fig-library-update-all"
                   disabled={props.updating || props.updates.length === 0}

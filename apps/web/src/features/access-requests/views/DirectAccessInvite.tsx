@@ -34,7 +34,7 @@ export function DirectAccessInvite(props: {
         </TextField>
         <Button
           type="submit"
-          variant="accent"
+          variant="primary"
           disabled={
             props.source.busy() ||
             !props.source.state()?.canReview ||

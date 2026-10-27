@@ -105,7 +105,7 @@ export function BotCreationResult(props: {
       </div>
 
       <div class="mt-8 flex justify-end border-t border-edge-muted pt-4">
-        <Button type="button" variant="accent" size="sm" onClick={props.onDone}>
+        <Button type="button" variant="primary" size="sm" onClick={props.onDone}>
           Done
         </Button>
       </div>

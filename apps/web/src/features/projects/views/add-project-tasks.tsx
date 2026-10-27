@@ -106,7 +106,7 @@ export function AddProjectTasks(props: { project: ProjectDetail }) {
             </Button>
             <Button
               size="sm"
-              variant="accent"
+              variant="primary"
               disabled={saving() || !selected().size}
               onClick={() => fireAndForget(add(), 'projects')}
             >

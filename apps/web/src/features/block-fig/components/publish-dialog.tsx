@@ -125,7 +125,7 @@ export function PublishDialog(props: {
                 Cancel
               </Button>
               <Button
-                variant="accent"
+                variant="primary"
                 size="sm"
                 data-testid="fig-publish-confirm"
                 disabled={props.publishing || props.status.changes.length === 0}

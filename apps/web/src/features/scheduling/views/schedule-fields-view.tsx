@@ -287,7 +287,7 @@ export function ScheduleFields(props: {
                                 Cancel
                               </Button>
                               <Button
-                                variant="accent"
+                                variant="primary"
                                 size="sm"
                                 disabled={!draft().ranges}
                                 onClick={apply}

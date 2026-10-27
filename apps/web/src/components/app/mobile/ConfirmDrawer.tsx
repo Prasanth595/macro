@@ -17,7 +17,7 @@ export function ConfirmDrawer(props: ConfirmDialogProps) {
   const confirmVariant = (): ButtonVariant => {
     if (props.tone === 'danger') return 'danger';
     if (props.tone === 'success') return 'success';
-    return 'accent';
+    return 'primary';
   };
   return (
     <MobileDrawer

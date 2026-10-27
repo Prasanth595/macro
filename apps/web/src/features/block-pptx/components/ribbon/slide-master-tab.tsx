@@ -202,7 +202,7 @@ export function SlideMasterTab(props: { master: MasterView }) {
         <RibbonTextButton
           aria-label="Close Master View"
           tooltip="Close Master View: back to editing slides"
-          variant="accent"
+          variant="primary"
           data-testid="pptx-master-close"
           onClick={() => fireAndForget(m.close(), 'pptx-editor')}
         >

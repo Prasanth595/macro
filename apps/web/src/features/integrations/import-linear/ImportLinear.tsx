@@ -345,7 +345,7 @@ export default function ImportLinear() {
       </div>
 
       <div class="border-t border-edge p-4 flex items-center gap-3 shrink-0">
-        <Button variant="accent" onClick={runImport} disabled={!canImport()}>
+        <Button variant="primary" onClick={runImport} disabled={!canImport()}>
           Import tasks
         </Button>
         <Show when={runningProgress()}>

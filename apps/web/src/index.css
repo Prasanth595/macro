@@ -716,10 +716,11 @@ body.tauri-ios {
 /* Reset on each theme scope so previews resolve their own palette inputs. */
 :root,
 [data-theme-light] {
-  --button-primary-bg: color-mix(in oklch, white 90%, var(--color-panel));
-  --button-primary-hover: color-mix(in srgb, var(--button-primary-bg) 82%, var(--color-panel));
-  --button-primary-pressed: color-mix(in srgb, var(--button-primary-bg) 72%, var(--color-panel));
-  --button-primary-ink: var(--color-page);
+  --button-primary-bg: var(--color-accent);
+  --button-primary-ink: white;
+  --button-primary-state-mix: black;
+  --button-primary-hover: color-mix(in srgb, var(--button-primary-bg) 82%, var(--button-primary-state-mix));
+  --button-primary-pressed: color-mix(in srgb, var(--button-primary-bg) 72%, var(--button-primary-state-mix));
   --button-focus: var(--color-edge-focus, var(--color-accent));
 
   --button-secondary-bg: oklch(1 0 0 / 8%);
@@ -731,11 +732,6 @@ body.tauri-ios {
   --button-tertiary-hover: oklch(1 0 0 / 10%);
   --button-tertiary-pressed: oklch(1 0 0 / 14%);
 
-  /* JavaScript selects only the contrasting accent ink and its inverse tint. */
-  --button-accent-ink: white;
-  --button-accent-state-mix: black;
-  --button-accent-hover: color-mix(in srgb, var(--color-accent) 82%, var(--button-accent-state-mix));
-  --button-accent-pressed: color-mix(in srgb, var(--color-accent) 72%, var(--button-accent-state-mix));
   --button-danger-bg: oklch(from var(--color-failure) l c h / 10%);
   --button-danger-hover: oklch(from var(--color-failure) l c h / 26%);
   --button-danger-pressed: oklch(from var(--color-failure) l c h / 32%);
@@ -749,8 +745,6 @@ body.tauri-ios {
 }
 
 [data-theme-light='true'] {
-  --button-primary-bg: color-mix(in oklch, black 90%, var(--color-panel));
-
   /* White neutral faces retain black shading for hover and pressed states. */
   --button-secondary-bg: white;
   --button-secondary-hover: color-mix(in srgb, white, black 4%);
@@ -785,9 +779,6 @@ body.tauri-ios {
   --color-button-tertiary-bg: var(--button-tertiary-bg);
   --color-button-tertiary-hover: var(--button-tertiary-hover);
   --color-button-tertiary-pressed: var(--button-tertiary-pressed);
-  --color-button-accent-ink: var(--button-accent-ink);
-  --color-button-accent-hover: var(--button-accent-hover);
-  --color-button-accent-pressed: var(--button-accent-pressed);
   --color-button-danger-bg: var(--button-danger-bg);
   --color-button-danger-hover: var(--button-danger-hover);
   --color-button-danger-pressed: var(--button-danger-pressed);

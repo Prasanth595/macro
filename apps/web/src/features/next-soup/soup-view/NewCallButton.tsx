@@ -123,7 +123,7 @@ export function NewCallButton(props: { presentation?: 'sidebar' | 'toolbar' }) {
                 />
                 <div class="flex justify-end">
                   <Button
-                    variant="accent"
+                    variant="primary"
                     size="sm"
                     disabled={isSubmitting()}
                     onClick={handleStartCall}

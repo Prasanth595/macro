@@ -610,7 +610,7 @@ function TourNext(props: TourButtonProps & { doneLabel?: JSX.Element }) {
     local.children === undefined && !(tour.isLast() && local.doneLabel);
   return (
     <Button
-      variant="accent"
+      variant="primary"
       aria-label={iconOnly() ? 'Next step' : undefined}
       tooltip={iconOnly() ? 'Next step' : undefined}
       size="icon-sm"

@@ -57,7 +57,7 @@ function SaveCancelButtons(props: {
     <div class="flex items-center gap-1 shrink-0">
       <Tooltip label="Save">
         <Button
-          variant="accent"
+          variant="primary"
           size="icon-sm"
           disabled={props.saveDisabled}
           onClick={props.onSave}

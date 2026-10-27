@@ -74,7 +74,7 @@ export function DocxMarginLayout(props: {
             aria-label="Comment"
             tooltip="Comment"
             size="icon-md"
-            variant="accent"
+            variant="primary"
             data-docx-comment-button
             onPointerDown={(event: PointerEvent) => event.preventDefault()}
             onMouseDown={(event: MouseEvent) => event.preventDefault()}

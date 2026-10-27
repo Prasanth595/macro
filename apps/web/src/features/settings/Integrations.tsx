@@ -279,7 +279,7 @@ function ServerRow(props: { server: ServerResponse }) {
           </span>
         </Show>
         <Button
-          variant="accent"
+          variant="primary"
           size="sm"
           disabled={authMutation.isPending}
           onClick={handleAuth}

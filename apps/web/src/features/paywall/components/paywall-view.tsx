@@ -93,7 +93,7 @@ export function PaywallView(props: {
         >
           Dismiss
         </Button>
-        <Button size="sm" variant="accent" onClick={props.onManagePlan}>
+        <Button size="sm" variant="primary" onClick={props.onManagePlan}>
           Manage plan
         </Button>
       </footer>

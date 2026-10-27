@@ -100,7 +100,7 @@ export function MeetingCallHeading(props: {
               }}
             />
             <Button
-              variant="accent"
+              variant="primary"
               type="submit"
               disabled={saving() || !draft().trim()}
             >

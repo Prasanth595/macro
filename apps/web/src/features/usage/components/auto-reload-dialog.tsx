@@ -155,7 +155,7 @@ export function AutoReloadDialog(props: {
               </Button>
             </Show>
             <Button
-              variant="accent"
+              variant="primary"
               disabled={props.disabled || props.pending || props.invalid}
               onClick={props.onSave}
             >

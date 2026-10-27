@@ -269,7 +269,7 @@ export function TagEditorDialog(props: {
               Cancel
             </Button>
             <Button
-              variant="accent"
+              variant="primary"
               class="gap-3 "
               disabled={!canSubmit() || pending()}
               onClick={submit}

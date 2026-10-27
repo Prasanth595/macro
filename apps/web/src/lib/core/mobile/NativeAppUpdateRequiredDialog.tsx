@@ -63,7 +63,7 @@ export function NativeAppUpdateRequiredDialog(props: {
             </Show>
             <Show when={props.onRestart}>
               <Button
-                variant="accent"
+                variant="primary"
                 size="sm"
                 onClick={() => props.onRestart?.()}
               >

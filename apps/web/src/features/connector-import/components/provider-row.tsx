@@ -61,7 +61,7 @@ export function ProviderRow(props: {
         }
       >
         <Button
-          variant="accent"
+          variant="primary"
           size="sm"
           disabled={props.disabled}
           aria-label={`Import from ${props.provider.name}`}

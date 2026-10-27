@@ -59,7 +59,7 @@ export function ApiKeys() {
           disabled={!atLimit()}
         >
           <Button
-            variant="accent"
+            variant="primary"
             size="sm"
             disabled={createDisabled()}
             onClick={openCreate}
@@ -107,7 +107,7 @@ export function ApiKeys() {
                     </div>
                     <Button
                       class="mt-4"
-                      variant="accent"
+                      variant="primary"
                       size="sm"
                       onClick={openCreate}
                     >
@@ -326,7 +326,7 @@ function CreateApiKeyDialog(props: {
                     Cancel
                   </Button>
                   <Button
-                    variant="accent"
+                    variant="primary"
                     size="sm"
                     disabled={props.pending}
                     onClick={() => fireAndForget(submit(), 'api-key-settings')}
@@ -402,7 +402,7 @@ function ConfirmDialog(props: {
               Cancel
             </Button>
             <Button
-              variant={props.danger ? 'danger' : 'accent'}
+              variant={props.danger ? 'danger' : 'primary'}
               disabled={props.pending}
               onClick={props.onConfirm}
             >

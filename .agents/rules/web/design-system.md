@@ -51,7 +51,7 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   (`[&_button]:size-8`); use an explicit `icon-*` size for icon actions. Put glyph
   sizing on the rendered icon, not on Button or ancestor SVG selectors. Enforced
   for wrappers by ast-grep `tsx-no-descendant-button-styles`, warning.
-- Use `variant="accent"` for the main create, save, submit, send, invite, approve, or continue action; keep the shared New launcher (`ViewCreateButton`) neutral with `variant="secondary" finish="raised"`, and retain neutral, ghost, and danger variants for their own roles.
+- Use `variant="primary"` for the main create, save, submit, send, invite, approve, or continue action. Primary uses the theme accent and replaces the separate accent variant and inverse neutral primary. Keep the shared New launcher (`ViewCreateButton`) neutral with `variant="secondary" finish="raised"`, and retain secondary, outline, ghost, and danger variants for their own roles.
 - **FE-64** Components own their state treatments: desktop Tabs share a flat rounded track with an inset selected pill;
   Button uses the semantic pressed fill for its variant. Mark action toggles with
   `aria-pressed`, and expansion triggers with `aria-expanded`. Do not restyle

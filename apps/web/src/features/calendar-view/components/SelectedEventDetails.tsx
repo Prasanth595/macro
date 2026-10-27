@@ -170,7 +170,7 @@ function EveryoneElseDeclinedNotice(props: {
               <Button variant="ghost" size="sm" onClick={props.onDelete}>
                 Delete
               </Button>
-              <Button variant="accent" size="sm" onClick={props.onReschedule}>
+              <Button variant="primary" size="sm" onClick={props.onReschedule}>
                 Reschedule
               </Button>
             </div>

@@ -76,7 +76,7 @@ export function RenameProjectDialog(props: {
             >
               Cancel
             </Button>
-            <Button type="submit" variant="accent" disabled={!canSubmit()}>
+            <Button type="submit" variant="primary" disabled={!canSubmit()}>
               {pending() ? 'Saving…' : 'Save name'}
             </Button>
           </ActionDialogShell.Footer>

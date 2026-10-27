@@ -93,7 +93,7 @@ export function AddCustomMcpDialog(props: {
               Cancel
             </Button>
             <Button
-              variant="accent"
+              variant="primary"
               size="sm"
               disabled={
                 !name().trim() || !url().trim() || addMutation.isPending

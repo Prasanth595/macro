@@ -111,7 +111,7 @@ function CommentBox(props: {
     <Button
       aria-label={props.submitLabel}
       size={props.compact ? 'icon-sm' : 'sm'}
-      variant={props.compact ? 'ghost' : 'accent'}
+      variant={props.compact ? 'ghost' : 'primary'}
       tooltip={`${props.submitLabel} (Ctrl+Enter)`}
       disabled={!text().trim()}
       data-testid={props.submitTestId}

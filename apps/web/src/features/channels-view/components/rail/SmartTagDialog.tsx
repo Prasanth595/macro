@@ -150,7 +150,7 @@ function SmartTagDialog(props: SmartTagDialogProps & ManagedDialogProps) {
             </Button>
             <Button
               type="submit"
-              variant="accent"
+              variant="primary"
               class="not-touch:h-[33.75px] not-touch:px-[15px]"
               disabled={!canSubmit() || saving()}
             >

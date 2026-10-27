@@ -76,7 +76,7 @@ export function InviteLinksPortal() {
               body="This page is for Macro staff."
               action={
                 <Button
-                  variant="accent"
+                  variant="primary"
                   size="lg"
                   onClick={() =>
                     navigate(
@@ -287,7 +287,7 @@ function CreateLinkForm(props: { onCreated: (link: GtmInviteLink) => void }) {
       </div>
       <div class="flex items-center justify-end gap-3">
         <Button
-          variant="accent"
+          variant="primary"
           size="lg"
           type="submit"
           disabled={!canSubmit()}

@@ -46,7 +46,7 @@ export function SpellingPane(props: {
             <span>Spell check complete. You're good to go!</span>
             <Button
               size="sm"
-              variant="accent"
+              variant="primary"
               data-testid="pptx-spelling-ok"
               onClick={props.onClose}
             >
@@ -134,7 +134,7 @@ export function SpellingPane(props: {
           <div class="flex gap-1">
             <Button
               size="sm"
-              variant="accent"
+              variant="primary"
               disabled={noAction() || !p.choice()}
               data-testid="pptx-spelling-change"
               onClick={() => fireAndForget(p.change(), 'pptx-spelling')}

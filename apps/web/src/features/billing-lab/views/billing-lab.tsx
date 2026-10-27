@@ -407,7 +407,7 @@ export function BillingLabView(props: {
                 </Button>
               </div>
               <Button
-                variant="accent"
+                variant="primary"
                 size="sm"
                 disabled={lab.pending()}
                 onClick={lab.renew}
@@ -582,7 +582,7 @@ export function BillingLabView(props: {
                 Cancel
               </Button>
               <Button
-                variant="accent"
+                variant="primary"
                 disabled={lab.pending()}
                 onClick={() => fireAndForget(completePayment(), 'billing-lab')}
               >

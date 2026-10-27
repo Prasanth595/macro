@@ -450,7 +450,7 @@ export function FloatingLinkMenu(props: {
               <div class="flex items-center gap-0.5 ease-in-out">
                 <Button
                   onClick={openInNewTab}
-                  variant="accent"
+                  variant="primary"
                   size="icon-sm"
                   tooltip="Open in new tab"
                 >
@@ -518,7 +518,7 @@ export function FloatingLinkMenu(props: {
           >
             <Button
               onClick={handleSubmit}
-              variant="accent"
+              variant="primary"
               size="sm"
               tooltip="Apply link changes"
               disabled={!pendingLinkInfo()?.url && !pendingLinkInfo()?.linkText}

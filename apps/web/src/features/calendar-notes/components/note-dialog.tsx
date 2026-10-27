@@ -216,7 +216,7 @@ export function NoteDialog(props: {
             Cancel
           </Button>
           <Button
-            variant={props.kind === 'unlink' ? 'danger' : 'accent'}
+            variant={props.kind === 'unlink' ? 'danger' : 'primary'}
             size="md"
             onClick={props.onSave}
             disabled={

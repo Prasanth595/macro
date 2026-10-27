@@ -170,7 +170,7 @@ export function EventReplacementDialog(props: {
                               Check progress
                             </Button>
                             <Button
-                              variant="accent"
+                              variant="primary"
                               disabled={state.pending()}
                               onClick={() =>
                                 fireAndForget(

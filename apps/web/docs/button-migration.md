@@ -17,9 +17,9 @@ Keep Button-specific helpers and materials within the app's shared UI and theme 
 
 ## API changes
 
-- Variants: `primary` (default), `secondary`, `outline`, `ghost`, `accent`, `danger`, `success`, and `link`.
+- Variants: `primary` (default), `secondary`, `outline`, `ghost`, `danger`, `success`, and `link`.
 - `finish="raised"` is the only supported finish. Omit `finish` for plain styling; gradient and glass finishes are removed.
-- Use `accent` for the main action: create, save, submit, send, invite, approve, connect, and continue. Keep the shared New launcher (`ViewCreateButton`) neutral with `variant="secondary" finish="raised"`; opening a creation menu is not the final create action. Keep `primary` and `secondary` for neutral actions, `ghost` for utility/cancel controls, and `danger` for destructive actions. Do not blindly map legacy `strong` buttons to `secondary`.
+- Use `primary` for the main action: create, save, submit, send, invite, approve, connect, and continue. Primary now uses the solid theme accent; the separate accent variant and inverse neutral primary are removed. Keep the shared New launcher (`ViewCreateButton`) neutral with `variant="secondary" finish="raised"`; opening a creation menu is not the final create action. Keep secondary/outline for neutral actions, ghost for utility/cancel controls, and danger for destructive actions.
 - Secondary uses a transparent border in its plain and raised states. Keep fills, shadows, geometry, and keyboard focus unchanged. The outline variant retains its border.
 - Sizes: `xs` through `xl`, plus `icon-xs` through `icon-xl`. Replace `icon-composer` with `icon-md`.
 - Use explicit `icon-*` sizes instead of `square`.
@@ -62,11 +62,11 @@ Tabs reuse Button's height, typography, and icon size classes for `xs` through `
 
 Button materials live in `src/index.css`: fills, hover/pressed colors, borders, and optional finish shadows use the existing palette inputs and reset at every `[data-theme-light]` scope. Light and dark previews resolve their own materials rather than inheriting a parent theme's computed values. Keep appearance changes in CSS, not in the theme renderer.
 
-`buttonAccentVars` in `features/theme/utils/buttonTheme.ts` only chooses contrasting solid-accent text and its inverse state tint from the resolved accent. The root renderer and subtree previews supply those two variables; all mixing remains in CSS. Live color edits also refresh the existing light/dark scope marker. Derived values do not enter persisted theme data.
+`buttonAccentVars` in `features/theme/utils/buttonTheme.ts` only chooses `button-primary-ink` and `button-primary-state-mix` from the resolved accent. The root renderer and subtree previews supply those two variables; all mixing remains in CSS. Live color edits also refresh the existing light/dark scope marker. Derived values do not enter persisted theme data.
 
 Shared neutral borders use `border-primary`, `border-secondary`, `border-tertiary`, and `divider`: 16%, 12%, 8%, and 4% opacity respectively, white in dark mode and black in light mode. Outline Buttons use `border-border-secondary` in both modes. Secondary Buttons and their shared ButtonGroup frame use that border only in light mode; dark mode keeps transparent border geometry. Dark secondary raised finishes keep the contact shadow without the perimeter. Group separators retain `bg-divider`. The optional light raised perimeter also uses the secondary role. These CSS tokens reset on every theme scope and stay independent of text colors; existing `edge-*` consumers and focus/status treatments are unchanged. This replaces the button-only dark-border experiment without broadening the migration to unrelated controls.
 
-The Create menu's monochrome submit action uses the shared `primary` variant so its background and text contrast stay paired; do not locally override accent colors while leaving the derived accent text unchanged.
+The Create menu's submit action uses the shared accent-colored `primary` variant so its background and text contrast stay paired; do not locally override accent colors while leaving the derived accent text unchanged.
 
 This keeps the current button materials without a second JavaScript material recipe. Variants, interaction selectors, and optional finish selection remain in the shared Button recipe. Checks and visual review remain paused.
 
@@ -79,11 +79,11 @@ This keeps the current button materials without a second JavaScript material rec
 - Channel header and Email Signal/Noise tabs use flat `md` pills with 14px text and 12px horizontal padding. The desktop channel strip retains its measured 4px end gutter for clipping clearance; the gutter is desktop-only.
 - Wrap ordinary dropdown action lists in `Dropdown.Group` so they receive the shared menu inset. CRM creation/pipeline menus and routine action menus now follow that structure.
 - Keep the Tasks New menu inside a padded `Dropdown.Group`, with gaps between creation actions. Pass Share's tooltip to `HeaderActionButton` directly so no extra wrapper interrupts its full-height group segment.
-- Task composer expand and close use ghost `icon-md` controls with 16px icons; Clear Draft uses secondary `xs`. Attach, search clear/close, and split close remain ghost utilities. Task creation and the share menu's submit action use accent styling; split close controls use compact icon sizing.
-- Project creation follows the task composer's control hierarchy: ghost `icon-md` expand/close actions, secondary `xs` Clear Draft and property pills, a compact sharing toggle, and an accent `sm` Create Project action. Both composers keep the shared EntityComposer layout and existing draft/submission behavior.
+- Task composer expand and close use ghost `icon-md` controls with 16px icons; Clear Draft uses secondary `xs`. Attach, search clear/close, and split close remain ghost utilities. Task creation and the share menu's submit action use primary styling; split close controls use compact icon sizing.
+- Project creation follows the task composer's control hierarchy: ghost `icon-md` expand/close actions, secondary `xs` Clear Draft and property pills, a compact sharing toggle, and a primary `sm` Create Project action. Both composers keep the shared EntityComposer layout and existing draft/submission behavior.
 - Project overview properties use the task view's wrapping row and secondary `xs` pills. Keep the project's current status, priority, assignee, and due-date fields, ordering, permissions, and editors; do not import task-specific state or hide project fields.
-- Email composer and reply utility actions (discard, attach, formatting, Cc/Bcc, Back, and schedule controls) use ghost styling; Send stays accent-styled. Reply trash and attachment icons have explicit 16px desktop / 24px touch sizing while preserving their button hit areas.
-- Folder creation keeps expand and close as ghost utility actions; the final Create Folder action retains its accent treatment.
+- Email composer and reply utility actions (discard, attach, formatting, Cc/Bcc, Back, and schedule controls) use ghost styling; Send stays primary-styled. Reply trash and attachment icons have explicit 16px desktop / 24px touch sizing while preserving their button hit areas.
+- Folder creation keeps expand and close as ghost utility actions; the final Create Folder action uses the primary treatment.
 - Search clear/close buttons use ghost `icon-xs` controls with 14px desktop icons; the Button touch minimum remains unchanged.
 - View-sidebar Show/Hide controls use ghost styling with no persistent active fill while the sidebar is open.
 - Keep side-panel Add tags, Add property, and duplicate Dismiss / Dismiss all actions at `xs` (24px minimum height, `text-xs`); use `icon-xs` for the icon-only Add tags trigger. Let the shared size recipe own height, padding, and typography instead of fixed-height overrides. Preserve the shared touch minimum and other property/tag consumers' sizes.
@@ -95,7 +95,7 @@ Calendar notes, calendar attachments, shared-event actions, and file-download co
 
 ## Caller variant audit
 
-Omitted variants were reviewed by action role without changing Button's global default. Utility, navigation, dismiss, and local remove actions now use ghost; final submit actions use accent; neutral launchers and pagination use outline. Permanent membership removals use danger. Caller-controlled pass-through wrappers remain intact; group inheritance now requires explicit `ButtonGroup.Button` composition. Header actions explicitly use ghost because their group frame disappears on touch devices. Existing sizes and handlers are unchanged by the variant audit. Checks and browser verification remain paused.
+Omitted variants were reviewed by action role without changing Button's global default. Utility, navigation, dismiss, and local remove actions now use ghost; final submit actions use primary; neutral launchers and pagination use outline. Permanent membership removals use danger. Caller-controlled pass-through wrappers remain intact; group inheritance now requires explicit `ButtonGroup.Button` composition. Header actions explicitly use ghost because their group frame disappears on touch devices. Existing sizes and handlers are unchanged by the variant audit. Checks and browser verification remain paused.
 
 ## Development and validation
 

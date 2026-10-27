@@ -168,7 +168,7 @@ function UploadedWorkbookPreview(props: {
         </span>
         <Button
           size="sm"
-          variant="accent"
+          variant="primary"
           disabled={!!actions.pending()}
           onClick={() => fireAndForget(actions.edit(), 'uploaded-workbook')}
         >

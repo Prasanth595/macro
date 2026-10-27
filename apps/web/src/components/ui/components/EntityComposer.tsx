@@ -90,7 +90,7 @@ function Submit(props: ButtonProps & { hasContent: boolean }) {
   return (
     <Button
       {...rest}
-      variant={local.variant ?? 'accent'}
+      variant={local.variant ?? 'primary'}
       class={local.class}
       tooltip={
         local.tooltip ?? {

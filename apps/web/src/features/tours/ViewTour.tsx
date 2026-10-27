@@ -180,7 +180,7 @@ function ViewTourCard(props: ViewTourProps) {
         <Tour.Close variant="ghost" size="md">
           Dismiss
         </Tour.Close>
-        <Tour.Next variant="accent" size="md" doneLabel="Got it">
+        <Tour.Next variant="primary" size="md" doneLabel="Got it">
           Next
         </Tour.Next>
       </div>

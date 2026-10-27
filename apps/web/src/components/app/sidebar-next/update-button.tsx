@@ -86,7 +86,7 @@ export function UpdateButton(props: { update: () => AppUpdate }) {
           </Popover.Description>
           <div class="mt-3 flex justify-end">
             <Button
-              variant="accent"
+              variant="primary"
               size="sm"
               disabled={props.update().busy}
               onClick={() => props.update().apply()}

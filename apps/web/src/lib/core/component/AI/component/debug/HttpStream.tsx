@@ -173,7 +173,7 @@ export default function HttpStreamDebug() {
           <div class="flex gap-2">
             <Button
               onClick={sendMessage}
-              variant="accent"
+              variant="primary"
               disabled={isStreaming()}
             >
               {isStreaming() ? 'Streaming...' : 'Send Message'}

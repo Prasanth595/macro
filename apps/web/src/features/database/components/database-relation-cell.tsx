@@ -474,7 +474,7 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
                   {saving() ? 'Saving…' : props.source.name()}
                 </span>
                 <Button
-                  variant="accent"
+                  variant="primary"
                   size="xs"
                   onClick={() => fireAndForget(finish(), 'database')}
                 >

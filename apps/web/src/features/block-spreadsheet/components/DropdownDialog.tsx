@@ -367,7 +367,7 @@ function DropdownForm(props: {
           <Button variant="ghost" type="button" onClick={props.onClose}>
             Cancel
           </Button>
-          <Button type="submit" variant="accent">
+          <Button type="submit" variant="primary">
             Save
           </Button>
         </div>
