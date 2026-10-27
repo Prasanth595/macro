@@ -147,6 +147,9 @@ function PipelineRecords(props: {
     return stored?.layout.kind === 'board' ? stored.id : undefined;
   });
   const boardPositions: BoardPositions = {
+    get viewId() {
+      return view().id;
+    },
     state: () => {
       if (!selectedView()) return { kind: 'ready', positions: [] };
       if (queryReadyGate(positions))

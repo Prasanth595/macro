@@ -5,8 +5,8 @@ import UserIcon from '@icon/system/regular/user.svg';
 import { queryReadyGate } from '@queries/gate';
 import type { CardPosition } from '@service-storage/generated/schemas/cardPosition';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
-import { errAsync, okAsync } from 'neverthrow';
-import { createSignal } from 'solid-js';
+import { errAsync, okAsync, ResultAsync } from 'neverthrow';
+import { createSignal, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import { DatabaseMentionLabel } from '../../database/components/database-mention-label';
 import type {
@@ -127,6 +127,11 @@ const client = new QueryClient({
 });
 
 function BoardFixture() {
+  const switching = new URLSearchParams(location.search).get('switch');
+  const [selectedViewId, setSelectedViewId] = createSignal('board');
+  const [finishMove, setFinishMove] = createSignal<() => void>();
+  const positionStorage = (id: string) =>
+    id === 'board' ? 'crm-board-positions' : `crm-board-positions:${id}`;
   const savedRows = sessionStorage.getItem('crm-board-rows');
   const [snapshot, setSnapshot] = createSignal<DatabaseRowsSnapshot>(
     savedRows
@@ -178,15 +183,15 @@ function BoardFixture() {
     {
       client,
       storage: {
-        getCrmPipelineViewPositions: async () => {
-          const saved = sessionStorage.getItem('crm-board-positions');
+        getCrmPipelineViewPositions: async (_pipeline, viewId) => {
+          const saved = sessionStorage.getItem(positionStorage(viewId));
           const positions: CardPosition[] = saved ? JSON.parse(saved) : [];
           return okAsync(positions);
         },
       },
     },
     'sales',
-    () => 'board'
+    selectedViewId
   );
   const source: DatabaseRowsSource = {
     columns: () => columns,
@@ -226,6 +231,15 @@ function BoardFixture() {
     <main class="flex h-screen flex-col bg-page text-ink">
       <div class="flex items-center gap-3 px-5 py-3 border-b border-edge-muted">
         <h1 class="text-sm font-semibold">Sales pipeline</h1>
+        <Show when={switching}>
+          <button onClick={() => setSelectedViewId('board')}>Board A</button>
+          <button onClick={() => setSelectedViewId('other-board')}>
+            Board B
+          </button>
+          <button disabled={!finishMove()} onClick={() => finishMove()?.()}>
+            Finish move
+          </button>
+        </Show>
         <output aria-label="Opened record">{opened()}</output>
         <output aria-label="New record stage">{composing()}</output>
       </div>
@@ -253,67 +267,94 @@ function BoardFixture() {
           />
         )}
         boardPositions={{
+          get viewId() {
+            return selectedViewId();
+          },
           state: () =>
             queryReadyGate(positions)
               ? { kind: 'ready', positions: positions.data }
               : { kind: 'loading' },
           move: (move) => {
+            const origin = selectedViewId();
             const current: CardPosition[] = queryReadyGate(positions)
               ? positions.data
               : [];
-            const input = boardInput(table, snapshot().rows, view);
-            const board = engine.board(
-              input.catalog,
-              input.view,
-              input.outcome,
-              current
-            );
-            const lane = board.lanes.find(
-              (lane) => JSON.stringify(lane.key) === JSON.stringify(move.lane)
-            );
-            const rows = (lane?.cards ?? []).filter((id) => id !== move.row);
-            rows.splice(
-              move.after ? rows.indexOf(move.after) : rows.length,
-              0,
-              move.row
-            );
-            let key: string | null = null;
-            const saved = rows.map((row) => {
-              key = engine.keyBetween(key, null);
-              return { row, lane: move.lane, position: key };
-            });
-            const next = [
-              ...current.filter((position) => !rows.includes(position.row)),
-              ...saved,
-            ];
-            sessionStorage.setItem('crm-board-positions', JSON.stringify(next));
-            const label =
-              columns[1].options.find(
-                (option) =>
-                  move.lane.kind === 'option' && option.id === move.lane.id
-              )?.label ?? null;
-            const updated = {
-              ...snapshot(),
-              rows: snapshot().rows.map((row) =>
-                row.rowId === move.row
-                  ? {
-                      ...row,
-                      cells: {
-                        ...row.cells,
-                        '00000000-0000-0000-0000-000000000002': label,
-                      },
-                    }
-                  : row
-              ),
-              version: (snapshot().version ?? 0) + 1,
+            const commit = () => {
+              const input = boardInput(table, snapshot().rows, view);
+              const board = engine.board(
+                input.catalog,
+                input.view,
+                input.outcome,
+                current
+              );
+              const lane = board.lanes.find(
+                (lane) => JSON.stringify(lane.key) === JSON.stringify(move.lane)
+              );
+              const rows = (lane?.cards ?? []).filter((id) => id !== move.row);
+              rows.splice(
+                move.after ? rows.indexOf(move.after) : rows.length,
+                0,
+                move.row
+              );
+              let key: string | null = null;
+              const saved = rows.map((row) => {
+                key = engine.keyBetween(key, null);
+                return { row, lane: move.lane, position: key };
+              });
+              const next = [
+                ...current.filter((position) => !rows.includes(position.row)),
+                ...saved,
+              ];
+              sessionStorage.setItem(
+                positionStorage(origin),
+                JSON.stringify(next)
+              );
+              const label =
+                columns[1].options.find(
+                  (option) =>
+                    move.lane.kind === 'option' && option.id === move.lane.id
+                )?.label ?? null;
+              const updated = {
+                ...snapshot(),
+                rows: snapshot().rows.map((row) =>
+                  row.rowId === move.row
+                    ? {
+                        ...row,
+                        cells: {
+                          ...row.cells,
+                          '00000000-0000-0000-0000-000000000002': label,
+                        },
+                      }
+                    : row
+                ),
+                version: (snapshot().version ?? 0) + 1,
+              };
+              setSnapshot(updated);
+              sessionStorage.setItem('crm-board-rows', JSON.stringify(updated));
+              client.setQueryData(
+                crmKeys.pipelinePositions('sales', origin).queryKey,
+                next
+              );
+              return { positions: saved, tableVersion: updated.version };
             };
-            setSnapshot(updated);
-            sessionStorage.setItem('crm-board-rows', JSON.stringify(updated));
-            client.setQueryData(
-              crmKeys.pipelinePositions('sales', 'board').queryKey,
-              next
+            if (!switching) return okAsync(commit());
+            const pending = Promise.withResolvers<void>();
+            setFinishMove(() => () => {
+              setFinishMove(undefined);
+              pending.resolve();
+            });
+            return ResultAsync.fromSafePromise(pending.promise).andThen(() =>
+              switching === 'refusal'
+                ? errAsync({
+                    kind: 'ops' as const,
+                    error: {
+                      code: 'INVALID_OP' as const,
+                      message: 'Refused',
+                      refusal: null,
+                    },
+                  })
+                : okAsync(commit())
             );
-            return okAsync({ positions: saved, tableVersion: updated.version });
           },
         }}
       />

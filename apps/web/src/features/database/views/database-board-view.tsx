@@ -65,6 +65,8 @@ type BoardLayout = Extract<ViewLayout, { kind: 'board' }>;
 
 /** Where a board's card places come from, and how a move is written. */
 export type BoardPositions = {
+  /** Stable view identity; switching it retires pending visual moves and sort prompts. */
+  viewId?: string;
   state: Accessor<BoardPositionsState>;
   setPositions?: (
     change: (positions: CardPosition[]) => CardPosition[]
@@ -151,11 +153,15 @@ export function DatabaseBoardView(props: DatabaseBoardViewProps) {
         }
       >
         {(shown) => (
-          <GroupedBoard
-            {...props}
-            layout={shown().layout}
-            groupColumn={shown().group}
-          />
+          <Show when={props.positions.viewId ?? 'local'} keyed>
+            {(_viewId) => (
+              <GroupedBoard
+                {...props}
+                layout={shown().layout}
+                groupColumn={shown().group}
+              />
+            )}
+          </Show>
         )}
       </Show>
     </>

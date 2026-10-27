@@ -176,3 +176,58 @@ test.describe('touch scrolling', () => {
     await cdp.detach();
   });
 });
+
+for (const settlement of ['success', 'refusal']) {
+  test(`switches boards during a pending reorder before ${settlement}`, async ({
+    page,
+  }) => {
+    await page.goto(
+      `/src/features/crm/browser-test/board.html?switch=${settlement}`
+    );
+    const lane = page.getByRole('region', {
+      name: 'New lead lane',
+      exact: true,
+    });
+    const cards = lane.locator('[data-kanban-card]');
+    await expect(cards).toHaveCount(2);
+    const original = await cards.evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute('data-kanban-card'))
+    );
+    const moving = cards.last();
+    await moving.hover();
+    const from = await moving
+      .getByRole('button', { name: /^Drag / })
+      .boundingBox();
+    const to = await cards.first().boundingBox();
+    if (!from || !to) throw new Error('Cards are not laid out');
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x + 30, to.y + 5, { steps: 15 });
+    await page.mouse.up();
+    await expect(
+      page.getByRole('button', { name: 'Finish move' })
+    ).toBeEnabled();
+    await expect(cards.first()).toHaveAttribute(
+      'data-kanban-card',
+      original[1]!
+    );
+    await page.getByRole('button', { name: 'Board B', exact: true }).click();
+    await expect(cards.first()).toHaveAttribute(
+      'data-kanban-card',
+      original[0]!
+    );
+    await page.getByRole('button', { name: 'Finish move' }).click();
+    await expect(
+      page.getByRole('button', { name: 'Finish move' })
+    ).toBeDisabled();
+    await expect(cards.first()).toHaveAttribute(
+      'data-kanban-card',
+      original[0]!
+    );
+    await page.getByRole('button', { name: 'Board A', exact: true }).click();
+    await expect(cards.first()).toHaveAttribute(
+      'data-kanban-card',
+      original[settlement === 'success' ? 1 : 0]!
+    );
+  });
+}

@@ -315,7 +315,9 @@ Stored views are everyone's and are written through the pipeline, so changing on
 changes it for all viewers; All records is each viewer's own. A board can move a
 card to another group from its card menu or by dragging, which sets the row's
 grouping cell. Stored boards restore card order after a reload and keep each
-view's positions separate. Card titles wrap long company/contact names, and
+view's positions separate. Switching boards during a save clears the previous
+board's temporary drag placement; the save still completes on its original board.
+Card titles wrap long company/contact names, and
 visible fields show their labels above full-width values; unset fields show a
 dash. Click the title to open its record, edit a field inline, or use the grip
 at the top right to drag the card with a mouse. On touch screens, swipe
