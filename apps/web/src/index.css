@@ -746,8 +746,6 @@ body.tauri-ios {
   /* Negative spread keeps the faint contact shadow beneath the button. */
   --button-shadow: 0 2px 1px -1px oklch(0 0 0 / 10%);
   --button-raised-shadow: 0 0 0 0.4px oklch(0 0 0 / 16%), inset 0 0.4px 0 oklch(1 0 0 / 4.8%), inset 0 0 0 0.4px oklch(1 0 0 / 3.2%), 0 1px 2px oklch(0 0 0 / 6%);
-  --button-outline-highlight: oklch(1 0 0 / 28%);
-  --button-gradient-raised: linear-gradient(180deg, transparent, oklch(0 0 0 / 12%));
 }
 
 [data-theme-light='true'] {
@@ -769,8 +767,6 @@ body.tauri-ios {
 
   --button-shadow: 0 2px 1px -1px oklch(0 0 0 / 5%);
   --button-raised-shadow: 0 0 0 1px var(--border-secondary), inset 0 1px 0 oklch(1 0 0 / 90%), inset 0 0 0 1px oklch(1 0 0 / 60%), 0 1px 2px oklch(0 0 0 / 6%);
-  --button-outline-highlight: oklch(1 0 0 / 75%);
-  --button-gradient-raised: linear-gradient(180deg, transparent, oklch(0 0 0 / 8%));
 }
 @theme inline {
   --color-border-primary: var(--border-primary);
@@ -799,23 +795,11 @@ body.tauri-ios {
   --color-button-success-hover: var(--button-success-hover);
   --color-button-success-pressed: var(--button-success-pressed);
   --color-button-focus: var(--button-focus);
-  --color-button-outline-highlight: var(--button-outline-highlight);
   --shadow-button: var(--button-shadow);
   --shadow-button-raised: var(--button-raised-shadow);
   --spacing-button-control: 2rem;
 }
 
-@utility button-outline-reflection-top {
-  mask-image: radial-gradient(ellipse 80% 120% at 12% 0%, oklch(0 0 0) 0%, transparent 72%);
-}
-
-@utility button-outline-reflection-bottom {
-  mask-image: radial-gradient(ellipse 65% 120% at 88% 100%, oklch(0 0 0) 0%, transparent 72%);
-}
-
-@utility button-gradient-raised {
-  background-image: var(--button-gradient-raised);
-}
 /* Interface languages whose scripts Inter doesn't cover. Latin text keeps the
    default faces; the script's glyphs come from each platform's native UI font
    (macOS, Windows, then Noto on Linux/Android), and `lang` on <html> (set by

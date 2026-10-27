@@ -13,16 +13,9 @@ import {
   type ValidComponent,
 } from 'solid-js';
 import { createButtonActivation } from '../utils/button-activation';
-import {
-  gradientRaisedButtonStyles,
-  raisedButtonStyles,
-} from '../utils/button-finishes';
+import { raisedButtonStyles } from '../utils/button-finishes';
 import { cn } from '../utils/classname';
 import { iconControlSizes, labeledControlSizes } from '../utils/control-sizes';
-import {
-  type OutlineFinish,
-  outlineReflectionStyles,
-} from '../utils/outline-reflection';
 import { createVariants, type VariantProps } from '../utils/variants';
 import { Hotkey } from './Hotkey';
 import { Tooltip } from './Tooltip';
@@ -105,7 +98,7 @@ const buttonStyles = createVariants(
 export type ButtonVariantProps = VariantProps<typeof buttonStyles>;
 export type ButtonVariant = NonNullable<ButtonVariantProps['variant']>;
 export type ButtonSize = NonNullable<ButtonVariantProps['size']>;
-export type ButtonFinish = OutlineFinish | 'raised' | 'gradient-raised';
+export type ButtonFinish = 'raised';
 export type ButtonClassOptions = {
   variant?: ButtonVariant;
   /** Composed rows own their surface states without layering a second button face. */
@@ -127,28 +120,19 @@ const buttonFinishes: Partial<
 > = {
   primary: {
     raised: raisedButtonStyles,
-    'gradient-raised': gradientRaisedButtonStyles,
   },
   secondary: {
     raised: cn(raisedButtonStyles, 'dark-mode:shadow-button'),
-    'gradient-raised': gradientRaisedButtonStyles,
-    'glass-outline': cn(
-      'border-border-secondary/50 dark-mode:border-transparent dark-mode:before:hidden dark-mode:after:hidden',
-      outlineReflectionStyles
-    ),
   },
   outline: { raised: raisedBorderButtonStyles },
   accent: {
     raised: raisedButtonStyles,
-    'gradient-raised': gradientRaisedButtonStyles,
   },
   danger: {
     raised: raisedButtonStyles,
-    'gradient-raised': gradientRaisedButtonStyles,
   },
   success: {
     raised: raisedButtonStyles,
-    'gradient-raised': gradientRaisedButtonStyles,
   },
 };
 

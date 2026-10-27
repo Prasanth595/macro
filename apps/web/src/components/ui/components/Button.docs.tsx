@@ -228,12 +228,6 @@ function FinishesDemo() {
       <Button variant="secondary" finish="raised">
         Raised
       </Button>
-      <Button variant="secondary" finish="gradient-raised">
-        Gradient raised
-      </Button>
-      <Button variant="secondary" finish="glass-outline">
-        Glass outline
-      </Button>
     </div>
   );
 }
@@ -243,7 +237,7 @@ export default defineDoc({
   name: 'Button',
   category: 'Actions',
   description:
-    'Shared action control with semantic materials, explicit icon sizes, optional finishes, and configurable tooltips.',
+    'Shared action control with semantic materials, explicit icon sizes, an optional raised finish, and configurable tooltips.',
   status: 'beta',
   exports: ['Button', 'ButtonGroup'],
   import: "import { Button, ButtonGroup } from '@ui';",
@@ -255,6 +249,6 @@ export default defineDoc({
     { id: 'header', title: 'Header action', render: HeaderDemo, fill: true },
     { id: 'trigger', title: 'Headless menu trigger', render: TriggerDemo },
     { id: 'themes', title: 'Light and dark', render: ThemesDemo, fill: true },
-    { id: 'finishes', title: 'Optional finishes', render: FinishesDemo },
+    { id: 'finishes', title: 'Optional raised finish', render: FinishesDemo },
   ],
 });

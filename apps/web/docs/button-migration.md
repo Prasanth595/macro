@@ -18,8 +18,9 @@ Keep Button-specific helpers and materials within the app's shared UI and theme 
 ## API changes
 
 - Variants: `primary` (default), `secondary`, `outline`, `ghost`, `accent`, `danger`, `success`, and `link`.
+- `finish="raised"` is the only supported finish. Omit `finish` for plain styling; gradient and glass finishes are removed.
 - Use `accent` for the main action: create, save, submit, send, invite, approve, connect, and continue. Keep the shared New launcher (`ViewCreateButton`) neutral with `variant="secondary" finish="raised"`; opening a creation menu is not the final create action. Keep `primary` and `secondary` for neutral actions, `ghost` for utility/cancel controls, and `danger` for destructive actions. Do not blindly map legacy `strong` buttons to `secondary`.
-- Secondary uses a transparent border in its plain, raised, and gradient-raised states. Keep fills, shadows, geometry, and keyboard focus unchanged. The outline variant and explicit glass-outline finish retain their borders.
+- Secondary uses a transparent border in its plain and raised states. Keep fills, shadows, geometry, and keyboard focus unchanged. The outline variant retains its border.
 - Sizes: `xs` through `xl`, plus `icon-xs` through `icon-xl`. Replace `icon-composer` with `icon-md`.
 - Use explicit `icon-*` sizes instead of `square`.
 - Set accessible names with `aria-label`, not `label`.
@@ -63,7 +64,7 @@ Button materials live in `src/index.css`: fills, hover/pressed colors, borders, 
 
 `buttonAccentVars` in `features/theme/utils/buttonTheme.ts` only chooses contrasting solid-accent text and its inverse state tint from the resolved accent. The root renderer and subtree previews supply those two variables; all mixing remains in CSS. Live color edits also refresh the existing light/dark scope marker. Derived values do not enter persisted theme data.
 
-Shared neutral borders use `border-primary`, `border-secondary`, `border-tertiary`, and `divider`: 16%, 12%, 8%, and 4% opacity respectively, white in dark mode and black in light mode. Outline Buttons use `border-border-secondary` in both modes. Secondary Buttons and their shared ButtonGroup frame use that border only in light mode; dark mode keeps transparent border geometry. Dark secondary raised finishes keep the contact shadow without the perimeter, and glass-outline reflections are hidden. Group separators retain `bg-divider`. The optional light raised perimeter also uses the secondary role. These CSS tokens reset on every theme scope and stay independent of text colors; existing `edge-*` consumers and focus/status treatments are unchanged. This replaces the button-only dark-border experiment without broadening the migration to unrelated controls.
+Shared neutral borders use `border-primary`, `border-secondary`, `border-tertiary`, and `divider`: 16%, 12%, 8%, and 4% opacity respectively, white in dark mode and black in light mode. Outline Buttons use `border-border-secondary` in both modes. Secondary Buttons and their shared ButtonGroup frame use that border only in light mode; dark mode keeps transparent border geometry. Dark secondary raised finishes keep the contact shadow without the perimeter. Group separators retain `bg-divider`. The optional light raised perimeter also uses the secondary role. These CSS tokens reset on every theme scope and stay independent of text colors; existing `edge-*` consumers and focus/status treatments are unchanged. This replaces the button-only dark-border experiment without broadening the migration to unrelated controls.
 
 The Create menu's monochrome submit action uses the shared `primary` variant so its background and text contrast stay paired; do not locally override accent colors while leaving the derived accent text unchanged.
 
