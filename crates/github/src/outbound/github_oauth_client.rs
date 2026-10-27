@@ -46,6 +46,25 @@ pub struct GithubOauthImpl {
 #[derive(serde::Deserialize)]
 struct GithubErrorBody {
     message: String,
+    /// Validation failures; a 422's top-level message is only
+    /// "Validation Failed", and the reason is here.
+    #[serde(default)]
+    errors: Vec<GithubValidationError>,
+}
+
+#[derive(serde::Deserialize)]
+struct GithubValidationError {
+    message: Option<String>,
+}
+
+impl GithubErrorBody {
+    /// The most specific reason GitHub gave.
+    fn reason(self) -> String {
+        self.errors
+            .into_iter()
+            .find_map(|error| error.message)
+            .unwrap_or(self.message)
+    }
 }
 
 /// Repository settings as GitHub returns them. The `allow_*` fields are only
@@ -626,7 +645,7 @@ impl GithubOauth for GithubOauthImpl {
         let message = response
             .json::<GithubErrorBody>()
             .await
-            .map(|body| body.message)
+            .map(GithubErrorBody::reason)
             .unwrap_or_else(|_| "GitHub declined to change the pull request.".to_string());
 
         Ok(GithubStateOutcome::Rejected { rejection, message })

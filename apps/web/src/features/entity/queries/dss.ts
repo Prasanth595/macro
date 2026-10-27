@@ -449,8 +449,8 @@ export function createBulkCopyDssEntityMutation() {
 
     onSettled: (data, error, { entities }) => {
       if (error) {
+        // The copy action shows the failure, with the folder-size hint.
         console.error(`Failed bulk copy`, entities, data, error);
-        toast.failure('Failed to copy items');
       }
 
       // Trigger refetch so new items appear

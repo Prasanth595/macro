@@ -459,6 +459,37 @@ async fn set_pull_request_state_maps_access_and_validation_statuses() {
 }
 
 #[tokio::test]
+async fn set_pull_request_state_reports_the_validation_reason() {
+    let server = MockServer::start(MockResponse {
+        status: "422 Unprocessable Entity",
+        body: serde_json::json!({
+            "message": "Validation Failed",
+            "errors": [{
+                "resource": "PullRequest",
+                "code": "custom",
+                "message": "state cannot be changed. The head branch was deleted."
+            }]
+        })
+        .to_string(),
+    });
+    let client = GithubOauthImpl::with_api_base_url(server.base_url.clone());
+
+    let outcome = client
+        .set_pull_request_state("token", "macro", "app", 7, GithubPullRequestState::Open)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        outcome,
+        GithubStateOutcome::Rejected {
+            rejection: GithubPullRequestUpdateRejection::Invalid,
+            message: "state cannot be changed. The head branch was deleted.".to_string(),
+        }
+    );
+    server.finish();
+}
+
+#[tokio::test]
 async fn set_pull_request_state_treats_unexpected_status_as_error() {
     let server = MockServer::start(MockResponse {
         status: "502 Bad Gateway",

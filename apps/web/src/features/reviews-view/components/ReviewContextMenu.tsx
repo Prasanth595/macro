@@ -3,6 +3,7 @@ import { t } from '@app/lib/i18n';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
 import { fireAndForget } from '@core/util/fireAndForget';
+import { openExternalUrl } from '@core/util/url';
 import type { GithubPullRequestEntity } from '@entity';
 import ArrowSquareOutIcon from '@icon/system/regular/arrow-square-out.svg';
 import SplitIcon from '@icon/system/regular/columns.svg';
@@ -38,13 +39,7 @@ export function ReviewContextMenuContent(props: {
         <MenuItem
           icon={ArrowSquareOutIcon}
           text={t('entityActions.openOnGitHub')}
-          onClick={() =>
-            window.open(
-              props.review.metadata.url,
-              '_blank',
-              'noopener,noreferrer'
-            )
-          }
+          onClick={() => openExternalUrl(props.review.metadata.url)}
         />
       </ContextMenuContent>
     </ContextMenu.Portal>
