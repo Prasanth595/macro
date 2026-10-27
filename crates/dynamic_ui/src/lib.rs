@@ -2,6 +2,7 @@
 //! draws it: the model-facing `PresentView` schema, generated from the
 //! renderer's Zod schema, and a check that finds what the renderer would reject
 //! before a view is presented.
+#![deny(missing_docs)]
 
 mod check;
 
