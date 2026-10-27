@@ -5,6 +5,7 @@ use agent_changes::inbound::axum_router::{
     CaptureAttemptDto, CaptureOutcomeDto, ChangedFileDto, ChangesetDto, ChangesetSourceDto,
     FileChangeKindDto, GitRefDto,
 };
+use agent_harness::inbound::app_connections::{self, AppConnectedRequest};
 use agent_harness::inbound::capability_discovery;
 use agent_harness::inbound::model_load::{
     self, AgentModelDto, AgentModelsStatusDto, LoadAgentModelsRequest, LoadAgentModelsResponse,
@@ -58,6 +59,8 @@ impl Modify for SecurityAddon {
     modifiers(&SecurityAddon),
     info(terms_of_service = "https://macro.com/terms"),
     paths(
+        universal_input::inbound::axum_router::classify,
+        universal_input::inbound::axum_router::extract,
         agent_code_mode::inbound::axum_router::get_code_execution,
         agent_code_mode::inbound::axum_router::create_review,
         agent_code_mode::inbound::axum_router::get_review,
@@ -100,6 +103,7 @@ impl Modify for SecurityAddon {
         changes_router::get_agent_session_changes_patch_handler,
         changes_router::refresh_agent_session_changes_handler,
         tool_approvals::answer_tool_approval_handler,
+        app_connections::app_connected_handler,
     ),
     components(schemas(
         CreateAgentSessionRequest,
@@ -159,6 +163,7 @@ impl Modify for SecurityAddon {
         ChangesetSourceDto,
         FileChangeKindDto,
         AnswerToolApprovalRequest,
+        AppConnectedRequest,
         AnswerToolApprovalResponse,
         ToolApprovalAnswerDto,
         ToolApprovalStatusDto,

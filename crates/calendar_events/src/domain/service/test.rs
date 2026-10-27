@@ -76,6 +76,7 @@ impl CalendarRepository for FakeRepo {
             owner_id,
             change: CalendarEventChange::Created,
             team_ooo_changed,
+            aligned_copies: Vec::new(),
         })
     }
 
@@ -103,6 +104,14 @@ impl CalendarRepository for FakeRepo {
             .iter()
             .map(|_| crate::domain::models::CalendarMentionPreview::DoesNotExist)
             .collect())
+    }
+
+    async fn meeting_copies(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Vec<crate::domain::models::MeetingCopy>, Report> {
+        Ok(Vec::new())
     }
 
     async fn event_export(

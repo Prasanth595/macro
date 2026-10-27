@@ -1,6 +1,7 @@
+import { DateTimeRangeFields } from '@app/components/date-time-range/date-time-range-fields';
 import { useMacroMentionLinkResolver } from '@components/app/split-layout/split-router/mention-links';
 import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core/MarkdownTextarea';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import type { CalendarUpdateScope } from '@service-email/client';
 import { Button, cn, Layer, RadioGroup, Tooltip } from '@ui';
 import {
@@ -16,7 +17,6 @@ import {
   exportCalendarDescription,
 } from '../../utils/calendar-description';
 import type { CalendarEventFormController } from './create-calendar-event-form-controller';
-import { EventDateTimeRangeFields } from './EventDateTimeRangeFields';
 import { EventGuestPolicyRow } from './EventGuestPolicyRow';
 import {
   EventComposerCalendarPill,
@@ -29,6 +29,7 @@ import {
   EventComposerRecurrencePill,
   EventComposerRemindersPill,
 } from './EventPropertyPills';
+import { EventTitleInput } from './EventTitleInput';
 import type {
   EventEditorDisabledFields,
   EventEditorSubmitValues,
@@ -46,6 +47,8 @@ export interface EventFormProps {
   addOnlyGuests?: boolean;
   /** Why a read-only guest list cannot change. */
   guestsReadOnlyReason?: string;
+  /** The organizer hides the guest list, so the seeded guests are not all of them. */
+  guestListHidden?: boolean;
   /** Whether the viewer may set what guests may do, as the organizer. */
   guestPolicyEditable?: boolean;
   /**
@@ -96,6 +99,7 @@ export function EventForm(props: EventFormProps) {
   const resolveAppLink = useMacroMentionLinkResolver();
 
   const dateRangeErrorId = `event-composer-date-range-error-${formId}`;
+  const recurrenceReasonId = `event-composer-recurrence-reason-${formId}`;
   const pastEventWarningId = `event-composer-past-event-warning-${formId}`;
 
   const controller = props.controller;
@@ -125,6 +129,16 @@ export function EventForm(props: EventFormProps) {
     props.disabledFields?.[field] === true;
   const fieldIsDisabled = (field: keyof EventEditorDisabledFields) =>
     formIsDisabled() || fieldIsReadOnly(field);
+  const detailsLocked = () => props.detailsReadOnlyReason !== undefined;
+  // A single occurrence has no repeat rule of its own; like the guest
+  // permissions, the rule belongs to the whole series. A lock already says
+  // why the rule cannot change.
+  const recurrenceScopeReason = () =>
+    editScope() === 'this_event' && !detailsLocked()
+      ? 'The repeat rule applies to all events. Choose All events to change it.'
+      : undefined;
+  const recurrenceDescribedBy = () =>
+    recurrenceScopeReason() ? recurrenceReasonId : undefined;
 
   const capabilities = () => controller.selectedCalendarOption()?.capabilities;
   const conferenceLocked = () =>
@@ -158,6 +172,30 @@ export function EventForm(props: EventFormProps) {
   });
   createEffect(() => props.onDirtyChange?.(controller.isDirty()));
 
+  const descriptionEditor = () => (
+    <MarkdownTextarea
+      resolveAppLink={resolveAppLink}
+      type="calendar"
+      initialHtml={calendarDescriptionToEditorHtml(initialDescription)}
+      editable={() => !fieldIsDisabled('description')}
+      onInitialized={(editor) => {
+        loadedDescription = exportCalendarDescription(editor);
+      }}
+      onChange={(_markdown, editor) => {
+        if (!editor) return;
+        const next = exportCalendarDescription(editor);
+        controller.setField(
+          'description',
+          next === loadedDescription ? initialDescription : next
+        );
+      }}
+      placeholder="Add description..."
+      portalScope="local"
+      domRef={(element) => element.setAttribute('aria-label', 'Description')}
+      class="h-full w-full bg-transparent px-2 text-sm text-ink outline-none"
+    />
+  );
+
   const submit = () => {
     const values = controller.submitValues();
     if (!values || formIsDisabled()) return;
@@ -186,12 +224,13 @@ export function EventForm(props: EventFormProps) {
                 reason={props.detailsReadOnlyReason}
                 class="block min-w-0"
               >
-                <EventDateTimeRangeFields
+                <DateTimeRangeFields
+                  subject="event"
                   start={state().start}
                   end={state().end}
                   allDay={state().allDay}
                   onStartChange={controller.setStart}
-                  onEndChange={(end) => controller.setField('end', end)}
+                  onEndChange={controller.setEnd}
                   onAllDayChange={controller.setAllDay}
                   startDisabled={fieldIsDisabled('start')}
                   endDisabled={fieldIsDisabled('end')}
@@ -228,17 +267,11 @@ export function EventForm(props: EventFormProps) {
               reason={props.detailsReadOnlyReason}
               class="flex w-full"
             >
-              <input
-                type="text"
+              <EventTitleInput
                 value={state().title}
-                onInput={(event) =>
-                  controller.setField('title', event.currentTarget.value)
-                }
-                placeholder="New event"
-                aria-label="Title"
+                onChange={(value) => controller.setField('title', value)}
                 autofocus={!isEdit()}
                 disabled={fieldIsDisabled('title')}
-                class="h-9 w-full bg-transparent px-2 text-lg font-semibold leading-snug text-ink outline-none placeholder:text-ink-placeholder"
               />
             </LockedField>
 
@@ -251,146 +284,149 @@ export function EventForm(props: EventFormProps) {
                 class="block w-full"
               >
                 <div class="h-12 overflow-y-auto">
-                  <MarkdownTextarea
-                    resolveAppLink={resolveAppLink}
-                    type="calendar"
-                    initialHtml={calendarDescriptionToEditorHtml(
-                      initialDescription
-                    )}
-                    editable={() => !fieldIsDisabled('description')}
-                    onInitialized={(editor) => {
-                      loadedDescription = exportCalendarDescription(editor);
-                    }}
-                    onChange={(_markdown, editor) => {
-                      if (!editor) return;
-                      const next = exportCalendarDescription(editor);
-                      controller.setField(
-                        'description',
-                        next === loadedDescription ? initialDescription : next
-                      );
-                    }}
-                    placeholder="Add description..."
-                    portalScope="local"
-                    domRef={(element) =>
-                      element.setAttribute('aria-label', 'Description')
-                    }
-                    class="h-full w-full bg-transparent px-2 text-sm text-ink outline-none"
-                  />
+                  {/* The editor reads the description only when it mounts.
+                      Details that lock after a refused save return to the
+                      event's own, so the editor mounts again to show them. */}
+                  <Show
+                    when={fieldIsReadOnly('description')}
+                    fallback={descriptionEditor()}
+                  >
+                    {descriptionEditor()}
+                  </Show>
                 </div>
               </LockedField>
             </Show>
           </div>
 
-          <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <EventComposerKindPill
-              eventType={state().eventType}
-              onChange={controller.setEventKind}
-              disabled={formIsDisabled()}
-              readOnly={isEdit()}
-            />
-            <EventComposerCalendarPill
-              options={controller.calendarOptions()}
-              value={controller.selectedCalendarOption()}
-              onChange={(calendarId) =>
-                controller.setField('calendarId', calendarId)
-              }
-              disabled={formIsDisabled()}
-              readOnly={fieldIsReadOnly('calendar')}
-            />
-            <LockedField reason={props.detailsReadOnlyReason}>
-              <EventComposerRecurrencePill
-                options={controller.recurrenceOptions()}
-                value={controller.selectedRecurrenceOption()}
-                onChange={controller.changeRecurrenceChoice}
-                disabled={formIsDisabled()}
-                // A single occurrence has no recurrence rule of its own, so the
-                // recurrence cannot be edited while the scope is one event.
-                readOnly={
-                  fieldIsReadOnly('recurrence') || editScope() === 'this_event'
-                }
-              />
-            </LockedField>
-            <Show when={!isOutOfOffice()}>
-              <EventComposerGuestsPill
-                options={controller.guestOptions}
-                selected={controller.selectedGuests()}
-                onChange={controller.setSelectedGuests}
-                disabled={formIsDisabled()}
-                readOnly={fieldIsReadOnly('guests')}
-                readOnlyReason={props.guestsReadOnlyReason}
-                currentGuests={
-                  props.addOnlyGuests ? controller.initialGuests() : undefined
-                }
-              />
+          <div class="flex min-w-0 flex-col gap-2">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              {/* Read-only on every edit, they open their one value as a list;
+                  locked, they are as unavailable as the other details. */}
               <LockedField reason={props.detailsReadOnlyReason}>
-                <EventComposerConferencePill
-                  value={state().conference}
-                  provider={capabilities()?.conferenceProvider}
-                  macroCallsEnabled={props.macroCallsEnabled}
-                  canKeepExisting={
-                    controller.initialConferenceChoice() === 'existing'
-                  }
-                  onChange={(conference) =>
-                    controller.setField('conference', conference)
-                  }
-                  disabled={fieldIsDisabled('conference') || conferenceLocked()}
+                <EventComposerKindPill
+                  eventType={state().eventType}
+                  onChange={controller.setEventKind}
+                  disabled={formIsDisabled() || detailsLocked()}
+                  readOnly={isEdit()}
                 />
               </LockedField>
               <LockedField reason={props.detailsReadOnlyReason}>
-                <EventComposerLocationPill
-                  value={state().location}
-                  onChange={(location) =>
-                    controller.setField('location', location)
+                <EventComposerCalendarPill
+                  options={controller.calendarOptions()}
+                  value={controller.selectedCalendarOption()}
+                  onChange={(calendarId) =>
+                    controller.setField('calendarId', calendarId)
                   }
-                  disabled={fieldIsDisabled('location')}
+                  disabled={formIsDisabled() || detailsLocked()}
+                  readOnly={fieldIsReadOnly('calendar')}
                 />
               </LockedField>
-            </Show>
-            <Show when={isOutOfOffice()}>
-              <Show
-                when={capabilities()?.autoDecline !== false}
-                fallback={
-                  <span class="text-xs text-ink-muted">
-                    Outlook blocks this time. Configure automatic declines in
-                    Outlook.
-                  </span>
-                }
-              >
-                <EventComposerDeclinePill
-                  value={state().outOfOffice}
-                  onChange={controller.setOutOfOffice}
-                  disabled={fieldIsDisabled('outOfOffice')}
+              <LockedField reason={props.detailsReadOnlyReason}>
+                <EventComposerRecurrencePill
+                  options={controller.recurrenceOptions()}
+                  value={controller.selectedRecurrenceOption()}
+                  onChange={controller.changeRecurrenceChoice}
+                  disabled={fieldIsDisabled('recurrence')}
+                  // A single occurrence has no recurrence rule of its own, so the
+                  // recurrence cannot be edited while the scope is one event.
+                  readOnly={editScope() === 'this_event'}
+                  readOnlyReason={recurrenceScopeReason()}
+                  describedBy={recurrenceDescribedBy()}
                 />
-              </Show>
-              <Show
-                when={
-                  state().outOfOffice &&
-                  state().outOfOffice?.autoDeclineMode !== 'decline_none'
-                }
-              >
-                <EventComposerDeclineMessagePill
-                  value={state().outOfOffice?.declineMessage ?? ''}
-                  onChange={(declineMessage) =>
-                    controller.setOutOfOffice({
-                      autoDeclineMode:
-                        state().outOfOffice?.autoDeclineMode ?? 'decline_none',
-                      declineMessage,
-                    })
+              </LockedField>
+              <Show when={!isOutOfOffice()}>
+                <EventComposerGuestsPill
+                  options={controller.guestOptions}
+                  selected={controller.selectedGuests()}
+                  onChange={controller.setSelectedGuests}
+                  disabled={formIsDisabled()}
+                  readOnly={fieldIsReadOnly('guests')}
+                  readOnlyReason={props.guestsReadOnlyReason}
+                  guestListHidden={props.guestListHidden}
+                  currentGuests={
+                    props.addOnlyGuests ? controller.initialGuests() : undefined
                   }
-                  disabled={fieldIsDisabled('outOfOffice')}
                 />
+                <LockedField reason={props.detailsReadOnlyReason}>
+                  <EventComposerConferencePill
+                    value={state().conference}
+                    provider={capabilities()?.conferenceProvider}
+                    macroCallsEnabled={props.macroCallsEnabled}
+                    canKeepExisting={
+                      controller.initialConferenceChoice() === 'existing'
+                    }
+                    onChange={(conference) =>
+                      controller.setField('conference', conference)
+                    }
+                    disabled={
+                      fieldIsDisabled('conference') || conferenceLocked()
+                    }
+                  />
+                </LockedField>
+                <LockedField reason={props.detailsReadOnlyReason}>
+                  <EventComposerLocationPill
+                    value={state().location}
+                    onChange={(location) =>
+                      controller.setField('location', location)
+                    }
+                    disabled={fieldIsDisabled('location')}
+                  />
+                </LockedField>
               </Show>
+              <Show when={isOutOfOffice()}>
+                <Show
+                  when={capabilities()?.autoDecline !== false}
+                  fallback={
+                    <span class="text-xs text-ink-muted">
+                      Outlook blocks this time. Configure automatic declines in
+                      Outlook.
+                    </span>
+                  }
+                >
+                  <EventComposerDeclinePill
+                    value={state().outOfOffice}
+                    onChange={controller.setOutOfOffice}
+                    disabled={fieldIsDisabled('outOfOffice')}
+                  />
+                </Show>
+                <Show
+                  when={
+                    state().outOfOffice &&
+                    state().outOfOffice?.autoDeclineMode !== 'decline_none'
+                  }
+                >
+                  <EventComposerDeclineMessagePill
+                    value={state().outOfOffice?.declineMessage ?? ''}
+                    onChange={(declineMessage) =>
+                      controller.setOutOfOffice({
+                        autoDeclineMode:
+                          state().outOfOffice?.autoDeclineMode ??
+                          'decline_none',
+                        declineMessage,
+                      })
+                    }
+                    disabled={fieldIsDisabled('outOfOffice')}
+                  />
+                </Show>
+              </Show>
+              <EventComposerRemindersPill
+                minutes={controller.reminderMinutes()}
+                usedSlots={
+                  controller.reminderMinutes().length +
+                  controller.preservedReminderCount()
+                }
+                canAdd={controller.canAddReminder()}
+                onChange={controller.setReminderMinutes}
+                disabled={fieldIsDisabled('reminders')}
+              />
+            </div>
+            <Show when={recurrenceScopeReason()}>
+              {(reason) => (
+                <p id={recurrenceReasonId} class="text-xs text-ink-muted">
+                  {reason()}
+                </p>
+              )}
             </Show>
-            <EventComposerRemindersPill
-              minutes={controller.reminderMinutes()}
-              usedSlots={
-                controller.reminderMinutes().length +
-                controller.preservedReminderCount()
-              }
-              canAdd={controller.canAddReminder()}
-              onChange={controller.setReminderMinutes}
-              disabled={fieldIsDisabled('reminders')}
-            />
           </div>
 
           {/* Outlook has no guest permissions, and an out-of-office event
@@ -407,6 +443,11 @@ export function EventForm(props: EventFormProps) {
               value={controller.guestPolicy()}
               onChange={controller.setGuestPolicy}
               disabled={formIsDisabled() || editScope() === 'this_event'}
+              disabledReason={
+                editScope() === 'this_event'
+                  ? 'Guest permissions apply to all events. Choose All events to change them.'
+                  : undefined
+              }
             />
           </Show>
           <Show when={props.detailsReadOnlyReason}>

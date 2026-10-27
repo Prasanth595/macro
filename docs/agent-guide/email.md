@@ -25,11 +25,26 @@ detail view. See [Email reminders](reminders.md#delivery-and-undo).
 Email's Tags sidebar uses the [nested tag tree](tasks.md#nested-sidebar-tags).
 Carets and folder-only parents expand branches; actual tags select their exact ID
 and switch the mailbox to All. Parent selection does not include descendant tags.
+While tags scope All, the header and breadcrumb show the tag names instead of
+`All`. A narrow pane keeps its short `Email` or `Inbox` breadcrumb label. A tag
+filter on any other tab keeps that tab's title.
 Unlike Calls, it lists only personal tags; team-shared tags are hidden,
 and its `New tag` action creates a personal tag with no Team sharing option.
 
-Full email client. Tabs: `Signal` / `Noise` / `Favorites` / `Sent` / `Scheduled` / `Calendar` / `Drafts` / `Shared` /
-`Archived` / `All`, plus `Reminders` when reminders are enabled. Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
+Full email client. Desktop groups `Signal` and `Noise` under one `Inbox` sidebar
+item, with pill tabs beside the Inbox title in the content header, matching the
+Chat sidebar tabs. Selecting Inbox
+from another mailbox opens Signal; selecting it while in Noise keeps Noise.
+The desktop sidebar continues with `Favorites`, `Drafts`, `Sent`, `Scheduled`,
+and `Reminders` (when reminders are enabled), followed by a **Library** section containing `All mail`,
+`Archived`, and `Shared`, then **Tags**. Sidebar number shortcuts follow that
+order; `Tab` and `Shift+Tab` toggle between Signal and Noise (from another
+mailbox, `Tab` opens Signal and `Shift+Tab` Noise). While the email list itself
+has focus, `Tab` moves browser focus instead; use `g i` or `g o`. Calendar
+mail remains available through the calendar filter and existing Calendar route.
+Mobile keeps its original tabs and order, including separate Signal, Noise, and
+Calendar tabs.
+Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
 shows `Connect your email`; Gmail/Google Workspace and enabled Outlook connections
 use provider consent. Most functionality needs a connected account. Search is `Ctrl+F` or `/` within the surface.
 
@@ -76,6 +91,11 @@ the send button's pending state. Switching the sender
 inbox copies the draft and attachments into the destination; wait for completion
 before sending. If the copy is interrupted, use retry or keep the original.
 
+Opening an attachment opens it in a split from its Drive copy, except a
+calendar file: it opens its event (see the calendar invitations section of the
+calendar guide), or downloads when Macro could not read one, and creates no
+Drive file.
+
 Imported Outlook attachments keep their provider identity, including inline
 images. Cloud-reference attachment chips open the original Outlook message.
 Forwarding a message with cloud references shows a notice to share those links
@@ -91,8 +111,8 @@ query: load more threads from the same address, then check that existing row
 names and their hover cards do not change. Repeat with a text query to exercise
 the search-service results.
 
-`Favorites`, directly below Noise, lists starred Macro emails across Signal,
-Noise, and archived mail. It respects the selected inboxes and filters; search
+`Favorites`, directly below Inbox on desktop, lists starred Macro emails across
+Signal, Noise, and archived mail. It respects the selected inboxes and filters; search
 within the tab is also restricted to favorites. Removing a star removes the row
 from this view. The tab persists across reloads. With `enable-graphql-soup` on,
 the paginated GraphQL Soup query uses `favoritesOnly: true`. With the flag off,
@@ -100,7 +120,8 @@ REST Soup uses `favorites_only: true`. Starring changes membership without
 changing the list query. Text search still resolves favorite IDs for the search
 service. An empty favorites list shows `No favorite emails`.
 
-`Archived`, directly before All, lists your own archived (Mail Done) threads: the
+`Archived`, between All mail and Shared in the desktop Library section, lists
+your own archived (Mail Done) threads: the
 All mailbox with Done applied, excluding threads teammates shared with you. It
 respects the selected inboxes and filters. The search service cannot filter
 archive state, so search within the tab keeps only archived hits on the client.
@@ -210,6 +231,12 @@ without refetching over optimism. Callers preserve the queued disposition and
 skip REST/TanStack email invalidations as well, including Done/Undo batches and
 thread archive replay. Committed writes and failed non-queued batches still
 reconcile. Permanent failures roll back the failed intent.
+Mark Done and Mark Not Done on a selection, even of one row, send one
+`setEmailThreadsArchived` per 100 threads (REST: `PATCH /email/threads/archived`).
+The server sends Gmail one label write per inbox, for only the messages whose
+labels change, and lists the threads it could not change; those settle as
+rejected, with their unchanged state reloaded, while their siblings stay done.
+A database or queue outage that changes nothing fails the whole request.
 Check Signal/Noise removal and All's done indicator, then Undo/Redo, including an
 offline action followed by reconnect. Also wait for provider/metadata synchronization
 before Undo, and repeat after reloading: an archived received thread can lose its
@@ -249,7 +276,8 @@ from mutation reply correctness. GraphQL application errors, including a failed
 post-commit reply load, release the queued mutation rather than retrying forever.
 Transport failures retain the existing retry policy. Draft recovery preserves local
 content and offers explicit Retry using the original handle. Deploy
-the backend schema containing `setEmailThreadArchived` before this client.
+the backend schema containing `setEmailThreadArchived` and
+`setEmailThreadsArchived` before this client.
 Browser WASM and native cache builds must include the regenerated schema metadata;
 native offline archive support therefore requires a full app build, not just OTA.
 
@@ -258,7 +286,7 @@ native offline archive support therefore requires a full app build, not just OTA
 The per-query caches for email threads, channels, and native offline document
 context reopen closed IndexedDB connections. Verify a cached read and a subsequent
 write after closing the connection, then clear/logout during recovery: old-account
-entries must not return. Only transaction creation retries automatically; persistent
+entries must not return. These caches retry only transaction creation; persistent
 storage failures still follow the existing cache fallback behavior.
 
 Performance check: switch Signal → All twice against a large synchronized cache.
@@ -346,7 +374,9 @@ keyboard back to the list without closing the thread. Narrow email rows here
 stack senders and date, subject, and one preview line beside a slim unread-dot
 gutter (no per-type icon); unread rows are bold, hovering swaps the date for the
 row actions, and hovering the gutter shows the select checkbox. Phones keep
-their own touch email rows, with the sender's picture on the left.
+their own touch email rows, with the sender's picture on the left. Every email
+row titles the thread as its header does: repeated leading `Re:` prefixes are
+dropped, and a blank subject reads `[No subject]`.
 Without room for both (narrow split, collapsed window) the pane folds away and
 a thread replaces the list as usual; the thread remounts, but a reply draft
 survives. The divider can be dragged; the list width is remembered. Verify that
@@ -355,14 +385,19 @@ not replace it), and that after j/k the grid still has focus: the next Enter
 moves into the reader without opening a reply.
 
 In the new Email view, ordinary row activation opens the thread inside
-`/app/component/mail`; the view breadcrumb (for example Signal) has a hover
-background and returns to the filtered list. Pressing `Escape` in the open thread
+`/app/component/mail`. On desktop the thread's header has a Back arrow instead
+of breadcrumbs; it returns to the filtered list (hidden in the reading pane,
+where the list is already beside the thread). The subject, tags and
+participants stay put while only the messages scroll. Pressing `Escape` in the open thread
 with focus outside any input does the same once there is nothing left to unwind
 (an open reply, an expanded body, or a focused message each take one `Escape`
-first); the list keeps the row you came from focused. The inline header uses the existing
-email title menu: open the menu button beside the subject for **Ask AI**, **Create a
-Task**, and the other thread actions. On desktop, **Mark as unread**, **Mark done**,
-and **Previous item** / **Next item** sit at the right of that header. The arrows
+first); the list keeps the row you came from focused. The `⋯` email title menu
+right after the subject's last word, in place of Copy subject, holds **Ask AI**,
+**Create a Task**, and the other thread actions. On desktop, **Mark as unread**, **Mark done**,
+and reminders share one outlined group at the right of that header. Separate
+groups contain **Previous item** / **Next item**, icon-only **Ask Macro** / **Create
+task**, and the **Share** icon and label / copy-link icon. Mobile keeps its existing
+controls. The arrows
 follow the current filtered list and disable at its ends. When the open thread
 leaves the list while it stays open (a reply in Signal marks it done, or another
 device archives it), they step from its former neighbours. Mark done advances in
@@ -371,8 +406,9 @@ press: a held key auto-repeats, and those repeats are ignored. Mark as unread (i
 the header or title menu) returns to the originating list with its tab, inbox, and
 filters preserved. Mark as not done and Mark as read
 stay on the current thread.
-Opening a saved draft from **Drafts** keeps the subject breadcrumb, title menu,
-and applicable header controls visible above the composer. Verify these remain
+Opening a saved draft from **Drafts** shows the title menu beside Back, since
+the composer has no subject line above it, and keeps the applicable header
+controls. Verify these remain
 available when returning to Drafts and reopening the draft.
 **Delete** in the title menu moves the thread to Trash and returns to the same
 filtered list. Its toast offers **Undo** to restore the email.
@@ -381,7 +417,10 @@ preserve working menu actions and header controls. Repeatedly navigate forward
 and backward, including after returning to the list: the subject and email body
 should remain visible without reloading.
 Shift-click opens a standalone split at `/app/email/<thread-id>`, which remains
-the destination for direct links and legacy surfaces. Click a message header to
+the destination for direct links and legacy surfaces. **Copy Link** on a
+thread copies `/app/mail/<thread-id>` from a row, the title menu, the Share
+dialog, or a reminder notification. The link opens the thread in Mail and
+pastes as an email mention. Click a message header to
 expand or collapse it; `Show N hidden messages` reveals the collapsed middle of
 a longer conversation. A standalone link with
 `?email_message_id=<message-id>` loads older pages as needed, expands the target,
@@ -456,6 +495,10 @@ view-only links instead. Confirming inserts one link per file at the end of the
 written message, above a reply's quoted thread, and the draft autosaves; Cancel
 adds nothing. Files that fit still attach, and the same check covers files
 dropped onto the body.
+With an Outlook From, a subject over Exchange's 255-character limit stays as
+typed, the field is marked invalid, and a hint under it gives the length. Switching
+From to Outlook flags an existing long subject; Gmail senders show no hint. The
+hint does not block saving or Send.
 To forward from another inbox, open Forward, expand the forwarding envelope on
 desktop, and select a different account in From (already visible on mobile).
 Forwarded files must remain attached after switching to an owned or delegated
@@ -492,22 +535,47 @@ syncing text appears, including offline. A failure shows a banner inside the
 composer, above the recipients, with **Retry** (or **Retry discard**); it never
 appears in the toolbar or the mobile header actions. Verify the banner on mobile
 sits below the header and that editing while failed continues saving locally
-without repeatedly submitting the rejected request.
+without repeatedly submitting the rejected request. If sender metadata is still
+unavailable, the local draft is retained; reconnect and select an inbox before
+editing to resume synchronization.
+
+Unqueued first-use drafts also appear in mobile name search and the current Mail
+view's Drafts search, without requiring a cached thread record. A working copy
+preserves confirmed thread flags for facet filters, and a subject mismatch never
+hides a matching server body or cached sender hit. Inbox, alias, and facet
+selections still apply; a draft without an inbox is visible with All inboxes
+selected. Sender metadata warms alongside GraphQL backfill, before opening a
+composer. Test an empty sender catalog too: create a draft offline, restart, find
+it in Drafts/name search, and reopen its subject and body. Reconnect, select the
+sending inbox, edit, and verify it syncs without a duplicate row. Reopen an
+unqueued local draft while online too: its temporary thread's server 404 must
+not hide the local composer or mark that temporary ID read. Confirmed server
+threads still respect deletion/access errors; local working copies do not
+override authentication or permission failures.
 Local draft storage reopens unexpectedly closed IndexedDB connections. If creating
 a transaction fails because the connection is closing, it retries once before
-running any writes. Verify by closing the draft database connection, then editing:
-the latest content must persist locally and server autosave must continue without
-reloading. Repeat across background/resume on an iPhone. A transaction that has
-already started is never automatically replayed. Persistent failures still block
-server autosave; copy unsaved content before restarting. Storage failures and
-recovery report current page visibility and network state without draft content.
+running any writes. When WebKit aborts a started transaction (typically while the
+iOS app is backgrounded), the whole transaction, draft or outbox, replays on a new
+connection, at most three attempts; a save recognizes its own commit, so a replay
+never duplicates a revision. Each edit is written locally at once; any visibility
+change, such as hiding the app, also sends the debounced server save immediately
+and retries a failed local write with the live editor content. Verify by closing
+the draft database connection, then editing: the latest content must persist
+locally and server autosave must continue without reloading. Repeat across
+background/resume on an iPhone. Persistent failures still block server autosave;
+copy unsaved content before restarting. Storage failures and recovery report
+current page visibility and network state without draft content.
 Request errors settle only after the transaction's abort event, preserving the
-underlying IndexedDB error and waiting for rollback before recovery. To verify,
-force a request constraint failure: the prior draft must remain intact, the error
-must be `ConstraintError`, and a subsequent valid save must succeed.
+underlying IndexedDB error and waiting for rollback before recovery or replay. To
+verify, force a request constraint failure: the prior draft must remain intact,
+the error must be `ConstraintError` and is not replayed, and a subsequent valid
+save must succeed.
 
-Repeated local-save failures show one persistent warning per composer; recovery
-or closing that composer dismisses it. A later failure shows a new warning.
+Repeated local-save failures show one persistent warning per composer; a later
+successful write or closing the composer dismisses it. Closing writes the failed
+edit once more, unless send, discard, or a reset already cancelled it; if that
+write also fails, a brief warning shows after the composer closes. A later
+failure shows a new warning.
 Retry preserves the original draft handle. An already-sent rejection drops the
 local copy rather than recreating the sent message. The REST compose path keeps
 its existing behavior.
@@ -529,7 +597,10 @@ server draft exists. If per-mutation recovery preparation fails or times out,
 the mutation must fail and release the queue too, including legacy drafts that
 have not been copied into recovery storage. Existing local working copies remain;
 an unmigrated legacy edit can be lost if the queue held its only durable copy.
-Verify that an unrelated queued action still completes in both cases.
+Verify that an unrelated queued action still completes in both cases. With
+browser OTel enabled, the failure appears once per draft as
+`graphql.mutation_queue.recovery_failed` (or `graphql.mutation_queue.skipped` with a
+`mutation_queue.skip_reason`), never as a line per poll.
 Repeat with two tabs, a save response arriving after a newer
 edit, an attachment upload completing during another local save, and Discard
 while an attachment snapshot is still being saved. A snapshot based on an older
@@ -937,10 +1008,19 @@ and swiping left to mark emails done in Signal and Noise. The filter button open
 glass bottom sheet for status, done, attachment, calendar and tag filters, plus an `Inbox`
 section when the user can pick one: `All inboxes` or a single address, never several.
 `Clear all` resets those filters and the inbox selection. Desktop keeps its sidebar,
-search field, filter menu and preview control. The sidebar lists the inboxes above the
-`New email` button and tabs as plain rows; clicking one shows only that inbox.
-`Connect another account` starts the add-inbox flow from its own row below the
-scrolling list. `New email` prefills From with the selected inbox, or the primary
+single-row header: title (with Signal/Noise tabs beside Inbox), inbox/filter
+controls, reading-pane option, New, and an expandable Search icon. At 640px or
+narrower, the list header shows Signal/Noise, the reading-pane toggle, and Search;
+outside Inbox, the mailbox title replaces those tabs. Its outlined
+`New` button also sits directly
+below the sidebar title, above a flat, outlined **Accounts** group with the same
+control background. Its selector shows
+the current account or `All inboxes` and opens a single-select dropdown of linked
+accounts and aliases. `Connect another account` starts the add-inbox flow from
+the group's separated footer. On desktop, `All inboxes` uses the shared avatar
+group to overlap the first two account portraits with a separator ring; aliases
+do not repeat a portrait. A single selected inbox shows its own portrait.
+`New email` prefills From with the selected inbox, or the primary
 inbox when All inboxes is selected; reopening a draft keeps its saved sender.
 The From menu groups each connected inbox with its verified Gmail send-as aliases.
 Replies default to an address on the thread's own inbox: preserve an outgoing
@@ -982,12 +1062,12 @@ to choose the sender. Selecting an available inbox clears the error and allows
 sending; the picker never displays another inbox as selected before that choice.
 With no explicit selection, an unavailable primary still falls back to
 the first linked inbox.
-Sidebar rows, including `All inboxes`, replace their icon with an accent-colored checkmark when
-selected. With exactly one connected inbox and no aliases, only its address appears as the selected
-row, followed by `Connect another account`; there is no `All inboxes` row, title
-inbox dropdown, or inbox section in the mobile filter drawer. The inbox section shows up to four rows (including `All inboxes`), then
-scrolls independently without overscroll so the email tabs stay in place. With many
-accounts, scroll to the last inbox and check that selecting it updates the header filter.
+The desktop account dropdown marks the selected inbox with a checkmark. With
+exactly one connected inbox and no aliases, the selector displays its address
+and omits `All inboxes`; the mobile filter drawer has no inbox section. The
+touch sidebar keeps its existing account rows and shows up to four before
+scrolling independently. With many accounts, scroll to the last inbox in the
+dropdown and check that selecting it updates the selector and header filter.
 Selecting one inbox also shows `from [email address]` beside the list title.
 The address is a borderless ghost dropdown with the title's font weight and a
 consistent 14px font size at all widths; `from` is 12px. Both align to the title's baseline, without
@@ -1032,3 +1112,5 @@ must resume only after the preserved queue is readable. Repeat while another tab
 holds the cache owner lock; recovery must never steal the lock or erase its queue.
 Storage/schema failures that cannot prove preservation show recovery/update
 instructions instead of repeatedly reopening potentially damaged storage.
+
+Date-grouped email lists start directly with today's messages; Today is not shown as a leading group heading. Older date headings remain visible and ordering still uses the server's thread activity timestamp.

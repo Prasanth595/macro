@@ -15,7 +15,7 @@ import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component
 import { enableReminders } from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { ListEntityMetadataQueryProvider } from '@entity';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import {
   createSignal,
   type JSX,
@@ -25,11 +25,7 @@ import {
   Suspense,
 } from 'solid-js';
 import { EmailFilterDrawer } from './components/EmailFilterDrawer';
-import {
-  EmailHeader,
-  EmailTopBar,
-  EmailViewBreadcrumbItem,
-} from './components/EmailHeader';
+import { EmailHeader, EmailViewBreadcrumbItem } from './components/EmailHeader';
 import { EmailList } from './components/EmailList';
 import { EmailReader } from './components/EmailReader';
 import { EmailSidebar } from './components/EmailSidebar';
@@ -69,7 +65,11 @@ function EmailViewBreadcrumbs(props: ParentProps) {
 function EmailListFallback() {
   return (
     <div class="grid size-full min-h-0 min-w-0 place-items-center text-ink-muted touch:pt-(--mobile-content-inset-top) touch:pb-(--mobile-content-inset-bottom)">
-      <SpinnerIcon aria-label="Loading email" class="size-5 animate-spin" />
+      <SpinnerIcon
+        aria-hidden={false}
+        aria-label="Loading email"
+        class="size-5 animate-spin"
+      />
     </div>
   );
 }
@@ -83,10 +83,10 @@ function EmailPanes(props: {
   const shell = useViewShell();
   const listColumn = (beside?: 'reader') => (
     <>
-      <EmailTopBar tabOnly={beside === 'reader'} />
-      <ViewShell.Header>
-        <EmailHeader onSearchEscape={props.focusList} />
-      </ViewShell.Header>
+      <EmailHeader
+        tabOnly={beside === 'reader'}
+        onSearchEscape={props.focusList}
+      />
       <ViewTour tour={emailTour} />
       <ViewShell.Content>{props.list}</ViewShell.Content>
     </>

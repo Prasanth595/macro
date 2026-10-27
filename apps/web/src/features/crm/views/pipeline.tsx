@@ -1,11 +1,13 @@
+import { ViewSidebar } from '@app/components/view-shell';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { InlineTitleEditor } from '@core/component/InlineTitleEditor';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
-import DotsThreeIcon from '@phosphor/dots-three.svg';
-import DownloadIcon from '@phosphor/download-simple.svg';
-import PencilIcon from '@phosphor/pencil-line.svg';
-import TrashIcon from '@phosphor/trash-simple.svg';
-import UploadIcon from '@phosphor/upload-simple.svg';
+import DotsThreeIcon from '@icon/system/regular/dots-three.svg';
+import DownloadIcon from '@icon/system/regular/download-simple.svg';
+import PencilIcon from '@icon/system/regular/pencil-line.svg';
+import TrashIcon from '@icon/system/regular/trash-simple.svg';
+import UploadIcon from '@icon/system/regular/upload-simple.svg';
 import { ActionDialogShell } from '@ui/components/ActionDialogShell';
 import { Button } from '@ui/components/Button';
 import { DeleteDialog } from '@ui/components/DeleteDialog';
@@ -113,9 +115,9 @@ export function PipelineView(props: {
           <Show
             when={canEdit()}
             fallback={
-              <h1 class="min-w-0 truncate px-1 text-sm font-semibold">
+              <ViewSidebar.Title caret={false} class="px-1">
                 {props.pipeline.name}
-              </h1>
+              </ViewSidebar.Title>
             }
           >
             <span ref={title} class="flex min-w-0 px-1">
@@ -137,7 +139,7 @@ export function PipelineView(props: {
             <Dropdown placement="bottom-start">
               <Dropdown.Trigger
                 variant="ghost"
-                size="icon-sm"
+                size="icon-md"
                 aria-label="Pipeline actions"
                 class="shrink-0"
                 disabled={pending()}
@@ -175,11 +177,13 @@ export function PipelineView(props: {
               </Dropdown.Content>
             </Dropdown>
           </Show>
-          <div class="ml-auto flex shrink-0 items-center gap-1">
-            <props.Sharing
-              pipeline={props.pipeline}
-              onCopyLink={props.onCopyLink}
-            />
+          <div class="ml-auto flex shrink-0 items-center gap-2">
+            <HeaderActionGroup label="Sharing">
+              <props.Sharing
+                pipeline={props.pipeline}
+                onCopyLink={props.onCopyLink}
+              />
+            </HeaderActionGroup>
           </div>
         </div>
       </Show>

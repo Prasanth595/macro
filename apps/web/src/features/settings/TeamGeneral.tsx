@@ -6,17 +6,17 @@ import {
   NO_LINK_SHARE,
 } from '@core/component/TopBar/linkShare';
 import { getWebOrigin } from '@core/util/webOrigin';
-import CheckIcon from '@phosphor/check.svg';
-import CopyIcon from '@phosphor/copy.svg';
-import SpinnerIcon from '@phosphor/spinner.svg';
-import TrashIcon from '@phosphor/trash.svg';
-import XIcon from '@phosphor/x.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import CopyIcon from '@icon/system/regular/copy.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
+import TrashIcon from '@icon/system/regular/trash.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import {
   useDeleteTeamMutation,
   usePatchTeamMutation,
 } from '@queries/team/teams';
 import type { Team as TeamSummary } from '@service-auth/generated/schemas/team';
-import { Button, Dialog, Panel, SegmentedControl, Tooltip } from '@ui';
+import { Button, Dialog, Panel, Tabs, Tooltip } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import {
   SettingsCard,
@@ -396,7 +396,8 @@ export function TeamGeneral(props: { team: TeamSummary }) {
                 description="The link-sharing scope newly shared items start with. None means link sharing starts off."
                 hideDescriptionOnMobile
               >
-                <SegmentedControl
+                <Tabs
+                  touch="segmented"
                   aria-label="Default link sharing scope"
                   size="sm"
                   value={defaultLinkShare()}
