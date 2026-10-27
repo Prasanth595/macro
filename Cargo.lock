@@ -7446,6 +7446,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "email",
+ "macro_tower_layers",
  "model",
  "models_email",
  "reqwest 0.13.4",
