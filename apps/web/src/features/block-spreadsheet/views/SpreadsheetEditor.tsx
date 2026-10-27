@@ -97,6 +97,7 @@ import { createGoalSeek } from '../primitives/create-goal-seek';
 import { createGridController } from '../primitives/create-grid-controller';
 import { createRangeMove } from '../primitives/create-range-move';
 import { createSheetActions } from '../primitives/create-sheet-actions';
+import type { SpreadsheetDownloadFormat } from '../primitives/create-spreadsheet-download';
 import type { SpreadsheetStore } from '../primitives/create-spreadsheet-store';
 import { createTableActions } from '../primitives/create-table-actions';
 import { createWorkbookActions } from '../primitives/create-workbook-actions';
@@ -119,7 +120,9 @@ export function SpreadsheetEditor(props: {
    * Hands the toolbar's downloads to actions outside it, such as the file
    * menu. The function returns false while the sheet can't be exported yet.
    */
-  onDownloadReady?: (download: (format: 'xlsx' | 'csv') => boolean) => void;
+  onDownloadReady?: (
+    download: (format: SpreadsheetDownloadFormat) => boolean
+  ) => void;
 }) {
   let gridElement: HTMLDivElement | undefined;
   let editorElement!: HTMLElement;

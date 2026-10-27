@@ -7,9 +7,10 @@ import {
 import { Permissions } from '@core/component/SharePermissions';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { PrForeignEntityData } from '../data/queries';
+import { usePrFileOperations } from '../primitives/pr-file-operations';
 import { prDisplayName } from '../util/prKey';
+import { confirmMergePullRequest } from './MergePullRequestButton';
 import { PrStatusIcon } from './PrStatus';
-import { usePrFileOperations } from './pr-file-operations';
 
 /**
  * PR identity in the split header chrome and file menu, independent of the
@@ -20,7 +21,10 @@ import { usePrFileOperations } from './pr-file-operations';
 export function PrSplitHeader(props: { detail: PrForeignEntityData }) {
   const title = () =>
     props.detail.pullRequest.name ?? prDisplayName(props.detail.prRef);
-  const operations = usePrFileOperations(() => props.detail);
+  const operations = usePrFileOperations(
+    () => props.detail,
+    confirmMergePullRequest
+  );
 
   return (
     <>

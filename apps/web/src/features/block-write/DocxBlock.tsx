@@ -30,23 +30,13 @@ import {
 import { getDisplayName, tryMacroId } from '@core/user';
 import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
 import { fireAndForget } from '@core/util/fireAndForget';
-import { downloadFile } from '@filesystem/download';
 import IconShared from '@icon/share.svg';
 import DownloadSimple from '@icon/system/regular/download-simple.svg';
 import { useMessageRootsQuery } from '@queries/messages/document-messages';
-import { downloadExportedDocument } from '@service-storage/util/downloadExportedDocument';
 import { Badge } from '@ui';
-import {
-  createMemo,
-  createSignal,
-  Match,
-  onCleanup,
-  onMount,
-  Show,
-  Switch,
-} from 'solid-js';
+import { createMemo, Match, onCleanup, onMount, Show, Switch } from 'solid-js';
 import type { DocxBlockData } from './definition';
-import type { DocxEditor } from './primitives/create-docx-editor';
+import { createDocxDownload } from './primitives/create-docx-download';
 import {
   buildDocxSeed,
   connectDocxSync,
@@ -57,9 +47,6 @@ import {
 import { createDocxSession } from './queries/docx-session';
 import { DocxCommentMargin, DocxDetachedComments } from './views/DocxComments';
 import { DocxEditorView } from './views/DocxEditorView';
-
-const DOCX_MIME =
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 function displayName(userId: string | undefined) {
   return getDisplayName(tryMacroId(userId ?? ''), {
@@ -109,27 +96,11 @@ export default function DocxBlock(props: { share?: string }) {
       error instanceof Error ? error.message : 'Something went wrong'
     );
   };
-  const saveDocx = (bytes: Uint8Array) =>
-    downloadFile(
-      new Blob([bytes.slice().buffer], { type: DOCX_MIME }),
-      fileName()
-    );
-  // The mounted editor saves its live state, unsynced edits included; before
-  // it mounts, the server's export of the document is the latest copy.
-  const [editor, setEditor] = createSignal<DocxEditor>();
-  const download = async () => {
-    const current = editor();
-    try {
-      if (current) {
-        await current.idle();
-        await saveDocx(await current.save());
-      } else {
-        await saveDocx(await downloadExportedDocument({ documentId }));
-      }
-    } catch (error) {
-      reportError(error);
-    }
-  };
+  const docxDownload = createDocxDownload({
+    documentId,
+    fileName,
+    onError: reportError,
+  });
 
   return (
     <DocumentBlockContainer>
@@ -172,7 +143,8 @@ export default function DocxBlock(props: { share?: string }) {
               group: 'file',
               label: 'Download',
               icon: DownloadSimple,
-              action: () => fireAndForget(download(), 'docx-download'),
+              action: () =>
+                fireAndForget(docxDownload.download(), 'docx-download'),
             },
             { op: 'delete' },
           ]}
@@ -238,7 +210,7 @@ export default function DocxBlock(props: { share?: string }) {
                 </Match>
                 <Match when={target()} keyed>
                   {({ doc, original }) => {
-                    onCleanup(() => setEditor(undefined));
+                    onCleanup(() => docxDownload.setEditor(undefined));
                     return (
                       <DocxEditorView
                         doc={doc}
@@ -281,10 +253,13 @@ export default function DocxBlock(props: { share?: string }) {
                           </>
                         )}
                         onDownload={(bytes) =>
-                          fireAndForget(saveDocx(bytes), 'docx-download')
+                          fireAndForget(
+                            docxDownload.save(bytes),
+                            'docx-download'
+                          )
                         }
                         onError={reportError}
-                        onReady={setEditor}
+                        onReady={docxDownload.setEditor}
                       />
                     );
                   }}

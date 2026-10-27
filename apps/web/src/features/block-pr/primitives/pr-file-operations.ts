@@ -1,7 +1,6 @@
 import type { FileOperation } from '@components/app/split-layout/components/SplitFileMenu';
 import { toast } from '@core/component/Toast/Toast';
 import { fireAndForget } from '@core/util/fireAndForget';
-import { ThrownResultError } from '@core/util/result';
 import { openExternalUrl } from '@core/util/url';
 import GithubIcon from '@icon/mcp-github.svg';
 import ArrowCounterClockwise from '@icon/system/regular/arrow-counter-clockwise.svg';
@@ -15,25 +14,21 @@ import { queryClient } from '@queries/client';
 import { soupKeys } from '@queries/soup/keys';
 import { useSetGithubPullRequestDraftMutation } from '@queries/storage/pr-draft';
 import { useSetGithubPullRequestStateMutation } from '@queries/storage/pr-state';
-import { type Accessor, getOwner } from 'solid-js';
+import { type Accessor, getOwner, type Owner } from 'solid-js';
 import {
   invalidatePrForeignEntity,
   type PrForeignEntityData,
 } from '../data/queries';
-import { createMergePullRequestAction } from '../primitives/create-merge-pull-request-action';
 import { prDisplayName, prHtmlUrl } from '../util/prKey';
-import { confirmMergePullRequest } from './MergePullRequestButton';
+import {
+  createMergePullRequestAction,
+  type MergePullRequestTarget,
+  pullRequestFailureMessage,
+} from './create-merge-pull-request-action';
 
 async function copyToClipboard(text: string, confirmation: string) {
   await navigator.clipboard.writeText(text);
   toast.success(confirmation);
-}
-
-function failureMessage(error: unknown, fallback: string) {
-  // GitHub's own reason when it declined; anything else is ours.
-  return error instanceof ThrownResultError && error.errors.length > 0
-    ? error.message
-    : fallback;
 }
 
 /**
@@ -43,7 +38,12 @@ function failureMessage(error: unknown, fallback: string) {
  * when it declines.
  */
 export function usePrFileOperations(
-  detail: Accessor<PrForeignEntityData | undefined>
+  detail: Accessor<PrForeignEntityData | undefined>,
+  /** Asks before merging; the host supplies the dialog. */
+  confirmMerge: (
+    target: MergePullRequestTarget,
+    owner: Owner | null
+  ) => Promise<boolean>
 ): Accessor<FileOperation[]> {
   const owner = getOwner();
   // The routes patch the stored pull request first, so refetches see the
@@ -54,7 +54,7 @@ export function usePrFileOperations(
     queryClient.invalidateQueries({ queryKey: soupKeys.astItems._def });
   };
   const merge = createMergePullRequestAction({
-    confirm: (target) => confirmMergePullRequest(target, owner),
+    confirm: (target) => confirmMerge(target, owner),
     onMerged: refresh,
   });
   const setDraft = useSetGithubPullRequestDraftMutation();
@@ -67,7 +67,7 @@ export function usePrFileOperations(
     try {
       await request();
     } catch (error) {
-      toast.failure(failureMessage(error, copy.failed));
+      toast.failure(pullRequestFailureMessage(error, copy.failed));
       return;
     }
     toast.success(copy.done);

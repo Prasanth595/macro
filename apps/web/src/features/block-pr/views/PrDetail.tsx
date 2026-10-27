@@ -25,7 +25,10 @@ import {
 import { githubPullRequestChangesKeys } from '@queries/storage/keys';
 import { Button, CopyButton, cn, Layer, Scroll, Tooltip } from '@ui';
 import { type Accessor, createMemo, Show, Suspense } from 'solid-js';
-import { MergePullRequestButton } from '../component/MergePullRequestButton';
+import {
+  confirmMergePullRequest,
+  MergePullRequestButton,
+} from '../component/MergePullRequestButton';
 import { PrChangesProvider } from '../component/PrChanges';
 import {
   PrDescriptionSkeleton,
@@ -39,7 +42,6 @@ import {
   PrStatusIcon,
 } from '../component/PrStatus';
 import { PrTimeline } from '../component/PrTimeline';
-import { usePrFileOperations } from '../component/pr-file-operations';
 import { PrSidePanelSections } from '../component/sidepanel/PrSidePanelSections';
 import { createPrDiscussionSource } from '../data/prDiscussionSource';
 import {
@@ -49,6 +51,7 @@ import {
   usePrForeignEntityQuery,
 } from '../data/queries';
 import { usePrShare } from '../hooks/usePrShare';
+import { usePrFileOperations } from '../primitives/pr-file-operations';
 import {
   cleanGithubMarkdown,
   githubAvatarUrl,
@@ -244,7 +247,7 @@ export function PrDetailActions(props: { detail?: PrForeignEntityData }) {
 
 export function StandalonePrDetail(props: { foreignEntityId: string }) {
   const detail = usePrDetail(() => props.foreignEntityId);
-  const operations = usePrFileOperations(detail.data);
+  const operations = usePrFileOperations(detail.data, confirmMergePullRequest);
   const name = () => {
     const data = detail.data();
     return (

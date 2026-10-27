@@ -3,9 +3,10 @@ import { ChangesSplit } from '@app/features/changes/changes';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useRouteParams } from '@app/lib/split-router';
 import { reviewsPrRoute } from '@app/routes/routes';
+import { confirmMergePullRequest } from '@block-pr/component/MergePullRequestButton';
 import { PrChangesProvider } from '@block-pr/component/PrChanges';
 import { PrStatusIcon } from '@block-pr/component/PrStatus';
-import { usePrFileOperations } from '@block-pr/component/pr-file-operations';
+import { usePrFileOperations } from '@block-pr/primitives/pr-file-operations';
 import { prDisplayName, prHtmlUrl } from '@block-pr/util/prKey';
 import {
   PrDetailActions,
@@ -67,7 +68,7 @@ function ReviewsPrBreadcrumb(props: {
 export function ReviewsPrDetail(props: { foreignEntityId: string }) {
   const analytics = useAnalytics();
   const detail = usePrDetail(() => props.foreignEntityId);
-  const operations = usePrFileOperations(detail.data);
+  const operations = usePrFileOperations(detail.data, confirmMergePullRequest);
   const name = () => {
     const data = detail.data();
     return (

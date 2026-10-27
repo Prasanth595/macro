@@ -21,7 +21,6 @@ import {
   createParamsState,
   ParamsProvider,
 } from '@core/component/ParamsProvider';
-import { toast } from '@core/component/Toast/Toast';
 import {
   getShareDrawerRecipientInput,
   ShareTrigger,
@@ -42,10 +41,11 @@ import DownloadSimple from '@icon/system/regular/download-simple.svg';
 import FileCsv from '@icon/system/regular/file-csv.svg';
 import FileXls from '@icon/system/regular/file-xls.svg';
 import { Badge } from '@ui';
-import { createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { onCleanup, onMount, Show } from 'solid-js';
 import { spreadsheetChatContext } from './core/chat-context';
 import { clipboardTargetInScope } from './core/clipboard-scope';
 import type { SpreadsheetData } from './definition';
+import { createSpreadsheetDownload } from './primitives/create-spreadsheet-download';
 import { createSpreadsheetStore } from './primitives/create-spreadsheet-store';
 import { useSpreadsheetAccess } from './primitives/use-spreadsheet-access';
 import { createSpreadsheetSession } from './queries/spreadsheet-session';
@@ -113,14 +113,7 @@ function SpreadsheetBlockContent(props: { share?: string }) {
       | undefined;
     return value?.__block === 'spreadsheet' ? value : undefined;
   };
-  const [downloadSheet, setDownloadSheet] =
-    createSignal<(format: 'xlsx' | 'csv') => boolean>();
-  const download = (format: 'xlsx' | 'csv') => {
-    if (downloadSheet()?.(format)) return;
-    toast.failure(
-      "The spreadsheet isn't ready to download yet. Try again in a moment."
-    );
-  };
+  const sheetDownload = createSpreadsheetDownload();
 
   return (
     <DocumentBlockContainer>
@@ -156,12 +149,12 @@ function SpreadsheetBlockContent(props: { share?: string }) {
                 {
                   label: 'Download as Excel (.xlsx)',
                   icon: FileXls,
-                  action: () => download('xlsx'),
+                  action: () => sheetDownload.download('xlsx'),
                 },
                 {
                   label: 'Download as CSV',
                   icon: FileCsv,
-                  action: () => download('csv'),
+                  action: () => sheetDownload.download('csv'),
                 },
               ],
             },
@@ -180,7 +173,7 @@ function SpreadsheetBlockContent(props: { share?: string }) {
         />
         <Show when={data()?.syncSource} keyed>
           {(syncSource) => {
-            onCleanup(() => setDownloadSheet(undefined));
+            onCleanup(sheetDownload.clear);
             const source = createSpreadsheetSession({
               documentId,
               userId: userId(),
@@ -232,7 +225,7 @@ function SpreadsheetBlockContent(props: { share?: string }) {
                       mentions={spreadsheetMentions}
                       store={store}
                       name={name()}
-                      onDownloadReady={(run) => setDownloadSheet(() => run)}
+                      onDownloadReady={sheetDownload.register}
                       onExportXlsx={(bytes) =>
                         downloadFile(
                           new Blob([bytes.slice().buffer], {

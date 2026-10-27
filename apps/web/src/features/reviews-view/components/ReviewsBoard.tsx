@@ -12,9 +12,9 @@ import {
 } from '@block-pr/component/PrLinks';
 import { PrStatusIcon } from '@block-pr/component/PrStatus';
 import { priorityTaskName } from '@block-pr/data/pr-links';
+import { pullRequestFailureMessage } from '@block-pr/primitives/create-merge-pull-request-action';
 import { prDisplayName } from '@block-pr/util/prKey';
 import { toast } from '@core/component/Toast/Toast';
-import { ThrownResultError } from '@core/util/result';
 import type { GithubPullRequestEntity } from '@entity';
 import { GithubLabelPills } from '@entity/components/GithubLabelPill';
 import {
@@ -42,13 +42,6 @@ import type { ReviewsListLinks } from './ReviewsList';
 
 /** A stage set by a move, kept until the pull request itself changes. */
 type PendingStage = { stage: ReviewsBoardStage; updatedAt: unknown };
-
-function failureMessage(error: unknown, fallback: string) {
-  // GitHub's own reason when it declined; anything else is ours.
-  return error instanceof ThrownResultError && error.errors.length > 0
-    ? error.message
-    : fallback;
-}
 
 const ACTION_COPY: Record<
   ReviewsBoardAction,
@@ -186,7 +179,9 @@ export function ReviewsBoard(props: {
         .exhaustive();
     } catch (error) {
       updatePending(review.id);
-      toast.failure(failureMessage(error, ACTION_COPY[action].failed));
+      toast.failure(
+        pullRequestFailureMessage(error, ACTION_COPY[action].failed)
+      );
       return false;
     } finally {
       updateSet(review.id, false);
