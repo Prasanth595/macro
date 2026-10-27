@@ -3,7 +3,7 @@
 Status: **Mail first slice implemented; other flat views retain server-baseline reconciliation**
 
 The `soup-mail-v1` ALL/INBOX slice now uses exclusive keyset pages bound to a
-query fingerprint, engine generation and cache revision. Pages cover complete
+query fingerprint and engine generation; a cursor stays valid across cache revisions. Pages cover complete
 cached Mail projections, not proof of whole-mailbox coverage. This is separate
 from the all-or-network proposal below; other Soup partitions continue to use
 server-baseline reconciliation. See `docs/agent-guide/email.md` (Cached Mail filtering) for the shipped scope and remaining filters.
@@ -122,12 +122,11 @@ Expose an opaque, versioned `EntityFilterCursor` through the browser protocol. I
 - cursor format version;
 - active `soup-flat-v1` profile version;
 - cache-engine generation;
-- cache revision;
 - canonical query fingerprint excluding page limit and cursor;
 - sort value;
 - normalized record key.
 
-The query fingerprint prevents a cursor from one filter, sort, or direction from being reused with another. Generation binding prevents revision `"3"` from an old engine from matching revision `"3"` in a replacement engine. The existing `onCacheGenerationChanged` lifecycle must clear frontend cursor state; the worker boundary must also reject stale-generation cursors rather than relying only on UI ordering.
+The query fingerprint prevents a cursor from one filter, sort, or direction from being reused with another. Generation binding keeps a cursor from an old engine from being read against a replacement engine's index. The existing `onCacheGenerationChanged` lifecycle must clear frontend cursor state; the worker boundary must also reject stale-generation cursors rather than relying only on UI ordering.
 
 Extend the browser API conceptually to:
 
@@ -371,7 +370,7 @@ Track at least:
 ### WASM and protocol tests
 
 - first and continuation pages cross the JS boundary with exact revisions;
-- stale revision and stale generation cursors are rejected;
+- stale generation and changed-query cursors are rejected, and a cursor continues after the same row across writes;
 - cursor query fingerprints cannot be reused with changed filters or sort;
 - filter page and selected records carry the same revision;
 - realtime Soup items can appear on a later local page without a Soup query fetch;
