@@ -1,6 +1,6 @@
 //! Core types shared across the router.
 
-/// A gateway-generated client connection id. Each socket has its own router.
+/// A host-generated client connection id. Each socket has its own router.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConnectionId(pub String);
 
@@ -15,7 +15,7 @@ impl DocId {
     }
 }
 
-/// Events from the gateway edge, already filtered to what the router handles
+/// Events from the socket edge, already filtered to what the router handles
 /// (text frames never reach it).
 #[derive(Debug)]
 pub enum EdgeEvent {
@@ -36,11 +36,11 @@ pub enum EdgeEvent {
 /// Everything the router loop reacts to.
 #[derive(Debug)]
 pub enum Event {
-    /// An event from the gateway edge.
+    /// An event from the socket edge.
     Edge(EdgeEvent),
     /// A downstream connection died (upstream close or dial failure). The
-    /// client was already sent `RouterDocClosed` / `RouterSubscribeFailed` by
-    /// the downstream pump; this only cleans up the route.
+    /// router checks the incarnation before notifying the client, so an old
+    /// pump cannot close a replacement virtual socket.
     DownstreamClosed {
         /// The connection whose downstream died.
         conn: ConnectionId,
@@ -50,5 +50,16 @@ pub enum Event {
         /// dial failing after the client already re-subscribed) must not tear
         /// down the replacement route.
         epoch: u64,
+        /// Whether dialing failed or an established connection ended.
+        failure: DownstreamFailure,
     },
+}
+
+/// Coarse downstream failure safe to expose to clients.
+#[derive(Debug)]
+pub enum DownstreamFailure {
+    /// Authentication, connection establishment, or its timeout failed.
+    DialFailed,
+    /// An established upstream connection ended.
+    Closed(&'static str),
 }

@@ -6,15 +6,15 @@
 //! id across native sync services; the router core is unaware.
 
 use crate::domain::envelope;
-use crate::domain::models::{ConnectionId, DocId, Event};
-use crate::domain::ports::{Downstream, DownstreamFactory, EdgeSink};
+use crate::domain::models::{ConnectionId, DocId, DownstreamFailure, Event};
+use crate::domain::ports::{Downstream, DownstreamFactory, EdgeSink, QueuedFrame};
 use futures::{SinkExt, StreamExt};
 use opentelemetry::trace::TraceContextExt;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc;
-use tokio_tungstenite::connect_async;
+use tokio::sync::{Semaphore, mpsc};
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::{connect_async_with_config, tungstenite::protocol::WebSocketConfig};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{Instrument, debug, warn};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -22,7 +22,9 @@ use url::Url;
 
 /// How many client frames may buffer while the dial is in flight (or the
 /// upstream is slow). Overflow closes the route so the client resynchronizes.
-const DOWNSTREAM_BUFFER: usize = 256;
+const DOWNSTREAM_BUFFER: usize = 8;
+/// Shared by every document queue and in-flight upstream write in a session.
+const DOWNSTREAM_BYTE_BUDGET: usize = 8 * 1024 * 1024;
 
 /// Keep the upstream (and its Durable Object) alive, mirroring the ping the
 /// browser used to send on its direct per-document socket.
@@ -35,6 +37,7 @@ pub struct DoDownstreamFactory<Sink: EdgeSink> {
     events: mpsc::Sender<Event>,
     cancel: CancellationToken,
     tasks: TaskTracker,
+    budget: Arc<Semaphore>,
 }
 
 impl<Sink: EdgeSink> DoDownstreamFactory<Sink> {
@@ -47,6 +50,7 @@ impl<Sink: EdgeSink> DoDownstreamFactory<Sink> {
         tasks: TaskTracker,
     ) -> Self {
         Self {
+            budget: Arc::new(Semaphore::new(DOWNSTREAM_BYTE_BUDGET)),
             base_url,
             sink,
             events,
@@ -91,7 +95,7 @@ impl<Sink: EdgeSink> DownstreamFactory for DoDownstreamFactory<Sink> {
             }
             .in_current_span(),
         );
-        Downstream::new(sender, cancel)
+        Downstream::new(sender, cancel, self.budget.clone())
     }
 }
 
@@ -103,7 +107,7 @@ async fn pump<Sink: EdgeSink>(
     conn: ConnectionId,
     doc: DocId,
     epoch: u64,
-    mut from_client: mpsc::Receiver<Vec<u8>>,
+    mut from_client: mpsc::Receiver<QueuedFrame>,
     sink: Arc<Sink>,
     events: mpsc::Sender<Event>,
 ) {
@@ -121,13 +125,30 @@ async fn pump<Sink: EdgeSink>(
         }
     };
 
-    let upstream = match tokio::time::timeout(Duration::from_secs(10), connect_async(&url)).await {
+    let upstream = match tokio::time::timeout(
+        Duration::from_secs(10),
+        connect_async_with_config(
+            &url,
+            Some(
+                WebSocketConfig::default()
+                    .max_message_size(Some(crate::session::MAX_FRAME_BYTES - 1024))
+                    .max_frame_size(Some(crate::session::MAX_FRAME_BYTES - 1024)),
+            ),
+            false,
+        ),
+    )
+    .await
+    {
         Ok(Ok((upstream, _response))) => upstream,
         failure => {
             warn!(timed_out = failure.is_err(), "downstream dial failed");
-            deliver(envelope::subscribe_failed(doc.as_str(), "dial failed")).await;
             events
-                .send(Event::DownstreamClosed { conn, doc, epoch })
+                .send(Event::DownstreamClosed {
+                    conn,
+                    doc,
+                    epoch,
+                    failure: DownstreamFailure::DialFailed,
+                })
                 .await
                 .ok();
             return;
@@ -147,8 +168,8 @@ async fn pump<Sink: EdgeSink>(
     let closed_reason: Option<&str> = loop {
         tokio::select! {
             frame = from_client.recv() => match frame {
-                Some(bytes) => {
-                    if let Err(error) = write.send(Message::Binary(bytes.into())).await {
+                Some(frame) => {
+                    if let Err(error) = write.send(Message::Binary(frame.bytes.into())).await {
                         warn!(error = ?error, "upstream write failed");
                         break Some("upstream write failed");
                     }
@@ -180,9 +201,13 @@ async fn pump<Sink: EdgeSink>(
     match closed_reason {
         Some(reason) => {
             debug!(reason, "downstream closed");
-            deliver(envelope::doc_closed(doc.as_str(), reason)).await;
             events
-                .send(Event::DownstreamClosed { conn, doc, epoch })
+                .send(Event::DownstreamClosed {
+                    conn,
+                    doc,
+                    epoch,
+                    failure: DownstreamFailure::Closed(reason),
+                })
                 .await
                 .ok();
         }

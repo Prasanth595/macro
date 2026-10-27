@@ -60,7 +60,7 @@ impl TryFrom<StreamEvent> for Message {
 pub enum OutgoingMessage {
     Pong,
     Message(Message),
-    /// A raw binary frame from this socket's embedded sync router,
+    /// A raw binary frame (sync-protocol traffic from the fanout's consumers),
     /// sent to the client as a binary websocket message, unparsed.
     Binary(Vec<u8>),
 }

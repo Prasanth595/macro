@@ -6,7 +6,7 @@ mod test;
 
 use crate::domain::{
     envelope::{self, ClientEnvelope},
-    models::{ConnectionId, DocId, EdgeEvent, Event},
+    models::{ConnectionId, DocId, DownstreamFailure, EdgeEvent, Event},
     ports::{Downstream, DownstreamFactory, EdgeSink},
 };
 use std::collections::{HashMap, HashSet};
@@ -15,7 +15,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, warn};
 
-/// Routes envelope frames between gateway connections and per-document
+/// Routes envelope frames between client connections and per-document
 /// downstreams. Owned and driven by a single task; see [`Router::handle`].
 pub struct Router<Sink: EdgeSink, Downstreams: DownstreamFactory> {
     sink: Arc<Sink>,
@@ -77,16 +77,29 @@ impl<Sink: EdgeSink, Downstreams: DownstreamFactory> Router<Sink, Downstreams> {
                 }
             }
             Event::Edge(EdgeEvent::Disconnected { conn }) => self.drop_conn(&conn),
-            Event::DownstreamClosed { conn, doc, epoch } => {
-                // The pump already told the client; forget the route — but
-                // only if it is still the incarnation that died. A stale
-                // close must not tear down a replacement route.
+            Event::DownstreamClosed {
+                conn,
+                doc,
+                epoch,
+                failure,
+            } => {
+                // Teardown and notification are atomic with respect to retries.
+                // A stale pump cannot affect a replacement route or virtual socket.
                 let is_current = self
                     .routes
                     .get(&(conn.clone(), doc.clone()))
                     .is_some_and(|route| route.epoch == epoch);
                 if is_current {
                     self.forget(&conn, &doc);
+                    let frame = match failure {
+                        DownstreamFailure::DialFailed => {
+                            envelope::subscribe_failed(doc.as_str(), "dial failed")
+                        }
+                        DownstreamFailure::Closed(reason) => {
+                            envelope::doc_closed(doc.as_str(), reason)
+                        }
+                    };
+                    self.deliver(&conn, frame).await;
                 }
             }
         }
@@ -96,14 +109,21 @@ impl<Sink: EdgeSink, Downstreams: DownstreamFactory> Router<Sink, Downstreams> {
     async fn handle_client(&mut self, conn: ConnectionId, frame: ClientEnvelope) {
         match frame {
             ClientEnvelope::RouterSubscribe { doc_id, token } => {
+                if doc_id.len() > 512 || token.len() > 16 * 1024 {
+                    self.deliver(
+                        &conn,
+                        envelope::subscribe_failed(&doc_id, "invalid subscription"),
+                    )
+                    .await;
+                    return;
+                }
                 let doc = DocId(doc_id);
                 let key = (conn.clone(), doc.clone());
                 if self.routes.contains_key(&key) {
-                    // Idempotent: the downstream is already up (or dialing).
-                    // Re-ack so a retrying client settles.
-                    self.deliver(&conn, envelope::subscribed(doc.as_str()))
-                        .await;
-                    return;
+                    // Retry with fresh authority, cancelling the previous incarnation.
+                    // The old pump may have sent its failure before its cleanup event
+                    // reached us. Never acknowledge a still-pending handshake.
+                    self.forget(&conn, &doc);
                 }
                 if self
                     .by_conn

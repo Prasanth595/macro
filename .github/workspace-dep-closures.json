@@ -886,7 +886,6 @@
       "crates/static_file",
       "crates/static_file_service_client",
       "crates/stream",
-      "crates/sync_router",
       "crates/sync_service",
       "crates/sync_service_client",
       "crates/system_properties",
@@ -901,7 +900,6 @@
       "services/agent_harness_service",
       "services/connection_gateway",
       "services/mcp_auth_proxy",
-      "services/sync-service/bebop-schema",
       "services/unfurl_service"
     ],
     "agent_inmem": [
@@ -4253,7 +4251,6 @@
       "crates/macro_entrypoint",
       "crates/macro_env",
       "crates/macro_env_var",
-      "crates/macro_service_urls",
       "crates/macro_tower_layers",
       "crates/macro_user_id",
       "crates/macro_uuid",
@@ -4272,22 +4269,22 @@
       "crates/remote_env_var",
       "crates/secretsmanager_client",
       "crates/stream",
-      "crates/sync_router",
       "crates/workspace-hack",
-      "services/connection_gateway",
-      "services/sync-service/bebop-schema"
+      "services/connection_gateway"
     ],
     "connection_gateway_client": [
       "crates/connection_gateway_client",
       "crates/connection_gateway_models",
       "crates/cowlike",
       "crates/macro_tower_layers",
+      "crates/macro_user_id",
       "crates/model-entity",
       "crates/workspace-hack"
     ],
     "connection_gateway_models": [
       "crates/connection_gateway_models",
       "crates/cowlike",
+      "crates/macro_user_id",
       "crates/model-entity",
       "crates/workspace-hack"
     ],
@@ -5337,6 +5334,7 @@
       "crates/sqs_worker",
       "crates/static_file",
       "crates/static_file_service_client",
+      "crates/sync_router",
       "crates/sync_service",
       "crates/sync_service_client",
       "crates/system_properties",
@@ -5352,7 +5350,8 @@
       "crates/whatsapp_linked",
       "crates/work_feed",
       "crates/workspace-hack",
-      "services/document_storage_service"
+      "services/document_storage_service",
+      "services/sync-service/bebop-schema"
     ],
     "document_storage_service_client": [
       "crates/agent",

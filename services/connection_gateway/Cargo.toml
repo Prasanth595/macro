@@ -59,9 +59,9 @@ macro_config = { path = "../../crates/macro_config" }
 macro_entrypoint = { path = "../../crates/macro_entrypoint" }
 macro_env = { path = "../../crates/macro_env" }
 macro_env_var = { path = "../../crates/macro_env_var" }
-macro_service_urls = { path = "../../crates/macro_service_urls" }
 macro_tower_layers = { path = "../../crates/macro_tower_layers" }
 mockall.workspace = true
+postcard = { workspace = true }
 model = { path = "../../crates/model" }
 model-entity = { path = "../../crates/model-entity" }
 models_bulk_upload = { path = "../../crates/models_bulk_upload" }
@@ -79,9 +79,7 @@ sqlx = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 strum_macros = { workspace = true }
 stream = { path = "../../crates/stream" }
-sync_router = { path = "../../crates/sync_router" }
 tokio = { workspace = true }
-tokio-util = { workspace = true, features = ["rt"] }
 tower = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true, features = ["attributes"] }
@@ -94,8 +92,5 @@ workspace-hack = { version = "0.1", path = "../../crates/workspace-hack" }
 doppler-config = { workspace = true }
 
 [dev-dependencies]
-bebop = { workspace = true }
-sync_service_bebop_schema = { path = "../sync-service/bebop-schema" }
-tokio-tungstenite = { workspace = true }
 cool_asserts = "2"
 macro_auth = { path = "../../crates/macro_auth", features = ["testing"] }

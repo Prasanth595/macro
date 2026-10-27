@@ -127,12 +127,13 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 Document sync uses the `sync-via-gateway` PostHog flag in both deployed dev and
 production. Off or unknown flag values use direct sync sockets.
-Local stacks with the updated connection gateway can opt in with `VITE_SYNC_VIA_GATEWAY=true`;
+Local stacks with the updated DSS can opt in with `VITE_SYNC_VIA_GATEWAY=true`;
 `false` forces direct sync. The choice is made when a sync source is created
 and stays fixed for its lifetime. PostHog can serve a cached value on reload;
 recreate document sessions after the client receives the updated flag to change
 transport. This is not an immediate kill switch for open sessions. Finish deploying the updated
-connection gateway before enabling; routing is embedded in that service.
+DSS before enabling; the dedicated `/sync/ws` socket hosts routing independently
+of the connection-gateway notification socket. The PostHog key keeps its historical name.
 
 Saved canvases use the shared Loro runtime; the stored JSON is only the original
 migration seed. Keep whole-file simple-save out of scene editing. Canvas

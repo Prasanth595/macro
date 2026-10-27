@@ -11,15 +11,12 @@ fn encode(message: ToRouter<'_>) -> Vec<u8> {
     bytes
 }
 
-async fn next_frame(receiver: &mut mpsc::Receiver<OutgoingMessage>) -> Vec<u8> {
-    let OutgoingMessage::Binary(bytes) = receiver.recv().await.unwrap() else {
-        panic!("expected a binary sync envelope");
-    };
-    bytes
+async fn next_frame(receiver: &mut mpsc::Receiver<Vec<u8>>) -> Vec<u8> {
+    receiver.recv().await.unwrap()
 }
 
 #[tokio::test]
-async fn separate_gateway_sessions_route_the_same_document_without_cross_delivery() {
+async fn separate_host_sessions_route_the_same_document_without_cross_delivery() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base_url = Url::parse(&format!("http://{}", listener.local_addr().unwrap())).unwrap();
     let server = tokio::spawn(async move {
@@ -47,8 +44,12 @@ async fn separate_gateway_sessions_route_the_same_document_without_cross_deliver
     });
     let (first_sender, mut first_receiver) = mpsc::channel(10);
     let (second_sender, mut second_receiver) = mpsc::channel(10);
-    let first = SyncSession::new("gateway-a/socket-a".into(), base_url.clone(), first_sender);
-    let second = SyncSession::new("gateway-b/socket-b".into(), base_url, second_sender);
+    let first = SyncSessionFactory::new(base_url.clone())
+        .unwrap()
+        .open("gateway-a/socket-a".into(), first_sender);
+    let second = SyncSessionFactory::new(base_url)
+        .unwrap()
+        .open("gateway-b/socket-b".into(), second_sender);
     first
         .frame(encode(ToRouter::RouterSubscribe {
             doc_id: "same-document",
@@ -91,11 +92,11 @@ async fn separate_gateway_sessions_route_the_same_document_without_cross_deliver
         .unwrap();
     assert_eq!(
         next_frame(&mut first_receiver).await,
-        sync_router::domain::envelope::doc_frame("same-document", &[0, 11, 12])
+        crate::domain::envelope::doc_frame("same-document", &[0, 11, 12])
     );
     assert_eq!(
         next_frame(&mut second_receiver).await,
-        sync_router::domain::envelope::doc_frame("same-document", &[1, 21, 22])
+        crate::domain::envelope::doc_frame("same-document", &[1, 21, 22])
     );
     first.shutdown().await;
     second.shutdown().await;
@@ -114,7 +115,9 @@ async fn closing_a_session_cancels_a_downstream_that_never_completes_its_handsha
         socket.read_to_end(&mut bytes).await.unwrap();
     });
     let (sender, _receiver) = mpsc::channel(10);
-    let session = SyncSession::new("socket".into(), base_url, sender);
+    let session = SyncSessionFactory::new(base_url)
+        .unwrap()
+        .open("socket".into(), sender);
     session
         .frame(encode(ToRouter::RouterSubscribe {
             doc_id: "document",
@@ -141,7 +144,9 @@ async fn unsubscribe_cancels_a_pending_dial_without_stopping_the_session() {
         socket.read_to_end(&mut Vec::new()).await.unwrap();
     });
     let (sender, _receiver) = mpsc::channel(10);
-    let session = SyncSession::new("socket".into(), base_url, sender);
+    let session = SyncSessionFactory::new(base_url)
+        .unwrap()
+        .open("socket".into(), sender);
     session
         .frame(encode(ToRouter::RouterSubscribe {
             doc_id: "document",
@@ -165,7 +170,7 @@ async fn unsubscribe_cancels_a_pending_dial_without_stopping_the_session() {
 #[tokio::test]
 async fn full_outbound_queue_cancels_only_its_owner_instead_of_dropping_a_chunk() {
     let (sender, _receiver) = mpsc::channel(1);
-    sender.send(OutgoingMessage::Pong).await.unwrap();
+    sender.send(vec![]).await.unwrap();
     let cancel = CancellationToken::new();
     let other_cancel = CancellationToken::new();
     let conn = ConnectionId("socket".into());
@@ -217,7 +222,9 @@ async fn rejected_document_token_never_opens_a_virtual_socket() {
         assert!(result.is_err());
     });
     let (sender, mut receiver) = mpsc::channel(10);
-    let session = SyncSession::new("socket".into(), base_url, sender);
+    let session = SyncSessionFactory::new(base_url)
+        .unwrap()
+        .open("socket".into(), sender);
     session
         .frame(encode(ToRouter::RouterSubscribe {
             doc_id: "document",
@@ -263,7 +270,9 @@ async fn scoped_tokens_and_document_ids_cannot_change_the_downstream_url() {
         let _ = socket.next().await;
     });
     let (sender, mut receiver) = mpsc::channel(10);
-    let session = SyncSession::new("socket".into(), base_url, sender);
+    let session = SyncSessionFactory::new(base_url)
+        .unwrap()
+        .open("socket".into(), sender);
     session
         .frame(encode(ToRouter::RouterSubscribe {
             doc_id: "doc/other?override",
@@ -277,4 +286,62 @@ async fn scoped_tokens_and_document_ids_cannot_change_the_downstream_url() {
     ));
     session.shutdown().await;
     server.await.unwrap();
+}
+
+#[tokio::test]
+async fn host_shutdown_cancels_and_waits_for_all_sessions() {
+    let factory = SyncSessionFactory::new(Url::parse("http://127.0.0.1:1").unwrap()).unwrap();
+    let (sender, _receiver) = mpsc::channel(1);
+    let session = factory.open("socket".into(), sender);
+    let shutdown = factory.shutdown();
+    tokio::pin!(shutdown);
+    tokio::select! {
+        _ = &mut shutdown => panic!("must wait for socket cleanup"),
+        _ = session.closed() => {},
+    }
+    assert!(!factory.active.is_empty());
+    session.shutdown().await;
+    tokio::time::timeout(std::time::Duration::from_secs(1), shutdown)
+        .await
+        .unwrap();
+    assert!(factory.active.is_empty());
+}
+
+#[tokio::test]
+async fn oversized_frames_cannot_enter_client_or_router_queues() {
+    let factory = SyncSessionFactory::new(Url::parse("http://127.0.0.1:1").unwrap()).unwrap();
+    let (sender, _receiver) = mpsc::channel(1);
+    let session = factory.open("socket".into(), sender.clone());
+    assert!(session.frame(vec![0; MAX_FRAME_BYTES + 1]).await.is_err());
+    let cancel = CancellationToken::new();
+    let conn = ConnectionId("socket".into());
+    let sink = SocketSink {
+        connection: conn.clone(),
+        sender,
+        cancel: cancel.clone(),
+    };
+    assert!(
+        sink.deliver(&conn, vec![0; MAX_FRAME_BYTES + 1])
+            .await
+            .is_err()
+    );
+    assert!(cancel.is_cancelled());
+    session.shutdown().await;
+}
+
+#[tokio::test]
+async fn all_document_queues_share_a_byte_budget_until_writes_finish() {
+    use crate::domain::ports::Downstream;
+    let budget = Arc::new(tokio::sync::Semaphore::new(10));
+    let (first_tx, mut first_rx) = mpsc::channel(8);
+    let (second_tx, _second_rx) = mpsc::channel(8);
+    let first = Downstream::new(first_tx, CancellationToken::new(), budget.clone());
+    let second = Downstream::new(second_tx, CancellationToken::new(), budget.clone());
+    first.try_send(vec![0; 6]).unwrap();
+    assert!(second.try_send(vec![0; 5]).is_err());
+    let in_flight = first_rx.recv().await.unwrap();
+    assert!(second.try_send(vec![0; 5]).is_err());
+    drop(in_flight);
+    second.try_send(vec![0; 10]).unwrap();
+    assert_eq!(budget.available_permits(), 0);
 }
