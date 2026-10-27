@@ -29,7 +29,9 @@ promotions keep their own terms. Accounts with an existing subscription see
 `Manage subscription`, which opens Stripe billing management instead of creating
 a replacement subscription. The comparison below the offer includes Free,
 Pro, and Max (see [login](login.md#desktop-onboarding)). Customers can also
-purchase plans afterwards in **Settings → Billing**.
+purchase plans afterwards in **Settings → Billing**. Max in that comparison
+starts paid checkout with no trial. A later switch from a Pro trial to Max
+ends the trial and charges Max immediately.
 
 Choosing Free, finishing checkout, claiming an invite offer, or (for a licensed
 team member) continuing from the team step moves on to the routines step;
