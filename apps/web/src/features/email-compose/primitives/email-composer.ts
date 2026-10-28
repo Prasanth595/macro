@@ -26,6 +26,7 @@ import type {
 } from '../../email-message/core/email-message';
 import {
   operationBlocksEditing,
+  operationBlocksInboxSwitch,
   operationBlocksSending,
   operationSending,
 } from '../../email-message/core/message-operation';
@@ -78,6 +79,7 @@ import { createDraftSaveNotice } from './draft-save-notice';
 import { createDraftSession } from './draft-session';
 import { createDraftTransfer } from './draft-transfer';
 import { createEmailSendSchedule } from './email-send-schedule';
+import { announceQueuedSend } from './queued-send-notice';
 import {
   pendingInlineMedia,
   refuseSend,
@@ -246,6 +248,17 @@ export function createEmailComposer(props: EmailComposerOptions) {
   const currentDraftId = session.draftId;
   const [sentDraftId, setSentDraftId] = createSignal<string>();
   const currentThreadId = session.threadId;
+  // A reload reopens the draft this composer opened, which this device can
+  // read even while its save is queued. A draft the composer creates or moves
+  // to is recorded only once the server confirms it.
+  const confirmedDraftId = createMemo<string | undefined>((previous) => {
+    const identity = session.identity();
+    if (identity.kind === 'none') return undefined;
+    return session.serverConfirmed() ? identity.draftId : previous;
+  }, initialDraftId);
+  createEffect(
+    on(confirmedDraftId, (draftId) => props.host?.recordDraft?.(draftId))
+  );
   const sendLocked = () =>
     props.delivery.sendLocked?.(currentDraftId() ?? sentDraftId()) ?? false;
   observeDraftIdentity(
@@ -486,6 +499,9 @@ export function createEmailComposer(props: EmailComposerOptions) {
   const deliveryBlocked = () =>
     operationSource?.needsReload?.() ||
     operationBlocksSending(currentOperation());
+  const inboxSwitchBlocked = () =>
+    operationSource?.needsReload?.() ||
+    operationBlocksInboxSwitch(currentOperation());
   const operationBlocked = () =>
     operationSource?.needsReload?.() ||
     operationBlocksEditing(currentOperation());
@@ -716,8 +732,35 @@ export function createEmailComposer(props: EmailComposerOptions) {
 
   // --- Send ---
 
-  const [validationError, setValidationError] =
-    createSignal<ComposeValidationError | null>(null);
+  const sendRequirements: {
+    error: ComposeValidationError;
+    met: () => boolean;
+  }[] = [
+    {
+      error: {
+        type: 'no_recipient',
+        message: 'Please select at least one recipient',
+      },
+      met: () => form.recipients().to.length > 0,
+    },
+    {
+      error: { type: 'no_message', message: 'Please enter a message' },
+      met: () => !!content().trim(),
+    },
+    {
+      error: { type: 'no_subject', message: 'Please enter a subject' },
+      met: () => !!form.subject()?.trim(),
+    },
+    {
+      error: {
+        type: 'no_link',
+        message: 'Unable to find linked email account. Select a sending inbox.',
+      },
+      met: () => !!link(),
+    },
+  ];
+  const [refusedRequirement, setRefusedRequirement] =
+    createSignal<(typeof sendRequirements)[number]>();
 
   // Snapshot the form before any watermark so an undo can reopen it as it was.
   const rememberForUndo = (draftId: string, inboxId: string) => {
@@ -798,33 +841,22 @@ export function createEmailComposer(props: EmailComposerOptions) {
     // The outbox delivers an online send right away; offline it waits on this device.
     const offline = props.connectivity.looksOffline();
     if (draftId) endUndoSend(draftId);
-    try {
-      const toastId = props.notices.feedback.success(
-        offline ? 'Email queued to send' : 'Email sent',
-        {
-          actions: draftId
-            ? [
-                {
-                  label: 'Undo',
-                  onClick: () => {
-                    if (toastId != null)
-                      props.notices.feedback.dismiss(toastId);
-                    void undoSend(
-                      draftId,
-                      threadId ?? undefined,
-                      inboxId,
-                      identity.sendAttemptId
-                    ).catch(props.notices.reportError);
-                  },
-                },
-              ]
-            : undefined,
-          duration: 5_000,
-        }
-      );
-    } catch (error) {
-      props.notices.reportError(error);
-    }
+    announceQueuedSend({
+      notices: props.notices,
+      delivery: props.delivery,
+      sendAttemptId: identity.sendAttemptId,
+      queuedOffline: offline,
+      undo: draftId
+        ? () => {
+            void undoSend(
+              draftId,
+              threadId ?? undefined,
+              inboxId,
+              identity.sendAttemptId
+            ).catch(props.notices.reportError);
+          }
+        : undefined,
+    });
     try {
       // The server has no thread to show until an offline send goes out.
       if (offline) props.host?.goBack?.();
@@ -849,43 +881,12 @@ export function createEmailComposer(props: EmailComposerOptions) {
       sendLocked()
     )
       return;
-    setValidationError(null);
-
+    const refused = sendRequirements.find((requirement) => !requirement.met());
+    setRefusedRequirement(refused);
     const currentEditor = editor();
     const currentLink = link();
     const recipients = form.recipients();
-
-    if (!recipients.to.length) {
-      setValidationError({
-        type: 'no_recipient',
-        message: 'Please select at least one recipient',
-      });
-      return;
-    }
-
-    if (!content().trim()) {
-      setValidationError({
-        type: 'no_message',
-        message: 'Please enter a message',
-      });
-      return;
-    }
-
-    if (!form.subject()?.trim()) {
-      setValidationError({
-        type: 'no_subject',
-        message: 'Please enter a subject',
-      });
-      return;
-    }
-
-    if (!currentLink) {
-      setValidationError({
-        type: 'no_link',
-        message: 'Unable to find linked email account. Select a sending inbox.',
-      });
-      return;
-    }
+    if (refused || !currentLink) return;
 
     const offline = sendRefusalBeforeSave(
       props.connectivity,
@@ -1276,6 +1277,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
     draftGeneration,
     onTransferred: () => setDraftGeneration(0),
     session,
+    persistence,
     drafts: props.drafts,
     attachments: form.attachments,
     save: () => autosave.save(),
@@ -1284,11 +1286,20 @@ export function createEmailComposer(props: EmailComposerOptions) {
       autosave.cancel();
     },
   });
+  // The move has committed, so a host that cannot show it must not turn the
+  // switch into a failed inbox change.
+  const showMovedDraft = (moved: { draftId: string; threadId: string }) => {
+    try {
+      props.host?.showMovedDraft?.(moved);
+    } catch (error) {
+      props.notices.reportError(error);
+    }
+  };
   const selectInbox = async (inboxId: string, senderEmail?: string) => {
     if (
       sendLocked() ||
       restoring() ||
-      (!draftTransfer?.pending() && deliveryBlocked()) ||
+      (!draftTransfer?.pending() && inboxSwitchBlocked()) ||
       submitting() ||
       discarding() ||
       movingInbox() ||
@@ -1310,13 +1321,18 @@ export function createEmailComposer(props: EmailComposerOptions) {
         );
       }
       autosave.cancel();
-      if (sourceInboxId && sourceInboxId !== inboxId) {
-        await draftTransfer?.move(destination, sourceInboxId);
-      }
+      const moved =
+        sourceInboxId && sourceInboxId !== inboxId
+          ? await draftTransfer?.move(destination, sourceInboxId)
+          : undefined;
       form.setSelectedInbox(inboxId, senderEmail);
       editVersion += 1;
       setDraftDirty(true);
-      await autosave.save();
+      // The save captures the new sender before the host can unmount this
+      // composer to show the moved draft.
+      const saved = autosave.save();
+      if (moved) showMovedDraft(moved);
+      await saved;
     } catch (error) {
       props.notices.reportError(error);
       props.notices.feedback.failure(
@@ -1502,10 +1518,9 @@ export function createEmailComposer(props: EmailComposerOptions) {
 
     // Validation
     validationError: (type) => {
-      if (type === 'no_link' && link()) return undefined;
-      const error = validationError();
-      if (error?.type === type) return error;
-      return undefined;
+      const refused = refusedRequirement();
+      if (refused?.error.type !== type || refused.met()) return undefined;
+      return refused.error;
     },
 
     // Recipients
