@@ -150,6 +150,11 @@ The shared plain-text Lexical codec is `packages/lexical-core/canvas-text.ts`.
 
 ## Development Patterns
 
+CRM pipeline schema adapters supply `currencyColumnId`, `fixedOptions` and
+`defaultValue` to the shared database editor. Pass the complete row to cell
+formatting and group monetary calculations by currency; CSV keeps amounts and
+currency codes in separate columns. See the [outcome/currency design](../../docs/design/crm-outcome-currency.md).
+
 Keep persistent list hotkeys free of mounted-view closures, and clear
 virtualizer accessors when their view unmounts.
 Keep editor newline handling local; result-opening handlers must yield

@@ -74,3 +74,75 @@ test('a cell in a row taller than its value takes clicks across its full height'
   await page.mouse.click(box.x + box.width / 2, box.y + box.height - 8);
   await expect(page.getByRole('textbox', { name: 'Edit Notes' })).toBeVisible();
 });
+
+test('outcome and currency use the shared editor and totals retain the denomination', async ({
+  page,
+}) => {
+  await expect(
+    page.getByRole('button', { name: /^Revenue: USD 1,250.5/ })
+  ).toBeVisible();
+  await page.getByRole('button', { name: /^Outcome: Open/ }).click();
+  await page.getByRole('option', { name: 'Won', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: /^Outcome: Won/ })
+  ).toBeVisible();
+  await page.getByRole('button', { name: /^Revenue currency: USD/ }).click();
+  await expect(
+    page.getByRole('button', { name: 'Clear value', exact: true })
+  ).toHaveCount(0);
+  await page.getByRole('option', { name: 'EUR', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: /^Revenue: EUR 1,250.5/ })
+  ).toBeVisible();
+  await expect(page.getByRole('row', { name: 'Table summary' })).toContainText(
+    'EUR 1,250.5'
+  );
+  await page
+    .getByRole('columnheader', { name: 'Outcome', exact: true })
+    .press('Shift+F10');
+  await expect(
+    page.getByRole('menuitem', { name: 'Rename column' })
+  ).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).not.toBeVisible();
+});
+
+test('record and board editors preserve outcome and currency', async ({
+  page,
+}) => {
+  await page
+    .getByRole('button', { name: 'Open Linked record', exact: true })
+    .click();
+  const record = page.getByRole('dialog');
+  await record.getByRole('button', { name: /^Outcome: Open/ }).click();
+  await page.getByRole('option', { name: 'Lost', exact: true }).click();
+  await record.getByRole('button', { name: /^Revenue currency: USD/ }).click();
+  await page.getByRole('option', { name: 'EUR', exact: true }).click();
+  await expect(
+    record.getByRole('button', { name: /^Revenue: EUR 1,250.5/ })
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Close record', exact: true }).click();
+  await page.getByRole('button', { name: 'Show board', exact: true }).click();
+  await expect(page.getByLabel('Board grouped by Outcome')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New group' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Rename Won' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open lane menu' }).click();
+  await expect(
+    page.getByRole('menuitem', { name: 'Delete group' })
+  ).toHaveCount(0);
+  await page.getByRole('menuitem', { name: 'Hide lane' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Open lane menu' })
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Change Won color' }).click();
+  await expect(page.getByText('Group color', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('button', { name: /^Revenue: EUR 1,250.5/ })
+  ).toBeVisible();
+  await page.getByRole('button', { name: /^Outcome: Lost/ }).click();
+  await page.getByRole('option', { name: 'Won', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: /^Outcome: Won/ })
+  ).toBeVisible();
+});

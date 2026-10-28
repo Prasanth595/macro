@@ -486,7 +486,12 @@ where
             new_rows.push(row.clone());
         }
 
-        let added_options = missing_options(&fields, &new_rows);
+        let customizable = fields
+            .iter()
+            .filter(|(_, field)| !pipeline.commercial_fields.is_system_select(field.id))
+            .cloned()
+            .collect::<Vec<_>>();
+        let added_options = missing_options(&customizable, &new_rows);
         if !added_options.is_empty() {
             self.workflows
                 .edit(

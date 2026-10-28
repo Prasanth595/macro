@@ -70,6 +70,8 @@ unreferenced replicas. These additive tables do not change agent-session claims.
 
 ## Gotchas
 
+- CRM commercial-field migration triggers bridge older pipeline and row writers
+  with Open/USD defaults; keep explicit values and stable row/amount identities.
 - `calendar_event_notes` and `calendar_note_event_visible` are shared by calendar
   note reads and document authorization; keep both consumers on the same policy.
   The additive migration must precede their service rollout. See

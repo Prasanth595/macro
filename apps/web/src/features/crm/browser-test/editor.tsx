@@ -2,6 +2,7 @@ import '@app/index.css';
 import type { DatabaseOp } from '@core/database-sql/generated/types';
 import type { ColumnDetail } from '@service-storage/generated/schemas/columnDetail';
 import type { OpResult } from '@service-storage/generated/schemas/opResult';
+import type { PropertyValue } from '@service-storage/generated/schemas/propertyValue';
 import type { StorageRow } from '@service-storage/generated/schemas/storageRow';
 import type { TableDetail } from '@service-storage/generated/schemas/tableDetail';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
@@ -40,6 +41,10 @@ const pipeline: Pipeline = {
   databaseId: id(2),
   tableId: id(3),
   primaryColumnId: id(4),
+  commercialFields: {
+    outcome: id(9),
+    money: [{ amount: id(10), currency: id(11) }],
+  },
   teamId: id(5),
   userId: 'macro|owner@example.com',
   name: 'Renewals',
@@ -82,6 +87,26 @@ function column(columnId: string, name: string, company = false): ColumnDetail {
     },
   };
 }
+function selectColumn(
+  columnId: string,
+  name: string,
+  labels: string[]
+): ColumnDetail {
+  const result = column(columnId, name);
+  result.definition.definition.data_type = 'SELECT_STRING';
+  result.column.protections = ['delete', 'change_type'];
+  result.definition.property_options = labels.map((label, index) => ({
+    id: `${columnId.slice(0, -3)}${String(index + 100).padStart(3, '0')}`,
+    property_definition_id: columnId,
+    display_order: index,
+    created_at: pipeline.createdAt,
+    updated_at: pipeline.createdAt,
+    color: null,
+    value: { type: 'string', value: label },
+  }));
+  return result;
+}
+
 function Fixture() {
   const [editable, setEditable] = createSignal(true);
   const [writes, setWrites] = createSignal(0);
@@ -98,7 +123,17 @@ function Fixture() {
       version: 1,
     },
     sql_name: 'Records',
-    columns: [column(id(4), 'Company', true), column(id(6), 'Notes')],
+    columns: [
+      column(id(4), 'Company', true),
+      column(id(6), 'Notes'),
+      selectColumn(id(9), 'Outcome', ['Open', 'Won', 'Lost']),
+      (() => {
+        const amount = column(id(10), 'Revenue');
+        amount.definition.definition.data_type = 'NUMBER';
+        return amount;
+      })(),
+      selectColumn(id(11), 'Revenue currency', ['USD', 'EUR', 'JPY']),
+    ],
     views: [],
   };
   let rows: StorageRow[] = [
@@ -116,6 +151,15 @@ function Fixture() {
           ],
         },
         [id(6)]: { type: 'String', value: 'Follow up' },
+        [id(9)]: {
+          type: 'SelectOption',
+          value: [table.columns[2].definition.property_options[0].id],
+        },
+        [id(10)]: { type: 'Number', value: 1250.5 },
+        [id(11)]: {
+          type: 'SelectOption',
+          value: [table.columns[4].definition.property_options[0].id],
+        },
       },
     },
   ];
@@ -145,15 +189,52 @@ function Fixture() {
                       cells: {
                         ...row.cells,
                         ...Object.fromEntries(
-                          change.cells.flatMap((cell) =>
-                            cell.value.type === 'text'
-                              ? [
-                                  [
-                                    cell.column,
-                                    { type: 'String', value: cell.value.value },
-                                  ],
-                                ]
-                              : []
+                          change.cells.flatMap(
+                            (cell): [string, PropertyValue][] =>
+                              cell.value.type === 'text'
+                                ? [
+                                    [
+                                      cell.column,
+                                      {
+                                        type: 'String',
+                                        value: cell.value.value,
+                                      },
+                                    ],
+                                  ]
+                                : cell.value.type === 'options'
+                                  ? [
+                                      [
+                                        cell.column,
+                                        {
+                                          type: 'SelectOption',
+                                          value: cell.value.value.flatMap(
+                                            (option) => {
+                                              if ('id' in option)
+                                                return option.id
+                                                  ? [option.id]
+                                                  : [];
+                                              const matched = table.columns
+                                                .find(
+                                                  (column) =>
+                                                    column.column.id ===
+                                                    cell.column
+                                                )
+                                                ?.definition.property_options.find(
+                                                  (candidate) =>
+                                                    candidate.value.type ===
+                                                      'string' &&
+                                                    candidate.value.value ===
+                                                      option.label
+                                                );
+                                              return matched
+                                                ? [matched.id]
+                                                : [];
+                                            }
+                                          ),
+                                        },
+                                      ],
+                                    ]
+                                  : []
                           )
                         ),
                       },
@@ -221,12 +302,33 @@ function Fixture() {
             view={view()}
             stored={false}
             renderToolbar={() => (
-              <FixtureToolbar
-                view={view()}
-                onChangeView={(change) =>
-                  setView((current) => ({ ...current, ...change }))
-                }
-              />
+              <>
+                <div class="flex gap-4 p-2">
+                  <button
+                    onClick={() =>
+                      setView({
+                        query: { filter: null },
+                        layout: {
+                          kind: 'board',
+                          groupBy: id(9),
+                          title: id(4),
+                          lanes: [],
+                          cardFields: [id(9), id(10), id(11)],
+                          hideEmptyLanes: false,
+                        },
+                      })
+                    }
+                  >
+                    Show board
+                  </button>
+                </div>
+                <FixtureToolbar
+                  view={view()}
+                  onChangeView={(change) =>
+                    setView((current) => ({ ...current, ...change }))
+                  }
+                />
+              </>
             )}
             onViewChange={(change) =>
               setView((view) => ({ ...view, ...change }))
