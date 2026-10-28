@@ -1487,3 +1487,38 @@ describe('GraphQL Soup browser cache session gate', () => {
     expect(WorkerConstructor).not.toHaveBeenCalled();
   });
 });
+
+it('preserves canonical external chat identity and notification metadata through GraphQL', async () => {
+  const { mapGraphqlNotification } = await import('./graphql-soup');
+  const mapped = mapGraphqlNotification({
+    __typename: 'GraphqlNotification',
+    id: 'notification',
+    eventType: 'external_chat_message',
+    entityId: 'chat-1',
+    entityType: 'EXTERNAL_CHAT',
+    state: 'UNSEEN',
+    sent: true,
+    senderId: null,
+    createdAt: '2026-10-21T10:00:00Z',
+    updatedAt: '2026-10-21T10:00:00Z',
+    viewedAt: null,
+    metadata: {
+      __typename: 'GraphqlExternalChatMessageMetadata',
+      externalChatProvider: 'whatsapp',
+      externalChatName: 'Design Crit',
+      externalChatMessageId: 'message-1',
+    },
+  });
+  expect(mapped).toMatchObject({
+    entity_type: 'external_chat',
+    entity_id: 'chat-1',
+    notification_metadata: {
+      tag: 'external_chat_message',
+      content: {
+        provider: 'whatsapp',
+        chatName: 'Design Crit',
+        messageId: 'message-1',
+      },
+    },
+  });
+});

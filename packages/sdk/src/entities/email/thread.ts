@@ -87,7 +87,9 @@ export class EmailThread extends PropertiedEntity<ThreadDetail> {
    * requester as a guest, no join link, nobody notified. Refused with
    * `invalid_input` for an invitation, which is answered from the calendar
    * instead, `already_on_calendar` when the meeting is already on one of
-   * their calendars, and `copy_refused` when Google will not import it. */
+   * their calendars, whichever calendar is named (it cannot be added to
+   * another of theirs either), and `copy_refused` when Google will not
+   * import it. */
   async addEventToCalendar(
     message: EmailMessage,
     invitation: CalendarInvitation,
@@ -263,6 +265,35 @@ export class EmailThread extends PropertiedEntity<ThreadDetail> {
         body: { value: archived },
       }),
     );
+  }
+
+  /**
+   * Archive many threads (or unarchive with `false`), sending one request per
+   * 100 threads. Resolves to the threads whose state could not change.
+   */
+  static async archiveMany(
+    client: MacroClient,
+    threads: EmailThread[],
+    archived = true,
+  ): Promise<EmailThread[]> {
+    const unchanged: EmailThread[] = [];
+    for (let start = 0; start < threads.length; start += 100) {
+      const batch = threads.slice(start, start + 100);
+      const result = unwrap(
+        await client.email.archiveThreads({
+          body: {
+            thread_ids: batch.map((thread) => thread.id),
+            value: archived,
+          },
+        }),
+      );
+      const failed = new Set(result.failed_thread_ids);
+      for (const thread of batch) {
+        thread.detail.clear();
+        if (failed.has(thread.id)) unchanged.push(thread);
+      }
+    }
+    return unchanged;
   }
 
   /** Update provider-neutral read, trash, spam, or star state. */

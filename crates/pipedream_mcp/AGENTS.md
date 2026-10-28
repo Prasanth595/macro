@@ -19,6 +19,7 @@ AI loop calls their tools through Pipedream's remote MCP server.
   and the `mcp_overlays` table (`ConnectorOverlays`): catalog apps that connect
   through their own MCP server on the native stack instead of Pipedream.
   Connection reads skip overlaid slugs, and `complete_pipedream_connection`
+  (also reached through `recover_pipedream_connection`)
   refuses them (409) and deletes the new Pipedream account.
 - `src/inbound/toolset.rs`: how connected apps surface as agent tools.
 

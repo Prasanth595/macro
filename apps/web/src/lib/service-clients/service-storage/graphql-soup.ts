@@ -46,6 +46,7 @@ import { localDraftQueueLifecycle } from '@queries/email/local-drafts';
 import { getMacroApiToken } from '@service-auth/fetch';
 import type { ApiUserNotification } from '@service-notification/generated/schemas/apiUserNotification';
 import type { ChannelType } from '@service-notification/generated/schemas/channelType';
+import type { ExternalChatProvider } from '@service-notification/generated/schemas/externalChatProvider';
 import type { GithubPrCheckRunState } from '@service-notification/generated/schemas/githubPrCheckRunState';
 import type { GithubPrCommentKind } from '@service-notification/generated/schemas/githubPrCommentKind';
 import type { GithubPrEventAction } from '@service-notification/generated/schemas/githubPrEventAction';
@@ -645,6 +646,10 @@ export function getGraphqlCacheHost(): CacheHost | undefined {
   return cachedCacheHost?.disabled ? undefined : cachedCacheHost;
 }
 
+/** Cache writes reach readers of the normalized cache only while it runs. */
+export const hasGraphqlCacheHost = (): boolean =>
+  graphqlCacheEnabled() && getGraphqlCacheHost() !== undefined;
+
 /**
  * Resolves the urql client, lazily assembling the cached client on first
  * use. The cache scope is an anonymous client uuid — no identity lookup is
@@ -910,6 +915,13 @@ function mapGraphqlPropertyValue(
       value: dateValue,
     }))
     .with(
+      { __typename: 'GraphqlDateRangePropertyValue' },
+      ({ rangeStart, rangeEnd }) => ({
+        type: 'DateRange' as const,
+        value: { start: rangeStart, end: rangeEnd },
+      })
+    )
+    .with(
       { __typename: 'GraphqlSelectOptionPropertyValue' },
       ({ optionIds }) => ({
         type: 'SelectOption' as const,
@@ -1053,6 +1065,19 @@ function mapGraphqlNotificationMetadata(
   metadata: GraphqlNotificationMetadata
 ): NotifEvent {
   return match(metadata)
+    .with(
+      { __typename: 'GraphqlExternalChatMessageMetadata' },
+      (metadata) =>
+        ({
+          tag: 'external_chat_message',
+          content: {
+            // GraphQL types the provider as a string; DSS only writes known ones.
+            provider: metadata.externalChatProvider as ExternalChatProvider,
+            chatName: metadata.externalChatName,
+            messageId: metadata.externalChatMessageId,
+          },
+        }) satisfies NotifEventMember<'external_chat_message'>
+    )
     .with(
       { __typename: 'GraphqlChannelMentionMetadata' },
       (metadata) =>
@@ -1644,13 +1669,21 @@ function mapGraphqlNotificationMetadata(
           },
         }) satisfies NotifEventMember<'agent_session_mentioned'>
     )
-    .exhaustive(
-      () =>
-        ({
-          tag: 'reminder',
-          content: { description: '', reminderId: '' },
-        }) satisfies NotifEventMember<'reminder'>
-    );
+    .with(
+      { __typename: 'GraphqlWhatsappGroupMessageMetadata' },
+      unexpectedNotificationMetadata
+    )
+    .exhaustive(unexpectedNotificationMetadata);
+}
+
+/** Placeholder for metadata the server never returns: unknown members and the
+ * schema-only `GraphqlWhatsappGroupMessageMetadata` stub kept for released
+ * clients (remove that case with the stub after 2026-11-30). */
+function unexpectedNotificationMetadata(): NotifEventMember<'reminder'> {
+  return {
+    tag: 'reminder',
+    content: { description: '', reminderId: '' },
+  };
 }
 
 /**

@@ -2144,6 +2144,86 @@
         }
       }
     },
+    "/pipedream/mcp/recover": {
+      "post": {
+        "tags": ["pipedream-mcp"],
+        "summary": "Register an account a Connect flow created but the Connect UI never\nreported.",
+        "description": "Called after the Connect UI closes without a success event. Answers 404\nwhen Pipedream has no new account for this user and app.\nAn overlaid app is refused with 409, as in [`complete_connection`].",
+        "operationId": "recover_pipedream_mcp_connection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipedreamRecoverRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipedreamConnectionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pipedream/mcp/token": {
       "post": {
         "tags": ["pipedream-mcp"],
@@ -2485,6 +2565,7 @@
           "import",
           "agent_session",
           "agent_repository_choice",
+          "agent_mode_choice",
           "dictation",
           "image_generation"
         ]
@@ -3445,7 +3526,8 @@
           "initiative",
           "database",
           "database_row",
-          "form"
+          "form",
+          "external_chat"
         ]
       },
       "ErrorBody": {
@@ -4980,6 +5062,21 @@
           "server_url": {
             "type": "string",
             "description": "The MCP server to authorize with the native MCP OAuth flow."
+          }
+        }
+      },
+      "PipedreamRecoverRequest": {
+        "type": "object",
+        "description": "Request body for recovering a connect flow whose result the Connect UI\nnever reported.",
+        "required": ["app_slug"],
+        "properties": {
+          "app_slug": {
+            "type": "string",
+            "description": "The Pipedream app the flow was connecting, by name slug."
+          },
+          "server_name": {
+            "type": ["string", "null"],
+            "description": "Optional display name for the connector, as for completion."
           }
         }
       },

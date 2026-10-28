@@ -13,7 +13,7 @@ use super::meeting_links::{
     CreateEventWithMacroCallError, MeetingLink, MeetingLinkError, MeetingLinkRequest,
 };
 use super::models::{
-    ActorInboxes, AppliedGoogleGrant, AttendeeResponseStatus, CalendarAttendee,
+    ActorInboxes, AlignedGuestCopy, AppliedGoogleGrant, AttendeeResponseStatus, CalendarAttendee,
     CalendarAttendeeInput, CalendarBackfillClaim, CalendarBackfillFailureDisposition,
     CalendarBackfillFailureOutcome, CalendarBackfillJobKey, CalendarCreationTarget, CalendarEvent,
     CalendarEventDraft, CalendarEventMutationTarget, CalendarEventPatch, CalendarEventUpsert,
@@ -183,6 +183,16 @@ pub trait CalendarMutationProvider: Send + Sync + 'static {
         original_start: &str,
         patch: &CalendarEventPatch,
     ) -> impl Future<Output = Result<ProviderInstanceUpdateOutcome, CalendarProviderError>> + Send;
+
+    /// Read an event's series back from the target calendar, as after a
+    /// write through another of its copies. Returns `None` when the copy no
+    /// longer exists or was cancelled at the provider.
+    fn refresh_event(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        master_provider_event_id: &str,
+    ) -> impl Future<Output = Result<Option<CalendarEventUpsert>, CalendarProviderError>> + Send;
 
     /// Delete an event. An event already gone at the provider is success.
     fn delete_event(
@@ -518,6 +528,10 @@ pub struct CalendarEventWriteOutcome {
     pub change: CalendarEventChange,
     /// A changed source was or is OOO; it may revoke a teammate's status/title.
     pub team_ooo_changed: bool,
+    /// Guest copies of the same meeting, in any inbox Macro holds, whose
+    /// guest policy changed to follow this copy's organizer. Their viewers
+    /// need a refresh too.
+    pub aligned_copies: Vec<AlignedGuestCopy>,
 }
 
 /// One event's fate after its sources were retired.
