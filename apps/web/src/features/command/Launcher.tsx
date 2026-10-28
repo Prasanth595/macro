@@ -863,48 +863,6 @@ const createBlocks = (
     },
   },
   {
-    id: 'Photoshop file',
-    get label() {
-      return t('create.photoshopLabel');
-    },
-    enabled: () => isFeatureEnabled(enablePsdEditor),
-    icon: getIconConfig('psd').icon,
-    description: () => t('create.photoshopDescription'),
-    get launcherHint() {
-      return t('create.photoshopHint');
-    },
-    keywords: ['new', 'make', 'add', 'photoshop', 'psd', 'image', 'photo'],
-    blockName: 'psd',
-    hotkeyToken: TOKENS.create.photoshop,
-    altHotkeyToken: TOKENS.create.photoshopNewSplit,
-    hotkey: 'h',
-    keyDownHandler: () => {
-      createAction('psd', { shouldInsert: pressedKeys().has('shift') });
-      return true;
-    },
-  },
-  {
-    id: 'Design',
-    get label() {
-      return t('create.designLabel');
-    },
-    enabled: () => isFeatureEnabled(enableFigViewer),
-    icon: getIconConfig('fig').icon,
-    description: () => t('create.designDescription'),
-    get launcherHint() {
-      return t('create.designHint');
-    },
-    keywords: ['new', 'make', 'add', 'design', 'figma', 'mockup', 'ui'],
-    blockName: 'fig',
-    hotkeyToken: TOKENS.create.design,
-    altHotkeyToken: TOKENS.create.designNewSplit,
-    hotkey: 'i',
-    keyDownHandler: () => {
-      createAction('fig', { shouldInsert: pressedKeys().has('shift') });
-      return true;
-    },
-  },
-  {
     id: 'Illustrator file',
     get label() {
       return t('create.illustratorLabel');
@@ -1027,15 +985,11 @@ export function useCreateMenuBlocks(
   const agentsFlag = useFeatureFlag(enableChatV3Agents);
   const projectsFlag = useFeatureFlag(enableProjects);
   const databasesFlag = useFeatureFlag(enableDatabases);
-  const psdFlag = useFeatureFlag(enablePsdEditor);
-  const figFlag = useFeatureFlag(enableFigViewer);
   const aiFlag = useFeatureFlag(enableAiEditor);
   const formsFlag = useFeatureFlag(enableForms);
   return createMemo(() => {
     agentsFlag();
     databasesFlag();
-    psdFlag();
-    figFlag();
     aiFlag();
     formsFlag();
     return (source() ?? commands).filter((block) => {

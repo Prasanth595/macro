@@ -598,5 +598,7 @@ See the [download walkthrough](../../docs/agent-guide/files.md#downloading-files
 
 ### Creation choices and notifications
 
+- Keep Photoshop, Figma (Design), and PowerPoint out of the shared create catalog in `features/command/Launcher.tsx`; preserve their editor flags and existing-file opening support.
+
 - Reuse `CreateMenuItem` for explanatory New menu entries: original icons, a title, and muted wrapping descriptions, preserving the existing `ViewCreateButton` trigger and each action's feature gates.
 - Keep transient toasts in their bounded stack and persistent prompts/reminders in separate regions; preserve keyboard dismissal, full mobile descriptions, and remaining-time pause on hover/focus.
