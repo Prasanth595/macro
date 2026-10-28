@@ -2,7 +2,7 @@ import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { focusInput } from '@core/directive/focusInput';
 import { isMobile } from '@core/mobile/isMobile';
 import PlusIcon from '@icon/system/regular/plus.svg';
-import { Button, cn, Dropdown } from '@ui';
+import { Button, cn, Dropdown, Tooltip } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
 
 export type ComposerAddMenuItem = {
@@ -121,32 +121,38 @@ function AddDropdown(props: {
               </Show>
               <For each={group.items}>
                 {(item) => (
-                  <Dropdown.Item
-                    disabled={item.disabled}
-                    onSelect={() => select(item)}
-                    class={
-                      item.description
-                        ? 'min-h-10 h-auto py-2 gap-3'
-                        : undefined
-                    }
+                  <Tooltip
+                    label={item.description ?? item.label}
+                    disabled={!item.disabled}
+                    class="w-full"
                   >
-                    <span class="flex size-3.5 shrink-0 items-center justify-center text-ink-muted">
-                      {item.icon}
-                    </span>
-                    <span class="min-w-0 flex-1 flex flex-wrap items-baseline gap-x-3">
-                      <span class="block truncate">{item.label}</span>
-                      <Show when={item.description}>
-                        <span class="block truncate text-sm text-ink-muted font-normal">
-                          {item.description}
+                    <Dropdown.Item
+                      disabled={item.disabled}
+                      onSelect={() => select(item)}
+                      class={
+                        item.description
+                          ? 'min-h-10 h-auto py-2 gap-3 data-disabled:pointer-events-none'
+                          : undefined
+                      }
+                    >
+                      <span class="flex size-3.5 shrink-0 items-center justify-center text-ink-muted">
+                        {item.icon}
+                      </span>
+                      <span class="min-w-0 flex-1 flex flex-wrap items-baseline gap-x-3">
+                        <span class="block truncate">{item.label}</span>
+                        <Show when={item.description}>
+                          <span class="block truncate text-sm text-ink-muted font-normal">
+                            {item.description}
+                          </span>
+                        </Show>
+                      </span>
+                      <Show when={item.hint}>
+                        <span class="shrink-0 pl-4 font-mono text-xs text-ink-extra-muted">
+                          {item.hint}
                         </span>
                       </Show>
-                    </span>
-                    <Show when={item.hint}>
-                      <span class="shrink-0 pl-4 font-mono text-xs text-ink-extra-muted">
-                        {item.hint}
-                      </span>
-                    </Show>
-                  </Dropdown.Item>
+                    </Dropdown.Item>
+                  </Tooltip>
                 )}
               </For>
             </Dropdown.Group>

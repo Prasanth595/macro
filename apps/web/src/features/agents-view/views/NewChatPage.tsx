@@ -7,6 +7,7 @@ import {
 } from '@channel/Input';
 import { FloatRegionOrInline } from '@components/app/mobile/float-regions/FloatRegion';
 import { SpeedToggle } from '@core/component/AI/component/input/SpeedToggle';
+import { modelLabel } from '@core/component/AI/constant/model-label';
 import {
   acceleratedSpeed,
   speedForModel,
@@ -509,6 +510,7 @@ export function NewChatPage(props: {
       drawerOpen
       placeholder={coding() ? 'Describe what you want to build' : undefined}
       onSend={send}
+      modelName={modelLabel(composerModelOverride())}
       supportsImages={
         selectedCatalog
           .models()
