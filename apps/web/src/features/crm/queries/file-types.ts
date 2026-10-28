@@ -418,7 +418,11 @@ export function createFileTypesSource(
               propertyId: SYSTEM_PROPERTY_IDS.CONTACTS,
               entityType: 'CONTACT' as const,
             }))
-            .exhaustive();
+            .exhaustive(() => {
+              throw new Error(
+                'This record type does not support file attachments.'
+              );
+            });
           await throwOnErr(() =>
             deps.properties.appendCrmFileReferences({
               entity_type: 'DOCUMENT',
