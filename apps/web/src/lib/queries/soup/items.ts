@@ -441,11 +441,12 @@ export function useSoupAstItemsQuery(
         usesGraphql() &&
         activeGraphqlQuery().isEnabled() &&
         !options?.().networkPaused,
+      // The refresh refetches every loaded page in cursor order and keeps the
+      // old pages on screen until their replacements arrive, so a mutation
+      // never collapses a scrolled list to its first page.
       refresh: async () => {
-        if (args().groupBy === undefined) {
-          activeGraphqlQuery().resetToInitialPage();
+        if (args().groupBy === undefined)
           options?.().onBeforeGraphqlRefresh?.();
-        }
         await activeGraphqlQuery().refresh();
       },
       body: () => ({
@@ -453,6 +454,8 @@ export function useSoupAstItemsQuery(
         params: args().params,
         groupBy: args().groupBy,
       }),
+      // Grouped lists don't report it yet, so writes still read them again.
+      cacheMaintained: () => activeGraphqlQuery().cacheMaintained?.() ?? false,
     })
   );
 
