@@ -115,6 +115,7 @@ export function createMockChangesContext(
         sent.push(markdown);
       },
       canSend: () => options.canSend ?? true,
+      quote: () => {},
     },
     pullRequestUrl,
     openExternal: (url) => {

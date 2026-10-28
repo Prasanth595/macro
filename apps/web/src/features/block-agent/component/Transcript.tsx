@@ -1,4 +1,5 @@
 /** Top-aligned agent messages with end-following for overflowing transcripts. */
+import { ReplyToSelection } from '@app/components/reply-to-selection/ReplyToSelection';
 import { ScrollToBottomOverlay } from '@channel/Channel/ScrollToBottomOverlay';
 import {
   ThreadList,
@@ -24,7 +25,6 @@ import { isLiveTurn, liveTurnMessage } from '../state/live-turn';
 import { timelineNotifications } from '../state/session-notifications';
 import { WorkingLine } from '../ui/WorkingLine';
 import { Message } from './AgentMessage';
-import { ReplyToSelection } from './ReplyToSelection';
 
 export function Transcript(props: { searchTarget?: AgentMessageTarget }) {
   const { messages, metadata, quoteSelection, sessionId, turn, userId } =

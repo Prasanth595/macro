@@ -41,6 +41,8 @@ export type ChangesSource = {
 export type ChangesAgent = {
   send: (markdown: string) => void;
   canSend: Accessor<boolean>;
+  /** Quote selected diff text into the session composer as a reply. */
+  quote: (text: string) => void;
 };
 
 /** Host capabilities, independent of whether the host is a session or PR. */

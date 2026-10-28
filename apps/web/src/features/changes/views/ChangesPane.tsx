@@ -10,6 +10,7 @@ import {
   DiffView,
   StatusLetter,
 } from '@app/components/diff-view';
+import { ReplyToSelection } from '@app/components/reply-to-selection/ReplyToSelection';
 import { Resize } from '@core/component/Resize';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -190,7 +191,10 @@ function ChangesTreeHeader(props: { narrow: boolean; onClose: () => void }) {
 }
 
 /** The tree beside the diff stack, both over the changeset's files. */
-function ChangesBody() {
+function ChangesBody(props: {
+  /** Quotes text selected in the body; omit when nothing can receive it. */
+  onReply: ((text: string) => void) | undefined;
+}) {
   const [body, setBody] = createSignal<HTMLDivElement>();
   const narrow = createChangesNarrow(body);
   const [drawerOpen, setDrawerOpen] = createSignal(false);
@@ -207,6 +211,11 @@ function ChangesBody() {
         drawerOpen={drawerOpen}
         closeDrawer={closeDrawer}
       />
+      <Show when={props.onReply}>
+        {(onReply) => (
+          <ReplyToSelection container={body()} onReply={onReply()} />
+        )}
+      </Show>
     </Dialog.Root>
   );
 }
@@ -524,6 +533,13 @@ export function ChangesPane(props: { fullWidth?: boolean }) {
   };
   const showsFiles = () =>
     model.changeset() !== undefined && model.files().length > 0;
+  // The quote lands in the session composer, so bring it on screen first:
+  // a takeover gives the width back, a spotlight returns to the split.
+  const reply = (text: string) => {
+    if (props.fullWidth) layout.close();
+    else if (layout.layout() === 'full') layout.spotlight();
+    context.host.agent?.quote(text);
+  };
 
   return (
     <DiffView.Root
@@ -562,7 +578,9 @@ export function ChangesPane(props: { fullWidth?: boolean }) {
           </div>
         </Panel.Header>
         <Show when={showsFiles()} fallback={<ChangesNotices />}>
-          <ChangesBody />
+          <ChangesBody
+            onReply={context.host.agent?.canSend() ? reply : undefined}
+          />
         </Show>
       </Panel>
     </DiffView.Root>

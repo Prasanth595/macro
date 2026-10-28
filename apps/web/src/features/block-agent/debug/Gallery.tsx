@@ -4,6 +4,7 @@
  * `/component/agent-ui`.
  */
 
+import { ReplyToSelection } from '@app/components/reply-to-selection/ReplyToSelection';
 import {
   initialValues,
   validate,
@@ -29,7 +30,6 @@ import type {
 import { createSignal, type JSX, onCleanup } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { Message } from '../component/AgentMessage';
-import { ReplyToSelection } from '../component/ReplyToSelection';
 import {
   ActionLine,
   AgentInput,

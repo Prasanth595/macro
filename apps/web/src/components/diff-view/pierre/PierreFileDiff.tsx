@@ -6,6 +6,10 @@
  * Pierre renders inside a shadow root but slots annotation content from
  * the light DOM, so the host's content is ordinary Solid markup mounted
  * with `render` into the elements Pierre asks for.
+ *
+ * The app makes text unselectable by default, and Pierre's lines inherit
+ * that from their host, so the host opts back in: diff text can be selected
+ * and quoted. The wrapper names the file for that quote (`data-diff-path`).
  */
 
 import {
@@ -189,7 +193,8 @@ export function PierreFileDiff(props: {
   return (
     <div
       ref={container}
-      class="overflow-hidden bg-surface"
+      data-diff-path={props.path}
+      class="overflow-hidden bg-surface [&>*]:select-text"
       style={DIFF_STYLE}
     />
   );
