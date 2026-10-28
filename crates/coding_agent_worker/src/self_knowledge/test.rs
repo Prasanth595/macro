@@ -53,8 +53,7 @@ fn only_a_new_sessions_first_prompt_carries_the_runtime_section() {
         }
     });
     self_knowledge.outbound(&mut open);
-    self_knowledge
-        .inbound(&json!({"jsonrpc": "2.0", "id": 1, "result": {"sessionId": "acp-1"}}));
+    self_knowledge.inbound(&json!({"jsonrpc": "2.0", "id": 1, "result": {"sessionId": "acp-1"}}));
 
     let mut first = json!({
         "jsonrpc": "2.0", "id": 2, "method": "session/prompt",
