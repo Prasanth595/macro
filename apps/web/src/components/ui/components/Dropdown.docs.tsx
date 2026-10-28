@@ -46,7 +46,7 @@ export default defineDoc({
   name: 'Dropdown',
   category: 'Overlays',
   description:
-    'Menus with shared keyboard navigation. Multiselect rows distinguish toggling, adding, and selecting only one option.',
+    'Menus with shared keyboard navigation. Radio options have 44px minimum touch targets. Multiselect rows distinguish toggling, adding, and selecting only one option.',
   status: 'stable',
   import: "import { Dropdown } from '@ui';",
   exports: ['Dropdown'],

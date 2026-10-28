@@ -132,6 +132,12 @@ visible and tappable. Scroll to the end to check content clears the dock. Repeat
 at tablet width; desktop retains its usual spacing. An embedded record header
 consumes the top inset once, so its content must not add it again.
 
+On phones and tablets, company/contact navigation uses a labeled section menu
+(initially **Overview**) beside the back, copy-link, and information controls.
+Tap it to choose any section; the menu marks the current selection and closes
+after choosing. Verify every section remains reachable without horizontally
+scrolling the header, then swipe the Overview and associated lists vertically.
+
 The account-free browser layout regression is
 `bunx playwright test --config src/features/crm/browser-test/playwright.config.ts mobile-insets.browser.e2e.ts`
 from `apps/web`. It mounts the production layout components with local content
@@ -188,7 +194,7 @@ checkboxes, including on touch devices.
 
 A company is laid out like a project. Its split header or embedded breadcrumb
 header shows rounded view tabs for `Overview`, `Team`, `Emails`, `Files`, `Tasks`, and `Calls`
-tabs, collapsing to icons when narrow. Overview shows the name, pills
+on desktop, collapsing to icons when narrow; touch uses the section menu. Overview shows the name, pills
 for each domain and `Last interacted`, the generated description, a
 **Pipelines** section and the Discussion. Pipelines stacks one full-width card
 per row of a pipeline you can open that references the record. A card's header

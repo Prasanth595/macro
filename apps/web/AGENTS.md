@@ -20,6 +20,10 @@ During iterative visual tweaks, use focused browser verification; defer full typ
 
 Any user-visible change should be exercised in a browser before you call it fixed — type-check, biome, and vitest all pass on code that still has the interaction bug.
 
+CRM record section navigation, safe-area spacing, and scrolling on phones and
+tablets have a backend-free browser regression:
+`bunx playwright test --config src/features/crm/browser-test/playwright.config.ts mobile-insets.browser.e2e.ts`.
+
 Split dragging and composer reflow have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/Resize/browser-test/playwright.config.ts`.
 It exercises the real resize solver, scroll container, and Lexical layout primitive.

@@ -447,7 +447,7 @@ function DropdownRadioItem(props: DropdownRadioItemProps) {
   const [local, rest] = splitProps(props, ['class']);
   return (
     <KobalteDropdownMenu.RadioItem
-      class={cn(ROW_CLASS, local.class)}
+      class={cn(ROW_CLASS, 'touch:min-h-[44px]', local.class)}
       {...rest}
     />
   );
