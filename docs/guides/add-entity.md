@@ -183,11 +183,13 @@ Postgres repo.
   databases, and pipelines are not there yet, so their trash is never emptied.
 - **Favorites (optional):** `crates/favorites/src/domain/mutation_service.rs`
   `validate_favoritable` is exhaustive; recent kinds return unsupported. If you
-  enable favorites, join your table in `list_favorites`
-  (`crates/favorites/src/outbound/pg_favorites_repo.rs`) so a favorite of a
-  deleted entity stops listing, as documents, projects, and agent sessions do.
-  Nothing reaps the `favorite` rows themselves; a delete-time cleanup is still
-  worth adding when the kind is deleted in bulk.
+  enable favorites, give your table a `delete_favorites` trigger calling
+  `delete_favorites_of_deleted_entities('<kind>')` (see
+  `20261027202243_delete_favorites_with_their_entities.sql`) and add the table
+  to `every_favoritable_table_deletes_favorites_under_its_entity_type` in
+  `crates/favorites/src/outbound/pg_favorites_repo/tests.rs`. If the kind can be
+  trashed, also join your table in `list_favorites` so a trashed entity's
+  favorite stops listing, as documents, chats, and projects do.
 
 ## 6. Properties (optional)
 

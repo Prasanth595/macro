@@ -482,3 +482,128 @@ async fn favorited_entities_returns_user_favorites(pool: PgPool) {
         .expect("favorited lookup should run");
     assert!(favorited_b.is_empty());
 }
+
+async fn stored_favorites(pool: &PgPool) -> Vec<(String, String, String)> {
+    sqlx::query_as(
+        r#"SELECT user_id, entity_type, entity_id FROM favorite ORDER BY user_id, entity_type, entity_id"#,
+    )
+    .fetch_all(pool)
+    .await
+    .expect("favorites should load")
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn deleting_an_entity_deletes_every_users_favorites_of_it(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    insert_user(&pool, USER_B).await;
+    for id in ["doc-gone", "doc-trashed"] {
+        insert_document(&pool, id, "Launch plan", USER_A).await;
+    }
+    let channel_id = Uuid::now_v7().to_string();
+    sqlx::query(
+        r#"INSERT INTO comms_channels (id, name, channel_type, owner_id) VALUES ($1::uuid, 'Eng', 'public', $2)"#,
+    )
+    .bind(&channel_id)
+    .bind(USER_A)
+    .execute(&pool)
+    .await
+    .expect("channel should insert");
+
+    let repo = PgFavoritesRepo::new(pool.clone());
+    for user_id in [USER_A, USER_B] {
+        for entity in [
+            EntityType::Document.with_entity_str("doc-gone"),
+            EntityType::Document.with_entity_str("doc-trashed"),
+            EntityType::Channel.with_entity_str(&channel_id),
+        ] {
+            repo.add_favorite(&user(user_id), &entity)
+                .await
+                .expect("favorite should insert");
+        }
+    }
+
+    sqlx::query(r#"UPDATE "Document" SET "deletedAt" = now() WHERE id = 'doc-trashed'"#)
+        .execute(&pool)
+        .await
+        .expect("document should soft delete");
+    sqlx::query(r#"DELETE FROM "Document" WHERE id = 'doc-gone'"#)
+        .execute(&pool)
+        .await
+        .expect("document should delete");
+    sqlx::query(r#"DELETE FROM comms_channels WHERE id = $1::uuid"#)
+        .bind(&channel_id)
+        .execute(&pool)
+        .await
+        .expect("channel should delete");
+
+    // A trashed document can be restored, so its favorites stay.
+    assert_eq!(
+        stored_favorites(&pool).await,
+        vec![
+            (USER_A.into(), "document".into(), "doc-trashed".into()),
+            (USER_B.into(), "document".into(), "doc-trashed".into()),
+        ]
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_cascaded_delete_deletes_favorites_of_the_cascaded_rows(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    sqlx::query(
+        r#"
+        INSERT INTO "Project" (id, name, "userId", "parentId")
+        VALUES ('parent', 'Parent', $1, NULL), ('child', 'Child', $1, 'parent')
+        "#,
+    )
+    .bind(USER_A)
+    .execute(&pool)
+    .await
+    .expect("projects should insert");
+    let repo = PgFavoritesRepo::new(pool.clone());
+    repo.add_favorite(&user(USER_A), &EntityType::Project.with_entity_str("child"))
+        .await
+        .expect("favorite should insert");
+
+    // `Project_parentId_fkey` cascades the child; no application code sees it.
+    sqlx::query(r#"DELETE FROM "Project" WHERE id = 'parent'"#)
+        .execute(&pool)
+        .await
+        .expect("project should delete");
+
+    assert_eq!(stored_favorites(&pool).await, vec![]);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn every_favoritable_table_deletes_favorites_under_its_entity_type(pool: PgPool) {
+    let mut triggers: Vec<(String, String)> = sqlx::query_as(
+        r#"
+        SELECT c.relname::text, split_part(encode(t.tgargs, 'escape'), '\000', 1)
+        FROM pg_trigger t
+        JOIN pg_class c ON c.oid = t.tgrelid
+        WHERE t.tgfoid = 'delete_favorites_of_deleted_entities'::regproc
+        "#,
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("triggers should load");
+    triggers.sort();
+
+    let mut expected: Vec<(String, String)> = [
+        ("Chat", EntityType::Chat),
+        ("Document", EntityType::Document),
+        ("Project", EntityType::Project),
+        ("agent_session", EntityType::AgentSession),
+        ("call_entities", EntityType::Call),
+        ("comms_channels", EntityType::Channel),
+        ("crm_companies", EntityType::CrmCompany),
+        ("crm_contacts", EntityType::CrmContact),
+        ("email_threads", EntityType::EmailThread),
+        ("foreign_entity", EntityType::ForeignEntity),
+        ("whatsapp_group", EntityType::WhatsAppGroup),
+    ]
+    .into_iter()
+    .map(|(table, entity_type)| (table.to_string(), entity_type.as_ref().to_string()))
+    .collect();
+    expected.sort();
+    assert_eq!(triggers, expected);
+}
