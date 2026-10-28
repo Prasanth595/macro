@@ -70,6 +70,10 @@ Gate event notes and document Share meeting-link controls with
 on in dev and uses PostHog in production.
 See `docs/agent-guide/calendar.md` at the repo root.
 
+Markdown document history has a backend-free browser regression that opens,
+diffs, and scrubs a 300-session history within time budgets:
+`bunx playwright test --config src/features/block-md/history/browser-test/playwright.config.ts`.
+
 Channel composer draft persistence has a backend-free browser regression:
 `bunx playwright test --config src/features/channel/Input/browser-test/playwright.config.ts`.
 It types a draft, remounts the composer over it, and checks the blank lines survive.
