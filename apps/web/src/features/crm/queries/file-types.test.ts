@@ -1,8 +1,10 @@
+import { catchToResult } from '@core/util/result';
+import { refetchSoupEntity } from '@queries/soup/cache';
 import type { propertiesServiceClient } from '@service-properties/client';
 import type { PropertyDefinitionWithOptions } from '@service-properties/generated/schemas/propertyDefinitionWithOptions';
 import { waitFor } from '@solidjs/testing-library';
-import { QueryClient } from '@tanstack/solid-query';
-import { ok } from 'neverthrow';
+import { onlineManager, QueryClient } from '@tanstack/solid-query';
+import { err, ok } from 'neverthrow';
 import { createMemo, createRoot, createSignal, mapArray } from 'solid-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFileTypesSource, decodeFileTypes } from './file-types';
@@ -41,7 +43,9 @@ const definition: PropertyDefinitionWithOptions = {
 };
 const disposals: (() => void)[] = [];
 afterEach(() => {
+  onlineManager.setOnline(true);
   for (const dispose of disposals.splice(0)) dispose();
+  vi.mocked(refetchSoupEntity).mockReset();
 });
 
 function mount(ids: string[] = []) {
@@ -69,6 +73,7 @@ function mount(ids: string[] = []) {
     defaultOptions: { queries: { retry: false } },
   });
   return createRoot((dispose) => {
+    const [teamId, setTeamId] = createSignal('team');
     disposals.push(() => {
       dispose();
       client.clear();
@@ -76,7 +81,7 @@ function mount(ids: string[] = []) {
     const source = createFileTypesSource(
       { properties, client },
       () => 'user',
-      () => 'team',
+      teamId,
       {
         canEdit: () => () => true,
         candidates: () => ({
@@ -89,11 +94,126 @@ function mount(ids: string[] = []) {
         create: async () => 'created',
       }
     );
-    return { properties, source, classes: source.classifications(() => ids) };
+    return {
+      properties,
+      source,
+      client,
+      setTeamId,
+      classes: source.classifications(() => ids),
+    };
   });
 }
 
 describe('team file types', () => {
+  it('fails an offline write immediately instead of queueing it for reconnect', async () => {
+    const { properties, source, client } = mount();
+    await waitFor(() => expect(source.data()).toBeDefined());
+    properties.addPropertyOption.mockResolvedValue(
+      err([{ code: 'NETWORK_ERROR', message: 'Offline' }])
+    );
+    onlineManager.setOnline(false);
+
+    const completed = catchToResult(() => source.add('Agreement'));
+
+    await waitFor(() =>
+      expect(properties.addPropertyOption).toHaveBeenCalledTimes(1)
+    );
+    expect((await completed).isErr()).toBe(true);
+    expect(client.getMutationCache().getAll()[0].state.isPaused).toBe(false);
+    onlineManager.setOnline(true);
+    expect(properties.addPropertyOption).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['add', 'attach'] as const)(
+    'rejects %s if the session changes before the mutation executes',
+    async (action) => {
+      const { properties, source, setTeamId } = mount();
+      await waitFor(() => expect(source.data()).toBeDefined());
+      const actions = {
+        add: () => source.add('Agreement'),
+        attach: () =>
+          source.attach('source-file', { type: 'company', id: 'company' }),
+      };
+      const pending = actions[action]();
+      setTeamId('another-team');
+
+      await expect(pending).rejects.toThrow('signed-in user or team changed');
+      expect(properties.addPropertyOption).not.toHaveBeenCalled();
+      expect(properties.appendCrmFileReferences).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    'initialize',
+    'add',
+    'rename',
+    'remove',
+    'classify',
+    'attach',
+  ] as const)(
+    'reports a refused %s through the mutation cache without retrying or refreshing',
+    async (action) => {
+      const { properties, source, client } = mount();
+      await waitFor(() => expect(source.data()).toBeDefined());
+      const refused = err([
+        { code: 'FORBIDDEN' as const, message: 'Source is read-only' },
+      ]);
+      properties.createPropertyDefinition.mockResolvedValue(refused);
+      properties.addPropertyOption.mockResolvedValue(refused);
+      properties.updatePropertyOption.mockResolvedValue(refused);
+      properties.deletePropertyOption.mockResolvedValue(refused);
+      properties.setEntityProperty.mockResolvedValue(refused);
+      properties.appendCrmFileReferences.mockResolvedValue(refused);
+      // Setup rechecks the catalog, including after a possible concurrent setup.
+      properties.listProperties.mockResolvedValue(ok([]));
+      const invalidate = vi.spyOn(client, 'invalidateQueries');
+      const actions = {
+        initialize: () => source.initialize(),
+        add: () => source.add('Agreement'),
+        rename: () => source.rename('contract', 'Agreement'),
+        remove: () => source.remove('contract'),
+        classify: () => source.classify('source-file', 'contract'),
+        attach: () =>
+          source.attach('source-file', { type: 'company', id: 'company' }),
+      };
+
+      await expect(actions[action]()).rejects.toThrow('Source is read-only');
+
+      const mutations = client.getMutationCache().getAll();
+      expect(mutations).toHaveLength(1);
+      expect(mutations[0].state.status).toBe('error');
+      expect(mutations[0].state.failureCount).toBe(1);
+      expect(invalidate).not.toHaveBeenCalled();
+      expect(refetchSoupEntity).not.toHaveBeenCalled();
+    }
+  );
+
+  it('keeps a committed classification and link successful when refreshing fails', async () => {
+    const { properties, source, client } = mount();
+    await waitFor(() => expect(source.data()).toBeDefined());
+    properties.setEntityProperty.mockResolvedValue(ok({ success: true }));
+    properties.appendCrmFileReferences.mockResolvedValue(ok({ success: true }));
+    vi.mocked(refetchSoupEntity).mockRejectedValue(
+      new Error('Refresh unavailable')
+    );
+
+    await expect(
+      source.classify('source-file', 'contract')
+    ).resolves.toBeUndefined();
+    await expect(
+      source.attach('source-file', { type: 'company', id: 'company' })
+    ).resolves.toBeUndefined();
+
+    expect(
+      client
+        .getMutationCache()
+        .getAll()
+        .map((mutation) => mutation.state.status)
+    ).toEqual(['success', 'success']);
+    expect(properties.setEntityProperty).toHaveBeenCalledTimes(1);
+    expect(properties.appendCrmFileReferences).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves a rename draft when the catalog refreshes', async () => {
     const { properties, source } = mount();
     const rows = createRoot((dispose) => {

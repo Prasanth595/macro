@@ -30,6 +30,9 @@ Discussion link scrolling has a backend-free browser regression:
 CRM typed files use the team's single-select `File type` property on source documents.
 Keep Overview and Files grouping aligned; file edits require source edit access.
 Preserve option identity during catalog polling so open rename drafts survive refreshes.
+Route file-type writes through TanStack mutations; management spans include team IDs,
+read/write phases and outcomes without recording type labels.
+Keep these REST writes immediate and bound to the session that started them.
 Their record, dialog and mobile browser regression is
 `bunx playwright test --config src/features/crm/browser-test/playwright.config.ts files.browser.e2e.ts`.
 REST property mutations refresh individual, batched, and active GraphQL readers
