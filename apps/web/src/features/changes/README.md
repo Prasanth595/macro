@@ -23,7 +23,8 @@ production boundaries; the generic provider has no implicit browser actions.
 
 Give each host a stable `scopeKey` (for example, `pr:<foreign-entity-id>`) to isolate
 persisted layout, collapse state, and notes. The optional `agent` capability enables
-inline note creation and sending. The optional `canHaveChanges` accessor hides all
+inline note creation and sending, and quoting selected diff text into the host's
+composer (`quote`, through the shared `ReplyToSelection` chip). The optional `canHaveChanges` accessor hides all
 controls and the pane while false. The session adapter also gates its source, so
 chat-only sessions and coding sessions without a linked PR make no changes requests.
 

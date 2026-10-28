@@ -70,6 +70,10 @@ Gate event notes and document Share meeting-link controls with
 on in dev and uses PostHog in production.
 See `docs/agent-guide/calendar.md` at the repo root.
 
+Quote-replying to selected diff text has a backend-free browser regression: it
+drags across real Pierre diff lines and checks the quoted file and line range:
+`bunx playwright test --config src/components/reply-to-selection/browser-test/playwright.config.ts`.
+
 Channel composer draft persistence has a backend-free browser regression:
 `bunx playwright test --config src/features/channel/Input/browser-test/playwright.config.ts`.
 It types a draft, remounts the composer over it, and checks the blank lines survive.
