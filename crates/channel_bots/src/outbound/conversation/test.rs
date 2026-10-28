@@ -22,6 +22,7 @@ fn posted(parent: MessageParent, bot: bool) -> MessageEvent {
         nonce: None,
         change: MessageChange::Posted {
             notification_policy: Default::default(),
+            attribution: Default::default(),
             message,
             mentions: vec![],
         },
