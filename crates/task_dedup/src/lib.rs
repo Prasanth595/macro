@@ -13,9 +13,13 @@ pub mod outbound;
 use embedding::embedding_provider::openai::{DIMS, TextEmbedding3Small};
 
 pub use domain::models::{
-    JudgeResult, NewTask, TaskDedupError, TaskDuplicate, TaskSearchParameters, TaskSimilarityResult,
+    JudgeResult, NewTask, TaskDedupError, TaskDuplicate, TaskNameMatch, TaskSearchParameters,
+    TaskSimilarityResult,
 };
+pub use domain::name_search::{NAME_LOOKUP_TIMEOUT, similar_open_tasks_within_timeout};
+pub use domain::ports::TaskNameSearch;
 pub use domain::service::{TaskDedupConfig, TaskDedupService};
+pub use outbound::postgres_names::PgTaskNameSearch;
 /// The embedding-format markdown newtype required by [`NewTask`] and
 /// [`TaskDedupService::similarity_search`], re-exported so consumers get it from
 /// this crate. Its only constructors are the lexical fetch and an explicit

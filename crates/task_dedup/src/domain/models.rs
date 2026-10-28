@@ -72,6 +72,19 @@ pub struct TaskDuplicate {
     pub judge_reason: Option<String>,
 }
 
+/// An open task whose name closely matches the name of a task being created.
+/// A hint for the creator to review, never acted on automatically.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskNameMatch {
+    /// The matching existing task.
+    pub task_id: String,
+    /// The matching task's display name.
+    pub task_name: String,
+    /// Trigram similarity of the two names, from 0 to 1.
+    pub name_similarity: f32,
+}
+
 /// A similar existing task computed for an unsaved draft, returned to the task
 /// composer without persisting any embedding or match state.
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]

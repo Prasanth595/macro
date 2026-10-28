@@ -26,7 +26,7 @@ use crate::domain::service::ordered_pair;
 /// Status option ids for tasks excluded from every dedup surface: a finished or
 /// cancelled task is not an actionable duplicate, so it is neither retrieved as
 /// a similarity candidate nor shown in the duplicates list.
-fn closed_status_option_ids() -> Vec<String> {
+pub(crate) fn closed_status_option_ids() -> Vec<String> {
     vec![
         StatusOption::COMPLETED_UUID.to_string(),
         StatusOption::CANCELED_UUID.to_string(),
