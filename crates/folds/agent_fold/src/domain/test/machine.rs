@@ -188,12 +188,12 @@ fn frames_that_change_nothing_report_nothing() {
     assert_eq!(machine.messages(), [], "and derived no messages");
 }
 
-/// A prompt arriving while the previous turn is still open is the one frame
-/// that touches two turns. It still reports a single change - the abandoned
-/// turn's agent message is already announced and keeps the `stop: None` it
-/// was announced with - which is what makes one report per push sound.
+/// A prompt arriving while the previous turn is still open queues behind it.
+/// It reports only its own user message - the open turn's agent message is
+/// already announced and keeps the `stop: None` it was announced with - which
+/// is what makes one report per push sound.
 #[test]
-fn an_interrupting_prompt_reports_only_its_own_message() {
+fn a_queued_prompt_reports_only_its_own_message() {
     let prompt = |text: &str, id: &str| {
         format!(
             r#"{{"direction":"to_runtime","content":{{"type":"acp","jsonrpc":"2.0","id":"{id}","method":"session/prompt","params":{{"sessionId":"s","prompt":[{{"type":"text","text":"{text}"}}]}}}}}}"#
@@ -233,18 +233,18 @@ fn an_interrupting_prompt_reports_only_its_own_message() {
                 }
             ),
         ],
-        "the interrupting prompt reports its own message and nothing else"
+        "the queued prompt reports its own message and nothing else"
     );
 
-    // The abandoned turn kept what it had, unstopped.
-    let abandoned = &consumer.messages[1];
+    // The open turn kept what it had, unstopped.
+    let open = &consumer.messages[1];
     assert_eq!(
-        *abandoned.parts,
+        *open.parts,
         vec![MessagePart::Text {
             text: "half an answ".to_owned()
         }]
     );
-    assert_eq!(abandoned.stop, None, "no response ever closed it");
+    assert_eq!(open.stop, None, "no response ever closed it");
 }
 
 /// A machine driven to the end of a log holds what the batch fold returns, so

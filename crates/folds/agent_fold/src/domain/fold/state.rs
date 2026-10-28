@@ -1,6 +1,6 @@
 //! The fold's state and the one place the protocol is dispatched.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::domain::error::FoldError;
 use crate::domain::harness::{HarnessReader, ToolFrame};
@@ -108,6 +108,12 @@ pub(super) struct FoldState {
     pub(super) session: Option<AgentSessionId>,
     /// The turn currently being built, if any.
     pub(super) turn: Option<Turn>,
+    /// Prompts sent while [`Self::turn`] still awaited its response, oldest
+    /// first. A runtime that queues prompts (Claude Code advertises
+    /// `promptQueueing`) answers them in order, so everything it streams
+    /// belongs to the open turn until that turn's response arrives. Their
+    /// user messages are already in [`Self::messages`]; only their turns wait.
+    pub(super) queued_turns: VecDeque<Turn>,
     /// Where every tool call so far sits, so a patch can find it.
     ///
     /// Session-wide, not per turn: a user tool is patched *after* its turn
@@ -198,6 +204,7 @@ impl FoldState {
         self.forget_interactions();
         self.pending_controls.clear();
         self.close_turn(None);
+        self.queued_turns.clear();
     }
 
     /// Advance by one log entry, returning what it changed in emission order.
@@ -268,8 +275,8 @@ impl FoldState {
                         | AgentAction::RespondToPermission(_) => None,
                     });
                 }
-                // A user's prompt opens a turn - and may close the one
-                // before it, so it reports on its own.
+                // A user's prompt opens a turn - or queues behind the open
+                // one until its response - so it reports on its own.
                 if let RawJsonRpcMessage::Request(request) = &acp.0
                     && PromptRequest::matches_method(&request.method)
                 {

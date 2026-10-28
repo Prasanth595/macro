@@ -68,18 +68,26 @@ impl FoldState {
         let closed =
             if self.speculative && self.turn.as_ref().is_some_and(|turn| turn.stop_requested) {
                 self.close_turn(Some(StopReason::Cancelled))
-            } else {
-                // A second prompt without an intervening response means the
-                // previous turn never got one. Its agent message is already in
-                // `messages` and already reads `stop: None`, so there is nothing
-                // left to report.
+            } else if self
+                .turn
+                .as_ref()
+                .is_some_and(|turn| turn.prompt_id.is_none())
+            {
+                // A turn nothing prompted has no response to wait for, so the
+                // prompt ends it. Its agent message already reads
+                // `stop: None`, so there is nothing left to report.
                 let closed = self.close_turn(None);
                 debug_assert!(
                     closed.is_none(),
                     "closing a turn without a stop reason changes nothing"
                 );
                 None
+            } else {
+                // A prompt sent while another awaits its response queues
+                // behind it: the runtime answers prompts in order.
+                None
             };
+        self.promote_queued_turn();
 
         let id = TurnId(self.turns_opened);
         self.turns_opened += 1;
@@ -176,7 +184,7 @@ impl FoldState {
             Changed::new(message)
         });
 
-        self.turn = Some(Turn {
+        let turn = Turn {
             id,
             notification: system_turn,
             noop_buffer: String::new(),
@@ -187,9 +195,29 @@ impl FoldState {
             prompt_id: Some(prompt_id.clone()),
             agent: None,
             plan_position: None,
-        });
+        };
+        if self.turn.is_some() {
+            self.queued_turns.push_back(turn);
+        } else {
+            self.turn = Some(turn);
+        }
 
         closed.into_iter().chain(changed).collect()
+    }
+
+    /// Open the oldest queued turn once no turn is open.
+    pub(super) fn promote_queued_turn(&mut self) {
+        if self.turn.is_none() {
+            self.turn = self.queued_turns.pop_front();
+        }
+    }
+
+    /// Whether `response_id` answers a queued prompt rather than the open
+    /// turn's.
+    fn answers_queued_turn(&self, response_id: &RequestId) -> Option<usize> {
+        self.queued_turns
+            .iter()
+            .position(|turn| turn.prompt_id.as_ref() == Some(response_id))
     }
 
     /// Handle the response to `session/prompt`: close the turn.
@@ -217,12 +245,20 @@ impl FoldState {
         };
 
         if !closes_the_open_turn {
-            // Responses to `initialize`, `session/new` and `session/load`
-            // land here. Only flag one that looks like a turn ending.
-            if stop.is_some() {
-                self.warn(FoldError::UncorrelatedResponse);
-            }
-            return None;
+            let Some(queued) = self.answers_queued_turn(response_id) else {
+                // Responses to `initialize`, `session/new` and
+                // `session/load` land here. Only flag one that looks like a
+                // turn ending.
+                if stop.is_some() {
+                    self.warn(FoldError::UncorrelatedResponse);
+                }
+                return None;
+            };
+            // A later prompt was answered first, so the turns ahead of it
+            // never will be. They keep what they had, unstopped.
+            self.turn = None;
+            self.queued_turns.drain(..queued);
+            self.promote_queued_turn();
         }
 
         let new_message = self.turn.as_ref().is_some_and(|turn| turn.agent.is_none());
@@ -238,16 +274,19 @@ impl FoldState {
             }
             self.append_text(remaining);
         }
-        self.close_turn(stop).map(|changed| {
+        let changed = self.close_turn(stop).map(|changed| {
             if new_message {
                 Changed::new(changed.message)
             } else {
                 changed
             }
-        })
+        });
+        self.promote_queued_turn();
+        changed
     }
 
-    /// End the open turn because its prompt was answered with an error.
+    /// End the turn whose prompt was answered with an error: the open turn,
+    /// or a queued one the runtime refused while busy.
     ///
     /// The turn has to end even when the agent produced nothing at all -
     /// which is the common case, since a runtime that rejects a prompt
@@ -262,13 +301,17 @@ impl FoldState {
             .as_ref()
             .and_then(|turn| turn.prompt_id.as_ref())
             .is_some_and(|prompt_id| prompt_id == response_id);
-        if !closes_the_open_turn {
-            return None;
-        }
+        // A rejected queued prompt fails alone; the open turn keeps running.
+        let turn = if closes_the_open_turn {
+            self.turn.take()?
+        } else {
+            let queued = self.answers_queued_turn(response_id)?;
+            self.queued_turns.remove(queued)?
+        };
+        self.promote_queued_turn();
 
         // An error is worth showing under any turn, control's included, so
         // this mints unconditionally where a clean close does not.
-        let turn = self.turn.take()?;
         let (agent, changed) = match turn.agent {
             Some(agent) => (agent, Changed::updated(agent)),
             None => self.mint_agent_message(turn.id),

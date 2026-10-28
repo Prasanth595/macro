@@ -286,6 +286,51 @@ fn compaction_shows_when_the_agent_reports_one_not_when_asked() {
 /// takes to mean the agent is still working: the composer keeps its stop
 /// affordance, and each further click stacks another Stopped line onto a
 /// session that can never settle.
+/// A runtime that refuses a prompt while it is busy fails only that prompt;
+/// the running turn keeps streaming and closes on its own response.
+#[test]
+fn a_rejected_queued_prompt_fails_alone() {
+    let log = parse_log(concat!(
+        r#"{"direction":"to_runtime","content":{"type":"acp","jsonrpc":"2.0","id":"a","method":"session/prompt","params":{"sessionId":"s","prompt":[{"type":"text","text":"first"}]}}}"#,
+        "\n",
+        r#"{"direction":"to_runtime","content":{"type":"acp","jsonrpc":"2.0","id":"b","method":"session/prompt","params":{"sessionId":"s","prompt":[{"type":"text","text":"second"}]}}}"#,
+        "\n",
+        r#"{"direction":"to_server","content":{"type":"acp","jsonrpc":"2.0","id":"b","error":{"code":-32000,"message":"busy"}}}"#,
+        "\n",
+        r#"{"direction":"to_server","content":{"type":"acp","jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"answer"}}}}}"#,
+        "\n",
+        r#"{"direction":"to_server","content":{"type":"acp","jsonrpc":"2.0","id":"a","result":{"stopReason":"end_turn"}}}"#,
+    ));
+
+    let (messages, warnings) = fold_capturing_warnings(log);
+    assert_eq!(warnings, vec![]);
+    let turns: Vec<_> = messages
+        .iter()
+        .map(|message| (message.id, message.author.kind(), message.stop.clone()))
+        .collect();
+    assert_eq!(
+        turns,
+        vec![
+            (TurnId(0), crate::domain::model::AuthorKind::User, None),
+            (TurnId(1), crate::domain::model::AuthorKind::User, None),
+            (
+                TurnId(1),
+                crate::domain::model::AuthorKind::Agent,
+                Some(StopReason::Failed {
+                    message: "busy".to_owned(),
+                    notice: None
+                })
+            ),
+            (
+                TurnId(0),
+                crate::domain::model::AuthorKind::Agent,
+                Some(StopReason::EndTurn)
+            ),
+        ]
+    );
+    assert_eq!(messages[3].last_text().as_deref(), Some("answer"));
+}
+
 #[test]
 fn a_stop_before_the_agent_speaks_still_settles_the_turn() {
     let log = parse_log(concat!(

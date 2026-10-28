@@ -119,7 +119,7 @@ fn a_second_elicitation_does_not_replace_the_live_question_or_permissions() {
 
 #[test]
 fn ending_stopping_and_disconnecting_clear_both_live_requests() {
-    for ending in ["end", "stop", "disconnect", "reconnect", "next_turn"] {
+    for ending in ["end", "stop", "disconnect", "reconnect"] {
         let mut machine = FoldMachineImpl::new();
         prompt(&mut machine, "p");
         push(&mut machine, "to_server", permission(json!(1)));
@@ -139,7 +139,6 @@ fn ending_stopping_and_disconnecting_clear_both_live_requests() {
                     json!({"method": "session/cancel", "params": {"sessionId": "s"}}),
                 );
             }
-            "next_turn" => prompt(&mut machine, "next"),
             _ => {
                 let event = if ending == "disconnect" {
                     "disconnected"
