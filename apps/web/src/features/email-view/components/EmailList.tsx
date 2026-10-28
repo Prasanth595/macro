@@ -1,6 +1,10 @@
 import { QueuedSendStatus } from '../../email-compose/queued-send-status';
 import '@entity/composed/ListEntity.css';
-import { type ListActivation, useListInteractions } from '@app/components/list';
+import {
+  type ListActivation,
+  type ListKey,
+  useListInteractions,
+} from '@app/components/list';
 import { CommandState } from '@app/features/command/state';
 import {
   resolveEntityActionViewContext,
@@ -97,7 +101,12 @@ export type EmailListProps = {
  */
 const savedLayouts = new Map<
   string,
-  { scope: string; cache: CacheSnapshot; offset: number }
+  {
+    scope: string;
+    cache: CacheSnapshot;
+    offset: number;
+    focusKey: ListKey | undefined;
+  }
 >();
 const MAX_SAVED_LAYOUTS = 20;
 
@@ -186,6 +195,9 @@ export function EmailList(props: EmailListProps) {
   createScrollTopFade(viewport);
   const [topSpacer, setTopSpacer] = createSignal<HTMLDivElement>();
   const topSpacerSize = createElementSize(topSpacer);
+  // The virtualizer's item offsets exclude this; its scroll offset includes it.
+  const listStartMargin = () =>
+    isTouchDevice() ? (topSpacerSize.height ?? 0) : 0;
   const [emptyViewport, setEmptyViewport] = createSignal<HTMLDivElement>();
   const [grid, setGrid] = createSignal<HTMLDivElement>();
   // Coming back from a thread, or toggling the reading pane, remounts the
@@ -453,6 +465,7 @@ export function EmailList(props: EmailListProps) {
         return;
       }
       handle.scrollTo(scrollOffset);
+      if (!resumed || list.focus.requestedKey() === resumed.focusKey) return;
       requestAnimationFrame(() => {
         if (!disposed) revealFocusedRow(handle);
       });
@@ -460,11 +473,12 @@ export function EmailList(props: EmailListProps) {
     requestAnimationFrame(restore);
   }
   // j/k in the open thread moves list focus. Returning keeps the list where
-  // it was and scrolls only when that row is now off screen.
+  // it was and scrolls only when focus moved meanwhile to a row now off
+  // screen; a row the user scrolled away from stays where it is.
   function revealFocusedRow(handle: VirtualizerHandle) {
     const focused = list.focus.index();
     if (focused < 0) return;
-    const top = handle.getItemOffset(focused);
+    const top = listStartMargin() + handle.getItemOffset(focused);
     const bottom = top + handle.getItemSize(focused);
     const viewTop = handle.scrollOffset;
     if (top < viewTop || bottom > viewTop + handle.viewportSize) {
@@ -503,10 +517,13 @@ export function EmailList(props: EmailListProps) {
   let activeScope = listScope();
   const layoutKey = panel.handle.id;
   const savedLayout = savedLayouts.get(layoutKey);
-  const resumed = savedLayout?.scope === activeScope ? savedLayout : undefined;
+  // Closing a thread opens the list as a new history entry with no state of
+  // its own; resume from this split's last layout. Back and Forward restore
+  // their entry's own state instead.
+  const traversed = panel.handle.lastNavigationCause().startsWith('history-');
+  const resumed =
+    !traversed && savedLayout?.scope === activeScope ? savedLayout : undefined;
   const initialCache = resumed?.cache;
-  // Closing a thread remounts the list without a history change, so the
-  // persisted entry state is not applied again; resume from the last layout.
   if (resumed) scrollOffset = resumed.offset;
   onCleanup(() => {
     const handle = lastHandle;
@@ -516,6 +533,7 @@ export function EmailList(props: EmailListProps) {
       scope: activeScope,
       cache: handle.cache,
       offset: scrollOffset,
+      focusKey: list.focus.requestedKey(),
     });
     if (savedLayouts.size > MAX_SAVED_LAYOUTS) {
       const oldest = savedLayouts.keys().next().value;
@@ -700,9 +718,7 @@ export function EmailList(props: EmailListProps) {
                       cache={initialCache}
                       data={rows()}
                       scrollRef={viewport()}
-                      startMargin={
-                        isTouchDevice() ? (topSpacerSize.height ?? 0) : 0
-                      }
+                      startMargin={listStartMargin()}
                       bufferSize={500}
                       itemSize={44}
                       keepMounted={
