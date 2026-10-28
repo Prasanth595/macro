@@ -67,7 +67,7 @@ use messages::domain::{api::MessageServiceApi, ports::MessageError, service::Mes
 use model_owner::CreationPrincipal;
 use std::sync::Arc;
 use sync_service_client::SyncServiceClient;
-use task_dedup::TaskNameSearch;
+use task_dedup::{TaskDedupError, TaskNameMatch, TaskNameSearch};
 use uuid::Uuid;
 
 /// Default backend-owned document creation use case for document tools.
@@ -108,6 +108,8 @@ pub struct DocumentToolContext<
     pub messages: Arc<dyn MessageServiceApi>,
 
     /// Finds open tasks named like one being created, for CreateDocument.
+    /// Hosts without a database keep the default, whose lookups fail and
+    /// return no matches; wire one with [`Self::with_task_names`].
     pub task_names: Arc<dyn TaskNameSearch>,
 
     /// Permission-scoped deterministic spreadsheet workflows.
@@ -209,7 +211,6 @@ impl<
         editing: EDSvc,
         document_permission_jwt_secret: String,
         messages: Arc<dyn MessageServiceApi>,
-        task_names: Arc<dyn TaskNameSearch>,
     ) -> Self {
         let service = Arc::new(service);
         let lexical_client = Arc::new(lexical_client);
@@ -250,7 +251,7 @@ impl<
             editing,
             comments,
             messages,
-            task_names,
+            task_names: Arc::new(NoTaskNameSearch),
             spreadsheet,
             word_documents,
             presentations: Arc::new(PresentationService::new(Arc::new(NoPresentationFiles))),
@@ -322,6 +323,12 @@ impl<
         self
     }
 
+    /// Find tasks similar to new ones through `task_names`.
+    pub fn with_task_names(mut self, task_names: Arc<dyn TaskNameSearch>) -> Self {
+        self.task_names = task_names;
+        self
+    }
+
     /// Set the usage recorder the EditDocument tool logs worker token usage to.
     pub fn with_recorder(mut self, recorder: Arc<dyn ai_usage::UsageRecorder>) -> Self {
         self.recorder = recorder;
@@ -375,6 +382,23 @@ impl<
             bot: self.actor,
             user,
         }
+    }
+}
+
+/// The default [`TaskNameSearch`] for hosts that have not wired one.
+struct NoTaskNameSearch;
+
+#[async_trait::async_trait]
+impl TaskNameSearch for NoTaskNameSearch {
+    async fn similar_open_tasks(
+        &self,
+        _owner: &str,
+        _team_id: Option<Uuid>,
+        _name: &str,
+    ) -> Result<Vec<TaskNameMatch>, TaskDedupError> {
+        Err(TaskDedupError::Dependency(anyhow::anyhow!(
+            "this host has no task name search"
+        )))
     }
 }
 

@@ -13,8 +13,8 @@ export class TaskNamespace {
   }
 
   /**
-   * Create a task. The result's `similarOpenTasks` lists existing open tasks
-   * with nearly the same name; check them so the task is not a duplicate.
+   * Create a task, returning open tasks with nearly the same name in
+   * `similarOpenTasks`; check them so the new task is not a duplicate.
    */
   create(opts: {
     name: string;

@@ -35,7 +35,7 @@ word docs, Illustrator/Photoshop files).
   `edit_document`, `word_document`, `spreadsheet`, `presentation`, ...).
   Task creation through `CreateDocument` (`isTask`) and `create_task` runs
   `task_dedup`'s bounded name lookup alongside the create and returns
-  `similarOpenTasks`; hosts pass a `TaskNameSearch` to `DocumentToolContext::new`.
+  `similarOpenTasks`; hosts wire a `TaskNameSearch` with `DocumentToolContext::with_task_names`.
 - `src/inbound/axum_router.rs`: the HTTP surface; `axum_router/get_text.rs`
   serves `/text-content` through `src/domain/text.rs`. Native Markdown comes
   from live collaborative storage, not the legacy S3 export.

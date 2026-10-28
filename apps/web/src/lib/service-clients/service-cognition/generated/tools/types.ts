@@ -7504,7 +7504,7 @@ export interface CreateContactResponse {
   name?: string | null;
 }
 /**
- * Create a plaintext document or a native Macro spreadsheet or canvas. For a workbook use fileExtension spreadsheet, empty fileContent, and isTask false; then ReadSpreadsheet and EditSpreadsheet to populate cells, formulas and sheets. For a Canvas use fileExtension canvas, empty fileContent, and isTask false; then ReadCanvas and EditCanvas. Native documents are initialized before returning and work without an open editor.
+ * Create a plaintext document or a native Macro spreadsheet or canvas. For a workbook use fileExtension spreadsheet, empty fileContent, and isTask false; then ReadSpreadsheet and EditSpreadsheet to populate cells, formulas and sheets. For a Canvas use fileExtension canvas, empty fileContent, and isTask false; then ReadCanvas and EditCanvas. Native documents are initialized before returning and work without an open editor. A task is always created; when the response lists similarOpenTasks, those are existing open tasks of the user or their team with nearly the same name. Read them, and if one already covers the work, tell the user which task the new one duplicates instead of silently keeping both. Never edit, merge or delete the listed tasks unless the user asks.
  */
 export interface CreateDocument {
   /**
@@ -7536,6 +7536,29 @@ export interface CreateDocumentResponse {
    * The id of the document
    */
   documentId: string;
+  /**
+   * Open tasks of the user or their team whose names closely match the new
+   * task's. Only set when creating a task.
+   */
+  similarOpenTasks?: TaskNameMatch[];
+}
+/**
+ * An open task whose name closely matches the name of a task being created.
+ * A hint for the creator to review, never acted on automatically.
+ */
+export interface TaskNameMatch {
+  /**
+   * The matching existing task.
+   */
+  taskId: string;
+  /**
+   * The matching task's display name.
+   */
+  taskName: string;
+  /**
+   * Trigram similarity of the two names, from 0 to 1.
+   */
+  nameSimilarity: number;
 }
 /**
  * Create a complete questionnaire with response columns, ordered sections, gates and an optional saved booking link. Creates closed and private; use SetFormAccess afterward to open or share it. Existing-table attachment requires database Owner and an unbound table. Use local question/option keys in gates and reference only earlier sections. Required questions require an answer; gates compare answers using AND/OR. Empty answers pass only IsEmpty. A final booking step reveals an existing authorized link after acceptance; its independent URL remains usable, and strict qualification is unsupported. Each invocation creates a new form; after a timeout, use ListForms and ReadForm before trying again. Returns actual saved IDs, links and completion state; inspect partial work instead of recreating.

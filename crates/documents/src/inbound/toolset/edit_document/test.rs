@@ -703,22 +703,24 @@ pub(in crate::inbound::toolset) fn tool_context(
     service: FakeDocumentService,
     editing: FakeEditingWorker,
 ) -> ServiceContext<TestToolContext> {
-    ServiceContext(DocumentToolContext::new(
-        service,
-        FakeEntityAccessService::default(),
-        LexicalClient::new(
-            "unused-internal-key".to_string(),
-            "http://localhost/lexical".to_string(),
-        ),
-        SyncServiceClient::new(
-            "unused-internal-key".to_string(),
-            "http://localhost/sync".to_string(),
-        ),
-        editing,
-        "unused-jwt-secret".to_string(),
-        std::sync::Arc::new(crate::inbound::toolset::comment_test::FakeMessages::default()),
-        Arc::new(NoSimilarTaskNames),
-    ))
+    ServiceContext(
+        DocumentToolContext::new(
+            service,
+            FakeEntityAccessService::default(),
+            LexicalClient::new(
+                "unused-internal-key".to_string(),
+                "http://localhost/lexical".to_string(),
+            ),
+            SyncServiceClient::new(
+                "unused-internal-key".to_string(),
+                "http://localhost/sync".to_string(),
+            ),
+            editing,
+            "unused-jwt-secret".to_string(),
+            std::sync::Arc::new(crate::inbound::toolset::comment_test::FakeMessages::default()),
+        )
+        .with_task_names(Arc::new(NoSimilarTaskNames)),
+    )
 }
 
 /// Finds no similar tasks.

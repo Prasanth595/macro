@@ -380,8 +380,8 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
             pool.clone(),
             std::sync::Arc::new(test_lexical_client.clone()),
         ),
-        Arc::new(task_dedup::PgTaskNameSearch::new(pool.clone())),
-    );
+    )
+    .with_task_names(Arc::new(task_dedup::PgTaskNameSearch::new(pool.clone())));
 
     let search_service_client = Arc::new(search_service_client);
 

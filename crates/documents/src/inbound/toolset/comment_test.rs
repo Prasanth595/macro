@@ -203,7 +203,6 @@ fn context_with(
         editing,
         "unused-jwt-secret".to_owned(),
         Arc::new(messages),
-        Arc::new(crate::inbound::toolset::edit_document::test::NoSimilarTaskNames),
     ))
 }
 

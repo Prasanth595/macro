@@ -47,7 +47,7 @@ pub struct CreateDocumentResponse {
     pub document_id: uuid::Uuid,
     /// Open tasks of the user or their team whose names closely match the new
     /// task's. Only set when creating a task.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub similar_open_tasks: Vec<TaskNameMatch>,
 }
 

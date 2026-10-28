@@ -2646,6 +2646,15 @@ export const CreateDocument = z.object({
 
 export const CreateDocumentResponse = z.object({
   documentId: z.string().uuid(),
+  similarOpenTasks: z
+    .array(
+      z.object({
+        taskId: z.string(),
+        taskName: z.string(),
+        nameSimilarity: z.number(),
+      })
+    )
+    .optional(),
 });
 
 export const CreateForm = z.object({
