@@ -73,6 +73,7 @@
   "auth.enrichGithubPullRequests": "Enrich Github Pull Requests",
   "auth.mergeGithubPullRequest": "Merge Github Pull Request",
   "auth.getGithubPullRequestMergeability": "Get Github Pull Request Mergeability",
+  "auth.setGithubPullRequestState": "Set Github Pull Request State",
   "auth.listGtmInviteLinks": "List Gtm Invite Links",
   "auth.createGtmInviteLink": "Create Gtm Invite Link",
   "auth.revokeGtmInviteLink": "Revoke Gtm Invite Link",

@@ -136,6 +136,7 @@ export const authExcluded = [
   'sessionCreation',
   'sessionLogin',
   'setGithubPullRequestDraft',
+  'setGithubPullRequestState',
   'ssoLogin',
   'startCodexLogin',
   'toggleTeamAutoJoinDomain',
