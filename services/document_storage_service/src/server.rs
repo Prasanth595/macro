@@ -2305,6 +2305,7 @@ pub async fn run() -> anyhow::Result<()> {
             authorization_state: authorization_state.clone(),
             pool: db.clone(),
             task_dedup_service,
+            task_names: Arc::new(task_dedup::PgTaskNameSearch::new(db.clone())),
             lexical_client: lexical_client.clone(),
             creator: document_creator,
             document_permission_jwt_secret: config.document_permission_jwt.as_ref().to_string(),

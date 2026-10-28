@@ -108,6 +108,7 @@ skills = { path = "../skills", default-features = false, features = ["ai_tools",
 properties = { path = "../properties", features = ["ai_tools"] }
 soup = { path = "../soup", features = ["ai_tools", "outbound"] }
 sqs_client = { path = "../sqs_client", default-features = false, features = ["email", "gmail"] }
+task_dedup = { path = "../task_dedup" }
 teams = { path = "../teams", default-features = false, features = ["ai_tools", "outbound"] }
 sqlx.workspace = true
 strum.workspace = true

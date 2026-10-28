@@ -379,6 +379,7 @@ pub async fn build(
             lexical_client.clone(),
             &side_effect_clients,
         ),
+        Arc::new(task_dedup::PgTaskNameSearch::new(db.clone())),
     )
     .with_presentation_files(Arc::new(document_files.clone()))
     .with_word_document_files(Arc::new(document_files.clone()))

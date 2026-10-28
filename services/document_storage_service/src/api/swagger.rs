@@ -601,7 +601,7 @@ use utoipa::OpenApi;
             documents_hex::domain::models::CreateMarkdownDocumentRequest,
             documents_hex::domain::models::CreateMarkdownDocumentResponse,
             documents_hex::domain::models::CreateTaskRequest,
-            documents_hex::domain::models::CreateTaskResponse,
+            documents_hex::inbound::axum_router::create_task::CreateTaskResponse,
             documents_hex::domain::models::CreateSnippetRequest,
             documents_hex::domain::models::CreateSnippetResponse,
             documents_hex::domain::models::CreateSkillRequest,
