@@ -1,5 +1,18 @@
 # Documents
 
+Git blame is controlled by the `enable-git-blame` feature flag and the local
+**Settings → Appearance → Interface → Show git blame** preference (on by default).
+**Show blame only while holding Alt** defaults off. When enabled, hover over
+text and hold Alt (Option on Mac) to reveal its last editor; releasing Alt hides
+it immediately. Pressing Alt over stationary text also works. Leaving the window
+clears the held key and hover target. Both preferences survive reloads on the same
+browser. Touch devices continue to suppress blame tooltips.
+
+To verify, enable Alt-only mode, hover text, press/release Alt without moving the
+pointer, and blur the window while holding Alt. Return without Alt and confirm
+blame stays hidden. Disable Show git blame and confirm Alt cannot reveal it.
+Reload Settings and confirm both switches retain their values.
+
 For DSS sync rollout checks, use PostHog flag `sync-via-gateway` (dev and
 production) and recreate document sessions after the client receives the updated
 flag. A reload can initially read PostHog's cached value; open sessions do not

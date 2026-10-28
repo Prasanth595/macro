@@ -29,6 +29,7 @@ import { observeAiUsageLimitMutations } from '@app/features/paywall/ai-usage-lim
 import { MobileSettingsProvider } from '@app/features/settings/context/mobile-settings';
 import { NativeShareSheet } from '@app/features/sharing/native-share-sheet/NativeShareSheet';
 import { ShowFeatureFlag } from '@app/lib/analytics/posthog';
+import { EditorPreferencesProvider } from '@app/lib/preferences/editor-preferences';
 import { mountGlobalFocusListener } from '@app/signal/focus';
 import { CreateChannelModal } from '@channel/CreateChannelModal';
 import { GoToHotkeys } from '@components/app/app-sidebar/sidebar';
@@ -171,34 +172,36 @@ export function RootFrame(props: ParentProps) {
   attachGlobalDOMScope(document.body);
 
   return (
-    <MobileSettingsProvider>
-      <div
-        class={cn(
-          'relative flex flex-col justify-between not-touch:bg-page w-dvw h-[calc(var(--dvh,1dvh)*100)] pl-(--safe-left) pr-(--safe-right)',
-          hasOverlayTitleBar && 'pt-[40px]'
-        )}
-      >
-        <Show when={hasOverlayTitleBar}>
-          <DesktopTitleBar />
-        </Show>
-        <BundleUpdateProgressBar />
-        <Show when={paywallOpen()}>
-          <Suspense>
-            <Paywall />
-          </Suspense>
-        </Show>
-        <Show when={usageLimitOpen()}>
-          <AiUsageLimitDialog />
-        </Show>
-        <div class="min-h-0 flex-1 flex flex-col">
-          {/* Route loading must not detach the frame. Routes draw their own
+    <EditorPreferencesProvider>
+      <MobileSettingsProvider>
+        <div
+          class={cn(
+            'relative flex flex-col justify-between not-touch:bg-page w-dvw h-[calc(var(--dvh,1dvh)*100)] pl-(--safe-left) pr-(--safe-right)',
+            hasOverlayTitleBar && 'pt-[40px]'
+          )}
+        >
+          <Show when={hasOverlayTitleBar}>
+            <DesktopTitleBar />
+          </Show>
+          <BundleUpdateProgressBar />
+          <Show when={paywallOpen()}>
+            <Suspense>
+              <Paywall />
+            </Suspense>
+          </Show>
+          <Show when={usageLimitOpen()}>
+            <AiUsageLimitDialog />
+          </Show>
+          <div class="min-h-0 flex-1 flex flex-col">
+            {/* Route loading must not detach the frame. Routes draw their own
                 loading state, so the frame adds none. */}
-          <Suspense>{props.children}</Suspense>
+            <Suspense>{props.children}</Suspense>
+          </div>
+          <SwipeDownDismissKeyboard />
+          <DevStatusBar />
         </div>
-        <SwipeDownDismissKeyboard />
-        <DevStatusBar />
-      </div>
-    </MobileSettingsProvider>
+      </MobileSettingsProvider>
+    </EditorPreferencesProvider>
   );
 }
 

@@ -1,4 +1,6 @@
+import { useEditorPreferences } from '@app/lib/preferences/editor-preferences';
 import { toast } from '@core/component/Toast/Toast';
+import { enableGitBlame, isFeatureEnabled } from '@core/constant/featureFlags';
 import { fireAndForget } from '@core/util/fireAndForget';
 import ClipboardIcon from '@icon/system/regular/clipboard.svg';
 import DownloadIcon from '@icon/system/regular/download-simple.svg';
@@ -488,6 +490,7 @@ function InterfaceThemeSelect(props: {
 }
 
 export function Appearance() {
+  const [editorPreferences, setEditorPreferences] = useEditorPreferences();
   const modeTheme = (mode: 'light' | 'dark') =>
     themes().find(
       (theme) =>
@@ -571,6 +574,37 @@ export function Appearance() {
                 checked={tooltipsEnabled()}
               />
             </SettingsRow>
+            <Show when={isFeatureEnabled(enableGitBlame)}>
+              <SettingsRow
+                label="Show git blame"
+                description="Show who last edited text in a document."
+              >
+                <ToggleSwitch
+                  size="md"
+                  label="Show git blame"
+                  labelClass="sr-only"
+                  checked={editorPreferences.showGitBlame}
+                  onChange={(value) =>
+                    setEditorPreferences('showGitBlame', value)
+                  }
+                />
+              </SettingsRow>
+              <SettingsRow
+                label="Show blame only while holding Alt"
+                description="Hold Alt (Option on Mac) while hovering over document text."
+              >
+                <ToggleSwitch
+                  size="md"
+                  label="Show blame only while holding Alt"
+                  labelClass="sr-only"
+                  checked={editorPreferences.blameOnlyWhileHoldingAlt}
+                  disabled={!editorPreferences.showGitBlame}
+                  onChange={(value) =>
+                    setEditorPreferences('blameOnlyWhileHoldingAlt', value)
+                  }
+                />
+              </SettingsRow>
+            </Show>
           </SettingsCard>
         </SettingsSection>
 
