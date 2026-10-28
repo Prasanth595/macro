@@ -66,7 +66,7 @@ export function ModelRow(props: ModelRowProps) {
       closeOnSelect
       disabled={props.disabled}
       class={cn(
-        'h-8 gap-2',
+        'min-h-8 gap-2',
         props.selected && 'bg-ink/5 text-ink font-medium',
         props.option.locked && 'opacity-50'
       )}
@@ -79,7 +79,9 @@ export function ModelRow(props: ModelRowProps) {
       onSelect={props.onSelect}
     >
       <ModelIcon model={props.option.id} />
-      <span class="min-w-0 flex-1 truncate text-sm">{props.option.label}</span>
+      <span class="min-w-0 flex-1 whitespace-normal wrap-anywhere text-sm">
+        {props.option.label}
+      </span>
       <Show when={props.hint}>
         <span class="shrink-0 text-xs text-ink-extra-muted">{props.hint}</span>
       </Show>
@@ -227,7 +229,7 @@ export function ModelCatalogPicker(props: ModelCatalogPickerProps) {
   );
   const triggerClass = () =>
     cn(
-      'h-9 justify-between border border-edge-muted bg-transparent px-3 text-left text-sm text-ink hover:bg-ink/3',
+      'h-9 min-w-0 max-w-full justify-between border border-edge-muted bg-transparent px-3 text-left text-sm text-ink hover:bg-ink/3',
       props.triggerClass
     );
 
@@ -450,7 +452,7 @@ function ModelCatalogSheet(
                           }}
                         >
                           <ModelIcon model={option.id} />
-                          <span class="min-w-0 flex-1 truncate">
+                          <span class="min-w-0 flex-1 whitespace-normal wrap-anywhere">
                             {option.label}
                           </span>
                           <Show when={option.locked}>
