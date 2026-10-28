@@ -65,16 +65,15 @@ fn property_sort_join(enabled: bool, parameter: usize) -> String {
     if !enabled {
         return String::new();
     }
-    let value = property_value_sql("ep_sort", "pd.data_type", "NULL::jsonb");
+    let data_type =
+        format!("(SELECT data_type FROM property_definitions WHERE id = ${parameter}::uuid)");
+    let value = property_value_sql("ep_sort", &data_type, "NULL::jsonb", "po_group");
     format!(
-        r#" LEFT JOIN LATERAL (
-        SELECT ({key})::{sql_type} AS key
-        FROM property_definitions pd
-        LEFT JOIN entity_properties ep_sort ON ep_sort.property_definition_id = pd.id
+        r#" LEFT JOIN entity_properties ep_sort
+        ON ep_sort.property_definition_id = ${parameter}::uuid
             AND ep_sort.entity_id = all_items.id::text
             AND ep_sort.entity_type = all_items.property_entity_type
-        WHERE pd.id = ${parameter}::uuid
-    ) property_sort ON true "#,
+        LEFT JOIN LATERAL (SELECT ({key})::{sql_type} AS key) property_sort ON true "#,
         key = value.sort_key,
         sql_type = value.sort_type,
     )
@@ -198,17 +197,20 @@ fn document_top_clause(
     sort_method: SimpleSortMethod,
     needs_sub_type_join: bool,
     property_sort: bool,
+    task_only: bool,
 ) -> String {
-    let sub_type_join = if needs_sub_type_join || property_sort {
+    let sub_type_join = if needs_sub_type_join || (property_sort && !task_only) {
         r#"                LEFT JOIN document_sub_type dt ON dt.document_id = d.id
 "#
     } else {
         ""
     };
-    let property_column = if property_sort {
-        ", CASE WHEN dt.sub_type = 'task' THEN 'TASK'::property_entity_type ELSE 'DOCUMENT'::property_entity_type END as property_entity_type"
-    } else {
-        ""
+    let property_column = match (property_sort, task_only) {
+        (true, true) => ", 'TASK'::property_entity_type as property_entity_type",
+        (true, false) => {
+            ", CASE WHEN dt.sub_type = 'task' THEN 'TASK'::property_entity_type ELSE 'DOCUMENT'::property_entity_type END as property_entity_type"
+        }
+        (false, _) => "",
     };
     format!(
         r#"
@@ -278,8 +280,22 @@ fn project_top_clause(sort_method: SimpleSortMethod, property_sort: bool) -> Str
 
 // -- Grouped top clauses: include project_id for grouping support --
 
-fn grouped_document_top_clause(sort_method: SimpleSortMethod) -> String {
+fn grouped_document_top_clause(
+    sort_method: SimpleSortMethod,
+    needs_sub_type_join: bool,
+    task_only: bool,
+) -> String {
     let sort_ts = top_sort_expr("d", sort_method);
+    let property_entity_type = if task_only {
+        "'TASK'::property_entity_type"
+    } else {
+        "CASE WHEN dt.sub_type = 'task' THEN 'TASK'::property_entity_type ELSE 'DOCUMENT'::property_entity_type END"
+    };
+    let sub_type_join = if needs_sub_type_join || !task_only {
+        "LEFT JOIN document_sub_type dt ON dt.document_id = d.id"
+    } else {
+        ""
+    };
     format!(
         r#"
                 SELECT
@@ -287,12 +303,9 @@ fn grouped_document_top_clause(sort_method: SimpleSortMethod) -> String {
                     d.id,
                     {sort_ts}::timestamptz as sort_ts,
                     d."projectId"::text as project_id,
-                    CASE
-                        WHEN dt.sub_type = 'task' THEN 'TASK'::property_entity_type
-                        ELSE 'DOCUMENT'::property_entity_type
-                    END as property_entity_type
+                    {property_entity_type} as property_entity_type
                 FROM "Document" d
-                LEFT JOIN document_sub_type dt ON dt.document_id = d.id
+                {sub_type_join}
 "#
     )
 }
@@ -1419,6 +1432,19 @@ fn property_literal_predicate(literal: &PropertiesLiteral, entity_id_sql: &str) 
     )
 }
 
+/// Prove that every matching document belongs to the task property namespace.
+fn document_filter_is_task_only(ast: Option<&Expr<DocumentLiteral>>) -> bool {
+    ast.is_some_and(|expr| {
+        expr.collapse_frames(|frame| match frame {
+            filter_ast::ExprFrame::And(a, b) => a || b,
+            filter_ast::ExprFrame::Or(a, b) => a && b,
+            filter_ast::ExprFrame::Not(_) => false,
+            filter_ast::ExprFrame::Literal(DocumentLiteral::SubType(DocumentSubType::Task)) => true,
+            filter_ast::ExprFrame::Literal(_) => false,
+        })
+    })
+}
+
 pub(in crate::outbound::pg_soup_repo) fn document_filter_needs_task_property_joins(
     ast: Option<&Expr<DocumentLiteral>>,
 ) -> bool {
@@ -1715,6 +1741,7 @@ fn build_query<'a>(
             sort_method,
             needs_task_property_joins,
             property_sort,
+            document_filter_is_task_only(document_filter),
         ));
         if optimized_notification_predicate.is_some() && document_notification.is_some() {
             builder.push(build_notification_join("d", "document"));
@@ -2343,11 +2370,12 @@ fn build_grouped_items_cte(
     builder.push("GroupedItems AS (SELECT t.*, (");
     builder.push(&select_expr);
     builder.push(") as group_key, ");
-    builder.push(if matches!(grouping.field, GroupByField::Property { .. }) {
-        "ep_group.group_order"
+    let group_order = if matches!(grouping.field, GroupByField::Property { .. }) {
+        property_value_sql("ep_group", "ep_group.data_type", "ep_group.val", "po_group").group_order
     } else {
-        "NULL::double precision"
-    });
+        "NULL::double precision".to_string()
+    };
+    builder.push(group_order);
     builder.push(" AS group_order, COUNT(*) OVER (PARTITION BY ");
     builder.push(&select_expr);
     builder.push(") as group_total_count, ROW_NUMBER() OVER (PARTITION BY ");
@@ -2365,6 +2393,15 @@ fn build_grouped_items_cte(
     }) = group_join_clause(&grouping.field)
     {
         builder.push(sql);
+        if let GroupByField::Property {
+            property_definition_id,
+            ..
+        } = &grouping.field
+        {
+            builder.push(format!(
+                " LEFT JOIN property_options po_group ON po_group.property_definition_id = '{property_definition_id}' AND po_group.id::text = ep_group.val#>>'{{}}' "
+            ));
+        }
         entity_type_bind
     } else {
         None
@@ -2445,7 +2482,11 @@ fn build_grouped_query<'a>(
             );
 
     // Full-set windows run before the position filter.
-    builder.push("TopItems AS (");
+    builder.push(if property_sort {
+        "TopItems AS MATERIALIZED ("
+    } else {
+        "TopItems AS ("
+    });
     builder.push(
         "SELECT all_items.item_type, all_items.id, all_items.sort_ts, all_items.project_id, all_items.property_entity_type, ",
     );
@@ -2456,8 +2497,14 @@ fn build_grouped_query<'a>(
 
     if include_documents {
         push_union_separator(&mut builder, &mut needs_separator);
-        builder.push(grouped_document_top_clause(sort_method));
-        if document_filter_needs_task_property_joins(filter_ast.document_filter.as_deref()) {
+        let document_filter = filter_ast.document_filter.as_deref();
+        let needs_task_property_joins = document_filter_needs_task_property_joins(document_filter);
+        builder.push(grouped_document_top_clause(
+            sort_method,
+            needs_task_property_joins,
+            document_filter_is_task_only(document_filter),
+        ));
+        if needs_task_property_joins {
             builder.push(DOCUMENT_TASK_PROPERTY_JOINS);
         }
         builder.push(document_top_where_clause(sort_method));

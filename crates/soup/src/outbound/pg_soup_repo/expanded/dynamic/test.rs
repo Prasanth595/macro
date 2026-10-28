@@ -120,6 +120,119 @@ fn flat_timestamp_top_clauses_remain_lightweight() {
     assert!(!top.contains("as project_id"));
     assert!(!query.sql().contains("FROM calendar_events"));
 }
+#[test]
+fn property_queries_hoist_definition_and_option_lookups() {
+    let filter = EntityFilterAst::mock_empty();
+    let grouping = GroupingConfig {
+        field: GroupByField::Property {
+            property_definition_id: SystemPropertyKey::STATUS_UUID,
+            entity_type: None,
+            bucketing: None,
+        },
+        group_key: None,
+        per_group_limit: None,
+    };
+    for sort in [
+        DynamicSort::Timestamp(SimpleSortMethod::UpdatedAt),
+        DynamicSort::Property {
+            property_definition_id: SystemPropertyKey::DUE_DATE_UUID,
+            direction: SoupSortDirection::Asc,
+        },
+    ] {
+        let (query, _) = build_grouped_query(
+            &filter,
+            false,
+            &grouping,
+            sort,
+            &mut DocumentIdArrays::starting_at(first_document_id_slot(sort, true)),
+        );
+        let sql = query.sql();
+        assert!(!sql.contains("JOIN property_definitions"));
+        assert_eq!(sql.matches("JOIN property_options po_group").count(), 1);
+        assert!(!sql.contains("SELECT po.display_order"));
+        assert!(sql.contains("CASE WHEN po_group.id IS NOT NULL"));
+        assert!(sql.contains("po_group.display_order::double precision"));
+        assert_eq!(
+            sql.contains("TopItems AS MATERIALIZED ("),
+            matches!(sort, DynamicSort::Property { .. }),
+        );
+        if matches!(sort, DynamicSort::Property { .. }) {
+            assert!(sql.contains("LEFT JOIN entity_properties ep_sort"));
+            assert!(
+                sql.contains("SELECT data_type FROM property_definitions WHERE id = $11::uuid")
+            );
+            assert!(sql.contains("LEFT JOIN LATERAL (SELECT (CASE"));
+        }
+    }
+}
+
+#[test]
+fn task_only_filters_omit_redundant_namespace_joins() {
+    let task = Expr::val(DocumentLiteral::SubType(DocumentSubType::Task));
+    let id = Expr::val(DocumentLiteral::Id(Uuid::from_u128(1)));
+    assert!(!document_filter_is_task_only(None));
+    for (filter, expected) in [
+        (task.clone(), true),
+        (Expr::and(task.clone(), id.clone()), true),
+        (Expr::and(id.clone(), task.clone()), true),
+        (
+            Expr::or(task.clone(), Expr::and(task.clone(), id.clone())),
+            true,
+        ),
+        (Expr::or(task.clone(), id), false),
+        (Expr::is_not(task.clone()), false),
+        (Expr::is_not(Expr::is_not(task.clone())), false),
+        (
+            Expr::and(task, Expr::val(DocumentLiteral::Importance(true))),
+            true,
+        ),
+    ] {
+        assert_eq!(document_filter_is_task_only(Some(&filter)), expected);
+        let needs_task_joins = document_filter_needs_task_property_joins(Some(&filter));
+        let filter = EntityFilterAst {
+            document_filter: Some(Arc::new(filter)),
+            ..EntityFilterAst::mock_empty()
+        };
+        let sort = DynamicSort::Property {
+            property_definition_id: SystemPropertyKey::DUE_DATE_UUID,
+            direction: SoupSortDirection::Asc,
+        };
+        let grouping = GroupingConfig {
+            field: GroupByField::Property {
+                property_definition_id: SystemPropertyKey::STATUS_UUID,
+                entity_type: None,
+                bucketing: None,
+            },
+            group_key: None,
+            per_group_limit: None,
+        };
+        let flat = build_query(
+            &filter,
+            false,
+            sort,
+            &mut DocumentIdArrays::starting_at(first_document_id_slot(sort, false)),
+        );
+        let (grouped, _) = build_grouped_query(
+            &filter,
+            false,
+            &grouping,
+            sort,
+            &mut DocumentIdArrays::starting_at(first_document_id_slot(sort, true)),
+        );
+        for query in [&flat, &grouped] {
+            let top = query.sql().split(") all_items").next().unwrap();
+            assert_eq!(
+                top.contains("LEFT JOIN document_sub_type dt"),
+                !expected || needs_task_joins
+            );
+            assert_eq!(
+                top.contains("'TASK'::property_entity_type as property_entity_type"),
+                expected
+            );
+        }
+    }
+}
+
 /// Bounded, synthetic diagnostic. SQLx creates an isolated database; never point
 /// the test harness at a hosted database. No planner settings or timing assertions.
 #[sqlx::test(

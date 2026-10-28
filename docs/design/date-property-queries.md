@@ -56,12 +56,23 @@ id DESC`. Direction applies only to the property key; ties use newest update,
 then descending ID. Timestamp queries retain their existing SQL ordering and
 keyset expressions without a `sort_key` term.
 
-Flat timestamp queries keep the existing lightweight top clauses; subtype joins
-are added only when task filters need them or a property sort needs the TASK vs
-DOCUMENT namespace. Document-ID arrays start at `$9` for flat timestamp queries
-and `$11` for grouped timestamp queries. Property sorts append only the definition
-ID and cursor key, moving those array starts to `$11` and `$13`, respectively.
-There is no reserved sign-multiplier parameter or `sort_parameters` CTE.
+Flat timestamp queries keep the existing lightweight top clauses. A filter proven
+to match only tasks selects the constant TASK property namespace, avoiding a
+second subtype probe in flat and grouped queries. Mixed filters still resolve
+TASK versus DOCUMENT through `document_sub_type`; predicates that use subtype
+columns retain that join even for task-only filters.
+
+Property sorting joins `entity_properties` directly by definition, entity ID,
+and canonical entity type. Uncorrelated scalar lookups provide the definition
+type for the guarded sort expression, rather than a per-item definition join.
+Grouped property sorts materialize `TopItems` before expanding multi-value groups
+so each item supplies its sort key before fan-out. Timestamp grouped queries
+keep their inlineable `TopItems` CTE.
+
+Document-ID arrays start at `$9` for flat timestamp queries and `$11` for grouped
+timestamp queries. Property sorts append only the definition ID and cursor key,
+moving those array starts to `$11` and `$13`, respectively. There is no reserved
+sign-multiplier parameter or `sort_parameters` CTE.
 
 ## Grouping input
 
@@ -95,6 +106,11 @@ caller bucket keys. Document-ID sets remain bound arrays.
 Missing or cleared dates use the configured missing-value bucket. Keep the
 existing count and row-number windows, per-group limits, and single-group
 load-more behavior. REST keeps raw UUID pool keys; GraphQL keeps typed entities.
+
+Property grouping reads definition types through uncorrelated scalar lookups.
+After expanding stored values, one `property_options` join supplies both option
+existence and `display_order`. Deleted options retain the empty/Not Set group;
+legacy DOCUMENT assignments on tasks never override canonical TASK assignments.
 
 ## DATE filters
 

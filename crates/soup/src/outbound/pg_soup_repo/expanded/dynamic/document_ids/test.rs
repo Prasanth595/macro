@@ -227,9 +227,9 @@ fn arrays_follow_each_querys_fixed_binds() {
         assert!(grouped.contains("ep.entity_type = $10::property_entity_type"));
         if matches!(sort, DynamicSort::Property { .. }) {
             assert_eq!((flat_first, grouped_first), (11, 13));
-            assert!(flat.contains("WHERE pd.id = $9::uuid"));
+            assert!(flat.contains("WHERE id = $9::uuid"));
             assert!(flat.contains("$10::double precision"));
-            assert!(grouped.contains("WHERE pd.id = $11::uuid"));
+            assert!(grouped.contains("WHERE id = $11::uuid"));
             assert!(grouped.contains("$12::double precision"));
         } else {
             assert_eq!((flat_first, grouped_first), (9, 11));

@@ -33,11 +33,14 @@ pub(super) fn property_date_expression(alias: &str) -> String {
 
 /// Derive sorting and grouping from the same per-type rules.
 /// All arguments are trusted SQL aliases or expressions owned by this adapter.
-pub(super) fn property_value_sql(alias: &str, data_type: &str, element: &str) -> PropertyValueSql {
+pub(super) fn property_value_sql(
+    alias: &str,
+    data_type: &str,
+    element: &str,
+    option_alias: &str,
+) -> PropertyValueSql {
     let date = property_date_expression(alias);
-    let option_order = format!(
-        "(SELECT po.display_order::double precision FROM property_options po WHERE po.id::text = {element}#>>'{{}}' AND po.property_definition_id = {alias}.property_definition_id)"
-    );
+    let option_order = format!("{option_alias}.display_order::double precision");
     let selected_order = format!(
         "(SELECT min(po.display_order)::double precision FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof({alias}.values->'value') = 'array' THEN {alias}.values->'value' ELSE '[]'::jsonb END) chosen(id) JOIN property_options po ON po.id::text = chosen.id AND po.property_definition_id = {alias}.property_definition_id)"
     );
@@ -47,7 +50,8 @@ pub(super) fn property_value_sql(alias: &str, data_type: &str, element: &str) ->
     let boolean = format!(
         "CASE WHEN jsonb_typeof({alias}.values->'value') = 'boolean' THEN CASE WHEN ({alias}.values->>'value')::boolean THEN 1::double precision ELSE 0::double precision END END"
     );
-    let option_group = format!("CASE WHEN {option_order} IS NOT NULL THEN {element}#>>'{{}}' END");
+    let option_group =
+        format!("CASE WHEN {option_alias}.id IS NOT NULL THEN {element}#>>'{{}}' END");
     let branches = [
         PropertyTypeSql {
             data_types: "'DATE'",
@@ -128,7 +132,8 @@ pub fn group_select_expr(field: &GroupByField) -> Cow<'static, str> {
         GroupByField::EntityType => Cow::Borrowed("item_type"),
         GroupByField::Project => Cow::Borrowed("COALESCE(project_id::text, '')"),
         GroupByField::Property { .. } => Cow::Owned(
-            property_value_sql("ep_group", "ep_group.data_type", "ep_group.val").group_key,
+            property_value_sql("ep_group", "ep_group.data_type", "ep_group.val", "po_group")
+                .group_key,
         ),
     }
 }
@@ -168,15 +173,16 @@ pub fn group_join_clause(field: &GroupByField) -> Option<GroupJoinClause> {
     } else {
         ""
     };
-    let order = property_value_sql("ep", "pd_group.data_type", "elem.val").group_order;
+    let data_type = format!(
+        "(SELECT data_type FROM property_definitions WHERE id = '{property_definition_id}')"
+    );
     Some(GroupJoinClause {
         sql: format!(
             "LEFT JOIN LATERAL (
-                SELECT ep.values, ep.property_definition_id, pd_group.data_type, elem.val, {order} AS group_order
+                SELECT ep.values, ep.property_definition_id, {data_type} AS data_type, elem.val
                 FROM entity_properties ep
-                JOIN property_definitions pd_group ON pd_group.id = ep.property_definition_id
                 LEFT JOIN LATERAL jsonb_array_elements(
-                    CASE WHEN pd_group.data_type IN ('SELECT_STRING', 'SELECT_NUMBER', 'TAG', 'ENTITY', 'LINK')
+                    CASE WHEN {data_type} IN ('SELECT_STRING', 'SELECT_NUMBER', 'TAG', 'ENTITY', 'LINK')
                         AND jsonb_typeof(ep.values->'value') = 'array'
                         THEN ep.values->'value' ELSE '[]'::jsonb END
                 ) elem(val) ON TRUE

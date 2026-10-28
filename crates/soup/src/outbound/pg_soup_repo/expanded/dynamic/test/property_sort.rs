@@ -487,3 +487,253 @@ async fn grouped_property_pages_cross_missing_values_in_both_directions(
     }
     Ok(())
 }
+
+#[sqlx::test(
+    fixtures(
+        path = "../../../../../../../macro_db_client/fixtures",
+        scripts("mixed_items_expanded")
+    ),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn deleted_options_use_the_empty_group_and_live_options_follow_display_order(
+    pool: PgPool,
+) -> anyhow::Result<()> {
+    let property_id = Uuid::now_v7();
+    let first = Uuid::now_v7();
+    let second = Uuid::now_v7();
+    let deleted = Uuid::now_v7();
+    sqlx::query!(
+        "INSERT INTO property_definitions (id, user_id, display_name, data_type, is_multi_select) VALUES ($1, 'macro|user-1@test.com', $2, 'SELECT_STRING', false)",
+        property_id,
+        format!("Sort {property_id}"),
+    )
+    .execute(&pool)
+    .await?;
+    for (id, order) in [(first, 20), (second, 10), (deleted, 0)] {
+        sqlx::query!(
+            "INSERT INTO property_options (id, property_definition_id, display_order, string_value) VALUES ($1, $2, $3, $4)",
+            id, property_id, order, id.to_string(),
+        )
+        .execute(&pool)
+        .await?;
+    }
+    for (id, option) in [(A, first), (B, second), (C, deleted)] {
+        sqlx::query!(
+            "INSERT INTO entity_properties (id, entity_id, entity_type, property_definition_id, values) VALUES ($1, $2, 'DOCUMENT', $3, $4)",
+            Uuid::now_v7(), id.to_string(), property_id,
+            json!({"type": "SelectOption", "value": [option]}),
+        )
+        .execute(&pool)
+        .await?;
+    }
+    sqlx::query!("DELETE FROM property_options WHERE id = $1", deleted)
+        .execute(&pool)
+        .await?;
+
+    let items = grouped(
+        &pool,
+        Query::Sort(sort(property_id, SoupSortDirection::Asc), documents()),
+        GroupByField::Property {
+            property_definition_id: property_id,
+            entity_type: None,
+            bucketing: None,
+        },
+        None,
+        10,
+    )
+    .await?;
+    assert_eq!(
+        items
+            .iter()
+            .map(|item| (item.key.clone(), item.item.id(), item.display_order))
+            .collect::<Vec<_>>(),
+        vec![
+            (second.to_string(), B, Some(10)),
+            (first.to_string(), A, Some(20)),
+            (String::new(), UNSET, None),
+            (String::new(), D, None),
+            (String::new(), C, None),
+        ]
+    );
+    assert!(items[2..].iter().all(|item| item.total_group_count == 3));
+    Ok(())
+}
+
+#[sqlx::test(
+    fixtures(
+        path = "../../../../../../../macro_db_client/fixtures",
+        scripts("mixed_items_expanded")
+    ),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn mixed_task_and_document_filters_use_canonical_property_assignments(
+    pool: PgPool,
+) -> anyhow::Result<()> {
+    let early = Uuid::now_v7();
+    let middle = Uuid::now_v7();
+    let late = Uuid::now_v7();
+    let property_id = seed_property(
+        &pool,
+        "SELECT_STRING",
+        json!({"type": "SelectOption", "value": [middle]}),
+        json!({"type": "SelectOption", "value": [late]}),
+    )
+    .await?;
+    for (id, order) in [(early, 1), (middle, 2), (late, 3)] {
+        sqlx::query!(
+            "INSERT INTO property_options (id, property_definition_id, display_order, string_value) VALUES ($1, $2, $3, $4)",
+            id, property_id, order, id.to_string(),
+        )
+        .execute(&pool)
+        .await?;
+    }
+    for id in [A, C] {
+        sqlx::query!(
+            "INSERT INTO document_sub_type (document_id, sub_type) VALUES ($1, 'task')",
+            id.to_string(),
+        )
+        .execute(&pool)
+        .await?;
+    }
+    sqlx::query!(
+        "UPDATE entity_properties SET entity_type = 'TASK' WHERE entity_id = $1 AND property_definition_id = $2",
+        A.to_string(), property_id,
+    )
+    .execute(&pool)
+    .await?;
+    sqlx::query!(
+        "UPDATE entity_properties SET values = $1 WHERE entity_id = $2 AND property_definition_id = $3",
+        json!({"type": "SelectOption", "value": [early]}), C.to_string(), property_id,
+    )
+    .execute(&pool)
+    .await?;
+    for (id, entity_type) in [(A, "DOCUMENT"), (B, "TASK")] {
+        sqlx::query!(
+            "INSERT INTO entity_properties (id, entity_id, entity_type, property_definition_id, values) VALUES ($1, $2, $3::text::property_entity_type, $4, $5)",
+            Uuid::now_v7(), id.to_string(), entity_type, property_id,
+            json!({"type": "SelectOption", "value": [early]}),
+        )
+        .execute(&pool)
+        .await?;
+    }
+    let mut filter = documents();
+    filter.document_filter = Some(Arc::new(Expr::or(
+        Expr::and(
+            Expr::val(DocumentLiteral::SubType(
+                document_sub_type::DocumentSubType::Task,
+            )),
+            Expr::or(
+                Expr::val(DocumentLiteral::Id(A)),
+                Expr::val(DocumentLiteral::Id(C)),
+            ),
+        ),
+        Expr::val(DocumentLiteral::Id(B)),
+    )));
+
+    for (direction, expected) in [
+        (
+            SoupSortDirection::Asc,
+            [(A, Some(2.0)), (B, Some(3.0)), (C, None)],
+        ),
+        (
+            SoupSortDirection::Desc,
+            [(B, Some(3.0)), (A, Some(2.0)), (C, None)],
+        ),
+    ] {
+        let items = flat(
+            &pool,
+            Query::Sort(sort(property_id, direction), filter.clone()),
+            10,
+        )
+        .await?;
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| (item.item.id(), item.sort_key))
+                .collect::<Vec<_>>(),
+            expected,
+        );
+    }
+    let mut task_filter = filter.clone();
+    task_filter.document_filter = Some(Arc::new(Expr::and(
+        Expr::val(DocumentLiteral::SubType(
+            document_sub_type::DocumentSubType::Task,
+        )),
+        Expr::or(
+            Expr::val(DocumentLiteral::Id(A)),
+            Expr::val(DocumentLiteral::Id(C)),
+        ),
+    )));
+    let task_items = flat(
+        &pool,
+        Query::Sort(
+            sort(property_id, SoupSortDirection::Asc),
+            task_filter.clone(),
+        ),
+        10,
+    )
+    .await?;
+    assert_eq!(
+        task_items
+            .iter()
+            .map(|item| (item.item.id(), item.sort_key))
+            .collect::<Vec<_>>(),
+        [(A, Some(2.0)), (C, None)],
+    );
+    let task_groups = grouped(
+        &pool,
+        Query::Sort(sort(property_id, SoupSortDirection::Asc), task_filter),
+        GroupByField::Property {
+            property_definition_id: property_id,
+            entity_type: None,
+            bucketing: None,
+        },
+        None,
+        10,
+    )
+    .await?;
+    assert_eq!(
+        task_groups
+            .iter()
+            .map(|item| (item.key.clone(), item.item.id()))
+            .collect::<Vec<_>>(),
+        [(middle.to_string(), A), (String::new(), C)],
+    );
+    for (entity_type, expected) in [
+        (
+            None,
+            vec![
+                (middle.to_string(), A),
+                (late.to_string(), B),
+                (String::new(), C),
+            ],
+        ),
+        (
+            Some("TASK"),
+            vec![(middle.to_string(), A), (String::new(), C)],
+        ),
+        (Some("DOCUMENT"), vec![(late.to_string(), B)]),
+    ] {
+        let items = grouped(
+            &pool,
+            Query::Sort(sort(property_id, SoupSortDirection::Asc), filter.clone()),
+            GroupByField::Property {
+                property_definition_id: property_id,
+                entity_type: entity_type.map(str::to_owned),
+                bucketing: None,
+            },
+            None,
+            10,
+        )
+        .await?;
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| (item.key.clone(), item.item.id()))
+                .collect::<Vec<_>>(),
+            expected,
+            "entity_type={entity_type:?}",
+        );
+    }
+    Ok(())
+}

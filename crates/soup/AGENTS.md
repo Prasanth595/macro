@@ -83,7 +83,9 @@ rows, initiatives, ...) and get back a single unified, paginated result.
 - Preserve projection-backed hydration, the UUID-keyed item/fact pools, and per-group total/has-more metadata through the shared grouped response.
 - Flat property sorts omit calendar events, email, channels, calls, companies, and agent sessions; grouped reads retain calendar events and timestamp queries retain their existing sources.
 - Preserve deployed timestamp cursor encodings; client query keys restart pages when ranges or selections change.
-- Keep flat timestamp top clauses lightweight; add subtype joins only for existing task filters or property sorts, and bind document-ID arrays after the sort's fixed parameters.
+- Keep flat timestamp top clauses lightweight; bind document-ID arrays after the sort's fixed parameters and skip subtype namespace joins when the filter proves TASK-only unless other predicates need them.
+- Read grouping/sort definition types through uncorrelated scalar lookups; join grouping options once outside the value expansion and preserve missing-option groups.
+- Materialize grouped `TopItems` only for property sorts so the sort key is computed before multi-value group expansion; leave timestamp CTEs inlineable.
 - `candidate_gates.rs` encodes access-gate SQL shared across repo queries;
   changing it changes what every entity kind can return.
 - Keep the notified feed's notification lookup behind a lateral `OFFSET 0`
