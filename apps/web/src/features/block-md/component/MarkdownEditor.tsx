@@ -1,3 +1,4 @@
+import { useEditorPreferences } from '@app/lib/preferences/editor-preferences';
 import { MessageCommentsProvider } from '@block-md/comments/MessageCommentsProvider';
 import { URL_PARAMS } from '@block-md/constants';
 import { keyNavigationPlugin } from '@block-md/plugins/keyboardNavigation';
@@ -646,12 +647,13 @@ export function MarkdownEditor(props: {
     setIsGenerating(true);
   });
 
-  const [blameTooltipStore, setBlameTooltipStore] = createBlameTooltipStore();
-  if (isFeatureEnabled(enableGitBlame)) {
-    plugins.use(
-      blameTooltipPlugin({ setState: (s) => setBlameTooltipStore(s) })
-    );
-  }
+  const [editorPreferences] = useEditorPreferences();
+  const [blameTooltipStore, setBlameTooltipStore] = createBlameTooltipStore({
+    enabled: () =>
+      isFeatureEnabled(enableGitBlame) && editorPreferences.showGitBlame,
+    onlyWhileHoldingAlt: () => editorPreferences.blameOnlyWhileHoldingAlt,
+  });
+  plugins.use(blameTooltipPlugin({ setState: (s) => setBlameTooltipStore(s) }));
 
   const [wordcountStats, setWordcountStats] = createWordcountStatsStore();
   plugins.use(

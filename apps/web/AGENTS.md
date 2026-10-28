@@ -148,6 +148,11 @@ on desktop and mobile. Tool results render through
 `lib/core/component/AI/component/tool/Canvas.tsx`; edits arrive through live sync.
 The shared plain-text Lexical codec is `packages/lexical-core/canvas-text.ts`.
 
+Markdown blame preferences live in `lib/preferences/editor-preferences.tsx`,
+provided by the root frame and shared by Appearance and Markdown editors. Keep
+Alt gating in the blame store so hidden blame has no active node id; keyboard
+listeners clear on window blur and plugin cleanup. See the document agent guide.
+
 ## Development Patterns
 
 Keep persistent list hotkeys free of mounted-view closures, and clear

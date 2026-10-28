@@ -1,3 +1,4 @@
+import { EditorPreferencesProvider } from '@app/lib/preferences/editor-preferences';
 import '@fontsource-variable/inter';
 import '../../../index.css';
 import { ViewShell } from '@app/components/view-shell';
@@ -294,7 +295,9 @@ if (root)
     () => (
       <QueryClientProvider client={queryClient}>
         <UserContextProvider>
-          <Fixture />
+          <EditorPreferencesProvider>
+            <Fixture />
+          </EditorPreferencesProvider>
         </UserContextProvider>
       </QueryClientProvider>
     ),

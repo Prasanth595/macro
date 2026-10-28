@@ -7,6 +7,7 @@ import {
   type LexicalEditor,
   type LexicalNode,
 } from 'lexical';
+import type { Accessor } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
 export type BlameTooltipState = {
@@ -16,17 +17,42 @@ export type BlameTooltipState = {
   nodeId: string | null;
 };
 
-export function createBlameTooltipStore() {
-  return createStore<BlameTooltipState>({
+export function createBlameTooltipStore(options: {
+  enabled: Accessor<boolean>;
+  onlyWhileHoldingAlt: Accessor<boolean>;
+}) {
+  const [state, setState] = createStore<
+    BlameTooltipState & { altHeld: boolean }
+  >({
     hovering: false,
     x: 0,
     y: 0,
     nodeId: null,
+    altHeld: false,
   });
+  const hovering = () =>
+    state.hovering &&
+    options.enabled() &&
+    (!options.onlyWhileHoldingAlt() || state.altHeld);
+  const gatedState: BlameTooltipState = {
+    get hovering() {
+      return hovering();
+    },
+    get x() {
+      return state.x;
+    },
+    get y() {
+      return state.y;
+    },
+    get nodeId() {
+      return hovering() ? state.nodeId : null;
+    },
+  };
+  return [gatedState, setState] as const;
 }
 
 type BlameTooltipPluginProps = {
-  setState: (state: Partial<BlameTooltipState>) => void;
+  setState: (state: Partial<BlameTooltipState & { altHeld: boolean }>) => void;
 };
 
 /**
@@ -56,6 +82,7 @@ function registerBlameTooltipPlugin(
 ) {
   const handlePointerMove = (e: MouseEvent) => {
     if (isTouchDevice()) return;
+    props.setState({ altHeld: e.altKey });
     const target = e.target;
     if (!(target instanceof HTMLElement)) {
       props.setState({ hovering: false, nodeId: null });
@@ -87,10 +114,26 @@ function registerBlameTooltipPlugin(
     props.setState({ hovering: false, nodeId: null });
   };
 
+  const handleKey = (event: KeyboardEvent) => {
+    props.setState({ altHeld: event.altKey });
+  };
+  const handleBlur = () => {
+    props.setState({ altHeld: false, hovering: false, nodeId: null });
+  };
+
   document.addEventListener('scroll', dismiss, true);
+  window.addEventListener('keydown', handleKey);
+  window.addEventListener('keyup', handleKey);
+  window.addEventListener('blur', handleBlur);
 
   return mergeRegister(
-    () => document.removeEventListener('scroll', dismiss, true),
+    () => {
+      document.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('keyup', handleKey);
+      window.removeEventListener('blur', handleBlur);
+      handleBlur();
+    },
     editor.registerRootListener((root, prevRoot) => {
       if (root) {
         root.addEventListener('pointermove', handlePointerMove);
