@@ -1,5 +1,12 @@
 # AI Chat (Agents)
 
+Agent session split headers show other current viewers' avatars, excluding your
+own, with up to three avatars and a count for additional viewers. Presence uses
+the resolved session ID, including sessions opened from the create menu. Open
+the same shared session in two signed-in browser contexts and check that each
+shows the other viewer; closing one session removes its avatar from the other.
+Desktop and touch headers use the same avatar group.
+
 User-sent messages in chat and agent transcripts use an ink-colored bubble with
 `InvertUtil` in light themes. Dark themes use `Layer depth={3}` for the slightly
 lighter bubble with the normal text palette. Preview Markdown and controls at
