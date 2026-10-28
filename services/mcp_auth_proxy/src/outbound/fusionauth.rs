@@ -90,11 +90,15 @@ impl OAuthProvider for FusionAuthOAuthProvider {
         &'a self,
         refresh_token: &'a RefreshToken,
     ) -> UpstreamRevocationFuture<'a> {
-        Box::pin(async move {
-            self.client
-                .revoke_refresh_token(refresh_token.as_str())
-                .await
-                .map_err(anyhow::Error::from)
-        })
+        let span = tracing::debug_span!("FusionAuthOAuthProvider::revoke_refresh_token");
+        Box::pin(
+            async move {
+                self.client
+                    .revoke_refresh_token(refresh_token.as_str())
+                    .await
+                    .map_err(anyhow::Error::from)
+            }
+            .instrument(span),
+        )
     }
 }

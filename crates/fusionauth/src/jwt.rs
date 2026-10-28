@@ -23,7 +23,7 @@ impl FusionAuthClient {
     }
 
     /// Revokes a refresh token so it can no longer be exchanged.
-    #[tracing::instrument(skip_all, fields(application_id=%self.client_id, fusion_auth_base_url=%self.fusion_auth_base_url))]
+    #[tracing::instrument(skip_all, err, fields(application_id=%self.client_id, fusion_auth_base_url=%self.fusion_auth_base_url))]
     pub async fn revoke_refresh_token(&self, refresh_token: &str) -> Result<()> {
         revoke::revoke_refresh_token(&self.auth_client, &self.fusion_auth_base_url, refresh_token)
             .await

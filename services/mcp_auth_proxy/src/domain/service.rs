@@ -591,7 +591,7 @@ where
     /// that gets an error can retry and finish the revocation. A token the
     /// broker does not know (never issued, expired, or already revoked) is not
     /// an error, as RFC 7009 section 2.2 requires.
-    #[tracing::instrument(skip_all, fields(client_id = params.client_id.as_deref(), grant_id))]
+    #[tracing::instrument(skip_all, err, fields(client_id = params.client_id.as_deref(), grant_id))]
     async fn revoke_token(&self, params: RevocationRequest) -> Result<(), RevokeTokenError> {
         let client_id = params.client_id.ok_or(RevokeTokenError::ClientIdRequired)?;
         let token = params.token.ok_or(RevokeTokenError::TokenRequired)?;
