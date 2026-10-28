@@ -9932,6 +9932,7 @@
       "crates/maybe_send"
     ],
     "mcp_auth_proxy": [
+      "crates/bot_id",
       "crates/cowlike",
       "crates/fusionauth",
       "crates/macro_auth",
