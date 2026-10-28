@@ -242,7 +242,10 @@ export function createFileTypesSource(
             if (!current) await throwOnErr(() => Promise.resolve(created));
             span.setAttr('file_type.concurrent_setup', true);
           }
-          await span.span('crm.file_type.refresh', refreshTypes);
+          const refreshed = await span.span('crm.file_type.refresh', () =>
+            catchToResult(refreshTypes)
+          );
+          if (refreshed.isErr()) span.error('File types saved; refresh failed');
         }),
     }),
     () => deps.client
@@ -276,7 +279,10 @@ export function createFileTypesSource(
               })
             )
           );
-          await span.span('crm.file_type.refresh', refreshTypes);
+          const refreshed = await span.span('crm.file_type.refresh', () =>
+            catchToResult(refreshTypes)
+          );
+          if (refreshed.isErr()) span.error('File type added; refresh failed');
         }),
     }),
     () => deps.client
@@ -308,7 +314,11 @@ export function createFileTypesSource(
               })
             )
           );
-          await span.span('crm.file_type.refresh', refreshTypes);
+          const refreshed = await span.span('crm.file_type.refresh', () =>
+            catchToResult(refreshTypes)
+          );
+          if (refreshed.isErr())
+            span.error('File type renamed; refresh failed');
         }),
     }),
     () => deps.client
@@ -337,14 +347,18 @@ export function createFileTypesSource(
               })
             )
           );
-          await span.span('crm.file_type.refresh', () =>
-            Promise.all([
-              refreshTypes(),
-              deps.client.invalidateQueries({
-                queryKey: propertiesKeys.entityBatch._def,
-              }),
-            ])
+          const refreshed = await span.span('crm.file_type.refresh', () =>
+            catchToResult(() =>
+              Promise.all([
+                refreshTypes(),
+                deps.client.invalidateQueries({
+                  queryKey: propertiesKeys.entityBatch._def,
+                }),
+              ])
+            )
           );
+          if (refreshed.isErr())
+            span.error('File type removed; refresh failed');
         }),
     }),
     () => deps.client

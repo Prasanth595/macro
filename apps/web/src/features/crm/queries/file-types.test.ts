@@ -1,4 +1,5 @@
 import { catchToResult } from '@core/util/result';
+import { registerEntityPropertyReader } from '@queries/properties/invalidation';
 import { refetchSoupEntity } from '@queries/soup/cache';
 import type { propertiesServiceClient } from '@service-properties/client';
 import type { PropertyDefinitionWithOptions } from '@service-properties/generated/schemas/propertyDefinitionWithOptions';
@@ -105,6 +106,47 @@ function mount(ids: string[] = []) {
 }
 
 describe('team file types', () => {
+  it.each(['initialize', 'add', 'rename', 'remove'] as const)(
+    'keeps a committed %s successful when an active property reader cannot refresh',
+    async (action) => {
+      const { properties, source, client } = mount();
+      await waitFor(() => expect(source.data()).toBeDefined());
+      properties.listProperties.mockResolvedValue(ok([]));
+      properties.createPropertyDefinition.mockResolvedValue(
+        ok(definition.definition)
+      );
+      properties.addPropertyOption.mockResolvedValue(
+        ok(definition.property_options[0])
+      );
+      properties.updatePropertyOption.mockResolvedValue(
+        ok(definition.property_options[0])
+      );
+      properties.deletePropertyOption.mockResolvedValue(ok({ success: true }));
+      const refetch = vi.fn(async () => {
+        throw new Error('Reader unavailable');
+      });
+      disposals.push(
+        registerEntityPropertyReader(client, {
+          entityId: 'source-file',
+          refetch,
+        })
+      );
+      const actions = {
+        initialize: () => source.initialize(),
+        add: () => source.add('Agreement'),
+        rename: () => source.rename('contract', 'Agreement'),
+        remove: () => source.remove('contract'),
+      };
+
+      await expect(actions[action]()).resolves.toBeUndefined();
+
+      expect(refetch).toHaveBeenCalledTimes(1);
+      expect(client.getMutationCache().getAll()[0].state.status).toBe(
+        'success'
+      );
+    }
+  );
+
   it('fails an offline write immediately instead of queueing it for reconnect', async () => {
     const { properties, source, client } = mount();
     await waitFor(() => expect(source.data()).toBeDefined());

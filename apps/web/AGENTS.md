@@ -33,6 +33,7 @@ Preserve option identity during catalog polling so open rename drafts survive re
 Route file-type writes through TanStack mutations; management spans include team IDs,
 read/write phases and outcomes without recording type labels.
 Keep these REST writes immediate and bound to the session that started them.
+Report reader refresh failures in telemetry without failing an already saved change.
 Their record, dialog and mobile browser regression is
 `bunx playwright test --config src/features/crm/browser-test/playwright.config.ts files.browser.e2e.ts`.
 REST property mutations refresh individual, batched, and active GraphQL readers
