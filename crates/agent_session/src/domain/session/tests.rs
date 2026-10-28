@@ -2013,7 +2013,10 @@ fn new_mcp_servers_resume_a_live_session_before_its_next_prompt() {
                 "url": "https://egress.example.com/mcp/linear",
                 "headers": [],
             }],
-            "_meta": { "macro.com/agentSessionId": AgentSessionId::TEST_A.to_string() },
+            "_meta": {
+                "macro.com/agentSessionId": AgentSessionId::TEST_A.to_string(),
+                "macro.com/permissionPolicy": "autoAccept",
+            },
         }))
     );
     assert_eq!(machine.status(), RuntimeStatus::Handshaking);
