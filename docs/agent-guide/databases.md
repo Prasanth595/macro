@@ -701,6 +701,10 @@ or channels and change or remove their access, and an owner on a team sets
 database). Databases do not offer a public link. **Share** and viewer avatars (other people currently looking at the
 database) sit at the right of the split header, like other entities.
 
+Press **Escape** to dismiss Share and return focus to its trigger without leaving
+the database. If a recipient or permission menu is open, Escape closes that menu
+first; a nonempty recipient search is cleared before the dialog closes.
+
 The toolbar's **Database actions** (`…`) menu, beside **AI**, contains **Rename**,
 **Import CSV**, **Webhooks**, **Download**, and owner-only **Delete**. Rename focuses the inline
 title in the split header; Delete opens the standard confirmation dialog.
