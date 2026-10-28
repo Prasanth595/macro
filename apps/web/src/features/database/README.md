@@ -2,8 +2,8 @@
 
 `DatabaseProvider` owns one editor controller. A host supplies `DatabaseApi` with a
 stable cache key, schema reads, paginated row reads, and atomic operation batches.
-`DatabaseRecords` supplies the standard column controls, grid, board and record
-panel. The host supplies presentation slots and navigation when needed.
+`DatabaseRecords` supplies the standard column controls, grid, board, timeline and
+record panel. The host supplies presentation slots and navigation when needed.
 
 ```tsx
 const [view, setView] = createSignal<DatabaseViewState>({
@@ -52,6 +52,10 @@ resource within the query cache. Authentication and resource authorization belon
 to the host's API/service; UI capabilities only determine which controls appear.
 
 ## Host capabilities
+
+`onComposeRecord` lets a host collect required fields for board and timeline
+creation. It receives the selected lane/group and date-range values before any
+row is written; hosts without a composer retain direct row creation.
 
 `editRows` and `editColumns` enable their respective controls. Optional record-view
 props supply persisted board positions, conversion previews, relationships,

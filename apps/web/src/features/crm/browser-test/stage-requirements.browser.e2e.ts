@@ -69,5 +69,53 @@ for (const viewport of [
       await expect(dialog).not.toBeVisible();
       await expect(page.getByLabel('Saved deal')).toContainText('2500');
     });
+
+    test('timeline creation keeps its dates and stage in the required-field form', async ({
+      page,
+    }) => {
+      const activate = viewport.width === 390 ? 'tap' : 'click';
+      await page.routeWebSocket('**', (socket) => socket.close());
+      await page.route('https://**', (route) => route.abort());
+      await page.route('**/__macro_dev/**', (route) => route.abort());
+      await page.goto('/src/features/crm/browser-test/stage-requirements.html');
+      await page.getByRole('button', { name: 'Open timeline' })[activate]();
+      const row = page
+        .locator('[data-timeline-group="option:negotiation"]')
+        .first();
+      await expect(row).toBeVisible();
+      const box = await row.boundingBox();
+      expect(box).not.toBeNull();
+      await row.click({
+        button: 'right',
+        position: {
+          x: Math.min(box!.width - 8, viewport.width - box!.x - 8),
+          y: box!.height / 2,
+        },
+      });
+      await page.getByRole('menuitem', { name: 'New record here' })[activate]();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog.getByRole('button', { name: /Stage/ })).toContainText(
+        'Negotiation'
+      );
+      await expect(
+        dialog.getByRole('button', { name: /Schedule/ })
+      ).not.toContainText('Empty');
+      await dialog
+        .getByRole('combobox', { name: 'Find or add a company' })
+        .fill('Acme');
+      await page.getByRole('option', { name: 'Acme', exact: true })[activate]();
+      await dialog.getByRole('button', { name: /^Add deal/ })[activate]();
+      await expect(dialog.getByRole('alert')).toContainText('Amount');
+      await dialog.getByRole('button', { name: /Amount/ })[activate]();
+      await dialog.getByRole('textbox', { name: 'Edit Amount' }).fill('100');
+      await dialog.getByRole('textbox', { name: 'Edit Amount' }).press('Enter');
+      await dialog.getByRole('button', { name: /^Add deal/ })[activate]();
+      await expect(dialog).not.toBeVisible();
+      const saved = JSON.parse(
+        (await page.getByLabel('Saved deal').textContent())!
+      );
+      expect(saved).toMatchObject({ stage: 'Negotiation', amount: 100 });
+      expect(saved.schedule).toMatch(/^\d{4}-.*Z\/\d{4}-.*Z$/);
+    });
   });
 }

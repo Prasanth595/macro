@@ -495,7 +495,7 @@ fn update_group(groups: &mut HashMap<ViewId, ColumnId>, view: ViewId, layout: &R
         RequestedLayout::Board { group_by, .. } => {
             groups.insert(view, *group_by);
         }
-        RequestedLayout::Table { .. } => {
+        RequestedLayout::Table { .. } | RequestedLayout::Timeline { .. } => {
             groups.remove(&view);
         }
     }

@@ -1,5 +1,6 @@
+import { t } from '@app/lib/i18n';
 import { fireAndForget } from '@core/util/fireAndForget';
-import XIcon from '@phosphor/x.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import { Button, Checkbox, Dialog, Dropdown, EntityComposer, Panel } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import type { DatabaseViewColumn } from '../../database/core/database-view';
@@ -31,7 +32,7 @@ export function StageRequirementsDialog(props: {
   const [draft, setDraft] = createSignal<string[]>();
   const required = () => draft() ?? saved()?.fields ?? [];
   const [pending, setPending] = createSignal(false);
-  const [error, setError] = createSignal<string>();
+  const [failed, setFailed] = createSignal(false);
   const fields = () =>
     props.columns.filter(
       (column) =>
@@ -43,20 +44,20 @@ export function StageRequirementsDialog(props: {
   const selectStage = (id: string) => {
     setStageId(id);
     setDraft(undefined);
-    setError(undefined);
+    setFailed(false);
   };
   const selectColumn = (id: string) => {
     setStageColumnId(id);
     setStageId(stageColumn()?.options[0]?.id);
     setDraft(undefined);
-    setError(undefined);
+    setFailed(false);
   };
   async function save() {
     const column = columnId();
     const option = optionId();
     if (!column || !option || !stage() || pending()) return;
     setPending(true);
-    setError(undefined);
+    setFailed(false);
     try {
       await props.onSave({
         columnId: column,
@@ -67,9 +68,7 @@ export function StageRequirementsDialog(props: {
       });
       props.onClose();
     } catch {
-      setError(
-        'Could not save requirements. Your selections are kept; try again.'
-      );
+      setFailed(true);
     } finally {
       setPending(false);
     }
@@ -89,11 +88,11 @@ export function StageRequirementsDialog(props: {
             <EntityComposer.Root>
               <EntityComposer.Header>
                 <Dialog.Title class="flex-1 text-base font-semibold">
-                  Stage requirements
+                  {t('crm.stageRequirements')}
                 </Dialog.Title>
                 <Button
                   size="icon-composer"
-                  aria-label="Close"
+                  aria-label={t('common.close')}
                   disabled={pending()}
                   onClick={close}
                 >
@@ -102,16 +101,15 @@ export function StageRequirementsDialog(props: {
               </EntityComposer.Header>
               <EntityComposer.Main class="gap-4 overflow-y-auto">
                 <p class="text-sm text-ink-muted">
-                  Choose fields that must be filled before a deal enters a
-                  stage.
+                  {t('crm.stageRequirementsDescription')}
                 </p>
                 <div class="flex flex-wrap gap-2">
                   <Dropdown>
                     <Dropdown.Trigger
                       disabled={pending()}
-                      aria-label="Stage field"
+                      aria-label={t('crm.stageField')}
                     >
-                      {stageColumn()?.name ?? 'Choose stage field'}
+                      {stageColumn()?.name ?? t('crm.chooseStageField')}
                     </Dropdown.Trigger>
                     <Dropdown.Content>
                       <Dropdown.RadioGroup
@@ -131,9 +129,9 @@ export function StageRequirementsDialog(props: {
                   <Dropdown>
                     <Dropdown.Trigger
                       disabled={pending()}
-                      aria-label="Required stage"
+                      aria-label={t('crm.requiredStage')}
                     >
-                      {stage()?.label ?? 'Choose stage'}
+                      {stage()?.label ?? t('crm.chooseStage')}
                     </Dropdown.Trigger>
                     <Dropdown.Content>
                       <Dropdown.RadioGroup
@@ -155,7 +153,7 @@ export function StageRequirementsDialog(props: {
                   when={stage()}
                   fallback={
                     <p class="text-sm text-ink-muted">
-                      Add a stage option to a single-select field first.
+                      {t('crm.stageOptionRequired')}
                     </p>
                   }
                 >
@@ -181,27 +179,26 @@ export function StageRequirementsDialog(props: {
                   </div>
                 </Show>
                 <p class="text-xs text-ink-muted">
-                  Renaming keeps requirements. Deleting a stage or field removes
-                  its requirements. Existing deals stay in their stage.
+                  {t('crm.stageRequirementsLifecycle')}
                 </p>
-                <Show when={error()}>
-                  {(message) => (
-                    <p role="alert" class="text-sm text-failure">
-                      {message()}
-                    </p>
-                  )}
+                <Show when={failed()}>
+                  <p role="alert" class="text-sm text-failure">
+                    {t('crm.stageRequirementsSaveFailed')}
+                  </p>
                 </Show>
               </EntityComposer.Main>
               <EntityComposer.Footer class="justify-end">
                 <Button variant="outline" disabled={pending()} onClick={close}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <EntityComposer.Submit
                   type="submit"
                   hasContent={!!stage()}
                   disabled={pending() || !stage()}
                 >
-                  {pending() ? 'Saving…' : 'Save requirements'}
+                  {pending()
+                    ? t('crm.savingRequirements')
+                    : t('crm.saveRequirements')}
                 </EntityComposer.Submit>
               </EntityComposer.Footer>
             </EntityComposer.Root>

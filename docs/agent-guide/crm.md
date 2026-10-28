@@ -33,12 +33,18 @@ omits the key. A pipeline has its own path, `/app/companies/pipeline/<uuid>`;
 older `sN.crm.tab=pipeline:<uuid>` URLs and shared `crmView` links that show a
 pipeline redirect there. Choosing Companies, People, an activity tab, a pipeline,
 or a list updates the URL, and browser Back and Forward restore it.
+Ordinary sidebar and Go To navigation also resumes Customers' last location and
+captured entry state within the current account session, including an open
+pipeline or record. Direct links and new-split actions keep their requested
+destination; reload and account changes clear the remembered location.
 
 The four activity tabs show CRM-linked content, not the whole app: Tasks and
 Calls require a Companies or Contacts reference; Notes are linked Markdown
 documents (excluding tasks, snippets, and skills); Email is your own mailbox's
 threads with CRM company domains or contact addresses. Lists page as you scroll.
-Empty CRM scope never falls back to all content. A loading failure offers
+Empty CRM scope never falls back to all content. Activity loads directly with a
+server-resolved scope; it does not fetch every company and contact first. Hidden
+companies and contacts stay excluded even for admins. A loading failure offers
 **Try again**. Tasks has **New task**, with Companies and Contacts visible in
 place of Status. Choose a CRM association when creating a task from this feed.
 Opening Task through the global Create menu while Customers is focused uses the
@@ -288,7 +294,7 @@ tabs. Its header shows the name, edited in place by editors, a **Pipeline
 actions** menu (**Rename** and **Import CSV** for editors, **Export CSV** for
 anyone who can open it, **Trash pipeline** for the owner) and **Share**. The
 toolbar below has **All records**, the pipeline's stored views and **New view**
-(Table or Board), plus Group by (boards), Filter and Sort, then **Add deal**
+(Table, Board, or Timeline), plus Group by (boards), Filter and Sort, then **Add deal**
 (company pipelines) or **Add contact** (contact pipelines) for editors. It opens
 a dialog titled **Add deal** (or **Add contact**) with the pipeline's name in a
 chip beside it and Close. Below the header, each field has its label stacked
@@ -313,14 +319,16 @@ names missing fields on submit. Empty text and empty selections are missing;
 zero and an unchecked checkbox are valid values. The record and field edits stay
 in the form after a refusal. An open form follows stage renames by identity; if
 its selected stage is deleted, it asks for another value while keeping other edits.
-Deleted fields leave the draft submission. Board moves, table edits, agent tools and CSV imports
+Deleted fields leave the draft submission. Board moves, timeline group moves, table edits, agent tools and CSV imports
 use the same server rule; a rejected operation batch saves none of its edits.
 Verify by requiring Revenue for Negotiation, trying a move with no Revenue,
 filling Revenue, then retrying; also rename the field/stage and repeat. Check the
 form on desktop and mobile, including correction after a rejected submit.
 
 The form makes one row with every value set. A board lane's **New record** opens
-the same dialog with the lane's stage filled in. The table's blank row at the
+the same dialog with the lane's stage filled in. A timeline's **New record here**
+or range-drawing gesture also opens the form, preserving the chosen date range
+and the group stage when one was selected. The table's blank row at the
 bottom still adds a row inline. On mobile the dialog is a bottom drawer. To verify
 the person picker, choose an **Owner** in the dialog: its menu must accept the
 click.
@@ -399,3 +407,5 @@ properties. `Prepare export` fetches every page and shows a count and three-row 
 it does not download. `Download CSV` saves the prepared snapshot using the selected
 columns. Changing scope requires preparing again. Cancel stops preparation. CSV uses UTF-8,
 quoted fields, original date timestamps and spreadsheet formula escaping.
+
+The existing CRM New menus use icons and muted descriptions for Company, Contact, and Pipeline. Pipeline availability and permissions are unchanged.

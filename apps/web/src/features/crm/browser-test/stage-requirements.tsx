@@ -2,7 +2,11 @@ import '@app/index.css';
 import { Button } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import { render } from 'solid-js/web';
-import type { DatabaseViewColumn } from '../../database/core/database-view';
+import type {
+  DatabaseCellValue,
+  DatabaseViewColumn,
+} from '../../database/core/database-view';
+import { DatabaseTimelineView } from '../../database/views/database-timeline-view';
 import { StageRequirementsDialog } from '../components/stage-requirements-dialog';
 import { type CrmContext, CrmProvider } from '../context/crm-context';
 import type { StageRequirement } from '../core/stage-requirements';
@@ -115,6 +119,14 @@ const columns: DatabaseViewColumn[] = [
     writable: true,
     options: [],
   },
+  {
+    id: 'schedule',
+    name: 'Schedule',
+    dataType: 'DATE_RANGE',
+    isMultiSelect: false,
+    writable: true,
+    options: [],
+  },
 ];
 function Fixture() {
   const [rules, setRules] = createSignal<StageRequirement[]>([]);
@@ -122,6 +134,10 @@ function Fixture() {
   const [adding, setAdding] = createSignal(false);
   const [fail, setFail] = createSignal(false);
   const [saved, setSaved] = createSignal('');
+  const [timeline, setTimeline] = createSignal(false);
+  const [initialValues, setInitialValues] = createSignal<
+    Record<string, DatabaseCellValue>
+  >({ stage: 'Negotiation' });
   return (
     <CrmProvider value={context}>
       <main class="min-h-screen bg-canvas-base p-4 text-ink">
@@ -130,10 +146,68 @@ function Fixture() {
           <Button onClick={() => setConfiguring(true)}>
             Stage requirements
           </Button>
-          <Button onClick={() => setAdding(true)}>Add deal</Button>
+          <Button
+            onClick={() => {
+              setInitialValues({ stage: 'Negotiation' });
+              setAdding(true);
+            }}
+          >
+            Add deal
+          </Button>
+          <Button
+            onClick={() => {
+              setRules([
+                {
+                  columnId: 'stage',
+                  optionId: 'negotiation',
+                  fields: ['amount'],
+                },
+              ]);
+              setTimeline(true);
+            }}
+          >
+            Open timeline
+          </Button>
           <Button onClick={() => setFail(true)}>Reject next save</Button>
         </div>
         <output aria-label="Saved deal">{saved()}</output>
+        <Show when={timeline()}>
+          <div class="mt-4 flex h-[500px] min-w-0 flex-col">
+            <DatabaseTimelineView
+              view={{
+                query: { filter: null, sort: [] },
+                layout: {
+                  kind: 'timeline',
+                  range: 'schedule',
+                  title: 'company',
+                  groupBy: 'stage',
+                  colorBy: null,
+                },
+              }}
+              rows={[
+                {
+                  rowId: 'existing',
+                  cells: {
+                    stage: 'Negotiation',
+                    schedule:
+                      '2026-10-26T00:00:00.000Z/2026-10-28T00:00:00.000Z',
+                  },
+                },
+              ]}
+              columns={columns}
+              canEdit
+              filtered={false}
+              rowPending={() => false}
+              onOpen={unused}
+              onWrite={unused}
+              onCreate={unused}
+              onCompose={(values) => {
+                setInitialValues(values);
+                setAdding(true);
+              }}
+            />
+          </div>
+        </Show>
         <Show when={configuring()}>
           <StageRequirementsDialog
             columns={columns}
@@ -153,7 +227,7 @@ function Fixture() {
             pipeline={{ name: 'Sales', recordType: 'company' }}
             columns={columns}
             requirements={rules()}
-            initialValues={{ stage: 'Negotiation' }}
+            initialValues={initialValues()}
             onClose={() => setAdding(false)}
             onCreate={async (creation) => {
               if (fail()) {

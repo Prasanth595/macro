@@ -316,6 +316,33 @@ async fn board_moves_share_stage_validation_and_keep_failed_moves_unchanged(pool
         .await
         .unwrap();
     assert!(!saved[0].cells.contains_key(&stage));
+    // A board changed to a timeline in this batch no longer supplies a lane
+    // column. Storage must reject the card move without inventing a stage edit.
+    let range = ColumnId::new();
+    let create_range = DatabaseOp::Column {
+        table: p.table_id,
+        column: range,
+        change: ColumnChange::Create {
+            definition: models_databases::NewColumn::New {
+                name: "Schedule".into(),
+                kind: models_databases::ColumnKind::DateRange,
+                options: vec![],
+                infer_type: false,
+            },
+            after: None,
+        },
+    };
+    let timeline: DatabaseOp = serde_json::from_value(json!({
+        "kind":"view", "table":p.table_id, "view":view,
+        "change":{"kind":"update", "layout":{"kind":"timeline", "range":range,
+            "title":p.primary_column_id, "groupBy":stage, "barFields":[], "colorBy":null}}
+    }))
+    .unwrap();
+    let error = write(&s, &a, &p, vec![create_range, timeline, moving.clone()])
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("only a board's cards move"), "{error}");
     let fill = DatabaseOp::Rows {
         table: p.table_id,
         change: RowsChange::Update {
