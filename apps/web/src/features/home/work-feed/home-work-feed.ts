@@ -40,7 +40,7 @@ import type {
 } from '../queries/use-home-query';
 import type { HomeViewState } from '../types';
 import type { WorkFeedScope } from './core/work-feed';
-import { homeWorkFeedScope } from './home-scope';
+import { homeWorkFeedPageState, homeWorkFeedScope } from './home-scope';
 import { createWorkFeed } from './primitives/work-feed';
 
 /** Scope sent when the type filters leave nothing to show; never fetched. */
@@ -58,8 +58,9 @@ export type WorkFeedHomeDataSource = HomeDataSource & {
 /**
  * Desktop Home Signal backed by the server work feed: one cursor over
  * attention and own work, server-stacked notifications, live changes
- * written into the cached pages, and item-level done. Facets narrow server-side by type; the read
- * filter keeps Home's admission behavior client-side.
+ * written into the cached pages, and item-level done. The type and read
+ * facets narrow pages server-side; the read facet also runs client-side,
+ * where Home's admission keeps a row that turns read while shown.
  */
 export function useWorkFeedHomeDataSource(
   state: Pick<HomeViewState, 'tab' | 'groupBy' | 'facets'>,
@@ -82,6 +83,7 @@ export function useWorkFeedHomeDataSource(
     client: () => getGraphqlSoupClient(),
     cacheHost: getGraphqlCacheHost,
     scope: () => scope() ?? EMPTY_SCOPE,
+    state: () => homeWorkFeedPageState(state.facets.read),
     enabled,
     onReconnected: subscribeGraphqlSoupReconnected,
     revalidateNotifications: revalidateNotificationReaders,

@@ -2312,13 +2312,19 @@ export type WorkFeedDoneItemInput = {
 export type WorkFeedInput = {
   /**
    * Opaque cursor from the previous page's `nextCursor`; absent for the
-   * first page. Send it with the same scope.
+   * first page. Send it with the same scope and state.
    */
   cursor?: string | null | undefined;
   /** Page size; defaults to 50, capped at 100. */
   limit?: number | null | undefined;
   /** Which items the feed shows. */
   scope?: WorkFeedScopeInput | null | undefined;
+  /**
+   * Only items in this state: `UNSEEN` or `SEEN`. Subscriptions and undo
+   * place items in every state, so an item seen while it is shown stays
+   * until the page is fetched again.
+   */
+  state?: WorkFeedItemState | null | undefined;
 };
 
 /** An item's state for its viewer. */
@@ -2342,14 +2348,16 @@ export type WorkFeedItemType =
   | 'CHANNEL_THREAD'
   /** AI chats. */
   | 'CHAT'
-  /** Documents and tasks. */
+  /** Documents other than tasks. */
   | 'DOCUMENT'
   /** Email threads. */
   | 'EMAIL'
   /** Projects. */
   | 'PROJECT'
   /** GitHub pull requests. */
-  | 'PULL_REQUEST';
+  | 'PULL_REQUEST'
+  /** Tasks. */
+  | 'TASK';
 
 /** Which reasons admit items to a work feed. */
 export type WorkFeedMode =
