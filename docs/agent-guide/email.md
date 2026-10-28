@@ -1006,7 +1006,11 @@ A failed alias lookup for one inbox does not hide other inboxes' aliases. An
 invalid or unavailable selected alias is rejected on save/send, never silently
 replaced with the primary address.
 
-The sidebar and mobile inbox picker also list aliases beneath their inbox.
+The sidebar and mobile inbox picker also list aliases beneath their inbox, as
+address filters rather than accounts: an `@` glyph instead of a portrait, an
+`Alias` label, and `alias of <inbox>` in the accessible name and tooltip. Gmail
+can add a verified alias on its own (for example a Gmailify or "Check mail from
+other accounts" address), so an alias must never look like a connected inbox.
 Selecting one scopes mail to that inbox and the exact address in From/To/Cc/Bcc;
 search candidates are checked against the same GraphQL scope. Search and Reminders
 automatically advance nonmatching candidate pages until a match or exhaustion;
@@ -1016,8 +1020,9 @@ lookup shows an error without discarding already-confirmed rows. If a saved alia
 disappears from the catalog, the primary address must not look selected; use
 `All inboxes` or choose an available address to clear that scope. Scheduled mail
 matches its saved sender. `All inboxes` clears both the inbox and alias selection,
-and the selection survives reloads. With one inbox **and aliases**, the All row
-and address pickers remain available. To check without sending real mail, open
+and the selection survives reloads. Aliases never count toward multiple inboxes:
+with one inbox and aliases there is no `All inboxes` row, the inbox is the
+selected row, and choosing it clears an alias selection. To check without sending real mail, open
 both pickers, select an alias, switch to the primary address, reopen a saved alias
 draft, and confirm the address remains unchanged. Alias discovery uses
 `MailAccounts`, draft saves use `saveEmailDraft`, and delivery uses
@@ -1037,8 +1042,8 @@ sending; the picker never displays another inbox as selected before that choice.
 With no explicit selection, an unavailable primary still falls back to
 the first linked inbox.
 The desktop account dropdown marks the selected inbox with a checkmark. With
-exactly one connected inbox and no aliases, the selector displays its address
-and omits `All inboxes`; the mobile filter drawer has no inbox section. The
+exactly one connected inbox, the selector displays its address and omits
+`All inboxes`; the mobile filter drawer has no inbox section. The
 touch sidebar keeps its existing account rows and shows up to four before
 scrolling independently. With many accounts, scroll to the last inbox in the
 dropdown and check that selecting it updates the selector and header filter.
