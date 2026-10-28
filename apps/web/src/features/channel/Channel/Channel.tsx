@@ -5,7 +5,6 @@ import {
 } from '@app/features/agent-conversations/agent-conversation-message';
 import { AgentConversationsProvider } from '@app/features/agent-conversations/agent-conversations-provider';
 import { AgentDmComposer } from '@app/features/agent-dms/agent-dm-composer';
-import { openChatWithInput } from '@app/features/chat/ChatWithAgentButton';
 import { createActivityTracker } from '@channel/activity-tracker';
 import { useStartChannelCall } from '@channel/Call/use-start-channel-call';
 import { DebugSuspense } from '@channel/DebugSuspense';
@@ -56,7 +55,6 @@ import {
   buildMentionMarkdownString,
   markdownToPlainText,
 } from '@macro-inc/lexical-core';
-import { Telemetry } from '@macro-inc/observability';
 import { MessageNotificationIndexContext } from '@notifications/components/MarkMessageNotifications';
 import { recordChannelViewWhenIdle } from '@queries/channel/activity';
 import { queryClient } from '@queries/client';
@@ -101,6 +99,7 @@ import {
 } from '../Input';
 import { ChannelInputContainer } from '../Input/ChannelInputContainer';
 import { hasSendableInputContent } from '../Input/utils/sendable-content';
+import { openAgentFromChannelMessage } from '../open-agent-from-channel-message';
 import { decodeSystemActivity } from '../queries/system-activity';
 import { SystemActivity } from '../SystemActivity';
 import { ChannelThread } from '../Thread';
@@ -500,8 +499,9 @@ export function Channel(props: ChannelProps) {
       });
     },
     onChat: (ctx) => {
-      openChatWithInput(`${buildChannelMessageMention(ctx.message)}\n\n`).catch(
-        (error) => Telemetry.error(error, { surface: 'channel' })
+      fireAndForget(
+        openAgentFromChannelMessage(props.channelId, ctx.message),
+        'channel-message-actions'
       );
     },
   });

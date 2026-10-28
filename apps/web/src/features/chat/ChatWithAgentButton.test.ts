@@ -37,6 +37,8 @@ vi.mock('@ui', () => ({
   Button: () => null,
 }));
 
+import { openAgentFromChannelMessage } from '../channel/open-agent-from-channel-message';
+
 import {
   openChatWithAgent,
   openChatWithInput,
@@ -156,6 +158,46 @@ describe('openChatWithAgent', () => {
       initialInput: 'A message reference\n\n',
     });
   });
+
+  it.each([undefined, 'thread-id'])(
+    'opens an unsent referenced message quote in a new split (thread %s)',
+    async (threadId) => {
+      await openAgentFromChannelMessage('channel-id', {
+        id: 'message-id',
+        thread_id: threadId,
+        content: 'Fix the layout\nfor narrow screens',
+        sender_id: 'sender-id',
+        created_at: '2026-02-25T00:00:00.000Z',
+        updated_at: '2026-02-25T00:00:00.000Z',
+        attachments: [],
+        reactions: [],
+      });
+      const seed = mocks.startPendingSession.mock.calls[0][0];
+      expect(seed.prompt).toBeUndefined();
+      expect(seed.initialInput).toBe(
+        '<m-reply-target>{"parent":{"type":"channel","id":"channel-id"},"targetMessageId":"message-id","targetThreadId":"' +
+          (threadId ?? 'message-id') +
+          '","displayText":"Fix the layout for narrow screens","senderId":"sender-id"}</m-reply-target>\n\nFigure out and implement this'
+      );
+      const editor = createHeadlessEditor({ nodes: SupportedNodeTypes });
+      editor.update(
+        () => $convertFromMarkdownString(seed.initialInput, ALL_TRANSFORMERS),
+        { discrete: true }
+      );
+      editor.getEditorState().read(() => {
+        expect($convertToMarkdownString(ALL_TRANSFORMERS)).toContain(
+          '<m-reply-target>'
+        );
+        expect($getRoot().getTextContent()).toContain(
+          'Figure out and implement this'
+        );
+      });
+      expect(mocks.openWithSplit).toHaveBeenCalledWith(
+        { type: 'agent', id: 'session-id' },
+        { activate: true, preferNewSplit: true }
+      );
+    }
+  );
 
   it('starts a session with hidden instructions on the chosen model, the draft left unsent', async () => {
     await openChatWithInput('<m-document-mention>{}</m-document-mention> ', {

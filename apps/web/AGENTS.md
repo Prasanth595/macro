@@ -70,6 +70,14 @@ Gate event notes and document Share meeting-link controls with
 on in dev and uses PostHog in production.
 See `docs/agent-guide/calendar.md` at the repo root.
 
+Channel message agent drafts share the reply-target quote builder with thread
+replies. Keep the message action in both the desktop toolbar and touch long-press
+drawer, and leave the prompt unsent in a new session. The backend-free menu and
+composer regression is
+`bunx playwright test --config src/features/channel/browser-test/playwright.config.ts`.
+It replaces only the session-opening boundary; split navigation and pending-session
+seeding are covered by `features/chat/ChatWithAgentButton.test.ts`.
+
 Channel composer draft persistence has a backend-free browser regression:
 `bunx playwright test --config src/features/channel/Input/browser-test/playwright.config.ts`.
 It types a draft, remounts the composer over it, and checks the blank lines survive.
