@@ -1070,14 +1070,10 @@ impl utoipa::Modify for FormsApiAddon {
         openapi.merge(database_webhooks::inbound::axum_router::DatabaseWebhooksApi::openapi());
         // Property-backed reads and database writes share this wire type.
         // Keep the database schema canonical regardless of handler order.
-        openapi
-            .components
-            .get_or_insert_default()
-            .schemas
-            .insert(
-                <models_databases::DateRange as utoipa::ToSchema>::name().into_owned(),
-                <models_databases::DateRange as utoipa::PartialSchema>::schema(),
-            );
+        openapi.components.get_or_insert_default().schemas.insert(
+            <models_databases::DateRange as utoipa::ToSchema>::name().into_owned(),
+            <models_databases::DateRange as utoipa::PartialSchema>::schema(),
+        );
     }
 }
 
