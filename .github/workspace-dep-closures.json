@@ -604,6 +604,7 @@
       "crates/entity_registry/entity_registry",
       "crates/entity_registry/entity_registry_db_utils",
       "crates/entity_registry/shared_entity_registry",
+      "crates/feature_flags",
       "crates/fig_engine",
       "crates/filter_ast",
       "crates/folds/agent_fold",
@@ -623,6 +624,7 @@
       "crates/invite_email",
       "crates/ip_extractor",
       "crates/item_filters",
+      "crates/jev",
       "crates/kafka_util",
       "crates/last_online_tracker",
       "crates/lexical_client",
@@ -5333,6 +5335,7 @@
       "crates/sqs_worker",
       "crates/static_file",
       "crates/static_file_service_client",
+      "crates/sync_router",
       "crates/sync_service",
       "crates/sync_service_client",
       "crates/system_properties",
@@ -5348,7 +5351,8 @@
       "crates/whatsapp_linked",
       "crates/work_feed",
       "crates/workspace-hack",
-      "services/document_storage_service"
+      "services/document_storage_service",
+      "services/sync-service/bebop-schema"
     ],
     "document_storage_service_client": [
       "crates/agent",
@@ -13383,15 +13387,8 @@
       "crates/workspace-hack"
     ],
     "sync_router": [
-      "crates/connection_gateway_models",
-      "crates/cowlike",
-      "crates/macro_entrypoint",
-      "crates/macro_env",
-      "crates/macro_env_var",
-      "crates/macro_user_id",
-      "crates/model-entity",
+      "crates/sync_router",
       "crates/workspace-hack",
-      "services/sync-router",
       "services/sync-service/bebop-schema"
     ],
     "sync_service": [

@@ -5,20 +5,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Independently controlled backend rollout switches. None grants access.
-#[derive(Debug, Clone, Copy, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedFeatures))]
-pub struct Features {
-    /// Allow new owner-bound pairing transactions.
-    pub pairing: bool,
-    /// Allow explicit existing-group adoption and access grants.
-    pub adoption: bool,
-    /// Allow new deliberate sends.
-    pub sending: bool,
-}
-
 /// Account lifecycle. Transport outages are not stored: a connected account
 /// stays connected while its session service reconnects.
 #[derive(
@@ -588,7 +574,7 @@ pub enum ReplyContent {
     },
     /// One attachment staged through the attachments route.
     Media {
-        /// The staged upload, which becomes the message's private document.
+        /// The staged upload, imported as the message's static file.
         #[serde(rename = "uploadId")]
         upload_id: Uuid,
         /// Optional caption; audio has none.
@@ -773,7 +759,7 @@ pub const MEDIA_LIMIT_BYTES: usize = 32 * 1024 * 1024;
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedUploadedAttachment))]
 pub struct UploadedAttachment {
-    /// Use as `upload_id` in a media send; also the future document id.
+    /// Use as `upload_id` in a media send.
     pub upload_id: Uuid,
     /// Display filename.
     pub filename: String,
@@ -789,7 +775,7 @@ pub struct UploadedAttachment {
 pub enum AttachmentState {
     /// Downloading or importing.
     Loading,
-    /// Imported; `document_id` is set.
+    /// Imported; `file_id` is set.
     Ready,
     /// Download or import failed for good.
     Unavailable,
@@ -813,8 +799,8 @@ pub struct LinkedAttachment {
     pub mime: String,
     /// Declared size in bytes.
     pub size: u64,
-    /// The private document, once ready.
-    pub document_id: Option<Uuid>,
+    /// The static file holding it, once ready.
+    pub file_id: Option<Uuid>,
     /// Pixel width of an image, sticker or video, when WhatsApp declared it.
     pub width: Option<u32>,
     /// Pixel height, when declared.
@@ -902,8 +888,6 @@ impl Default for Capabilities {
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedReplyBlock))]
 pub enum ReplyBlock {
-    /// Sending is switched off on this server.
-    SendingDisabled,
     /// The viewer has not connected their own WhatsApp.
     NoAccount,
     /// The viewer's account is not connected.
@@ -959,9 +943,6 @@ pub enum LinkedError {
     /// The chat can't be added to Macro.
     #[error("{0}")]
     CannotAdd(CannotAdd),
-    /// This operation is switched off on the server.
-    #[error("WhatsApp linking is not enabled")]
-    ConfigurationRequired,
     /// Absent or outside the caller's authorized scope.
     #[error("not found")]
     NotFound,
@@ -1005,7 +986,6 @@ impl LinkedError {
             Self::CannotAdd(CannotAdd::Community) => "cannot_add_community",
             Self::CannotAdd(CannotAdd::OwnChat) => "cannot_add_own_chat",
             Self::CannotAdd(CannotAdd::NotInChatList) => "cannot_add_not_in_chat_list",
-            Self::ConfigurationRequired => "configuration_required",
             Self::NotFound => "not_found",
             Self::Forbidden => "forbidden",
             Self::Conflict => "conflict",

@@ -2546,6 +2546,7 @@
           "import",
           "agent_session",
           "agent_repository_choice",
+          "agent_mode_choice",
           "dictation",
           "image_generation",
           "routine_suggestions"
