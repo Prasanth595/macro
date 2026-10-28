@@ -1461,7 +1461,7 @@ export type GraphqlGroupByField =
   | 'DATE'
   /** Group by Soup entity type. */
   | 'ENTITY_TYPE'
-  /** Group by containing project. */
+  /** Group by the Project property (initiative membership). */
   | 'PROJECT'
   /** Group by a property value. */
   | 'PROPERTY';
