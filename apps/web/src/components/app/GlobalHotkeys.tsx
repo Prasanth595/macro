@@ -63,6 +63,7 @@ import {
 } from '@theme/utils/themeUtils';
 import { ResultAsync } from 'neverthrow';
 import { type Component, onCleanup, Show } from 'solid-js';
+import { useDesktopPrintShortcut } from './desktop-print-shortcut';
 import { useSplitLayout } from './split-layout/layout';
 
 // `keyword` is the English name, kept as a search term in every language;
@@ -206,6 +207,8 @@ async function toggleKeyboardShortcuts(sheet: ShortcutSheet) {
 }
 
 export default function GlobalShortcuts() {
+  useDesktopPrintShortcut();
+
   const canFit = () => globalSplitManager()?.canAppendSplit() ?? true;
 
   const analytics = useAnalytics();
