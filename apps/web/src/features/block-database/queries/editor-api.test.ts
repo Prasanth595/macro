@@ -88,16 +88,44 @@ it('restores the previous schema when a rename is refused', async () => {
 it('keeps a newer cached edit when an older rename is refused', async () => {
   queryClient.setQueryData(KEY, RENAME_DETAIL);
   service.applyOps.mockImplementation(() => {
-    queryClient.setQueryData(KEY, {
-      ...RENAME_DETAIL,
-      database: { ...RENAME_DETAIL.database, name: 'Roadmap' },
-    });
+    queryClient.setQueryData(
+      KEY,
+      (current: DatabaseDetail | undefined) =>
+        current && {
+          ...current,
+          database: { ...current.database, name: 'Roadmap' },
+        }
+    );
     return errAsync([{ code: 'CONFLICT', refusal: null, message: 'Refused' }]);
   });
   await createMacroDatabaseApi('db', queryClient).applyOps({ ops: OPS });
   expect(queryClient.getQueryData<DatabaseDetail>(KEY)?.database.name).toBe(
     'Roadmap'
   );
+  expect(cachedName()).toBeNull();
+});
+
+it('does not undo a newer column rename when an older request is refused', async () => {
+  queryClient.setQueryData(KEY, RENAME_DETAIL);
+  service.applyOps.mockImplementation(() => {
+    queryClient.setQueryData(
+      KEY,
+      (current: DatabaseDetail | undefined) =>
+        current && {
+          ...current,
+          tables: current.tables.map((table) => ({
+            ...table,
+            columns: table.columns.map((column) => ({
+              ...column,
+              column: { ...column.column, display_name: 'Latest' },
+            })),
+          })),
+        }
+    );
+    return errAsync([{ code: 'CONFLICT', refusal: null, message: 'Refused' }]);
+  });
+  await createMacroDatabaseApi('db', queryClient).applyOps({ ops: OPS });
+  expect(cachedName()).toBe('Latest');
 });
 
 it('sends other operations without cancelling schema reads', async () => {

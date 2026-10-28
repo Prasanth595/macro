@@ -84,8 +84,10 @@ export function createMacroDatabaseApi(
         }
       ),
     applyOps: ({ ops, baseVersions }) => {
-      const renames = ops.filter(
-        (op) => op.kind === 'column' && op.change.kind === 'rename'
+      const renames = ops.flatMap((op) =>
+        op.kind === 'column' && op.change.kind === 'rename'
+          ? [{ table: op.table, column: op.column, name: op.change.name }]
+          : []
       );
       const apply = () => applyDatabaseOps(databaseId, ops, baseVersions);
       if (!renames.length) return apply().map((results) => ({ results }));
@@ -100,12 +102,10 @@ export function createMacroDatabaseApi(
                 let name = column.column.display_name;
                 for (const op of renames)
                   if (
-                    op.kind === 'column' &&
-                    op.change.kind === 'rename' &&
                     op.table === table.table.id &&
                     op.column === column.column.id
                   )
-                    name = op.change.name;
+                    name = op.name;
                 return name === column.column.display_name
                   ? column
                   : {
@@ -115,7 +115,36 @@ export function createMacroDatabaseApi(
               }),
             })),
           }),
-          client
+          client,
+          (current, previous) => ({
+            ...current,
+            tables: current.tables.map((table) => ({
+              ...table,
+              columns: table.columns.map((column) => {
+                const rename = renames.findLast(
+                  (op) =>
+                    op.table === table.table.id &&
+                    op.column === column.column.id
+                );
+                if (!rename || column.column.display_name !== rename.name)
+                  return column;
+                const before = previous.tables
+                  .find((entry) => entry.table.id === table.table.id)
+                  ?.columns.find(
+                    (entry) => entry.column.id === column.column.id
+                  );
+                return before
+                  ? {
+                      ...column,
+                      column: {
+                        ...column.column,
+                        display_name: before.column.display_name,
+                      },
+                    }
+                  : column;
+              }),
+            })),
+          })
         )
       ).andThen((rollback) =>
         apply()
