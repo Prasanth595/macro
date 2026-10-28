@@ -74,6 +74,11 @@ Channel composer draft persistence has a backend-free browser regression:
 `bunx playwright test --config src/features/channel/Input/browser-test/playwright.config.ts`.
 It types a draft, remounts the composer over it, and checks the blank lines survive.
 
+The touch **Jump to latest** button's placement (bottom-right, above the
+composer) has a backend-free phone regression, including the iOS app's press
+styles that pin dock islands to `position: relative`:
+`bunx playwright test --config src/features/channel/Channel/browser-test/playwright.config.ts`.
+
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
 ```sh
