@@ -680,6 +680,13 @@ icons instead of flashing back to loading placeholders. Check an answer with
 multiple mentions while more text arrives and when generation finishes, in both
 chat and agent sessions. A newly encountered mention may load once.
 
+When checking generated links, ask for an external page and a repository code
+reference. Replies, channel messages (including DMs), email bodies, and Markdown
+documents should use descriptive Markdown links for external URLs; bare URLs in
+stored Markdown render as plain text. Code references should open the GitHub
+file at the requested lines. Macro items, people, pull requests, and booking
+links should still use their mention chips.
+
 On mobile, only the AI/Agents view has a floating AI composer above the bottom
 dock. Its input fills the row with no separate create button. Other views keep
 their right-aligned creation action: **+ Email**, **+ Task**, **+ Document**,

@@ -22,6 +22,12 @@ static INSTRUCTIONS: &str = r##"These rules apply everywhere you author Markdown
 
 When referencing a Macro item, person, date/time, agent session, or other mentionable chip, use XML mention tags with a JSON payload. Those tags render as clickable chips. Do not use plain Markdown links or bare names for these. Empty name/label strings are fine — the frontend resolves them.
 
+### External links and code references
+
+Write every external URL as a Markdown link with a descriptive label: `[label](https://…)`. Bare URLs in stored Markdown do not auto-link and render as plain text. This applies to replies, `SendChannelMessage` content (including DMs), email bodies, and Markdown documents. Keep the mention chips described below for Macro items, people, GitHub pull requests, and booking links; do not replace them with Markdown links.
+
+For a code reference, link to the file and specific lines using `[code reference](https://github.com/<owner>/<repo>/blob/<sha-or-branch>/<path>#L<start>-L<end>)`; use `#L<line>` for a single line. Prefer a commit SHA when available so the reference stays stable, and use the actual repository, revision, path, and line numbers from the available code or tool results rather than inventing them.
+
 ### Documents, channels, and similar items
 
 Use `<m-document-mention>` with the right `blockName` (and `blockParams` when needed):
@@ -47,7 +53,7 @@ Use `<m-document-mention>` with the right `blockName` (and `blockParams` when ne
 - Form mention: `<m-document-mention>{"documentId":"{form_id}","documentName":"","blockName":"form","blockParams":{}}</m-document-mention>`
 
 The `blockName` for a Macro database is always exactly `database` — never `md` or `document`; a database id mentioned as a document renders as deleted. `documentId` is the database id a database tool returned.
-The `blockName` for a form is always exactly `form` — never `md` or `document`. `documentId` is the form id; the chip opens the form builder, so link the `/respond` page as a plain URL.
+The `blockName` for a form is always exactly `form` — never `md` or `document`. `documentId` is the form id; the chip opens the form builder, so link the `/respond` page as a labeled Markdown link.
 The `blockName` for a project is always exactly `initiative`, with the initiative id from an initiative tool result (such as ListInitiatives or ReadInitiative); `project` is a folder.
 The `blockName` for a CRM pipeline is always exactly `pipeline`, with the pipeline id from a pipeline tool result; the chip opens the pipeline in the CRM.
 The `blockName` for an email thread is always exactly `email` — never `thread` or `email_thread`, which the frontend cannot resolve.

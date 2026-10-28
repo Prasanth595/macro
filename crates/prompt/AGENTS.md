@@ -44,6 +44,9 @@ The agent-session prompt distinguishes typed `<m-notifications>` system facts
 from user requests and defines the notification-only `<noop/>` contract.
 In-app replies use `m-document-mention` with `blockName: "routine"` for routines;
 external MCP replies use `/app/routines/<id>` URLs.
+The shared `mentions` section owns external Markdown links and GitHub line
+references; session preambles refer to it so each composed prompt carries the
+rule once, while Macro items, people, PRs, and booking links keep their chips.
 
 ## Checks
 
