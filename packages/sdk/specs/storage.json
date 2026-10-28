@@ -34596,6 +34596,11 @@
           }
         }
       },
+      "MessageAttribution": {
+        "type": "string",
+        "description": "Attribution of a trusted server post, distinct from the scope used to authorize it.",
+        "enum": ["ActingUser", "Unprompted", "System"]
+      },
       "MessageChange": {
         "oneOf": [
           {
@@ -34603,6 +34608,10 @@
             "description": "A message was posted.",
             "required": ["notification_policy", "message", "mentions", "type"],
             "properties": {
+              "attribution": {
+                "$ref": "#/components/schemas/MessageAttribution",
+                "description": "Trusted authorship carried with the committed change."
+              },
               "mentions": {
                 "type": "array",
                 "items": {
@@ -35195,6 +35204,10 @@
           "sender": {
             "$ref": "#/components/schemas/ChannelSender",
             "description": "Author, including bot principals."
+          },
+          "system_authored": {
+            "type": "boolean",
+            "description": "The platform scripted this post under `sender`'s name, such as a signup\nwelcome; `sender` did not write it."
           },
           "thread_id": {
             "type": ["string", "null"],

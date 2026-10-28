@@ -9873,9 +9873,18 @@ export type MessageAttachmentRemovedMetadata = {
 };
 
 /**
+ * Attribution of a trusted server post, distinct from the scope used to authorize it.
+ */
+export type MessageAttribution = 'ActingUser' | 'Unprompted' | 'System';
+
+/**
  * Kind of message change; notification policy only runs for posted messages.
  */
 export type MessageChange = {
+    /**
+     * Trusted authorship carried with the committed change.
+     */
+    attribution?: MessageAttribution;
     /**
      * Mentions included in this post.
      */
@@ -10241,6 +10250,11 @@ export type MessagePostedMetadata = {
      * Author, including bot principals.
      */
     sender: ChannelSender;
+    /**
+     * The platform scripted this post under `sender`'s name, such as a signup
+     * welcome; `sender` did not write it.
+     */
+    system_authored?: boolean;
     /**
      * Root identifier for a reply; absent for a new root.
      */

@@ -6,6 +6,7 @@
  */
 
 import type { Message } from './message';
+import type { MessageAttribution } from './messageAttribution';
 import type { MessageChangeOneOfType } from './messageChangeOneOfType';
 import type { PostMessageNotificationPolicy } from './postMessageNotificationPolicy';
 import type { SimpleMention } from './simpleMention';
@@ -14,6 +15,8 @@ import type { SimpleMention } from './simpleMention';
  * A message was posted.
  */
 export type MessageChangeOneOf = {
+  /** Trusted authorship carried with the committed change. */
+  attribution?: MessageAttribution;
   /** Mentions included in this post. */
   mentions: SimpleMention[];
   /** Persisted message. */

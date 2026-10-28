@@ -1624,6 +1624,7 @@
 - [MessageAttachment](type-aliases/MessageAttachment.md)
 - [MessageAttachmentCreatedMetadata](type-aliases/MessageAttachmentCreatedMetadata.md)
 - [MessageAttachmentRemovedMetadata](type-aliases/MessageAttachmentRemovedMetadata.md)
+- [MessageAttribution](type-aliases/MessageAttribution.md)
 - [MessageChange](type-aliases/MessageChange.md)
 - [MessageCursor](type-aliases/MessageCursor.md)
 - [MessageDeletedMetadata](type-aliases/MessageDeletedMetadata.md)
