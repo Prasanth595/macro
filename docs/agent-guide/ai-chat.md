@@ -1365,7 +1365,9 @@ its own session. A message that alone takes more than half of the model's
 window is refused with "This message is too long. Split it into smaller messages
 or attach it as a file." `/compact` is an ordinary message to every agent: the
 transcript shows it as sent, followed by the agent's reply; a "Context compacted"
-line appears only when the agent reports a compaction.
+line appears only when the agent reports a compaction, at the point in the reply
+where the summary landed: a summary that finishes while a tool runs splits the
+tool group, with the running call above the line and later steps below it.
 
 Cursor walkthrough files the run re-hosts appear in the transcript after the
 answer: screenshots as images, recordings as video players, and `.txt` / `.log`
