@@ -1,9 +1,10 @@
+import { t } from '@app/lib/i18n';
 import {
   useForegroundMobileView,
   useMobileNavNavigate,
 } from '@components/app/mobile/use-mobile-nav';
 import { usePreserveFocusOnButtonTaps } from '@core/mobile/usePreserveFocusOnButtonTaps';
-import XIcon from '@phosphor/x.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import { SearchState } from './mobileSearchState';
 
 // The input lives in app chrome, outside result/category boundaries, and stays
@@ -41,7 +42,7 @@ export function MobileSearchInput() {
         type="text"
         enterkeyhint="search"
         class="h-full min-w-0 flex-1 border-0 bg-transparent text-ink outline-none ring-0 placeholder:text-ink-placeholder focus:outline-none focus:ring-0"
-        placeholder="Search…"
+        placeholder={t('commandMenu.mobileSearchPlaceholder')}
         value={SearchState.query()}
         // Blurring never ends the session — the keyboard drops but search
         // mode stays until the X is pressed or navigation covers this entry.
@@ -59,7 +60,7 @@ export function MobileSearchInput() {
       <button
         type="button"
         class="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-muted"
-        aria-label="Close search"
+        aria-label={t('commandMenu.closeSearch')}
         onPointerDown={(e) => {
           e.preventDefault();
         }}

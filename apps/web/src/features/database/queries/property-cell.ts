@@ -1,6 +1,7 @@
 import type { ColumnDetail } from '@service-storage/generated/schemas/columnDetail';
 import type { PropertyValue } from '@service-storage/generated/schemas/propertyValue';
 import { match } from 'ts-pattern';
+import { toCellRange } from '../core/cell-date-range';
 import type { DatabaseCellValue } from '../core/database-view';
 import { UNAVAILABLE_OPTION } from '../core/grid-cells';
 
@@ -23,6 +24,7 @@ export function databasePropertyCell(
       { type: 'Date' },
       ({ value }) => value
     )
+    .with({ type: 'DateRange' }, ({ value }) => toCellRange(value))
     .with({ type: 'Link' }, ({ value }) => listed(value))
     .with({ type: 'EntityReference' }, ({ value }) =>
       listed(value.map((ref) => ref.entity_id))

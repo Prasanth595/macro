@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { errAsync, okAsync } from 'neverthrow';
 import { Suspense } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
+import { cellTimeRange } from '../../database/core/cell-date-range';
 import { relatedRowIds } from '../../database/core/database-relations';
 import { createDatabaseApiSource } from '../../database/queries/api-source';
 import { databasePropertyCell } from '../../database/queries/property-cell';
@@ -247,6 +248,24 @@ it('maps single and multiple entity values without leaking transport objects int
     })
   ).toBe('["one"]');
   expect(databasePropertyCell(undefined, column)).toBeNull();
+});
+
+it('preserves stored date ranges for the shared cell renderer', () => {
+  const cell = databasePropertyCell(
+    {
+      type: 'DateRange',
+      value: {
+        start: '2026-10-27T09:00:00Z',
+        end: '2026-10-27T10:30:00Z',
+      },
+    },
+    table.columns[0]
+  );
+  expect(cellTimeRange(cell)).toEqual({
+    allDay: false,
+    start: new Date('2026-10-27T09:00:00Z'),
+    end: new Date('2026-10-27T10:30:00Z'),
+  });
 });
 
 it('shows a value type from a newer server as an empty cell', () => {

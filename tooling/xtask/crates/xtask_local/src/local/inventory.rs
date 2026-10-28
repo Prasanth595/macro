@@ -117,6 +117,17 @@ pub const RUST_SERVICES: &[RustService] = &[
         no_default_features: false,
     },
     RustService {
+        compose_name: "sync_router",
+        cargo_bin: "sync_router",
+        package: "sync_router",
+        host_port: None,
+        path_prefix: None,
+        is_websocket: false,
+        modes: &[Mode::Local, Mode::Dev],
+        opt_in: false,
+        no_default_features: false,
+    },
+    RustService {
         compose_name: "connection_gateway",
         cargo_bin: "connection_gateway_service",
         package: "connection_gateway",
@@ -286,6 +297,20 @@ pub const RUST_SERVICES: &[RustService] = &[
         // Local stacks default to DEV_DANGEROUS_LOCAL_CONTAINERS, so managed
         // sandboxes run on the host Docker daemon. Daytona is opt-in via
         // DEV_DANGEROUS_LOCAL_CONTAINERS=false DAYTONA_API_KEY=... just run_local.
+        modes: &[Mode::Local],
+        opt_in: false,
+        no_default_features: false,
+    },
+    RustService {
+        compose_name: "whatsapp_session_service",
+        cargo_bin: "whatsapp_session_service",
+        package: "whatsapp_session_service",
+        // Nothing calls it: it only dials out (WhatsApp, Postgres, KMS).
+        host_port: None,
+        path_prefix: None,
+        is_websocket: false,
+        // Local-only: under `run-dev` it would take leases on shared-dev
+        // accounts from the deployed replicas.
         modes: &[Mode::Local],
         opt_in: false,
         no_default_features: false,

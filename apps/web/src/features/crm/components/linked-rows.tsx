@@ -1,7 +1,7 @@
 import { fireAndForget } from '@core/util/fireAndForget';
-import ArrowUpRightIcon from '@phosphor/arrow-up-right.svg';
-import LinkIcon from '@phosphor/link-simple.svg';
-import XIcon from '@phosphor/x.svg';
+import ArrowUpRightIcon from '@icon/system/regular/arrow-up-right.svg';
+import LinkIcon from '@icon/system/regular/link-simple.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import { Button, Dialog, Input } from '@ui';
 import {
   type Component,

@@ -27,7 +27,8 @@ key issuance, and account merge/link flows.
   eligibility and subscription checkout.
 - Not here: authorization/permission decisions on other entities →
   `crates/macro_authorization`; metered AI credits → `crates/ai_billing`;
-  team lifecycle and seats → `crates/teams`.
+  team lifecycle and seats → `crates/teams`; a person's interface language
+  (`/user/language`) → `crates/user_language`.
 
 ## Recipes
 
@@ -77,6 +78,8 @@ API-token exchange preserves verified incoming agent attribution; query/body
 inputs cannot select an agent, and ordinary user credentials remain unattributed.
 
 ## Gotchas
+
+- Fail closed if team cleanup encounters a WhatsApp group: linked groups require human ownership.
 
 - GitHub reconnect preserves the current link until OAuth completes. A different
   account returns 409; disconnect first to switch accounts. Missing grants report
