@@ -86,6 +86,15 @@ pub trait PropertiesService: Send + Sync + 'static {
         value: Option<SetPropertyValue>,
     ) -> impl Future<Output = Result<EntityPropertyWithDefinition, PropertiesErr>> + Send;
 
+    /// Append Companies or Contacts references to a non-task document atomically.
+    /// Requires source-file edit access and preserves all existing record links.
+    fn append_crm_file_references(
+        &self,
+        access: &EditReceipt,
+        property_definition_id: Uuid,
+        references: Vec<models_properties::EntityReference>,
+    ) -> impl Future<Output = Result<(), PropertiesErr>> + Send;
+
     /// Append the project's agent assignees to a newly added task, preserving
     /// existing assignees and concurrent edits. Both capabilities must belong
     /// to the same actor. Publishes assignment changes with the task's attribution.

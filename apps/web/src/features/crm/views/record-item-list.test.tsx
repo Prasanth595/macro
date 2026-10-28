@@ -130,58 +130,66 @@ it('keeps the paging marker mounted when a local filter removes an entire page',
   expect(view.container.querySelector('.h-px')).not.toBeNull();
 });
 
-it('continues date groups across pages without remounting earlier rows', () => {
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date(2026, 9, 27, 12));
-  mounted.mockClear();
-  const [entities, setEntities] = createSignal([
-    {
-      id: 'doc-1',
-      type: 'document',
-      name: 'First page',
-      updatedAt: new Date(2026, 9, 27, 10),
-    },
-  ]);
-  const list = source({ hasNextPage: true });
-  Object.defineProperty(list, 'data', {
-    get: () => ({ entities: entities() }),
-  });
-  const view = render(() => (
-    <RecordItemList
-      source={list}
-      empty="Nothing"
-      groupByDate
-      referencePropertyIds={['reference-id']}
-    />
-  ));
-  const first = screen.getByText('First page');
-  expect(screen.getAllByText('Today')).toHaveLength(1);
-  setEntities([
-    {
-      id: 'doc-1',
-      type: 'document',
-      name: 'First page updated',
-      updatedAt: new Date(2026, 9, 27, 10),
-    },
-    {
-      id: 'doc-2',
-      type: 'document',
-      name: 'Same date, next page',
-      updatedAt: new Date(2026, 9, 27, 9),
-    },
-    {
-      id: 'doc-3',
-      type: 'document',
-      name: 'Older page',
-      updatedAt: new Date(2026, 9, 26, 9),
-    },
-  ]);
-  expect(screen.getByText('First page updated')).toBe(first);
-  screen.getByText('Same date, next page');
-  screen.getByText('Older page');
-  expect(screen.getAllByText('Today')).toHaveLength(1);
-  expect(screen.getAllByText('Yesterday')).toHaveLength(1);
-  expect(mounted).toHaveBeenCalledTimes(3);
-  expect(mounted).toHaveBeenCalledWith(['reference-id']);
-  view.unmount();
-});
+it.each([false, true])(
+  'continues date groups across pages without remounting earlier rows (typed groups: %s)',
+  (typedGroups) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 27, 12));
+    mounted.mockClear();
+    const [entities, setEntities] = createSignal([
+      {
+        id: 'doc-1',
+        type: 'document',
+        name: 'First page',
+        updatedAt: new Date(2026, 9, 27, 10),
+      },
+    ]);
+    const list = source({ hasNextPage: true });
+    Object.defineProperty(list, 'data', {
+      get: () => ({ entities: entities() }),
+    });
+    const view = render(() => (
+      <RecordItemList
+        source={list}
+        empty="Nothing"
+        groupByDate
+        groupItems={
+          typedGroups
+            ? (files) => [{ id: 'contract', name: 'Contract', files }]
+            : undefined
+        }
+        referencePropertyIds={['reference-id']}
+      />
+    ));
+    const first = screen.getByText('First page');
+    expect(screen.getAllByText('Today')).toHaveLength(1);
+    setEntities([
+      {
+        id: 'doc-1',
+        type: 'document',
+        name: 'First page updated',
+        updatedAt: new Date(2026, 9, 27, 10),
+      },
+      {
+        id: 'doc-2',
+        type: 'document',
+        name: 'Same date, next page',
+        updatedAt: new Date(2026, 9, 27, 9),
+      },
+      {
+        id: 'doc-3',
+        type: 'document',
+        name: 'Older page',
+        updatedAt: new Date(2026, 9, 26, 9),
+      },
+    ]);
+    expect(screen.getByText('First page updated')).toBe(first);
+    screen.getByText('Same date, next page');
+    screen.getByText('Older page');
+    expect(screen.getAllByText('Today')).toHaveLength(1);
+    expect(screen.getAllByText('Yesterday')).toHaveLength(1);
+    expect(mounted).toHaveBeenCalledTimes(3);
+    expect(mounted).toHaveBeenCalledWith(['reference-id']);
+    view.unmount();
+  }
+);

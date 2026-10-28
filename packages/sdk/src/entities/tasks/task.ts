@@ -1,5 +1,7 @@
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
+import type { Company } from '../crm/company';
+import type { Contact } from '../crm/contact';
 import { Document } from '../documents/document';
 import type { Project } from '../projects/project';
 import { entitySearch } from '../search';
@@ -27,11 +29,16 @@ function pullRequestKey(url: string): string {
 }
 
 /**
- * A Macro task: a document with sub-type `task`. Inherits the full document
- * surface ({@link Document.rename}, move, delete, restore, content, events)
- * and adds task-specific state.
+ * A Macro task: a document with sub-type `task`. Inherits shared document
+ * operations ({@link Document.rename}, move, delete, restore, content, events)
+ * and adds task-specific state. Tasks cannot be attached as CRM files.
  */
 export class Task extends Document {
+  /** @hidden Tasks are not files eligible for CRM file attachments. */
+  override async attachTo(_record: Company | Contact): Promise<void> {
+    throw new Error('Tasks cannot be attached as CRM files');
+  }
+
   /** A handle to a task by document id. Details load on first access. */
   static byId(client: MacroClient, id: string): Task {
     return new Task(client, id);

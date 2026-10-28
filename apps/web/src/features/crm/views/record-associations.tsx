@@ -2,6 +2,7 @@ import { createSignal } from 'solid-js';
 import { RecordSection } from '../components/record-section';
 import { useCrmContext } from '../context/crm-context';
 import type { CrmRecordScope } from '../core/record';
+import { RecordFiles } from './record-files';
 import { RecordItemList } from './record-item-list';
 
 /**
@@ -9,18 +10,7 @@ import { RecordItemList } from './record-item-list';
  * plus attachments of emails exchanged with its people.
  */
 export function RecordFilesSection(props: { scope?: CrmRecordScope }) {
-  const [search, setSearch] = createSignal('');
-  const files = useCrmContext().createRecordFiles(() => props.scope);
-  return (
-    <RecordSection title="Files" search={search()} onSearchChange={setSearch}>
-      <RecordItemList
-        source={files}
-        search={search()}
-        pending={!props.scope}
-        empty={`No files with this ${props.scope?.type ?? 'record'} yet.`}
-      />
-    </RecordSection>
-  );
+  return <RecordFiles scope={props.scope} />;
 }
 
 /**
