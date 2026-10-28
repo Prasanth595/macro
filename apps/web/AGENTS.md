@@ -39,6 +39,10 @@ Composer typeahead menus choosing the side with room for their full list
 phone screen and below one near the top, have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/LexicalMarkdown/directive/browser-test/playwright.config.ts`.
 
+Suggested routines (sidebar card, modal, one-click enable, edit before enabling,
+and the phone sheet) have a backend-free browser regression:
+`bunx playwright test --config src/features/routine-suggestions/browser-test/playwright.config.ts`.
+
 Event details placement has a backend-free browser regression: the desktop
 popover stays beside its event when join requests arrive after it opens, and
 slides into a short window; the phone drawer shows late requests:
