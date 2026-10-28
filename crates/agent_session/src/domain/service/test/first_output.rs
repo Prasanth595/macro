@@ -127,6 +127,19 @@ async fn first_thought_and_first_text_publish_before_the_regular_batch_deadline(
     assert_eq!(realtime.published().len(), 3, "later prose remains batched");
     assert!(logs.flush_deadline().is_some());
 
+    logs.append(
+        parse_log_as(
+            test_session(),
+            &json!({"direction": "to_server", "content": {
+                "type": "acp", "jsonrpc": "2.0", "id": "first",
+                "result": {"stopReason": "end_turn"}
+            }})
+            .to_string(),
+        )
+        .remove(0),
+    )
+    .await
+    .unwrap();
     logs.append(prompt("second")).await.unwrap();
     let second = logs
         .append(chunk("agent_message_chunk", "Next answer"))
@@ -135,10 +148,10 @@ async fn first_thought_and_first_text_publish_before_the_regular_batch_deadline(
     flush_start(&mut logs).await;
     assert_eq!(
         realtime.published().len(),
-        5,
+        6,
         "a new prompt resets both milestones"
     );
-    assert_eq!(realtime.published()[4].entries[0].id, second.log_id);
+    assert_eq!(realtime.published()[5].entries[0].id, second.log_id);
     assert!(logs.flush_deadline().is_none());
 }
 

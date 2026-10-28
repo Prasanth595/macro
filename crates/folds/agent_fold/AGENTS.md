@@ -57,6 +57,11 @@ to the browser via `inbound/wasm`.
 signals and harness recovery from a persisted log. Keep these interpretations
 aligned; recovery must never guess the answer from another turn.
 
+A `session/prompt` logged while the open turn still awaits its response queues
+behind it (runtimes like `claude-agent-acp` accept prompts mid-turn and answer
+them in order): its user message shows at once, but its turn opens only when the
+open turn's response lands. A refused queued prompt fails alone.
+
 Notification log frames open system turns without user messages. Their events
 project into `SessionMetadata.notifications`, separate from message search and
 exports. `SessionNotification` flattens the protocol’s tagged event enum into

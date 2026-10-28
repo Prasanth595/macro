@@ -137,3 +137,32 @@ fn reports_truncated_failures_even_when_search_text_omits_them() {
     assert!(result.messages[1].truncated);
     assert!(result.truncated);
 }
+
+#[tokio::test]
+async fn a_reply_streamed_after_a_queued_prompt_reads_under_its_own_turn() {
+    let repo = InMemoryAgentSessionRepo::new();
+    let session = AgentSessionId::TEST_A;
+    repo.insert_session(test_agent_session(session));
+    repo.extend_log(parse_log_as(
+        session,
+        agent_fold::testing::fixtures::CLAUDE_AGENT_ACP_QUEUED_PROMPTS,
+    ));
+    let access = EntityAccessReceipt::try_new_authenticated_user(
+        MacroUserIdStr::try_from_email("viewer@example.com").expect("viewer"),
+        Entity {
+            entity_id: session.to_string(),
+            entity_type: EntityType::AgentSession,
+        },
+        EntityPermission::AccessLevel {
+            access_level: AccessLevel::View,
+        },
+    )
+    .expect("view receipt");
+    let result = SessionReader::new(repo)
+        .read(access, Some(0))
+        .await
+        .expect("conversation");
+    assert_eq!(result.messages.len(), 2);
+    assert!(matches!(result.messages[1].role, SessionMessageRole::Agent));
+    assert_eq!(result.messages[1].content, "TASK DONE");
+}

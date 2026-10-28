@@ -53,3 +53,9 @@ pub const SUBAGENT_MACRO_INMEM: &str =
 /// choice and a custom text, and the adapter reports the custom text won.
 pub const ELICITATION_CLAUDE_SINGLE_SELECT: &str =
     include_str!("../../fixtures/real/elicitation_claude_single_select.jsonl");
+
+/// A real `claude-agent-acp` 0.73 session sent a second prompt while the first
+/// was still running. The adapter advertises `promptQueueing`, answers both
+/// in order, and streams the first reply after the second prompt was sent.
+pub const CLAUDE_AGENT_ACP_QUEUED_PROMPTS: &str =
+    include_str!("../../fixtures/real/claude_agent_acp_queued_prompts.jsonl");

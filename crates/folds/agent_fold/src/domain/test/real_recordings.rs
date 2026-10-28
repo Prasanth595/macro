@@ -21,7 +21,8 @@ use crate::domain::fold::{FoldMachineImpl, fold};
 use crate::domain::model::{Author, FoldedMessage, MessagePart, PlanEntryStatus};
 use crate::domain::ports::FoldMachine;
 use crate::testing::fixtures::{
-    LONG_MULTI_RESUME, PLAN_TODO, RESUMED_AND_CONTINUED, RESUMED_NO_PROMPT,
+    CLAUDE_AGENT_ACP_QUEUED_PROMPTS, LONG_MULTI_RESUME, PLAN_TODO, RESUMED_AND_CONTINUED,
+    RESUMED_NO_PROMPT,
 };
 
 /// Run `body` on every real fixture. Folding must not warn on any of them: a
@@ -51,6 +52,62 @@ fn every_real_fixture_folds_without_warnings() {
             );
         }
     });
+}
+
+/// A prompt sent while the runtime is still answering the previous one waits
+/// its turn: the first reply stays on the first prompt's turn.
+#[test]
+fn a_queued_prompt_leaves_the_running_reply_on_its_own_turn() {
+    let (messages, warnings) =
+        capturing_warnings(|| fold(parse_log(CLAUDE_AGENT_ACP_QUEUED_PROMPTS)));
+
+    assert_eq!(warnings, vec![]);
+    let turns: Vec<_> = messages
+        .iter()
+        .map(|message| {
+            (
+                message.id.0,
+                message.author.kind(),
+                message.last_text(),
+                message.stop.clone(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        turns,
+        vec![
+            (
+                0,
+                crate::domain::model::AuthorKind::User,
+                Some(
+                    concat!(
+                        r#"<m-agent-context>{"version":1,"text":"<task id=\"t\">Say hello</task>"}</m-agent-context>"#,
+                        "\n\nYou were assigned this task. Reply with exactly the words TASK DONE and nothing else. Do not use any tools."
+                    )
+                    .to_owned()
+                ),
+                None,
+            ),
+            (
+                1,
+                crate::domain::model::AuthorKind::User,
+                Some("Now reply with exactly SECOND DONE.".to_owned()),
+                None,
+            ),
+            (
+                0,
+                crate::domain::model::AuthorKind::Agent,
+                Some("TASK DONE".to_owned()),
+                Some(crate::domain::model::StopReason::EndTurn),
+            ),
+            (
+                1,
+                crate::domain::model::AuthorKind::Agent,
+                Some("SECOND DONE".to_owned()),
+                Some(crate::domain::model::StopReason::EndTurn),
+            ),
+        ]
+    );
 }
 
 /// A successful load reconstructs both sides without session/prompt requests:

@@ -1,0 +1,95 @@
+---
+source: crates/folds/agent_fold/src/domain/test/real_recordings.rs
+expression: messages
+input_file: crates/folds/agent_fold/fixtures/real/claude_agent_acp_queued_prompts.jsonl
+---
+[
+    FoldedMessage {
+        id: TurnId(
+            0,
+        ),
+        author: User {
+            user_id: Some(
+                macro|eric@example.com,
+            ),
+        },
+        request_id: Some(
+            AgentActionId(
+                01a17ec0-a30d-7c21-af1a-14c5482c1071,
+            ),
+        ),
+        parts: NonEmpty {
+            inner: [
+                Text {
+                    text: "<m-agent-context>{\"version\":1,\"text\":\"<task id=\\\"t\\\">Say hello</task>\"}</m-agent-context>\n\nYou were assigned this task. Reply with exactly the words TASK DONE and nothing else. Do not use any tools.",
+                },
+            ],
+        },
+        stop: None,
+        pending: false,
+        posted_at: None,
+    },
+    FoldedMessage {
+        id: TurnId(
+            1,
+        ),
+        author: User {
+            user_id: Some(
+                macro|eric@example.com,
+            ),
+        },
+        request_id: Some(
+            AgentActionId(
+                01a17ec0-ffff-7c21-af1a-14c5482c1071,
+            ),
+        ),
+        parts: NonEmpty {
+            inner: [
+                Text {
+                    text: "Now reply with exactly SECOND DONE.",
+                },
+            ],
+        },
+        stop: None,
+        pending: false,
+        posted_at: None,
+    },
+    FoldedMessage {
+        id: TurnId(
+            0,
+        ),
+        author: Agent,
+        request_id: None,
+        parts: NonEmpty {
+            inner: [
+                Text {
+                    text: "TASK DONE",
+                },
+            ],
+        },
+        stop: Some(
+            EndTurn,
+        ),
+        pending: false,
+        posted_at: None,
+    },
+    FoldedMessage {
+        id: TurnId(
+            1,
+        ),
+        author: Agent,
+        request_id: None,
+        parts: NonEmpty {
+            inner: [
+                Text {
+                    text: "SECOND DONE",
+                },
+            ],
+        },
+        stop: Some(
+            EndTurn,
+        ),
+        pending: false,
+        posted_at: None,
+    },
+]
