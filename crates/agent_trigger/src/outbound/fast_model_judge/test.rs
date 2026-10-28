@@ -24,6 +24,7 @@ async fn a_non_user_sender_is_not_replaced_with_system_billing_identity() {
         root_id: Uuid::from_u128(3),
         sender: channel_sender::ChannelSender::new_from_bot(bot_id::MACRO_AI_BOT_ID),
         triggered_by: None,
+        system_authored: false,
         content: "describe this".to_owned(),
         mentions: vec![],
         attachments: vec![MessageEventAttachment {

@@ -113,7 +113,9 @@ If you have any feedback or find any bugs let us know here.",
             channel_id,
             PostMessage {
                 id: None,
-                attribution: MessageAttribution::Unprompted,
+                // The platform posts this script for every signup: activity
+                // credits Macro System, keeping it out of the sender's team feed.
+                attribution: MessageAttribution::System,
                 notification_policy: PostMessageNotificationPolicy::MentionsOnly,
                 content: welcome,
                 thread_id: None,

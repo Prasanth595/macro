@@ -165,6 +165,7 @@ where
                 message,
                 mentions,
                 notification_policy,
+                ..
             } => Some((message, mentions, *notification_policy)),
             MessageChange::Edited {
                 message,

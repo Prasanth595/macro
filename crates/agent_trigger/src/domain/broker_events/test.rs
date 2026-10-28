@@ -42,6 +42,7 @@ fn posted(parent: MessageParent, thread_id: Option<Uuid>) -> MessagePostedMetada
         root_id: thread_id.unwrap_or(Uuid::from_u128(2)),
         sender: sender(),
         triggered_by: None,
+        system_authored: false,
         content: "hello".to_owned(),
         mentions: vec![],
         attachments: vec![],

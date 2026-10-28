@@ -557,6 +557,7 @@ pub fn posted_from_channel_event(posted: &ChannelMessagePostedMetadata) -> Messa
         root_id: posted.thread_id.unwrap_or(posted.message_id),
         sender: posted.sender.clone(),
         triggered_by: posted.triggered_by.clone(),
+        system_authored: false,
         content: posted.content.clone(),
         mentions: posted.mentions.clone(),
         attachments: posted

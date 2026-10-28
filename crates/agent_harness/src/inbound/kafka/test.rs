@@ -88,6 +88,7 @@ fn document_message(sender: ChannelSender<'static>) -> MessagePostedMetadata {
         root_id: Uuid::from_u128(2),
         sender,
         triggered_by: None,
+        system_authored: false,
         content: "@claude fix the tests".to_owned(),
         mentions: vec![],
         attachments: vec![],

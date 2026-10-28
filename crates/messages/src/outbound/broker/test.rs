@@ -107,6 +107,7 @@ async fn a_post_publishes_posted_attachment_and_one_mention_per_entity_for_both_
             parent.clone(),
             MessageChange::Posted {
                 notification_policy: Default::default(),
+                attribution: Default::default(),
                 message: reply(parent.clone(), vec![attachment(5)]),
                 mentions: vec![
                     mention("user", "macro|a@example.com"),
@@ -149,9 +150,28 @@ async fn a_post_publishes_posted_attachment_and_one_mention_per_entity_for_both_
             published[3].2["metadata"]["mentioned"]["entity_type"],
             "document"
         );
+        assert_eq!(posted["system_authored"], false);
         let round_trip: MessageTopicEvent = serde_json::from_value(published[0].2.clone()).unwrap();
         assert!(matches!(round_trip, MessageTopicEvent::Posted(_)));
     }
+}
+
+#[tokio::test]
+async fn a_system_post_is_marked_system_authored() {
+    let parent = MessageParent::Channel(Uuid::from_u128(20));
+    let published = publish(
+        parent.clone(),
+        MessageChange::Posted {
+            notification_policy: Default::default(),
+            attribution: crate::domain::models::MessageAttribution::System,
+            message: reply(parent, vec![]),
+            mentions: vec![],
+        },
+    )
+    .await;
+    let posted = &published[0].2["metadata"];
+    assert_eq!(posted["sender"], SENDER);
+    assert_eq!(posted["system_authored"], true);
 }
 
 #[tokio::test]

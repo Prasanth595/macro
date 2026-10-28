@@ -98,6 +98,7 @@ fn message(mentions: Vec<SimpleMention>) -> MessagePostedMetadata {
         root_id: Uuid::from_u128(3),
         sender: ChannelSender::new_from_user(user()),
         triggered_by: None,
+        system_authored: false,
         content: "hello".to_owned(),
         mentions,
         attachments: vec![],

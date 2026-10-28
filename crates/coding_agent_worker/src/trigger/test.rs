@@ -63,6 +63,7 @@ fn document_message(content: &str, thread_id: Option<Uuid>) -> MessagePostedMeta
         root_id: thread_id.unwrap_or(Uuid::from_u128(2)),
         sender: ChannelSender::new_from_user(sender()),
         triggered_by: None,
+        system_authored: false,
         content: content.to_owned(),
         mentions: vec![],
         attachments: vec![],

@@ -95,6 +95,7 @@ fn message() -> MessagePostedMetadata {
         thread_id: None,
         sender: channel_sender::ChannelSender::new_from_user(owner()),
         triggered_by: None,
+        system_authored: false,
         content: "Continue our conversation".to_owned(),
         mentions: vec![],
         attachments: vec![],

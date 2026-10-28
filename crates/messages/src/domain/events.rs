@@ -52,6 +52,10 @@ pub struct MessagePostedMetadata {
     pub sender: ChannelSender<'static>,
     /// User whose invocation produced a bot response.
     pub triggered_by: Option<String>,
+    /// The platform scripted this post under `sender`'s name, such as a signup
+    /// welcome; `sender` did not write it.
+    #[serde(default)]
+    pub system_authored: bool,
     /// Macro Markdown body.
     pub content: String,
     /// Explicit mentions recorded with the post.
@@ -72,6 +76,7 @@ impl MessagePostedMetadata {
             root_id: message.root_id(),
             sender: message.sender_id.clone(),
             triggered_by: message.triggered_by.clone(),
+            system_authored: false,
             content: message.content.clone(),
             mentions,
             attachments: message

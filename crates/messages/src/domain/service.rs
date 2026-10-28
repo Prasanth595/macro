@@ -371,6 +371,7 @@ impl<R: MessageRepository, E: MessageEventPublisher> MessageService<R, E> {
             }
         };
         let notification_policy = input.notification_policy;
+        let attribution = input.attribution;
         let nonce = input.nonce.clone();
         let mentions = self.resolve_mentions(&parent, &input.mentions).await?;
         let message = self
@@ -396,6 +397,7 @@ impl<R: MessageRepository, E: MessageEventPublisher> MessageService<R, E> {
             nonce,
             change: MessageChange::Posted {
                 notification_policy,
+                attribution,
                 message: message.clone(),
                 mentions,
             },

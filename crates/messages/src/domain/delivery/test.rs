@@ -94,6 +94,7 @@ fn event() -> MessageEvent {
         nonce: None,
         change: MessageChange::Posted {
             notification_policy: Default::default(),
+            attribution: Default::default(),
             message,
             mentions: vec![
                 SimpleMention {

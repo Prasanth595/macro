@@ -520,14 +520,19 @@ pub enum PatchMessageNotificationPolicy {
     NotifyAsPostedMessage,
 }
 
-/// Attribution of a trusted bot post, distinct from the scope used to authorize it.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// Attribution of a trusted server post, distinct from the scope used to authorize it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 pub enum MessageAttribution {
     /// A user invoked the agent; use the verified acting user from its capability.
     #[default]
     ActingUser,
     /// Autonomous webhook delivery has no invoking user.
     Unprompted,
+    /// The platform scripted the post under its sender's name, such as a
+    /// signup welcome; the sender did not write it.
+    System,
 }
 
 /// Create a root or reply. Thread state may only be supplied on a root.

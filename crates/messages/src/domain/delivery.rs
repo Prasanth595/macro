@@ -183,6 +183,7 @@ impl<
                 message,
                 mentions,
                 notification_policy,
+                ..
             } if *notification_policy != PostMessageNotificationPolicy::Silent => {
                 Some((message, mentions, *notification_policy))
             }

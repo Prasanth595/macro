@@ -82,7 +82,7 @@ async fn posts_the_welcome_message() {
         welcome.request.notification_policy,
         PostMessageNotificationPolicy::MentionsOnly
     );
-    assert_eq!(welcome.request.attribution, MessageAttribution::Unprompted);
+    assert_eq!(welcome.request.attribution, MessageAttribution::System);
     assert!(welcome.request.anchor.is_none());
 }
 

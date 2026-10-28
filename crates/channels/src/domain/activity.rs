@@ -152,6 +152,19 @@ pub fn ingest_message_event(event_id: Uuid, event: &MessageTopicEvent) -> Ingest
             let Some(channel_id) = channel(&m.parent) else {
                 return Ingest::Ignore;
             };
+            // A scripted post, such as the support channel welcome, is the
+            // platform's activity, not its named sender's.
+            if m.system_authored {
+                return Ingest::Insert(vec![exclusive(
+                    event_id,
+                    0,
+                    Actor::new_from_bot(bot_id::MACRO_SYSTEM_BOT_ID),
+                    None,
+                    channel_id,
+                    ChannelAction::Messaged,
+                    m.created_at,
+                )]);
+            }
             // For agent (bot) messages, `triggered_by` is the user whose
             // authority the message was sent under — the activity's subject.
             let on_behalf_of = m.triggered_by.as_deref().and_then(|id: &str| {
