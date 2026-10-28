@@ -94,7 +94,24 @@ test('a dismissed passage is left alone until the reader selects something else'
   await expect(offer(page)).toHaveText('Create task');
 });
 
-test('closes the card on Escape and keeps it on its text while fields are filled in', async ({
+test('takes focus from the chip, so Escape closes the card without a field click', async ({
+  page,
+}) => {
+  await page.goto('/?selection');
+  await select(page, 'channel-passage');
+  await offer(page).click();
+  await expect(draft(page)).toBeVisible();
+  // Taking focus leaves the text highlighted, so the card still reads as
+  // belonging to it.
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(
+    CHANNEL_TEXT
+  );
+  await page.keyboard.press('Escape');
+  await expect(draft(page)).toHaveCount(0);
+  await expect(offer(page)).toHaveCount(0);
+});
+
+test('keeps the card on its text while the fields are filled in', async ({
   page,
 }) => {
   await page.goto('/?selection');
@@ -114,11 +131,9 @@ test('closes the card on Escape and keeps it on its text while fields are filled
     const bounds = element.getBoundingClientRect();
     return { left: bounds.left, top: bounds.top };
   });
-  // Focusing a field moves the caret off the text; the card stays put.
+  // Typing into a field puts the caret there, leaving no selection to follow;
+  // the card holds the place it was opened on.
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('');
   expect(Math.abs(after.left - before.left)).toBeLessThanOrEqual(1);
   expect(Math.abs(after.top - before.top)).toBeLessThanOrEqual(1);
-
-  await title.press('Escape');
-  await expect(draft(page)).toHaveCount(0);
-  await expect(offer(page)).toHaveCount(0);
 });
