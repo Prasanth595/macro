@@ -220,12 +220,18 @@ the user's newest account for that app from the last fifteen minutes.
 - Reject already-routed optimistic enqueues with missing replies as uncertain on
   every owner departure; never forward them through network fallback, because
   their durable queue entries may survive the old engine.
+- Dispatch live GraphQL notification callbacks before cache persistence so hidden
+  tabs can show browser alerts; keep cache-dependent channel reconciliation
+  behind ordered writes and never replay alerts when the cache resumes.
 - Drain browser cache engines when their last visible consumer hides, then park
   without retiring clients; queue background work until a visible owner reopens
   storage, retaining accepted mutation settlements even if their caller leaves.
   Publish recovery reset outcomes before parking while retaining the read pause.
   Bound foreground resume reads to one second without killing an owner, stealing
   its lock, replaying writes, or treating intentional parking as a failure.
+- Coalesce broad browser cache-change hints across the coordinator's in-flight
+  backlog, not the engine's per-message queue; keep reset fences, mutation
+  settlements, and query-specific invalidations immediate.
 - Retry still-current query reads once when engine replacement invalidates their
   snapshot; do not strand urql's in-flight key or revive torn-down or superseded reads.
   Keep network forwarding deduplicated and cache-only reads off the network.

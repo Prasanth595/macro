@@ -223,7 +223,8 @@ describe('GraphQL Soup subscription lifecycle', () => {
       receive.get(NotificationUpdatesDocument)?.({
         data: { notificationUpdates: patch },
       });
-      expect(listener).toHaveBeenLastCalledWith(patch);
+      // Network receipt owns alerts; cache catch-up must never replay them.
+      expect(listener).not.toHaveBeenCalled();
     }
     lifecycle.dispose();
     unregister();

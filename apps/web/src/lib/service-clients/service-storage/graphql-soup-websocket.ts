@@ -171,7 +171,7 @@ type NotificationPatchListener = (patch: GraphqlNotificationPatch) => void;
 
 const notificationPatchListeners = new Set<NotificationPatchListener>();
 
-/** Subscribes to typed notification patches received from GraphQL. */
+/** Subscribes to live notification receipt, without waiting for persistence. */
 export function subscribeToGraphqlNotificationPatches(
   listener: NotificationPatchListener
 ): () => void {
@@ -179,8 +179,16 @@ export function subscribeToGraphqlNotificationPatches(
   return () => notificationPatchListeners.delete(listener);
 }
 
-function publishNotificationPatch(patch: GraphqlNotificationPatch): void {
-  for (const listener of notificationPatchListeners) listener(patch);
+export function publishNotificationPatch(
+  patch: GraphqlNotificationPatch
+): void {
+  for (const listener of notificationPatchListeners) {
+    try {
+      listener(patch);
+    } catch (error) {
+      Telemetry.error(error, { surface: 'graphql-notifications' });
+    }
+  }
 }
 
 const LIVE_UPDATE_SUBSCRIPTIONS: readonly {
@@ -304,7 +312,8 @@ export function createGraphqlSoupSubscriptionsLifecycle(
             ) {
               const patch = (result.data as NotificationUpdatesSubscription)
                 .notificationUpdates;
-              publishNotificationPatch(patch);
+              // Cache-dependent channel reconciliation stays behind persistence;
+              // notificationReceiptExchange already dispatched the live event.
               const metadata = normalizedCacheResultMetadata(result);
               fireAndForget(
                 channelHandler.onPatch(
