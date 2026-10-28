@@ -76,7 +76,11 @@ const GRAPHQL_ENTITY_TYPE_TO_FAVORITE = {
   TEAM: 'team',
   USER: 'user',
   EXTERNAL_CHAT: 'external_chat',
-} satisfies Record<GraphqlEntityType, FavoriteEntityType>;
+} satisfies Record<ReturnedGraphqlEntityType, FavoriteEntityType>;
+
+/** `WHATSAPP_GROUP` is a schema-only stub kept for released clients; the
+ * server never returns it. Remove with it after 2026-11-30. */
+type ReturnedGraphqlEntityType = Exclude<GraphqlEntityType, 'WHATSAPP_GROUP'>;
 
 /** Convert a REST favorite entity type into its GraphQL equivalent. */
 export function toGraphqlFavoriteEntityType(
@@ -88,7 +92,9 @@ export function toGraphqlFavoriteEntityType(
 /** Convert one GraphQL favorite into the shared favorites-list shape. */
 export function mapGraphqlFavorite(
   favorite: FavoriteFieldsFragment
-): Favorite & { id: string } {
+): (Favorite & { id: string }) | undefined {
+  const { entityType } = favorite;
+  if (entityType === 'WHATSAPP_GROUP') return undefined;
   return {
     // urql-solid reconciles lists by id. Preserve it so a mounted row's
     // preview/avatar subscriptions keep pointing at the same entity.
@@ -98,7 +104,7 @@ export function mapGraphqlFavorite(
     createdAt: favorite.createdAt,
     documentSubType: favorite.documentSubType,
     entityId: favorite.entityId,
-    entityType: GRAPHQL_ENTITY_TYPE_TO_FAVORITE[favorite.entityType],
+    entityType: GRAPHQL_ENTITY_TYPE_TO_FAVORITE[entityType],
     fileType: favorite.fileType,
     sortOrder: favorite.sortOrder,
   };

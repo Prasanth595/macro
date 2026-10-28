@@ -3,6 +3,10 @@
 mod external_chat;
 use external_chat::GraphqlExternalChatMessageMetadata;
 
+/// Schema-only stub for released clients; remove after 2026-11-30.
+mod whatsapp_group_stub;
+use whatsapp_group_stub::GraphqlWhatsappGroupMessageMetadata;
+
 /// Project discussion notification metadata.
 mod initiative_discussion;
 pub use initiative_discussion::GraphqlInitiativeDiscussionMetadata;
@@ -1305,6 +1309,8 @@ pub enum GraphqlNotifEvent {
     AgentSessionMentioned(GraphqlAgentSessionMentionedMetadata),
     /// Calendar event join request metadata.
     CalendarEventJoinRequest(GraphqlCalendarEventJoinRequestMetadata),
+    /// Schema-only stub for released clients. Never returned.
+    WhatsappGroupMessage(GraphqlWhatsappGroupMessageMetadata),
 }
 
 impl From<NotifEvent> for GraphqlNotifEvent {

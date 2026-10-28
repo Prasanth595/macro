@@ -84,6 +84,11 @@ shared users, team and channel members, and link viewers who have read the
 chat, except the verified sender. History, system lines, replays, edits,
 reactions and poll votes never notify. The message id is the notification id.
 
+Released clients still name the pre-rename `WHATSAPP_GROUP` entity type and
+`GraphqlWhatsappGroupMessageMetadata` in their GraphQL documents, so the
+schema keeps both as inert stubs until 2026-11-30: the enum value is rejected
+as input and the uninhabited type is never returned.
+
 ## Attachments
 
 Bytes arrive in `external_chat_media_blob` (a provider download, or a file

@@ -1669,13 +1669,21 @@ function mapGraphqlNotificationMetadata(
           },
         }) satisfies NotifEventMember<'agent_session_mentioned'>
     )
-    .exhaustive(
-      () =>
-        ({
-          tag: 'reminder',
-          content: { description: '', reminderId: '' },
-        }) satisfies NotifEventMember<'reminder'>
-    );
+    .with(
+      { __typename: 'GraphqlWhatsappGroupMessageMetadata' },
+      unexpectedNotificationMetadata
+    )
+    .exhaustive(unexpectedNotificationMetadata);
+}
+
+/** Placeholder for metadata the server never returns: unknown members and the
+ * schema-only `GraphqlWhatsappGroupMessageMetadata` stub kept for released
+ * clients (remove that case with the stub after 2026-11-30). */
+function unexpectedNotificationMetadata(): NotifEventMember<'reminder'> {
+  return {
+    tag: 'reminder',
+    content: { description: '', reminderId: '' },
+  };
 }
 
 /**
