@@ -216,7 +216,12 @@ text. Choosing Text explicitly disables inference. Populated columns never infer
 new type. Reference cells use Macro’s native mention menu, limited to the selected
 kind (for example, People shows users, Tasks shows tasks). Arrow keys navigate and
 Enter chooses; Escape returns without changing the value. Delete clears a selected
-reference cell. Text supports markdown and inline native mentions such as
+reference cell. Click a populated document/file reference (or press Enter) to open
+it in another split while keeping the database open. On touch, tapping uses the
+app's normal forward navigation. Right-click a populated editable reference to
+choose a replacement; F2 also opens the picker, and Escape cancels. Empty
+references still open the picker on click. Read-only references can be opened but
+not changed. Text supports markdown and inline native mentions such as
 `Say hi to @Maya`, stored using the same mention encoding as documents. A mention
 inside a sentence preserves Text.
 
