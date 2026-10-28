@@ -90,11 +90,12 @@ export function createComposerIntent(options: {
     },
     close,
     submit() {
+      if (!isOpen()) return false;
+      // Taken before the lazily loaded form reports its controls, and while it
+      // is unready or invalid, so the composer can never send the draft as a
+      // message under a form the writer is already looking at.
       const form = controls();
-      if (!isOpen() || !form) return false;
-      // Taken even when the form is not ready, so the composer cannot send the
-      // draft as a message under a form the writer is still filling in.
-      fireAndForget(form.submit(), 'channel-input');
+      if (form) fireAndForget(form.submit(), 'channel-input');
       return true;
     },
     captureControls: setControls,
