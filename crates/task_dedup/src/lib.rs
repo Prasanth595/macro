@@ -19,7 +19,6 @@ pub use domain::models::{
 pub use domain::name_search::{NAME_LOOKUP_TIMEOUT, similar_open_tasks_within_timeout};
 pub use domain::ports::TaskNameSearch;
 pub use domain::service::{TaskDedupConfig, TaskDedupService};
-pub use outbound::postgres_names::PgTaskNameSearch;
 /// The embedding-format markdown newtype required by [`NewTask`] and
 /// [`TaskDedupService::similarity_search`], re-exported so consumers get it from
 /// this crate. Its only constructors are the lexical fetch and an explicit
@@ -27,6 +26,7 @@ pub use outbound::postgres_names::PgTaskNameSearch;
 pub use lexical_client::parse_markdown::EmbeddingMarkdown;
 use outbound::cohere::CohereReranker;
 use outbound::postgres::PgTaskVectorDb;
+pub use outbound::postgres_names::PgTaskNameSearch;
 
 /// The production task-dedup service: OpenAI `text-embedding-3-small` embeddings,
 /// a Postgres/pgvector store, and the Cohere reranker. Consumers depend on this

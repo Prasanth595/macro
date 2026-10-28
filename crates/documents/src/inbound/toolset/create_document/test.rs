@@ -61,7 +61,9 @@ impl task_dedup::TaskNameSearch for FailingTaskNames {
 
 fn task_creation_context(
     task_names: std::sync::Arc<dyn task_dedup::TaskNameSearch>,
-) -> ServiceContext<DocumentToolContext<FakeDocumentService, FakeEntityAccessService, FakeEditingWorker>> {
+) -> ServiceContext<
+    DocumentToolContext<FakeDocumentService, FakeEntityAccessService, FakeEditingWorker>,
+> {
     let mut context = tool_context(
         FakeDocumentService::creating(CREATED_TASK_ID),
         FakeEditingWorker::default(),
