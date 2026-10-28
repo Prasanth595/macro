@@ -97,12 +97,15 @@ export async function openChatWithAgent(entity: ChatWithAgentEntity) {
   return createAndOpenAgent({ input });
 }
 
-/** Open a new agent session with `initialInput` unsent, on `model`, told `instructions` privately. */
+/**
+ * Open a new agent session with `initialInput` unsent, on `model`, told `instructions` privately.
+ * Returns false when split navigation is unavailable.
+ */
 export async function openChatWithInput(
   initialInput: string,
   options?: { model?: string; instructions?: string }
 ) {
-  await createAndOpenAgent({
+  return createAndOpenAgent({
     input: initialInput,
     model: options?.model,
     instructions: options?.instructions,

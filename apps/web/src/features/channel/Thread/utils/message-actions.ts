@@ -105,6 +105,21 @@ export function buildReplyTargetValue(
     }
   }
 
+  const replyTarget = buildMessageQuoteMarkdown({ ...input, parent });
+  const existingValue = input.existingValue?.trimStart() ?? '';
+
+  return existingValue
+    ? `${replyTarget}\n\n${existingValue}`
+    : `${replyTarget}\n\n${EMPTY_REPLY_PARAGRAPH}`;
+}
+
+/** A referenced quote, including top-level messages, for composers outside the thread. */
+export function buildMessageQuoteMarkdown(input: {
+  parent: ReplyTargetParent;
+  message: Pick<MessageData, 'id' | 'content' | 'sender_id' | 'thread_id'>;
+  selectedText?: string;
+  renderedText?: string;
+}): string {
   const messageText = markdownToPlainText(
     stripMagicChipMarkdown(
       stripLeadingReplyTargetMarkdown(input.message.content)
@@ -113,18 +128,13 @@ export function buildReplyTargetValue(
   const displayText = oneLinePreview(
     input.selectedText || input.renderedText || messageText
   );
-  const replyTarget = buildReplyTargetMarkdown({
-    parent,
+  return buildReplyTargetMarkdown({
+    parent: input.parent,
     targetMessageId: input.message.id,
     targetThreadId: input.message.thread_id ?? input.message.id,
     displayText,
     senderId: input.message.sender_id,
   });
-  const existingValue = input.existingValue?.trimStart() ?? '';
-
-  return existingValue
-    ? `${replyTarget}\n\n${existingValue}`
-    : `${replyTarget}\n\n${EMPTY_REPLY_PARAGRAPH}`;
 }
 
 export function hasReactionFromUser(
