@@ -34,6 +34,7 @@ afterEach(() => {
   setVisibility('visible');
 });
 
+import { registerActiveGraphqlPreviewQuery } from '../../queries/preview/active-queries';
 import { registerActiveGraphqlSoupQuery } from '../../queries/soup/graphql/active-queries';
 import {
   ActivityUpdatesDocument,
@@ -184,7 +185,7 @@ describe('GraphQL Soup websocket retry policy', () => {
 });
 
 describe('GraphQL Soup subscription lifecycle', () => {
-  it('keeps notification and activity updates active with or without a cache host', () => {
+  it('keeps every live update active with or without a cache host', () => {
     const unsubscribes: Array<ReturnType<typeof vi.fn>> = [];
     const receive = new Map<unknown, (result: { data?: unknown }) => void>();
     const client = {
@@ -213,9 +214,7 @@ describe('GraphQL Soup subscription lifecycle', () => {
       );
       expect(documents).toContain(NotificationUpdatesDocument);
       expect(documents).toContain(ActivityUpdatesDocument);
-      expect(documents.includes(SoupUpdatesDocument)).toBe(
-        host?.disabled === false
-      );
+      expect(documents).toContain(SoupUpdatesDocument);
       const patch = {
         __typename: 'GraphqlNewNotification',
         notification: { id: 'one' },
@@ -267,6 +266,116 @@ describe('GraphQL Soup subscription lifecycle', () => {
 
     lifecycle.dispose();
     unregister();
+  });
+
+  it('refetches mounted previews of an entity changed elsewhere when no cache stores the patch', async () => {
+    const receive = new Map<
+      unknown,
+      (result: { data?: unknown; extensions?: unknown }) => void
+    >();
+    const client = {
+      query: vi.fn(),
+      subscription: vi.fn((document) => ({
+        subscribe: (
+          next: (result: { data?: unknown; extensions?: unknown }) => void
+        ) => {
+          receive.set(document, next);
+          return { unsubscribe: vi.fn() };
+        },
+      })),
+    };
+    const taskChipRefresh = vi.fn(async () => {});
+    const otherChipRefresh = vi.fn(async () => {});
+    const unregisterTaskChip = registerActiveGraphqlPreviewQuery({
+      itemId: () => '01a08c0b-4691-779e-90f8-0a788dc3d252',
+      isEnabled: () => true,
+      refresh: taskChipRefresh,
+    });
+    const unregisterOtherChip = registerActiveGraphqlPreviewQuery({
+      itemId: () => '01a08c0b-0000-7000-8000-000000000000',
+      isEnabled: () => true,
+      refresh: otherChipRefresh,
+    });
+    const lifecycle = createGraphqlSoupSubscriptionsLifecycle();
+    lifecycle.replace(client as never, undefined);
+
+    // An MCP tool renamed the task and set its status; the server publishes
+    // the re-read task to every subscriber with access.
+    receive.get(SoupUpdatesDocument)?.({
+      data: {
+        soupUpdates: [
+          {
+            __typename: 'SoupUpdated',
+            item: {
+              __typename: 'GraphqlSoupDocument',
+              id: '01a08c0b-4691-779e-90f8-0a788dc3d252',
+              documentName: 'Ship live task chips',
+              subType: { __typename: 'GraphqlTaskSubType', isCompleted: true },
+            },
+          },
+        ],
+      },
+    });
+    await vi.waitFor(() => expect(taskChipRefresh).toHaveBeenCalledOnce());
+    expect(otherChipRefresh).not.toHaveBeenCalled();
+
+    // A deletion reaches the same mounted chip so it can show "Deleted".
+    receive.get(SoupUpdatesDocument)?.({
+      data: {
+        soupUpdates: [
+          {
+            __typename: 'GraphqlCacheDeletion',
+            graphqlTypeName: 'GraphqlSoupDocument',
+            entityId: '01a08c0b-4691-779e-90f8-0a788dc3d252',
+          },
+        ],
+      },
+    });
+    await vi.waitFor(() => expect(taskChipRefresh).toHaveBeenCalledTimes(2));
+
+    // A patch the normalized cache applied already reached every live preview.
+    lifecycle.replace(
+      client as never,
+      { disabled: false, onCacheGenerationChanged: () => () => {} } as never
+    );
+    receive.get(SoupUpdatesDocument)?.({
+      data: {
+        soupUpdates: [
+          {
+            __typename: 'SoupUpdated',
+            item: {
+              __typename: 'GraphqlSoupDocument',
+              id: '01a08c0b-4691-779e-90f8-0a788dc3d252',
+            },
+          },
+        ],
+      },
+      extensions: {
+        __macroNormalizedCache: {
+          source: 'live-network',
+          cacheEffectsApplied: true,
+        },
+      },
+    });
+    receive.get(SoupUpdatesDocument)?.({
+      data: {
+        soupUpdates: [
+          {
+            __typename: 'SoupUpdated',
+            item: {
+              __typename: 'GraphqlSoupDocument',
+              id: '01a08c0b-0000-7000-8000-000000000000',
+            },
+          },
+        ],
+      },
+    });
+    await vi.waitFor(() => expect(otherChipRefresh).toHaveBeenCalledOnce());
+    expect(taskChipRefresh).toHaveBeenCalledTimes(2);
+
+    lifecycle.dispose();
+    unregisterTaskChip();
+    unregisterOtherChip();
   });
 
   it('pauses subscriptions for navigation and reconnects in place exactly once per restore', () => {
@@ -321,7 +430,7 @@ describe('GraphQL Soup subscription lifecycle', () => {
     lifecycle.replace(client as never);
     dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
     dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
-    expect(client.subscription).toHaveBeenCalledTimes(2);
+    expect(client.subscription).toHaveBeenCalledTimes(3);
     expect(unsubscribe).not.toHaveBeenCalled();
     lifecycle.dispose();
   });
@@ -375,22 +484,22 @@ describe('GraphQL Soup subscription lifecycle', () => {
     };
     const lifecycle = createGraphqlSoupSubscriptionsLifecycle();
     lifecycle.replace(client as never);
-    expect(client.subscription).toHaveBeenCalledTimes(2);
+    expect(client.subscription).toHaveBeenCalledTimes(3);
 
     // Results that keep the stream open never reattach it.
     receive[0]?.({ hasNext: true });
     setVisibility('visible');
-    expect(client.subscription).toHaveBeenCalledTimes(2);
+    expect(client.subscription).toHaveBeenCalledTimes(3);
 
     // A terminal result waits for an opportunity rather than a timer.
     const failed = receive[0];
     failed?.({ error: new Error('session rejected'), hasNext: false });
     receive[1]?.({ error: new Error('session rejected'), hasNext: false });
-    expect(client.subscription).toHaveBeenCalledTimes(2);
+    expect(client.subscription).toHaveBeenCalledTimes(3);
 
     setVisibility('visible');
-    expect(client.subscription).toHaveBeenCalledTimes(4);
-    for (const unsubscribe of unsubscribes.slice(0, 2))
+    expect(client.subscription).toHaveBeenCalledTimes(6);
+    for (const unsubscribe of unsubscribes.slice(0, 3))
       expect(unsubscribe).toHaveBeenCalledOnce();
 
     // Late results from the replaced set and repeated signals do not
@@ -398,13 +507,13 @@ describe('GraphQL Soup subscription lifecycle', () => {
     failed?.({ error: new Error('stale'), hasNext: false });
     setVisibility('visible');
     dispatchEvent(new Event('online'));
-    expect(client.subscription).toHaveBeenCalledTimes(4);
+    expect(client.subscription).toHaveBeenCalledTimes(6);
     expect(telemetryError).toHaveBeenCalledOnce();
 
-    receive[2]?.({ error: new Error('again'), hasNext: false });
+    receive[3]?.({ error: new Error('again'), hasNext: false });
     lifecycle.dispose();
     dispatchEvent(new Event('online'));
-    expect(client.subscription).toHaveBeenCalledTimes(4);
+    expect(client.subscription).toHaveBeenCalledTimes(6);
   });
 
   it('signals a new outage after a successful reconnection', () => {

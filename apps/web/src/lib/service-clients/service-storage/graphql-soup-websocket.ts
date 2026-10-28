@@ -9,6 +9,7 @@ import {
   channelNotificationRefresh,
   disposeChannelNotificationRefresh,
 } from '../../queries/channel/notification-refresh';
+import { revalidatePreviewsForSoupUpdates } from '../../queries/preview/soup-update-revalidation';
 import { revalidateCallListsForSoupUpdates } from '../../queries/soup/graphql/call-list-revalidation';
 import {
   ActivityUpdatesDocument,
@@ -274,63 +275,68 @@ export function createGraphqlSoupSubscriptionsLifecycle(
       const activityHandler = activity;
       const channelHandler = channels;
 
-      const subscriptions =
-        host && !host.disabled
-          ? LIVE_UPDATE_SUBSCRIPTIONS
-          : LIVE_UPDATE_SUBSCRIPTIONS.filter(
-              ({ document }) => document !== SoupUpdatesDocument
-            );
       const setGeneration = generation;
-      unsubscribes = subscriptions.map(({ document, errorMessage }) => {
-        const subscription = client
-          .subscription(document, {})
-          .subscribe((result) => {
-            if (document === ActivityUpdatesDocument) {
-              activityHandler.onResult(
-                result as OperationResult<ActivityUpdatesSubscription>
-              );
-            }
-            if (document === SoupUpdatesDocument && result.data != null) {
-              fireAndForget(
-                revalidateCallListsForSoupUpdates(
-                  (result.data as SoupUpdatesSubscription).soupUpdates
-                ),
-                'graphql-soup-subscriptions'
-              );
-            }
-            if (
-              document === NotificationUpdatesDocument &&
-              result.data != null
-            ) {
-              const patch = (result.data as NotificationUpdatesSubscription)
-                .notificationUpdates;
-              publishNotificationPatch(patch);
-              const metadata = normalizedCacheResultMetadata(result);
-              fireAndForget(
-                channelHandler.onPatch(
-                  patch,
-                  metadata?.source === 'live-network' &&
-                    metadata.cacheEffectsApplied === true
-                ),
-                'graphql-soup-subscriptions'
-              );
-            }
-            if (result.error) {
-              console.warn(errorMessage, result.error);
-              if (!signaledFailure) {
-                signaledFailure = true;
-                Telemetry.error(result.error, {
-                  'error.source': 'graphql-soup-websocket',
-                });
+      unsubscribes = LIVE_UPDATE_SUBSCRIPTIONS.map(
+        ({ document, errorMessage }) => {
+          const subscription = client
+            .subscription(document, {})
+            .subscribe((result) => {
+              if (document === ActivityUpdatesDocument) {
+                activityHandler.onResult(
+                  result as OperationResult<ActivityUpdatesSubscription>
+                );
               }
-            }
-            // urql ends a subscription with a final `hasNext: false` result.
-            if (result.hasNext === false && setGeneration === generation) {
-              reattachOnNextOpportunity();
-            }
-          });
-        return () => subscription.unsubscribe();
-      });
+              if (document === SoupUpdatesDocument && result.data != null) {
+                const patches = (result.data as SoupUpdatesSubscription)
+                  .soupUpdates;
+                const metadata = normalizedCacheResultMetadata(result);
+                fireAndForget(
+                  revalidateCallListsForSoupUpdates(patches),
+                  'graphql-soup-subscriptions'
+                );
+                fireAndForget(
+                  revalidatePreviewsForSoupUpdates(
+                    patches,
+                    metadata?.source === 'live-network' &&
+                      metadata.cacheEffectsApplied === true
+                  ),
+                  'graphql-soup-subscriptions'
+                );
+              }
+              if (
+                document === NotificationUpdatesDocument &&
+                result.data != null
+              ) {
+                const patch = (result.data as NotificationUpdatesSubscription)
+                  .notificationUpdates;
+                publishNotificationPatch(patch);
+                const metadata = normalizedCacheResultMetadata(result);
+                fireAndForget(
+                  channelHandler.onPatch(
+                    patch,
+                    metadata?.source === 'live-network' &&
+                      metadata.cacheEffectsApplied === true
+                  ),
+                  'graphql-soup-subscriptions'
+                );
+              }
+              if (result.error) {
+                console.warn(errorMessage, result.error);
+                if (!signaledFailure) {
+                  signaledFailure = true;
+                  Telemetry.error(result.error, {
+                    'error.source': 'graphql-soup-websocket',
+                  });
+                }
+              }
+              // urql ends a subscription with a final `hasNext: false` result.
+              if (result.hasNext === false && setGeneration === generation) {
+                reattachOnNextOpportunity();
+              }
+            });
+          return () => subscription.unsubscribe();
+        }
+      );
     },
     connected: () => {
       signaledFailure = false;
