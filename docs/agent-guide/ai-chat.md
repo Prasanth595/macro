@@ -1661,8 +1661,10 @@ and line and marks them "sent to agent". Sending a typed composer message
 while notes are queued includes those notes in the same prompt and marks them
 sent — a second Enter does not post them again. Clicking a note's path opens
 that file in the Changes pane. Notes never go to GitHub. Collapsed files and
-unsent notes persist per session in localStorage; a new capture expands all
-files.
+unsent notes persist per session in localStorage. A fresh capture expands files
+with at most 40 changed lines (additions + deletions) and collapses larger files,
+on desktop and phones. File toggles and **Collapse all / Expand all** override
+these defaults; selecting a file in the tree expands it.
 
 The Changes pane header and sidebar totals display the linked PR's `additions`
 and `deletions` returned by the GitHub API, without summing transcript edits.

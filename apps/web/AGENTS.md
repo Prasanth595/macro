@@ -150,6 +150,10 @@ The shared plain-text Lexical codec is `packages/lexical-core/canvas-text.ts`.
 
 ## Development Patterns
 
+Shared diff and Changes views expand files with at most 40 additions + deletions
+by default; keep saved per-capture choices and explicit toggles authoritative.
+Use `/app/debug/diff-view-ui` to exercise the 40/41-line boundary.
+
 Keep persistent list hotkeys free of mounted-view closures, and clear
 virtualizer accessors when their view unmounts.
 Keep editor newline handling local; result-opening handlers must yield
