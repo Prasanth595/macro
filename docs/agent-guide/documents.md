@@ -3050,6 +3050,15 @@ The icon updates in place as preview data changes; unknown status uses
 an empty circle, and subtype-only previews use their completion flag. See
 [tasks](tasks.md#task-status-icons) for states and the browser regression.
 
+With `ENABLE_GRAPHQL_SOUP` on, a task renamed or moved to another status
+elsewhere (another tab, an agent, an MCP tool) updates its open chips within
+seconds, without a reload. The change arrives as a `soupUpdates` patch. With
+the local cache running, the patch updates the chip's record directly.
+Without the cache, mounted previews of that entity refetch. To check, open a
+document that mentions a task, change the task with the MCP `ExecuteCode`
+tool, and watch the chip's title and status icon change. With the flag off,
+chips refresh only when they remount.
+
 Sharing labels describe their audience: Only people with access, Anyone with the link, and Team members with the link. Permission choices say Can view, Can comment, and Can edit. Copying a restricted link still does not grant access. The existing immediately opening dialog and its deferred loading remain unchanged.
 
 Drive's existing New controls open a wide menu with icons and short descriptions for creation and uploads, while preserving the current destination and feature gates.
