@@ -187,7 +187,11 @@ async fn schema_cutover_discards_database_content_and_allows_a_fresh_start(pool:
     let store = PgCellStore::new(pool.clone(), PropertiesPgRepo::new(pool.clone()));
     store.create_storage().await.unwrap();
     let mut transaction = pool.begin().await.unwrap();
-    // Roll back the newer foreign key dependency before the historical cutover.
+    // Unwind newer foreign keys before exercising the historical cutover.
+    sqlx::query!("DROP TABLE crm_database_row_links")
+        .execute(&mut *transaction)
+        .await
+        .unwrap();
     sqlx::raw_sql(WEBHOOKS_DOWN)
         .execute(&mut *transaction)
         .await

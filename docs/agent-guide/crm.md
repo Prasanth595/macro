@@ -1,5 +1,32 @@
 # Customers (CRM)
 
+## Linked database rows
+
+With Databases enabled, company **Overview** and each pipeline entry's record
+panel have **Linked rows**. Choose **Link row**, a database/table, then one or
+more existing rows. Previews show the current title and first fields; **Open
+source row** opens the original record. **Unlink row** removes only this CRM
+reference. Relation fields resolve readable record names and show unavailable
+records without exposing their names. The stacked layout and picker also work on
+phones.
+
+Company links are separate from each pipeline entry's links, including entries
+for the same company. Entry identity is `(pipeline_id, row_id)`; changing its
+stage or outcome preserves its links. Linking requires edit access to the CRM
+target and view access to the source database. It never shares the source.
+Inaccessible and trashed sources are omitted; restoring access or the database
+reveals existing links again. Previews refresh while mounted and use current
+names and cells. Deleting a source row/table/database or the target permanently
+cleans up its links; undoing a source deletion does not recreate the CRM links.
+Each company or entry supports up to 100 links.
+
+Verify company/deal isolation, multiple links, source rename/delete/revocation,
+and read-failure retry. Refreshing the selected record must preserve its open
+picker; navigating to another record must switch the linked-row section.
+The CRM browser fixture `linked-rows.browser.e2e.ts`
+exercises company Overview and the shared record panel on a phone; Rust pipeline
+integration tests exercise source permissions and persistence separately.
+
 ## Customers (CRM) — `/app/companies`
 
 On desktop, the local sidebar uses the same navigation primitives as Email and Tasks.

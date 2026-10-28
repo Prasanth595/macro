@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM crm_database_row_links\n               WHERE (company_id = $1 OR (pipeline_id = $2 AND entry_row_id = $3))\n                 AND source_row_id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d29a391c7f09dd47c019e650f1d2e223894264b764e71bcd00beca1e8f577510"
+}

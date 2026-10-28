@@ -76,6 +76,8 @@ the explicitly destructive database cutover.
 **Database migrations deploy before service changes.** Every migration must remain
 compatible with the service code currently deployed, not just the code in its PR.
 
+- Validate migration SQL against production's PostgreSQL major version (currently
+  14, also used by CI); passing on local PostgreSQL 18 does not establish compatibility.
 - **Never drop a column in the same PR that removes its usage.** First remove all
   reads/writes in a service-only PR and keep the column in the schema. After that
   change is fully deployed to all consumers, drop the column in a separate PR.
@@ -93,11 +95,11 @@ compatible with the service code currently deployed, not just the code in its PR
    For MacroDB, from the root:
 
    ```bash
-   sqlx migrate add --source crates/macro_db_client/migrations <descriptive_name>
+   sqlx migrate add --timestamp --simple --source crates/macro_db_client/migrations <descriptive_name>
    ```
 
    Edit the generated file. For another migration directory, use its `--source`
-   or run `sqlx migrate add` from its owning crate. Never invent/copy timestamp
+   or run `sqlx migrate add --timestamp --simple` from its owning crate. Never invent/copy timestamp
    prefixes. If SQLx is unavailable, use the pinned Nix shell or report the blocker;
    do not fabricate a migration filename.
 

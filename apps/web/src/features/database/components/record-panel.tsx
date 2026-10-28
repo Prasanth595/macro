@@ -41,6 +41,8 @@ type RecordPanelProps = {
   onNavigate: (delta: number) => void;
   onRequestDelete: () => void;
   returnFocus?: HTMLElement;
+  /** Host-owned content below the standard record fields. */
+  details?: JSX.Element;
 };
 
 export function RecordPanel(props: RecordPanelProps) {
@@ -136,6 +138,7 @@ export function RecordPanel(props: RecordPanelProps) {
             />
           )}
         </Key>
+        {props.details}
         <Show when={props.canEdit}>
           <div class="mt-3 flex min-h-8 items-center border-t border-edge-muted/60 pt-2">
             <Button

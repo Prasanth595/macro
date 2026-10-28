@@ -132,6 +132,8 @@ import type { ImportPage } from './generated/schemas/importPage';
 import type { ImportProgress } from './generated/schemas/importProgress';
 import type { Item } from './generated/schemas/item';
 import type { JobId } from './generated/schemas/jobId';
+import type { LinkedRowReference } from './generated/schemas/linkedRowReference';
+import type { LinkedRows } from './generated/schemas/linkedRows';
 import type { ListEmailRemindersParams } from './generated/schemas/listEmailRemindersParams';
 import type { ListFavoritesParams } from './generated/schemas/listFavoritesParams';
 import type { ListOccurrencesParams } from './generated/schemas/listOccurrencesParams';
@@ -428,7 +430,29 @@ export const DOCUMENT_NAME_TOO_LONG_CODE = 'DOCUMENT_NAME_TOO_LONG' as const;
 
 type SlackImportJobArgs = { jobId: JobId; signal?: AbortSignal };
 
+/** The two supported CRM destinations for explicit database row references. */
+type CrmRowLinkTarget =
+  | { type: 'company'; companyId: string }
+  | { type: 'entry'; pipelineId: string; rowId: string };
+
+function crmRowLinksPath(target: CrmRowLinkTarget): string {
+  if (target.type === 'company')
+    return `/crm/companies/${encodeURIComponent(target.companyId)}/linked-rows`;
+  return `/crm/pipelines/${encodeURIComponent(target.pipelineId)}/entries/${encodeURIComponent(target.rowId)}/linked-rows`;
+}
+
 export const storageServiceClient = {
+  getCrmLinkedRows: (target: CrmRowLinkTarget) =>
+    dssFetch<LinkedRows>(crmRowLinksPath(target), { method: 'GET' }),
+  linkCrmRow: (target: CrmRowLinkTarget, source: LinkedRowReference) =>
+    dssFetch(crmRowLinksPath(target), {
+      method: 'PUT',
+      body: JSON.stringify(source),
+    }),
+  unlinkCrmRow: (target: CrmRowLinkTarget, rowId: string) =>
+    dssFetch(`${crmRowLinksPath(target)}/${encodeURIComponent(rowId)}`, {
+      method: 'DELETE',
+    }),
   listCrmPipelines: () =>
     dssFetch<PipelineResponse[]>('/crm/pipelines', { method: 'GET' }),
   getCrmPipeline: (id: string) =>

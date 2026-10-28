@@ -519,6 +519,16 @@ pub trait DatabasesService: Send + Sync + 'static {
 /// never reaches a databases adapter. A port of its own, like sharing, so
 /// the many `DatabasesService` stand-ins need not grow reads they never use.
 pub trait DatabaseRowReads: Send + Sync + 'static {
+    /// Stored property values keyed by column, for previews of existing app
+    /// rows. Recheck live database/table membership through this capability;
+    /// callers do not own the database app's lifecycle or its core storage.
+    fn row_values(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        table_id: TableId,
+        rows: &[RowId],
+    ) -> impl Future<Output = Result<Vec<crate::domain::storage::StorageRow>, DatabaseError>> + Send;
+
     /// The cells of those of `rows` that belong to the table, each as the
     /// op writing it would name it, in column order; a row of the table with
     /// no cells maps to none, and a row not in the table is left out.

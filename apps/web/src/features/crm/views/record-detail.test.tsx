@@ -34,6 +34,7 @@ const taskContext = vi.hoisted(() => ({
 }));
 vi.mock('../context/crm-context', () => ({
   useCrmContext: () => ({
+    LinkedRows: () => null,
     listsEnabled: () => () => false,
     pipelinesEnabled: () => () => false,
     isTeamAdmin: () => () => false,

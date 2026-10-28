@@ -35,6 +35,14 @@ Core modules remain independent of Solid, service clients, and app state.
 UI rollout gates read `useFeatureFlag` directly where used; do not pass rollout
 booleans through component props or the CRM source contract.
 
+`row-links-adapter.tsx` mounts database row links under the existing database
+rollout. Company Overview and pipeline record panels use the same
+`components/linked-rows.tsx`; queries keep target identities separate, refetch
+live source previews, and hide cached rows on read errors. The picker reuses
+database discovery and relation-row reads. `database/queries/property-cell.ts`
+adapts stored cell values, including date ranges and relation arrays, for both
+pipeline editing and linked-row previews.
+
 Shared entity representations, transport clients, property editors, and
 collection mechanics remain shared. CRM owns its record queries and cache updates.
 CRM supplies row/header/empty state slots, filter choices, grouping policy, and

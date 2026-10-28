@@ -52,8 +52,10 @@ import type {
   PipelinesSource,
   PipelineTransfer,
 } from './pipelines';
+import type { LinkedRowsView } from './row-links';
 
 export type CrmContext = {
+  LinkedRows: LinkedRowsView;
   createPipelines(teamId: Accessor<string | undefined>): PipelinesSource;
   PipelineEditor: PipelineEditor;
   PipelineEntries: PipelineEntriesView;

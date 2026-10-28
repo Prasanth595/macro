@@ -394,6 +394,62 @@ describe('database table view', () => {
     ).toBe('true');
   });
 
+  it('preserves host details during row refreshes and resets them when navigating', async () => {
+    const { source, setTable } = createFakeRowsSource({
+      columns,
+      table: {
+        version: 1,
+        rows: [
+          { rowId: 'first', cells: { title: 'Plan launch' } },
+          { rowId: 'second', cells: { title: 'Follow up' } },
+        ],
+      },
+      view: allRecords,
+    });
+    render(() => (
+      <DatabaseRecordsView
+        name="Projects"
+        source={source}
+        canEdit
+        view={allRecords}
+        stored={false}
+        boardPositions={unplacedCards}
+        renderRecordDetails={(rowId) => {
+          const [draft, setDraft] = createSignal('');
+          return (
+            <input
+              aria-label={`Details for ${rowId}`}
+              value={draft()}
+              onInput={(event) => setDraft(event.currentTarget.value)}
+            />
+          );
+        }}
+      />
+    ));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Plan launch' }));
+    const details = (await screen.findByRole('textbox', {
+      name: 'Details for first',
+    })) as HTMLInputElement;
+    fireEvent.input(details, { target: { value: 'Choosing a linked row' } });
+    setTable({
+      version: 2,
+      rows: [
+        { rowId: 'first', cells: { title: 'Changed remotely' } },
+        { rowId: 'second', cells: { title: 'Follow up' } },
+      ],
+    });
+    expect(screen.getByRole('textbox', { name: 'Details for first' })).toBe(
+      details
+    );
+    expect(details.value).toBe('Choosing a linked row');
+    fireEvent.click(screen.getByRole('button', { name: 'Next record' }));
+    const next = (await screen.findByRole('textbox', {
+      name: 'Details for second',
+    })) as HTMLInputElement;
+    expect(next).not.toBe(details);
+    expect(next.value).toBe('');
+  });
+
   it('cancels the title draft with Escape before closing the record on a second Escape', async () => {
     const { source } = createFakeRowsSource({
       columns,

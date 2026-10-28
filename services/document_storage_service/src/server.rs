@@ -1588,6 +1588,13 @@ pub async fn run() -> anyhow::Result<()> {
         entity_access_service.clone(),
     ));
 
+    let row_links_service = Arc::new(crm::domain::row_links::RowLinksService::new(
+        crm::outbound::row_links::PgRowLinksRepo::new(db.clone()),
+        databases_service.clone(),
+        pipeline_service.clone(),
+        entity_access_service.clone(),
+    ));
+
     let forms_service = Arc::new(forms::wiring::build_service(
         db.clone(),
         databases_service.clone(),
@@ -2340,6 +2347,11 @@ pub async fn run() -> anyhow::Result<()> {
         entity_access_management_service,
         pipeline_state: crm::inbound::pipelines::PipelineRouterState {
             service: pipeline_service,
+            access: entity_access_service.clone(),
+            authorization: authorization_state.clone(),
+        },
+        row_links_state: crm::inbound::row_links::RowLinksRouterState {
+            service: row_links_service,
             access: entity_access_service.clone(),
             authorization: authorization_state.clone(),
         },

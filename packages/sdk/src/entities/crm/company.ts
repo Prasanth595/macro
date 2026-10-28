@@ -2,6 +2,7 @@ import type { GetCompanyResponses } from '../../../generated/storage/types.gen';
 import type { RichMessage } from '../../mentions';
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
+import type { DatabaseRow } from '../databases/row';
 import { PropertiedEntity } from '../entity';
 import {
   MessageThread,
@@ -18,11 +19,47 @@ import {
   postCrmComment,
 } from './comment';
 import { Contact } from './contact';
+import { linkedDatabaseRows } from './linked-row';
 
 type CompanyDetail = GetCompanyResponses[200];
 
 /** A CRM company: an organization the team has interacted with. */
 export class Company extends PropertiedEntity<CompanyDetail> {
+  /** Current linked rows; inaccessible, trashed and deleted sources are omitted. */
+  async linkedRows() {
+    return linkedDatabaseRows(
+      this.client,
+      unwrap(
+        await this.client.storage.getCrmCompanyLinkedRows({
+          path: { company_id: this.id },
+        }),
+      ),
+    );
+  }
+
+  /** Link an existing readable row. Its cells and permissions stay unchanged. */
+  async linkRow(row: DatabaseRow): Promise<void> {
+    unwrap(
+      await this.client.storage.linkCrmCompanyRow({
+        path: { company_id: this.id },
+        body: {
+          databaseId: row.table.database.id,
+          tableId: row.table.id,
+          rowId: row.id,
+        },
+      }),
+    );
+  }
+
+  /** Remove this company's reference only; the source row remains. */
+  async unlinkRow(row: DatabaseRow): Promise<void> {
+    unwrap(
+      await this.client.storage.unlinkCrmCompanyRow({
+        path: { company_id: this.id, source_row_id: row.id },
+      }),
+    );
+  }
+
   /** A shared message thread scoped to this resource. */
   messageThreadById(id: string): MessageThread {
     return MessageThread.byId(

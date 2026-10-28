@@ -208,6 +208,17 @@ pub(crate) type DssCrmState = crm::inbound::axum_router::CrmRouterState<
     AuthorizationService,
 >;
 
+pub(crate) type DssRowLinksState = crm::inbound::row_links::RowLinksRouterState<
+    crm::domain::row_links::RowLinksService<
+        crm::outbound::row_links::PgRowLinksRepo,
+        DatabasesServiceType,
+        DssPipelineService,
+        EntityAccessService,
+    >,
+    EntityAccessService,
+    AuthorizationService,
+>;
+
 pub(crate) type DssSoupService = SoupImpl<
     PgSoupRepo,
     FrecencyQueryServiceImpl<FrecencyPgStorage>,
@@ -939,6 +950,7 @@ pub(crate) struct ApiContext {
     pub crm_state: DssCrmState,
     pub owned_purge_state: DssOwnedPurgeState,
     pub pipeline_state: DssPipelineState,
+    pub row_links_state: DssRowLinksState,
 }
 
 env_var! {

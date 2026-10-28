@@ -16,6 +16,36 @@ One pipeline row.
 
 ## Methods
 
+### linkedRows()
+
+> **linkedRows**(): `Promise`\<[`LinkedDatabaseRow`](../../linked-row/interfaces/LinkedDatabaseRow.md)[]\>
+
+Current readable source rows linked to this particular entry.
+
+#### Returns
+
+`Promise`\<[`LinkedDatabaseRow`](../../linked-row/interfaces/LinkedDatabaseRow.md)[]\>
+
+***
+
+### linkRow()
+
+> **linkRow**(`row`): `Promise`\<`void`\>
+
+Link a readable source without changing its cells or permissions.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `row` | [`DatabaseRow`](../../../databases/row/classes/DatabaseRow.md) |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### refresh()
 
 > **refresh**(): `Promise`\<`void`\>
@@ -47,6 +77,24 @@ Serialize identity within its pipeline.
 #### Overrides
 
 [`MacroEntity`](../../../entity/classes/MacroEntity.md).[`toJSON`](../../../entity/classes/MacroEntity.md#tojson)
+
+***
+
+### unlinkRow()
+
+> **unlinkRow**(`row`): `Promise`\<`void`\>
+
+Remove only this entry's link, retaining the source and other targets.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `row` | [`DatabaseRow`](../../../databases/row/classes/DatabaseRow.md) |
+
+#### Returns
+
+`Promise`\<`void`\>
 
 ***
 

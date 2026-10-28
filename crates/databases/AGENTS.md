@@ -33,6 +33,8 @@ service with Axum, agent-tool and Postgres adapters.
 - Used by: `databases_sql` (agent SQL), `crm` and `forms` (own storage via
   `DatabaseStorage`, no `database_entities` row), `ai_tools`, `complete_graph`,
   `graphql_crm`. The document storage service mounts `src/inbound/axum_router.rs`.
+- `DatabaseRowReads::row_values` supplies receipt-authorized previews of live
+  database app rows to CRM; consumers must not read another app's core storage directly.
 
 ## Recipes
 

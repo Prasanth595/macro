@@ -52,6 +52,7 @@
 - [src/entities/crm/comment](src/entities/crm/comment/README.md)
 - [src/entities/crm/company](src/entities/crm/company/README.md)
 - [src/entities/crm/contact](src/entities/crm/contact/README.md)
+- [src/entities/crm/linked-row](src/entities/crm/linked-row/README.md)
 - [src/entities/crm/namespace](src/entities/crm/namespace/README.md)
 - [src/entities/crm/pipeline](src/entities/crm/pipeline/README.md)
 - [src/entities/crm/pipelines](src/entities/crm/pipelines/README.md)

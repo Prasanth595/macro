@@ -62,7 +62,7 @@ import {
   convertDatabaseColumn,
 } from '../queries/columns';
 import { createDatabaseRelations } from '../queries/database-relations';
-import { useRelatedDatabaseSync } from '../queries/database-relations-sync';
+import { RelatedDatabaseSync } from '../queries/database-relations-sync';
 import { useDatabaseSubscription } from '../queries/database-subscription';
 import { createMacroDatabaseApi, editorTable } from '../queries/editor-api';
 import { useFormsAskingColumns } from '../queries/forms-usage';
@@ -145,20 +145,6 @@ function withRelationLabels(
     )
   );
   return { ...source, columns };
-}
-
-/** Refreshes the related tables of one other database when it changes. */
-function RelatedDatabaseSync(props: {
-  databaseId: string;
-  targets: LinkTarget[];
-  relations: (tableId: string) => DatabaseRelationSource;
-}) {
-  useRelatedDatabaseSync(props.databaseId, () => {
-    for (const target of props.targets)
-      if (target.databaseId === props.databaseId)
-        refreshInBackground(props.relations(target.tableId));
-  });
-  return null;
 }
 
 function TableAdapter(props: DatabaseGridProps & { tableId: string }) {

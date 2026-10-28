@@ -11,6 +11,8 @@ tools/HTTP/GraphQL surfaces over them.
 - `src/domain/service.rs`, `src/domain/pipelines.rs`: core use cases.
 - `src/domain/pipeline_workflows/`: pipeline entry/field/record ops built on
   the shared `databases` engine (Sales pipelines are a `databases` consumer).
+- `src/domain/row_links.rs`: explicit company and pipeline-entry references to
+  Macro database rows; source access and live previews stay database-authorized.
 - `src/domain/crm_csv.rs`, `src/domain/crm_transfer.rs`: CSV import/export for
   agents (companies, pipeline entries, pipeline exports). Writes go through the
   pipeline workflows and `CrmService`; CSV files reach documents through the

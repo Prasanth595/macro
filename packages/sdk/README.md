@@ -435,6 +435,12 @@ atomic database operation contract, including batch-local UUIDs, like
 `Database.applyOps`. Table and column reads share a schema cache invalidated by
 successful batches. Call `row.refresh()` to reload a row after a batch changes it.
 
+Companies and pipeline rows expose `linkedRows()`, `linkRow(databaseRow)`, and
+`unlinkRow(databaseRow)`. Links keep original database-row handles and source
+permissions; previews read current names and cells and omit unavailable sources.
+Company links and individual pipeline-entry links are separate. Unlinking never
+deletes or edits the source row.
+
 `macro.initiatives.create/list/byId` groups tasks and members. Relations return user
 and task handles; `initiative.update({ name, members, sharePermission })` and
 `delete()` manage it.

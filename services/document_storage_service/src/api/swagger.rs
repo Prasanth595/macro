@@ -557,6 +557,12 @@ use utoipa::OpenApi;
         crm::inbound::pipelines::permissions,
         crm::inbound::pipelines::update_permissions,
         crm::inbound::pipelines::trash,
+        crm::inbound::row_links::company_rows,
+        crm::inbound::row_links::link_company_row,
+        crm::inbound::row_links::unlink_company_row,
+        crm::inbound::row_links::entry_rows,
+        crm::inbound::row_links::link_entry_row,
+        crm::inbound::row_links::unlink_entry_row,
         crm::inbound::axum_router::set_email_sync::handler,
         crm::inbound::axum_router::set_company_hidden::handler,
         crm::inbound::axum_router::set_company_name::handler,
@@ -1063,6 +1069,12 @@ impl utoipa::Modify for FormsApiAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         openapi.merge(forms::inbound::axum_router::FormsApi::openapi());
         openapi.merge(database_webhooks::inbound::axum_router::DatabaseWebhooksApi::openapi());
+        // Property-backed reads and database writes share this wire type.
+        // Keep the database schema canonical regardless of handler order.
+        openapi.components.get_or_insert_default().schemas.insert(
+            <models_databases::DateRange as utoipa::ToSchema>::name().into_owned(),
+            <models_databases::DateRange as utoipa::PartialSchema>::schema(),
+        );
     }
 }
 
