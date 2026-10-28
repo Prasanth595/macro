@@ -9,17 +9,42 @@ use entity_access::inbound::axum_extractors::{
 };
 use entity_registry::CreationPrincipalExtractor;
 use macro_authorization::MacroAuthorizationService;
+use model::document::response::DocumentResponseMetadata;
 use models_permissions::share_permission::access_level::{AccessLevel, EditAccessLevel};
 
 use super::DocumentRouterState;
 use crate::domain::create::{MarkdownSubtype, NewDocumentMetadata, NewMarkdownTextDocument};
-use crate::domain::models::{CreateTaskRequest, CreateTaskResponse, DocumentError};
+use crate::domain::models::{CreateTaskRequest, DocumentError};
 use crate::domain::permission_token::encode_principal_permission_token;
 use crate::domain::ports::DocumentService;
 use crate::domain::ports::create::DocumentCreationService;
-use task_dedup::{EmbeddingMarkdown, NewTask};
+use task_dedup::{EmbeddingMarkdown, NewTask, TaskNameMatch, similar_open_tasks_within_timeout};
 
 use super::task_duplicates::spawn_task_duplicate_detection;
+
+/// Response for creating a task.
+#[derive(serde::Serialize, serde::Deserialize, Debug, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTaskResponse {
+    /// The document ID of the created task.
+    pub document_id: String,
+    /// Metadata for the created document
+    pub document_metadata: DocumentResponseMetadata,
+    /// A pre-generated permission token that you can use for SS
+    pub token: String,
+    /// Base64-encoded canonical Loro snapshot used to initialize the task.
+    pub initial_snapshot: String,
+    /// The team this task number is scoped to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub team_id: Option<uuid::Uuid>,
+    /// The task number assigned within the team.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub team_task_id: Option<i32>,
+    /// Open tasks of the user or their team whose names closely match this
+    /// one. A hint for the creator; nothing is merged or changed.
+    #[serde(default)]
+    pub similar_open_tasks: Vec<TaskNameMatch>,
+}
 
 /// Creates a task document with properties and initialized markdown content in
 /// one backend-owned lifecycle.
@@ -55,17 +80,19 @@ pub async fn create_task_handler<
         metadata = metadata.project_id(project_id);
     }
 
+    let user_team_id = optional_team
+        .entity_access_receipt
+        .map(|team| macro_uuid::string_to_uuid(&team.entity().entity_id).unwrap());
     let team_id = if req.share_with_team {
-        optional_team
-            .entity_access_receipt
-            .map(|team| macro_uuid::string_to_uuid(&team.entity().entity_id).unwrap())
+        user_team_id
     } else {
         None
     };
 
-    let created = state
-        .creator
-        .create_markdown_text(
+    let owner = principal.owner().principal_id();
+    // The lookup runs alongside creation and never fails it.
+    let (created, mut similar_open_tasks) = futures::join!(
+        state.creator.create_markdown_text(
             &principal,
             NewMarkdownTextDocument {
                 metadata: metadata.build(),
@@ -76,8 +103,15 @@ pub async fn create_task_handler<
                     team_id,
                 },
             },
-        )
-        .await?;
+        ),
+        similar_open_tasks_within_timeout(
+            state.task_names.as_ref(),
+            &owner,
+            user_team_id,
+            &task_name,
+        ),
+    );
+    let created = created?;
 
     let task_metadata = &created.response().document_response.document_metadata;
     let document_id = created.document_id().to_string();
@@ -87,6 +121,7 @@ pub async fn create_task_handler<
         ))
     })?;
     let initial_snapshot = base64::engine::general_purpose::STANDARD.encode(initial_snapshot);
+    similar_open_tasks.retain(|task| task.task_id != document_id);
     spawn_task_duplicate_detection(
         state.task_dedup_service.clone(),
         state.lexical_client.clone(),
@@ -120,5 +155,6 @@ pub async fn create_task_handler<
         initial_snapshot,
         team_id: task_metadata.team_id,
         team_task_id: task_metadata.team_task_id,
+        similar_open_tasks,
     }))
 }

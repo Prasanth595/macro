@@ -67,6 +67,7 @@ use messages::domain::{api::MessageServiceApi, ports::MessageError, service::Mes
 use model_owner::CreationPrincipal;
 use std::sync::Arc;
 use sync_service_client::SyncServiceClient;
+use task_dedup::TaskNameSearch;
 use uuid::Uuid;
 
 /// Default backend-owned document creation use case for document tools.
@@ -105,6 +106,9 @@ pub struct DocumentToolContext<
 
     /// Shared message service the comment tools reply and resolve through.
     pub messages: Arc<dyn MessageServiceApi>,
+
+    /// Finds open tasks named like one being created, for CreateDocument.
+    pub task_names: Arc<dyn TaskNameSearch>,
 
     /// Permission-scoped deterministic spreadsheet workflows.
     pub spreadsheet: Arc<crate::domain::spreadsheet::SpreadsheetService<DSvc, EDSvc>>,
@@ -174,6 +178,7 @@ impl<
             editing: self.editing.clone(),
             comments: self.comments.clone(),
             messages: self.messages.clone(),
+            task_names: self.task_names.clone(),
             spreadsheet: self.spreadsheet.clone(),
             word_documents: self.word_documents.clone(),
             presentations: self.presentations.clone(),
@@ -204,6 +209,7 @@ impl<
         editing: EDSvc,
         document_permission_jwt_secret: String,
         messages: Arc<dyn MessageServiceApi>,
+        task_names: Arc<dyn TaskNameSearch>,
     ) -> Self {
         let service = Arc::new(service);
         let lexical_client = Arc::new(lexical_client);
@@ -244,6 +250,7 @@ impl<
             editing,
             comments,
             messages,
+            task_names,
             spreadsheet,
             word_documents,
             presentations: Arc::new(PresentationService::new(Arc::new(NoPresentationFiles))),

@@ -74,7 +74,9 @@ pub struct TaskDuplicate {
 
 /// An open task whose name closely matches the name of a task being created.
 /// A hint for the creator to review, never acted on automatically.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, schemars::JsonSchema,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskNameMatch {
     /// The matching existing task.

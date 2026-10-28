@@ -15,12 +15,17 @@ LLM.
   embedding, vector-db, and judge ports.
 - `src/outbound/{cohere,connection_gateway,judge,postgres}.rs`: concrete
   adapters for each port.
+- `src/domain/name_search.rs` + `src/outbound/postgres_names.rs`: the cheap
+  `pg_trgm` name lookup task creation (`CreateDocument` with `isTask`,
+  `POST /documents/create_task`) runs alongside the create, bounded by
+  `NAME_LOOKUP_TIMEOUT`, to return `similarOpenTasks` hints. It never blocks
+  or fails creation and never changes the matched tasks.
 - `src/eval/corpus.rs`: labeled-corpus loading for the semantic eval.
 
 ## Scope
 
 - Owns: the embed → search → rerank → judge pipeline and its Postgres/pgvector
-  storage.
+  storage, and the synchronous name-similarity lookup at task creation.
 - Not here: the embedding provider implementation itself → `embedding` crate;
   task domain logic → `crates/documents`/wherever tasks are modeled.
 
@@ -28,7 +33,9 @@ LLM.
 
 - Depends on: `agent`, `embedding`, `lexical_client`; `backfill`-feature-gated
   `macro_entrypoint`, `macro_aws_config`, `secretsmanager_client`.
-- Used by: `services/document_storage_service`, `crates/documents`.
+- Used by: `services/document_storage_service`, `crates/documents`, and the
+  document tool hosts (`crates/ai_tools`, `agent_harness_service`), which
+  construct `PgTaskNameSearch`.
 
 ## Recipes
 

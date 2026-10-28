@@ -35,6 +35,7 @@ ai_tools = [
   "dep:psd_engine",
   "dep:schemars",
   "dep:sha2",
+  "dep:task_dedup",
   "document_create_adapters",
   "outbound",
   "ports",
