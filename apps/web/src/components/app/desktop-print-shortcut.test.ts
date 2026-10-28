@@ -1,4 +1,5 @@
 import { createRoot } from 'solid-js';
+import { spread } from 'solid-js/web';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useDesktopPrintShortcut } from './desktop-print-shortcut';
 
@@ -200,4 +201,31 @@ describe('desktop print shortcut', () => {
 
     expect(event.defaultPrevented).toBe(false);
   });
+
+  it.each([false, true])(
+    'handles Solid delegated inputs when propagation is stopped: %s',
+    (stopPropagation) => {
+      const input = document.createElement('input');
+      document.body.append(input);
+      createRoot((cleanup) => {
+        dispose = cleanup;
+        spread(input, {
+          onKeyDown: (event: KeyboardEvent) => {
+            if (stopPropagation) event.stopPropagation();
+          },
+        });
+        useDesktopPrintShortcut();
+      });
+      const event = new KeyboardEvent('keydown', {
+        key: 'p',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      input.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+    }
+  );
 });

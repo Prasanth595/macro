@@ -22,17 +22,17 @@ export function useDesktopPrintShortcut(): void {
     const path = event.composedPath();
     const windowTarget = path.at(-1);
 
-    const preventNativePrint = (bubblingEvent: Event) => {
-      if (bubblingEvent !== event) return;
-      if (!event.cancelBubble && event.currentTarget !== windowTarget) return;
-
-      if (!event.defaultPrevented) event.preventDefault();
-      controller.abort();
-    };
-
     // Install after existing handlers on each node. A stopped event still
     // reaches listeners on that node, so isolated inputs cannot print the shell.
     for (const target of path) {
+      const preventNativePrint = (bubblingEvent: Event) => {
+        if (bubblingEvent !== event) return;
+        // Solid's delegated handlers rewrite currentTarget; use this node.
+        if (!event.cancelBubble && target !== windowTarget) return;
+
+        if (!event.defaultPrevented) event.preventDefault();
+        controller.abort();
+      };
       target.addEventListener('keydown', preventNativePrint, {
         once: true,
         signal: controller.signal,

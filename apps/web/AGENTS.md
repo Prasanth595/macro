@@ -427,6 +427,8 @@ listeners after existing handlers along the event path. Cancel only when
 propagation stops or reaches `window`, so isolated inputs cannot print the
 shell and document handlers can keep their own print actions. Abort the
 temporary listeners after handling, before the next print event, and on cleanup.
+Use the captured path node in each fallback; Solid rewrites `event.currentTarget`
+during delegated key handling.
 Browser and native mobile shortcuts are unaffected; PDF printing uses its own
 iframe through `features/block-pdf/util/printUtil.ts`.
 
