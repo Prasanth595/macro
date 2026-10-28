@@ -1,3 +1,4 @@
+export { AvatarGroup } from '../../../components/ui/components/Avatar';
 export {
   Button,
   buttonClasses,
