@@ -274,7 +274,16 @@ where
 {
     type Entity = S::Entity;
 
-    #[tracing::instrument(err, skip(self, viewer), fields(user = %viewer.user))]
+    #[tracing::instrument(
+        err,
+        skip(self, viewer),
+        fields(
+            user = %viewer.user,
+            fill_rounds = tracing::field::Empty,
+            entries = tracing::field::Empty,
+            has_next = tracing::field::Empty,
+        )
+    )]
     async fn page(
         &self,
         viewer: WorkFeedViewer,
@@ -285,10 +294,12 @@ where
         let limit = usize::from(query.limit);
         let mut entries = Vec::with_capacity(limit);
         let mut after = query.after;
+        let mut rounds = 0;
         // Items with no reason left, and items in another state, are
         // dropped, so the page reads on until it is full. A page that fills
         // partway through a source page resumes after its last item.
         for _ in 0..MAX_PAGE_FILL_ROUNDS {
+            rounds += 1;
             let page = self
                 .source
                 .page(SourceRequest {
@@ -321,6 +332,10 @@ where
                 break;
             }
         }
+        let span = tracing::Span::current();
+        span.record("fill_rounds", rounds);
+        span.record("entries", entries.len());
+        span.record("has_next", after.is_some());
         Ok(WorkFeedPage {
             entries,
             next: after,
