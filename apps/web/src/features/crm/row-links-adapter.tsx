@@ -78,10 +78,10 @@ export function createCrmLinkedRows(deps: RowLinkDependencies): LinkedRowsView {
                 canEdit={props.canEdit}
                 Picker={RowPicker}
                 openRow={openRow}
-                renderPreview={(group, row) => (
+                Preview={(preview) => (
                   <LinkedRowPreview
-                    row={row}
-                    columns={group.columns.slice(0, 4).map((column) => {
+                    row={preview.row}
+                    columns={preview.group.columns.slice(0, 4).map((column) => {
                       const relation = column.relation;
                       if (!relation) return column;
                       const related = relations(relation.tableId);

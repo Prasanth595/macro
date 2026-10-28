@@ -120,8 +120,8 @@ function Fixture() {
       canEdit
       Picker={Picker}
       openRow={(ref) => setOpened(ref.rowId)}
-      renderPreview={(group, row) => (
-        <LinkedRowPreview columns={group.columns} row={row} />
+      Preview={(preview) => (
+        <LinkedRowPreview columns={preview.group.columns} row={preview.row} />
       )}
     />
   );

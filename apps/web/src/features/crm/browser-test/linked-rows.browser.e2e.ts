@@ -19,10 +19,15 @@ test('company links show live previews, allow multiple rows, and unlink only the
       exact: true,
     })
   ).toHaveAttribute('aria-readonly', 'true');
-  await page.getByRole('button', { name: 'Rename source' }).click();
+  const openSource = page.getByRole('button', { name: 'Open source row' });
+  await openSource.focus();
+  await page
+    .getByRole('button', { name: 'Rename source' })
+    .dispatchEvent('click');
   await expect(
     page.getByText('Invoice 42 paid', { exact: true })
   ).toBeVisible();
+  await expect(openSource).toBeFocused();
   await page.getByRole('button', { name: 'Link row', exact: true }).click();
   const picker = page.getByRole('dialog');
   await picker.getByRole('button', { name: 'Billing / Invoices' }).click();

@@ -1,7 +1,7 @@
 ## Development Commands
 - CRM linked database rows use the shared database record-panel slot and source
-  cell rendering; verify company/deal isolation and relation labels with the CRM
-  browser fixture.
+  cell rendering; verify company/deal isolation, relation labels and focus through
+  refreshes with the CRM browser fixture.
 - Use `bun` as the package manager and script runner (`bun run build`, `bunx tsc`).
 - `bun run test`: run tests 
 - `bun run check`: check typescript changes 
@@ -272,7 +272,7 @@ the user's newest account for that app from the last fifteen minutes.
 - Compose multiselect filters with `Dropdown.MultiSelectItem` and the shared
   searchable filters; follow [multiselect dropdowns](../../docs/agent-guide/ui-conventions.md#multiselect-dropdowns)
   for checkbox, row, Only, keyboard, and touch behavior.
-- Keep adopted WhatsApp groups in External at `/external/whatsapp/:id` with their own queries; sharing controls viewing and the viewer's own WhatsApp membership controls sending. Never route them through channel context or services.
+- Keep added external chats (WhatsApp today) in External at `/external/chat/:chatId` with their own queries (`features/external-chat`); sharing controls viewing and the viewer's own provider membership controls sending. Never route them through channel context or services.
 - All API/network calls live in service-clients.
 - Open projects through `openProject` (`features/projects/open-project.ts`): it
   retargets an already-open project split to the section or comment in place.

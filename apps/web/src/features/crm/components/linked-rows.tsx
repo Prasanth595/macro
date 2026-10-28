@@ -2,16 +2,9 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowUpRightIcon from '@icon/system/regular/arrow-up-right.svg';
 import LinkIcon from '@icon/system/regular/link-simple.svg';
 import XIcon from '@icon/system/regular/x.svg';
+import { Key } from '@solid-primitives/keyed';
 import { Button, Dialog, Input } from '@ui';
-import {
-  type Component,
-  createSignal,
-  For,
-  type JSX,
-  Match,
-  Show,
-  Switch,
-} from 'solid-js';
+import { type Component, createSignal, Match, Show, Switch } from 'solid-js';
 import {
   GridCell,
   type GridCellProps,
@@ -30,18 +23,19 @@ export function LinkedRowPreview(
 ) {
   return (
     <div class="flex flex-col gap-1.5">
-      <For
+      <Key
         each={props.columns.slice(0, 4)}
+        by="id"
         fallback={<span class="text-sm text-ink-muted">Unnamed</span>}
       >
         {(column, index) => (
           <div class="min-w-0">
             <Show when={index() > 0}>
-              <span class="text-xs text-ink-muted">{column.name}</span>
+              <span class="text-xs text-ink-muted">{column().name}</span>
             </Show>
             <GridCell
-              column={column}
-              value={rowValue(props.row, column.id)}
+              column={column()}
+              value={rowValue(props.row, column().id)}
               canEdit={false}
               wrap
               emptyLabel={index() === 0 ? 'Unnamed' : '—'}
@@ -52,7 +46,7 @@ export function LinkedRowPreview(
             />
           </div>
         )}
-      </For>
+      </Key>
     </div>
   );
 }
@@ -63,12 +57,15 @@ export type RowPickerProps = {
   onClose(): void;
 };
 
-/** One presentation for the company overview and the pipeline record panel. */
+/**
+ * One presentation for the company overview and the pipeline record panel.
+ * Table, row and column keys preserve focus when refreshes replace their objects.
+ */
 export function LinkedRowsSection(props: {
   source: RowLinksSource;
   canEdit: boolean;
   Picker: Component<RowPickerProps>;
-  renderPreview(group: LinkedRowGroup, row: DatabaseRow): JSX.Element;
+  Preview: Component<{ group: LinkedRowGroup; row: DatabaseRow }>;
   openRow(source: RowReference): void;
 }) {
   const [picking, setPicking] = createSignal(false);
@@ -119,8 +116,9 @@ export function LinkedRowsSection(props: {
           </div>
         </Match>
         <Match when={props.source.state().kind === 'ready'}>
-          <For
+          <Key
             each={groups()}
+            by="tableId"
             fallback={
               <p class="text-sm text-ink-muted">No linked rows available.</p>
             }
@@ -128,14 +126,14 @@ export function LinkedRowsSection(props: {
             {(group) => (
               <div class="flex min-w-0 flex-col gap-2">
                 <h4 class="truncate text-xs text-ink-muted">
-                  {group.databaseName} / {group.tableName}
+                  {group().databaseName} / {group().tableName}
                 </h4>
-                <For each={group.rows}>
+                <Key each={group().rows} by="rowId">
                   {(row) => (
                     <div class="min-w-0 rounded-lg border border-edge-muted p-3">
                       <div class="flex items-start gap-2">
                         <div class="min-w-0 flex-1">
-                          {props.renderPreview(group, row)}
+                          <props.Preview group={group()} row={row()} />
                         </div>
                         <div class="flex shrink-0 items-center gap-1">
                           <Button
@@ -143,9 +141,9 @@ export function LinkedRowsSection(props: {
                             label="Open source row"
                             onClick={() =>
                               props.openRow({
-                                databaseId: group.databaseId,
-                                tableId: group.tableId,
-                                rowId: row.rowId,
+                                databaseId: group().databaseId,
+                                tableId: group().tableId,
+                                rowId: row().rowId,
                               })
                             }
                           >
@@ -157,7 +155,7 @@ export function LinkedRowsSection(props: {
                               label="Unlink row"
                               disabled={!!pending()}
                               onClick={() =>
-                                fireAndForget(unlink(row.rowId), 'crm')
+                                fireAndForget(unlink(row().rowId), 'crm')
                               }
                             >
                               <XIcon />
@@ -167,10 +165,10 @@ export function LinkedRowsSection(props: {
                       </div>
                     </div>
                   )}
-                </For>
+                </Key>
               </div>
             )}
-          </For>
+          </Key>
         </Match>
       </Switch>
       <Show when={error()}>
@@ -290,8 +288,9 @@ export function LinkedRowPicker(
             <Show
               when={props.selected}
               fallback={
-                <For
+                <Key
                   each={props.tables.filter((table) => matches(table.name))}
+                  by="tableId"
                   fallback={
                     <p class="text-sm text-ink-muted">No matching tables.</p>
                   }
@@ -301,18 +300,19 @@ export function LinkedRowPicker(
                       variant="ghost"
                       class="w-full justify-start"
                       onClick={() => {
-                        props.onSelectTable(table);
+                        props.onSelectTable(table());
                         setSearch('');
                       }}
                     >
-                      {table.name}
+                      {table().name}
                     </Button>
                   )}
-                </For>
+                </Key>
               }
             >
-              <For
+              <Key
                 each={props.rows.filter((row) => matches(row.name))}
+                by="id"
                 fallback={
                   <p class="text-sm text-ink-muted">No matching rows.</p>
                 }
@@ -321,14 +321,16 @@ export function LinkedRowPicker(
                   <Button
                     variant="ghost"
                     class="w-full justify-start"
-                    disabled={!!pending() || props.linkedIds.includes(row.id)}
-                    onClick={() => fireAndForget(link(row.id), 'crm')}
+                    disabled={!!pending() || props.linkedIds.includes(row().id)}
+                    onClick={() => fireAndForget(link(row().id), 'crm')}
                   >
-                    <span class="min-w-0 flex-1 truncate">{row.name}</span>
-                    <Show when={props.linkedIds.includes(row.id)}>Linked</Show>
+                    <span class="min-w-0 flex-1 truncate">{row().name}</span>
+                    <Show when={props.linkedIds.includes(row().id)}>
+                      Linked
+                    </Show>
                   </Button>
                 )}
-              </For>
+              </Key>
             </Show>
           </Show>
         </Show>
