@@ -422,9 +422,11 @@ provisioning profile for the communication entitlement; see
 ## Desktop printing
 
 `GlobalHotkeys` mounts `desktop-print-shortcut.ts` to cancel unhandled
-Ctrl/Cmd+P on desktop Tauri platforms. Keep the listener on `window` in the
-bubble phase, after document handlers, and preserve propagation so focused
-blocks can keep their own print actions.
+Ctrl/Cmd+P on desktop Tauri platforms. Capture installs temporary bubble
+listeners after existing handlers along the event path. Cancel only when
+propagation stops or reaches `window`, so isolated inputs cannot print the
+shell and document handlers can keep their own print actions. Abort the
+temporary listeners after handling, before the next print event, and on cleanup.
 Browser and native mobile shortcuts are unaffected; PDF printing uses its own
 iframe through `features/block-pdf/util/printUtil.ts`.
 

@@ -255,7 +255,8 @@ zoom menu: Zoom In/Out, Zoom to fit, and 25%, 50%, 100%, or 200% presets.
 ## Desktop printing
 
 On Linux, Windows, and macOS desktop apps, Ctrl/Cmd+P must not print the app
-shell, including while an input is focused. A focused document's own print
+shell, including while an input or chip that stops key propagation is focused.
+A focused document's own print
 handler must still run; PDF **Print** must still print the PDF through its
 dedicated iframe. Check both keys, then verify the browser's normal Ctrl/Cmd+P
 and native mobile behavior remain unchanged.
