@@ -205,7 +205,7 @@ fn symbols_from_an_index_read_as_their_own_references() {
     assert_eq!(references, ["TaskNamespace.create", "Task"]);
     // A method's reference carries its option fields, linked by symbol.
     assert!(read.references[0].reference.contains("`opts.name`"));
-    assert!(read.references[0].reference.contains("`Task`"));
+    assert!(read.references[0].reference.contains("`CreatedTask`"));
     assert!(!read.references[0].reference.contains(".md"));
     assert_eq!(read.unknown, ["TaskNamespace.missing"]);
     assert!(

@@ -400,6 +400,7 @@ pub async fn build_tool_service_context_from_env(
             &side_effect_clients,
         ),
     )
+    .with_task_names(Arc::new(task_dedup::PgTaskNameSearch::new(pool.clone())))
     .with_presentation_files(Arc::new(document_files.clone()))
     .with_word_document_files(Arc::new(document_files.clone()))
     .with_design_files(Arc::new(document_files.clone()))

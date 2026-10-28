@@ -38,7 +38,7 @@ use serde_json::{Value, json};
 use sqlx::postgres::PgPoolOptions;
 use sync_service_client::SyncServiceClient;
 use task_dedup::{
-    JudgeResult, PgTaskDedupService,
+    JudgeResult, PgTaskDedupService, PgTaskNameSearch,
     domain::ports::{TaskDedupNotifier, TaskDuplicateJudge},
     outbound::{
         cohere::CohereReranker,
@@ -1008,8 +1008,9 @@ fn test_router_with(
         service: document_service.clone(),
         access_service: Arc::new(access_service.clone()),
         authorization_state: MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
-        pool,
+        pool: pool.clone(),
         task_dedup_service,
+        task_names: Arc::new(PgTaskNameSearch::new(pool.clone())),
         lexical_client,
         creator,
         document_permission_jwt_secret: "unused-jwt-secret".to_string(),

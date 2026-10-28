@@ -8,6 +8,10 @@ and adds task-specific state.
 
 - [`Document`](../../../documents/document/classes/Document.md)
 
+## Extended by
+
+- [`CreatedTask`](CreatedTask.md)
+
 ## Properties
 
 | Property | Modifier | Type | Default value | Description | Overrides | Inherited from |
@@ -738,11 +742,12 @@ A handle to a task by document id. Details load on first access.
 
 ### create()
 
-> `static` **create**(`client`, `opts`): `Promise`\<`Task`\>
+> `static` **create**(`client`, `opts`): `Promise`\<[`CreatedTask`](CreatedTask.md)\>
 
 Create a task. `team` scopes the team task number and may be omitted
 when the creator belongs to exactly one team; `shareWithTeam` defaults
-to true.
+to true. The result lists [CreatedTask.similarOpenTasks](CreatedTask.md#property-similaropentasks): check
+them before assuming the new task is the only one for this work.
 
 #### Parameters
 
@@ -758,7 +763,7 @@ to true.
 
 #### Returns
 
-`Promise`\<`Task`\>
+`Promise`\<[`CreatedTask`](CreatedTask.md)\>
 
 #### Overrides
 

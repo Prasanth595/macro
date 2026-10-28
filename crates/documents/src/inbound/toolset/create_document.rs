@@ -17,6 +17,7 @@ use macro_user_id::user_id::MacroUserIdStr;
 use model::document::FileType;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use task_dedup::TaskNameMatch;
 
 use super::DocumentToolContext;
 
@@ -44,13 +45,17 @@ fn failed_to_create_document(error: DocumentError) -> ToolCallError {
 pub struct CreateDocumentResponse {
     /// The id of the document
     pub document_id: uuid::Uuid,
+    /// Open tasks of the user or their team whose names closely match the new
+    /// task's. Only set when creating a task.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub similar_open_tasks: Vec<TaskNameMatch>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[schemars(
     title = "CreateDocument",
-    description = "Create a plaintext document or a native Macro spreadsheet or canvas. For a workbook use fileExtension spreadsheet, empty fileContent, and isTask false; then ReadSpreadsheet and EditSpreadsheet to populate cells, formulas and sheets. For a Canvas use fileExtension canvas, empty fileContent, and isTask false; then ReadCanvas and EditCanvas. Native documents are initialized before returning and work without an open editor."
+    description = "Create a plaintext document or a native Macro spreadsheet or canvas. For a workbook use fileExtension spreadsheet, empty fileContent, and isTask false; then ReadSpreadsheet and EditSpreadsheet to populate cells, formulas and sheets. For a Canvas use fileExtension canvas, empty fileContent, and isTask false; then ReadCanvas and EditCanvas. Native documents are initialized before returning and work without an open editor. A task is always created; when the response lists similarOpenTasks, those are existing open tasks of the user or their team with nearly the same name. Read them, and if one already covers the work, tell the user which task the new one duplicates instead of silently keeping both. Never edit, merge or delete the listed tasks unless the user asks."
 )]
 pub struct CreateDocument {
     #[schemars(description = "The name of the document without the file extension")]
@@ -146,29 +151,54 @@ where
         };
 
         let principal = service_context.creation_principal(user_id);
+        let owner = principal.owner().principal_id();
         let mut metadata_builder = NewDocumentMetadata::builder(self.document_name.clone());
         if let Some(project_id) = self.project_id {
             metadata_builder = metadata_builder.project_id(project_id);
         }
 
-        let response = if parsed_file_type == FileType::Spreadsheet {
-            if !self.file_content.is_empty() || self.is_task {
-                return Err(failed_to_create_document(DocumentError::BadRequest(
-                    "Create spreadsheets with empty fileContent and isTask false, then use ReadSpreadsheet and EditSpreadsheet to populate the workbook".to_string(),
-                )));
-            }
-            service_context.creator.create_spreadsheet(&principal, metadata_builder.build()).await
-        } else {
-            let document = NewPlainTextDocument::builder(metadata_builder.build())
-                .file_type(parsed_file_type)
-                .text(self.file_content.clone())
-                .task_flag(self.is_task, maybe_team)
-                .build()
-                .map_err(failed_to_create_document)?;
-            service_context.creator.create_plain_text(&principal, document).await
+        if parsed_file_type == FileType::Spreadsheet
+            && (!self.file_content.is_empty() || self.is_task)
+        {
+            return Err(failed_to_create_document(DocumentError::BadRequest(
+                "Create spreadsheets with empty fileContent and isTask false, then use ReadSpreadsheet and EditSpreadsheet to populate the workbook".to_string(),
+            )));
         }
-        .map(|document| document.into_response())
-        .map_err(failed_to_create_document)?;
+        let create = async {
+            if parsed_file_type == FileType::Spreadsheet {
+                service_context
+                    .creator
+                    .create_spreadsheet(&principal, metadata_builder.build())
+                    .await
+            } else {
+                let document = NewPlainTextDocument::builder(metadata_builder.build())
+                    .file_type(parsed_file_type)
+                    .text(self.file_content.clone())
+                    .task_flag(self.is_task, maybe_team)
+                    .build()?;
+                service_context
+                    .creator
+                    .create_plain_text(&principal, document)
+                    .await
+            }
+        };
+        // The lookup runs alongside creation and never fails it.
+        let find_similar_tasks = async {
+            if !self.is_task {
+                return Vec::new();
+            }
+            task_dedup::similar_open_tasks_within_timeout(
+                service_context.task_names.as_ref(),
+                &owner,
+                maybe_team,
+                &self.document_name,
+            )
+            .await
+        };
+        let (created, mut similar_open_tasks) = futures::join!(create, find_similar_tasks);
+        let response = created
+            .map(|document| document.into_response())
+            .map_err(failed_to_create_document)?;
 
         tracing::trace!("created document");
 
@@ -187,7 +217,12 @@ where
                 description: format!("invalid document id was output {}", document_id_str),
             })?;
 
+        similar_open_tasks.retain(|task| task.task_id != document_id_str);
+
         tracing::info!("got to end");
-        Ok(CreateDocumentResponse { document_id })
+        Ok(CreateDocumentResponse {
+            document_id,
+            similar_open_tasks,
+        })
     }
 }

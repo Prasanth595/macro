@@ -4551,6 +4551,11 @@ export type CreateTaskResponse = {
      */
     initialSnapshot: string;
     /**
+     * Open tasks of the user or their team whose names closely match this
+     * one. A hint for the creator; nothing is merged or changed.
+     */
+    similarOpenTasks: Array<TaskNameMatch>;
+    /**
      * The team this task number is scoped to.
      */
     teamId?: string | null;
@@ -14973,6 +14978,25 @@ export type TaskFilters = {
 };
 
 /**
+ * An open task whose name closely matches the name of a task being created.
+ * A hint for the creator to review, never acted on automatically.
+ */
+export type TaskNameMatch = {
+    /**
+     * Trigram similarity of the two names, from 0 to 1.
+     */
+    nameSimilarity: number;
+    /**
+     * The matching existing task.
+     */
+    taskId: string;
+    /**
+     * The matching task's display name.
+     */
+    taskName: string;
+};
+
+/**
  * Disjoint busy/detail shapes prevent new event fields leaking by default.
  */
 export type TeamCalendarContent = {
@@ -20617,6 +20641,11 @@ export type CreateTaskHandlerResponses = {
          * Base64-encoded canonical Loro snapshot used to initialize the task.
          */
         initialSnapshot: string;
+        /**
+         * Open tasks of the user or their team whose names closely match this
+         * one. A hint for the creator; nothing is merged or changed.
+         */
+        similarOpenTasks: Array<TaskNameMatch>;
         /**
          * The team this task number is scoped to.
          */

@@ -608,27 +608,6 @@ pub struct CreateTaskRequest {
     pub share_with_team: bool,
 }
 
-/// Response for creating a task.
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct CreateTaskResponse {
-    /// The document ID of the created task.
-    pub document_id: String,
-    /// Metadata for the created document
-    pub document_metadata: DocumentResponseMetadata,
-    /// A pre-generated permission token that you can use for SS
-    pub token: String,
-    /// Base64-encoded canonical Loro snapshot used to initialize the task.
-    pub initial_snapshot: String,
-    /// The team this task number is scoped to.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub team_id: Option<uuid::Uuid>,
-    /// The task number assigned within the team.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub team_task_id: Option<i32>,
-}
-
 /// Request body for creating a snippet — a reusable markdown document that can
 /// be inserted into any markdown area.
 #[derive(serde::Serialize, serde::Deserialize, Debug)]

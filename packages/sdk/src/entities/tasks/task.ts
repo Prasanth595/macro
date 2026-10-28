@@ -40,7 +40,8 @@ export class Task extends Document {
   /**
    * Create a task. `team` scopes the team task number and may be omitted
    * when the creator belongs to exactly one team; `shareWithTeam` defaults
-   * to true.
+   * to true. The result lists {@link CreatedTask.similarOpenTasks}: check
+   * them before assuming the new task is the only one for this work.
    */
   static async create(
     client: MacroClient,
@@ -51,8 +52,8 @@ export class Task extends Document {
       team?: Team;
       shareWithTeam?: boolean;
     },
-  ): Promise<Task> {
-    const { documentId } = unwrap(
+  ): Promise<CreatedTask> {
+    const { documentId, similarOpenTasks } = unwrap(
       await client.storage.createTaskHandler({
         body: {
           taskName: opts.name,
@@ -63,7 +64,15 @@ export class Task extends Document {
         },
       }),
     );
-    return new Task(client, documentId);
+    return new CreatedTask(
+      client,
+      documentId,
+      similarOpenTasks.map((match) => ({
+        task: new Task(client, match.taskId),
+        name: match.taskName,
+        nameSimilarity: match.nameSimilarity,
+      })),
+    );
   }
 
   /**
@@ -112,4 +121,31 @@ export class Task extends Document {
     type: 'document',
     make: (client, hit) => new Task(client, hit.document_id),
   });
+}
+
+/** An existing open task whose name closely matches a newly created one. */
+export interface SimilarOpenTask {
+  /** The existing task. */
+  task: Task;
+  /** The existing task's name. */
+  name: string;
+  /** Trigram similarity of the two names, from 0 to 1. */
+  nameSimilarity: number;
+}
+
+/**
+ * A task just created by {@link Task.create}, with the open tasks of the
+ * creator or their team whose names closely match it. Creation never merges
+ * or changes those tasks; if one already covers the work, tell the user
+ * rather than keeping both silently.
+ */
+export class CreatedTask extends Task {
+  constructor(
+    client: MacroClient,
+    id: string,
+    /** Likely duplicates, most similar first; empty when none match. */
+    readonly similarOpenTasks: readonly SimilarOpenTask[],
+  ) {
+    super(client, id);
+  }
 }

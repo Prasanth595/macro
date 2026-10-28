@@ -29,7 +29,8 @@ backfill = [
   "dep:macro_entrypoint",
   "dep:macro_env",
   "dep:secretsmanager_client",
-  "dep:tokio",
+  "tokio/macros",
+  "tokio/rt-multi-thread",
   "dep:macro_env_var"
 ]
 
@@ -47,11 +48,13 @@ futures = { workspace = true }
 lexical_client = { path = "../lexical_client" }
 model-entity = { path = "../model-entity" }
 reqwest = { workspace = true }
+schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 system_properties = { path = "../system_properties" }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
@@ -63,10 +66,6 @@ macro_aws_config = { path = "../macro_aws_config", optional = true }
 macro_entrypoint = { path = "../macro_entrypoint", optional = true }
 macro_env = { path = "../macro_env", optional = true }
 secretsmanager_client = { path = "../secretsmanager_client", optional = true }
-tokio = { workspace = true, features = [
-  "macros",
-  "rt-multi-thread",
-], optional = true }
 macro_env_var = { path = "../macro_env_var", optional = true }
 
 macro_service_urls = { path = "../macro_service_urls" }
@@ -76,4 +75,4 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 automod = { workspace = true }
 macro_db_migrator = { path = "../macro_db_migrator" }
 macro_env_var = { path = "../macro_env_var" }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }

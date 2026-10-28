@@ -67,7 +67,7 @@ use serde::Deserialize;
 // Existing router composition state; the text handler uses domain services, never SQL.
 // ast-grep-ignore: rust-no-sqlx-in-inbound
 use sqlx::PgPool;
-use task_dedup::PgTaskDedupService;
+use task_dedup::{PgTaskDedupService, TaskNameSearch};
 
 #[cfg(feature = "document_create")]
 use self::create_canvas::create_canvas_handler;
@@ -179,6 +179,8 @@ pub struct DocumentRouterState<T, Svc, Auth> {
     pub pool: PgPool,
     /// Task duplicate detection service.
     pub task_dedup_service: Arc<PgTaskDedupService>,
+    /// Finds open tasks named like one being created.
+    pub task_names: Arc<dyn TaskNameSearch>,
     /// Lexical service client, used to fetch embedding-format markdown for
     /// task duplicate detection.
     pub lexical_client: Arc<LexicalClient>,
@@ -200,6 +202,7 @@ impl<T, Svc, Auth> Clone for DocumentRouterState<T, Svc, Auth> {
             authorization_state: self.authorization_state.clone(),
             pool: self.pool.clone(),
             task_dedup_service: self.task_dedup_service.clone(),
+            task_names: self.task_names.clone(),
             lexical_client: self.lexical_client.clone(),
             #[cfg(feature = "document_create_adapters")]
             creator: self.creator.clone(),

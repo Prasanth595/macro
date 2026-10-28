@@ -14,7 +14,8 @@ use crate::domain::ports::editing::{
     CommentMarkPlacement, EditMode, EditResult, EditingWorkerService, EditorName,
 };
 use crate::domain::response::{
-    CreateDocumentResponseData, DocumentResponse, GetDocumentResponseData, LocationResponseV3,
+    CreateDocumentResponseData, DocumentResponse, DocumentResponseMetadataWithContent,
+    GetDocumentResponseData, LocationResponseV3,
 };
 use entity_access::domain::models::{
     AccessError, BotAccessScope, BotId, CallChannelInfo, EntityAccessReceipt, EntityPermission,
@@ -23,6 +24,7 @@ use entity_access::domain::models::{
 use lexical_client::LexicalClient;
 use macro_sync_service_jwt::DocumentPermissionToken;
 use macro_user_id::{lowercased::Lowercase, user_id::MacroUserId, user_id::MacroUserIdStr};
+use model::document::response::DocumentResponseMetadata;
 use model::{document::DocumentBasic, sync_service::SyncServiceVersionID};
 use model_entity::Entity;
 use model_owner::{CreationPrincipal, Owner};
@@ -121,12 +123,23 @@ fn document_with_file_type(file_type: Option<&str>) -> DocumentBasic {
 
 pub(in crate::inbound::toolset) struct FakeDocumentService {
     file_type: Option<String>,
+    /// The id a create returns; creation panics when unset.
+    created_document_id: Option<&'static str>,
 }
 
 impl FakeDocumentService {
     pub(in crate::inbound::toolset) fn new(file_type: &str) -> Self {
         Self {
             file_type: Some(file_type.to_string()),
+            created_document_id: None,
+        }
+    }
+
+    /// A service whose markdown creates succeed with `document_id`.
+    pub(in crate::inbound::toolset) fn creating(document_id: &'static str) -> Self {
+        Self {
+            file_type: Some("md".to_string()),
+            created_document_id: Some(document_id),
         }
     }
 }
@@ -333,11 +346,39 @@ impl DocumentService for FakeDocumentService {
 impl DocumentCreationService for FakeDocumentService {
     async fn create_document(
         &self,
-        _principal: &CreationPrincipal,
-        _document: NewDocument,
+        principal: &CreationPrincipal,
+        document: NewDocument,
         _job_id: Option<String>,
     ) -> Result<CreateDocumentResponseData, DocumentError> {
-        panic!("unexpected create_document call")
+        let Some(document_id) = self.created_document_id else {
+            panic!("unexpected create_document call")
+        };
+        Ok(CreateDocumentResponseData {
+            document_response: DocumentResponse {
+                document_metadata: DocumentResponseMetadataWithContent::new(
+                    DocumentResponseMetadata {
+                        document_id: document_id.to_string(),
+                        document_version_id: 1,
+                        owner: principal.owner(),
+                        document_name: document.document_name,
+                        file_type: Some("md".to_string()),
+                        sha: None,
+                        branched_from_id: None,
+                        branched_from_version_id: None,
+                        document_family_id: None,
+                        document_bom: None,
+                        modification_data: None,
+                        created_at: None,
+                        updated_at: None,
+                        sub_type: None,
+                    },
+                    DocumentContent::pending(),
+                ),
+                presigned_url: None,
+            },
+            content_type: "text/markdown".to_string(),
+            file_type: Some("md".to_string()),
+        })
     }
 
     async fn initialize_canvas(&self, _document_id: &str) -> Result<(), DocumentError> {
@@ -350,7 +391,10 @@ impl DocumentCreationService for FakeDocumentService {
         _document_id: &str,
         _request: &CreateTaskRequest,
     ) -> Result<(), DocumentError> {
-        panic!("unexpected handle_task_properties call")
+        if self.created_document_id.is_none() {
+            panic!("unexpected handle_task_properties call")
+        }
+        Ok(())
     }
 
     async fn mark_document_uploaded(&self, _document_id: &str) -> Result<(), DocumentError> {
@@ -362,7 +406,10 @@ impl DocumentCreationService for FakeDocumentService {
         _document_id: &str,
         _content: DocumentContent,
     ) -> Result<(), DocumentError> {
-        panic!("unexpected set_document_content call")
+        if self.created_document_id.is_none() {
+            panic!("unexpected set_document_content call")
+        }
+        Ok(())
     }
 
     async fn cleanup_created_document(&self, _document_id: &str) {
@@ -498,7 +545,7 @@ impl EntityAccessService for FakeEntityAccessService {
         &self,
         _user_id: &MacroUserId<Lowercase<'_>>,
     ) -> Result<Option<UserTeamInfo>, AccessError> {
-        panic!("unexpected get_user_team call")
+        Ok(None)
     }
 }
 
@@ -656,21 +703,39 @@ pub(in crate::inbound::toolset) fn tool_context(
     service: FakeDocumentService,
     editing: FakeEditingWorker,
 ) -> ServiceContext<TestToolContext> {
-    ServiceContext(DocumentToolContext::new(
-        service,
-        FakeEntityAccessService::default(),
-        LexicalClient::new(
-            "unused-internal-key".to_string(),
-            "http://localhost/lexical".to_string(),
-        ),
-        SyncServiceClient::new(
-            "unused-internal-key".to_string(),
-            "http://localhost/sync".to_string(),
-        ),
-        editing,
-        "unused-jwt-secret".to_string(),
-        std::sync::Arc::new(crate::inbound::toolset::comment_test::FakeMessages::default()),
-    ))
+    ServiceContext(
+        DocumentToolContext::new(
+            service,
+            FakeEntityAccessService::default(),
+            LexicalClient::new(
+                "unused-internal-key".to_string(),
+                "http://localhost/lexical".to_string(),
+            ),
+            SyncServiceClient::new(
+                "unused-internal-key".to_string(),
+                "http://localhost/sync".to_string(),
+            ),
+            editing,
+            "unused-jwt-secret".to_string(),
+            std::sync::Arc::new(crate::inbound::toolset::comment_test::FakeMessages::default()),
+        )
+        .with_task_names(Arc::new(NoSimilarTaskNames)),
+    )
+}
+
+/// Finds no similar tasks.
+pub(in crate::inbound::toolset) struct NoSimilarTaskNames;
+
+#[async_trait::async_trait]
+impl task_dedup::TaskNameSearch for NoSimilarTaskNames {
+    async fn similar_open_tasks(
+        &self,
+        _owner: &str,
+        _team_id: Option<Uuid>,
+        _name: &str,
+    ) -> Result<Vec<task_dedup::TaskNameMatch>, task_dedup::TaskDedupError> {
+        Ok(Vec::new())
+    }
 }
 
 pub(in crate::inbound::toolset) fn request_context() -> RequestContext {

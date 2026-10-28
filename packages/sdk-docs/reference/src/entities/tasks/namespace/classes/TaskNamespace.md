@@ -38,9 +38,10 @@ A handle to a task by document id. Details load on first access.
 
 ### create()
 
-> **create**(`opts`): `Promise`\<[`Task`](../../task/classes/Task.md)\>
+> **create**(`opts`): `Promise`\<[`CreatedTask`](../../task/classes/CreatedTask.md)\>
 
-Create a task.
+Create a task, returning open tasks with nearly the same name in
+`similarOpenTasks`; check them so the new task is not a duplicate.
 
 #### Parameters
 
@@ -55,7 +56,7 @@ Create a task.
 
 #### Returns
 
-`Promise`\<[`Task`](../../task/classes/Task.md)\>
+`Promise`\<[`CreatedTask`](../../task/classes/CreatedTask.md)\>
 
 ***
 

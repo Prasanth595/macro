@@ -4,3 +4,4 @@ pub mod cohere;
 pub mod connection_gateway;
 pub mod judge;
 pub mod postgres;
+pub mod postgres_names;

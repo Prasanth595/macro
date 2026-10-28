@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use super::models::{JudgeResult, TaskDedupError, TaskDuplicate};
+use super::models::{JudgeResult, TaskDedupError, TaskDuplicate, TaskNameMatch};
 
 /// Applies a semantic duplicate judgement after vector retrieval and reranking.
 #[async_trait]
@@ -89,4 +89,20 @@ pub trait TaskMatchRepo: Send + Sync {
 pub trait TaskDedupNotifier: Send + Sync {
     /// Notifies that duplicate matches changed for `document_id`.
     async fn notify_matches_updated(&self, document_id: &str) -> anyhow::Result<()>;
+}
+
+/// Finds open tasks whose names closely match a new task's name.
+///
+/// `async_trait` keeps it object-safe: task creation holds it as
+/// `Arc<dyn TaskNameSearch>`.
+#[async_trait]
+pub trait TaskNameSearch: Send + Sync {
+    /// Open tasks owned by `owner` or shared with `team_id` whose names are
+    /// close to `name`, most similar first.
+    async fn similar_open_tasks(
+        &self,
+        owner: &str,
+        team_id: Option<Uuid>,
+        name: &str,
+    ) -> Result<Vec<TaskNameMatch>, TaskDedupError>;
 }
