@@ -759,10 +759,11 @@ the platform's own selection toolbar and show no chip.
 
 Choosing the chip opens the ordinary Universal Input form beside the text, with
 the type already chosen and the passage quoted above the fields. Field
-extraction, the **Content type** selector, type cycling, validation, and the
-submit button behave as they do in Command K; the quoted text is fixed, so
-there is no editor to retype it in. The card stays on its text while fields are
-filled in, even though focusing a field moves the caret off the selection.
+extraction, the **Content type** selector, validation, and the submit button
+behave as they do in Command K; the quoted text is fixed, so there is no editor
+to retype it in, and the type-cycling shortcuts need the candidate list only
+Command K builds. The card takes focus when it opens and then holds its place
+on the text, because filling a field moves the caret off the selection.
 **Escape**, the card's **Dismiss** button, and a successful creation all close
 it, and the same passage is not offered again until something else is selected.
 

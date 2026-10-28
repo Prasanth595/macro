@@ -39,13 +39,16 @@ export function SelectionDraft(props: {
       tabindex={-1}
       class="flex flex-col gap-2 outline-none"
       style={{
+        // The composer's panel surface is the page's own behind a dialog
+        // overlay; floating over content it needs the menu surface instead.
+        '--color-panel': 'var(--color-menu)',
         '--universal-input-max-height': 'min(30rem, calc(100vh - 7rem))',
         '--universal-input-body-overflow': 'auto',
       }}
     >
       {/* The quoted text and the form read as one card: the page behind them
           must not show through a seam. */}
-      <div class="flex min-h-0 flex-col rounded-2xl shadow-menu [&_.universal-input-fields]:rounded-t-none [&_.universal-input-fields]:border-t-0 [&_.universal-input-fields]:shadow-none">
+      <div class="flex min-h-0 flex-col rounded-2xl shadow-menu [&_.universal-input-fields]:rounded-t-none [&_.universal-input-fields]:border-edge [&_.universal-input-fields]:border-t-0 [&_.universal-input-fields]:shadow-none">
         {parts.editor}
         {parts.fields}
       </div>
@@ -58,7 +61,7 @@ export function SelectionDraft(props: {
       intent={props.offer.intent}
       layout={layout}
       editor={
-        <div class="flex shrink-0 items-start gap-2 rounded-t-2xl border border-edge-muted bg-panel px-5 py-3 sm:px-6">
+        <div class="flex shrink-0 items-start gap-2 rounded-t-2xl border border-edge bg-panel px-5 py-3 sm:px-6">
           <blockquote class="line-clamp-2 min-w-0 flex-1 border-ink-extra-muted border-l-2 pl-2 text-ink-muted text-xs">
             {props.offer.text}
           </blockquote>
