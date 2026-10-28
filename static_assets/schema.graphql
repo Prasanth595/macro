@@ -10809,12 +10809,18 @@ input WorkFeedInput {
 	"""
 	scope: WorkFeedScopeInput
 	"""
+	Only items in this state: `UNSEEN` or `SEEN`. Subscriptions and undo
+	place items in every state, so an item seen while it is shown stays
+	until the page is fetched again.
+	"""
+	state: WorkFeedItemState
+	"""
 	Page size; defaults to 50, capped at 100.
 	"""
 	limit: Int
 	"""
 	Opaque cursor from the previous page's `nextCursor`; absent for the
-	first page. Send it with the same scope.
+	first page. Send it with the same scope and state.
 	"""
 	cursor: String
 }
@@ -10887,9 +10893,13 @@ The kinds of item a work feed can be narrowed to.
 """
 enum WorkFeedItemType {
 	"""
-	Documents and tasks.
+	Documents other than tasks.
 	"""
 	DOCUMENT
+	"""
+	Tasks.
+	"""
+	TASK
 	"""
 	AI chats.
 	"""

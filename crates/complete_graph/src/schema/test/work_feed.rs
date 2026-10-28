@@ -224,7 +224,8 @@ async fn work_feed_pages_hydrated_stacked_entries_for_the_viewer() {
             harness
                 .request(
                     r#"{ user { workFeed(input: {
-                        scope: { mode: ATTENTION, types: [DOCUMENT, CHANNEL_THREAD] },
+                        scope: { mode: ATTENTION, types: [DOCUMENT, TASK, CHANNEL_THREAD] },
+                        state: UNSEEN,
                         limit: 10
                     }) {
                         nextCursor
@@ -283,8 +284,13 @@ async fn work_feed_pages_hydrated_stacked_entries_for_the_viewer() {
     assert_eq!(query.scope.mode, WorkFeedMode::Attention);
     assert_eq!(
         query.scope.types,
-        vec![WorkFeedItemType::Document, WorkFeedItemType::ChannelThread]
+        vec![
+            WorkFeedItemType::Document,
+            WorkFeedItemType::Task,
+            WorkFeedItemType::ChannelThread
+        ]
     );
+    assert_eq!(query.state, Some(WorkFeedItemState::Unseen));
     assert_eq!(query.limit, 10);
 }
 
