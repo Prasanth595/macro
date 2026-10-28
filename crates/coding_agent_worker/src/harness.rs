@@ -8,6 +8,7 @@ use std::time::Duration;
 use crate::config::Harness;
 use crate::outbound::acp_probe::{ProbeError, ProbeSubprocess, probe_subprocess};
 use crate::outbound::acp_process::AcpProcess;
+use crate::turns::ActiveTurns;
 use agent_client_protocol::{Client, ConnectTo, LineDirection};
 use agent_runtime_protocol::domain::connection::{
     ConnectionError, ModelProbeHandler, RuntimeChannel, RuntimeConnection,
@@ -34,24 +35,28 @@ pub enum BridgeError {
 pub type LineTap = Arc<dyn Fn(&str, LineDirection) + Send + Sync>;
 
 /// Spawn the harness in ACP mode and pump frames until either side ends,
-/// handing every ACP line to `tap` when there is one.
+/// tracking its turns in `turns` and handing every ACP line to `tap` when
+/// there is one.
 pub async fn bridge(
     harness: &Harness,
     cwd: &Path,
     channel: RuntimeChannel,
     tap: Option<LineTap>,
+    turns: &ActiveTurns,
 ) -> Result<(), BridgeError> {
     let probes = HarnessModelProbes {
         process: probe_process(harness, cwd),
     };
     let (mut runtime, acp) = RuntimeConnection::connect_with_model_probe_handler(channel, probes);
 
+    let line_turns = turns.clone();
     let agent = AcpProcess::new(&harness.command, harness.args.clone(), cwd)
         .envs(harness.env.clone())
         // The wire tap: every ndjson line crossing the child's stdio, plus
         // its stderr. Enable with RUST_LOG=coding_agent_worker=trace.
         .with_debug(move |line, direction| {
             tracing::trace!(?direction, line, "acp line");
+            line_turns.observe(line, direction);
             if let Some(tap) = &tap {
                 tap(line, direction);
             }
@@ -65,6 +70,7 @@ pub async fn bridge(
         outcome = ConnectTo::<Client>::connect_to(agent, acp) => outcome,
         () = runtime.closed() => Ok(()),
     };
+    turns.clear();
 
     // Best effort: a transport that has already failed cannot carry news of
     // its own failure, and that is not itself worth failing the worker over.
