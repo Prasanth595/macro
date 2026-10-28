@@ -25,6 +25,8 @@ import type { Sdk as StorageSdk } from '../../generated/storage/sdk.gen';
 import type { Sdk as UnfurlSdk } from '../../generated/unfurl/sdk.gen';
 
 export const agentHarnessExcluded = [
+  'classify', // Command K inference is app-internal.
+  'extract', // Command K inference is app-internal.
   'loadAgentModelsHandler',
   'discoverAgentCapabilitiesHandler',
   'previewAgentSessions',
@@ -32,6 +34,8 @@ export const agentHarnessExcluded = [
   'agentSessionsForPullRequests',
   // Speculative page warm-up requires a signed-in user and is app-internal.
   'warmAgentSessionHandler',
+  // The connect chip's continuation after an app connects is app-internal.
+  'reportAgentSessionAppConnected',
 ] as const satisfies readonly (keyof AgentHarnessSdk)[];
 
 export const agentHarnessBacklog =
@@ -52,6 +56,8 @@ export const authExcluded = [
   'createPortalSession',
   'createTeam',
   'createTeamInviteLink',
+  // An agent's own API key is a credential managed in the app's agent settings.
+  'deleteAgentApiKey',
   'deleteCursorApiKey',
   'deleteGithubLink',
   'deleteTeam',
@@ -61,6 +67,7 @@ export const authExcluded = [
   'disconnectCodex',
   'enrichGithubPullRequests',
   'generateEmailLink',
+  'getAgentApiKey',
   'getAiBillingPlans',
   'getAiBillingSummary',
   'getCodexConnection',
@@ -78,6 +85,8 @@ export const authExcluded = [
   // Introductory offers belong to the app's subscription checkout flow.
   'getTrialEligibility',
   'getUserInvites',
+  // The interface language is an app setting, not SDK surface.
+  'getUserLanguage',
   'getUserLinkExists',
   'getUserName',
   'getUserNames',
@@ -109,9 +118,11 @@ export const authExcluded = [
   'patchUserTutorial',
   'pollCodexLogin',
   'postProfilePictures',
+  'putAgentApiKey',
   'putCursorApiKey',
   'putCursorDefaultModel',
   'putProfilePicture',
+  'putUserLanguage',
   'putUserName',
   'redeemGtmInviteLink',
   'refresh',
@@ -167,12 +178,16 @@ export const cognitionExcluded = [
   'listPipedreamMcpConnections',
   'mcpAuthCallback',
   'mcpOauthClientMetadata',
+  'recoverPipedreamMcpConnection',
   'rejectToolCall',
   // Channel discovery shares the app-only import workflow below.
   'discoverHandler',
   'runImportHandler',
-  'dismissRunHandler',
-  'retryGatherHandler',
+  // Workspace reports and cancel routes back the in-chat import review card.
+  'notionReportHandler',
+  'cancelNotionHandler',
+  'cancelWorkspaceHandler',
+  'workspaceReportHandler',
   'getStateHandler',
   'getStateHandler2',
   'completeHandler',
@@ -202,7 +217,6 @@ export const connectionBacklog =
 
 export const contactsExcluded = [
   'addContact',
-  'getContacts',
 ] as const satisfies readonly (keyof ContactsSdk)[];
 
 export const contactsBacklog =
@@ -349,6 +363,12 @@ export const storageExcluded = [
   'jobProcessingResultHandler',
   'joinChannelByCode',
   'leaveOrEndCall',
+  // Pairing, passkey handoff, and rollout configuration belong to the app session.
+  'linkedCancelPairing',
+  'linkedConnect',
+  'linkedDisconnect',
+  'linkedPairing',
+  'linkedPasskey',
   // Live meeting admission and participant previews are app session flows.
   'meetingGuestJoin',
   // Browser setup reserves an empty RTC room before creating a meeting.

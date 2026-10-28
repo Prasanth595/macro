@@ -207,6 +207,22 @@ where
         self.repository.primary_time_zone(requester_id).await
     }
 
+    /// Every copy of `event_id`'s meeting the requester holds through one of
+    /// their own inboxes.
+    #[tracing::instrument(skip(self, requester_id), fields(copies), err)]
+    pub async fn meeting_copies(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> Result<Vec<super::models::MeetingCopy>, Report> {
+        let copies = self
+            .repository
+            .meeting_copies(requester_id, event_id)
+            .await?;
+        tracing::Span::current().record("copies", copies.len());
+        Ok(copies)
+    }
+
     /// Export an event the requester can see as an iCalendar document.
     #[tracing::instrument(skip(self, requester_id), err)]
     pub async fn event_ics(
@@ -295,6 +311,14 @@ where
         requester_id: &str,
     ) -> impl Future<Output = Result<Option<String>, Report>> + Send {
         CalendarService::primary_time_zone(self, requester_id)
+    }
+
+    fn meeting_copies(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<super::models::MeetingCopy>, Report>> + Send {
+        CalendarService::meeting_copies(self, requester_id, event_id)
     }
 
     fn event_ics(
@@ -878,6 +902,7 @@ where
                     .await?;
                 self.publish_write_outcome(&outcome);
                 report.team_ooo_changed |= outcome.team_ooo_changed;
+                report.aligned_copies.extend(outcome.aligned_copies);
                 calendar_count += 1;
             }
             // The upserts above committed individually, so they count even

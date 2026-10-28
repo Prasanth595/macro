@@ -1853,7 +1853,8 @@
           "initiative",
           "database",
           "database_row",
-          "form"
+          "form",
+          "whatsapp_group"
         ]
       },
       "ErrorResponse": {
@@ -2291,6 +2292,10 @@
             "$ref": "#/components/schemas/InviteePlan",
             "description": "What the invitee gets by joining, as the team stood when the invite was sent."
           },
+          "reminder": {
+            "type": "boolean",
+            "description": "Whether this email reminds the invitee of an invite they have not answered."
+          },
           "role": {
             "type": ["string", "null"],
             "description": "Role/permission level in the team"
@@ -2711,6 +2716,21 @@
           },
           {
             "type": "object",
+            "description": "A live message in a shared WhatsApp group.",
+            "required": ["content", "tag"],
+            "properties": {
+              "content": {
+                "$ref": "#/components/schemas/WhatsappGroupMessageMetadata",
+                "description": "A live message in a shared WhatsApp group."
+              },
+              "tag": {
+                "type": "string",
+                "enum": ["whatsapp_group_message"]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "A calendar event alarm came due.",
             "required": ["content", "tag"],
             "properties": {
@@ -2982,18 +3002,65 @@
       },
       "PushNotificationData": {
         "type": "object",
+        "description": "the value we send as the payload in the ios notification\nThis data is accessible to the client",
         "required": ["notificationId"],
         "properties": {
+          "navigation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PushNotificationNavigation",
+                "description": "Destination to open without fetching the notification record first."
+              }
+            ]
+          },
           "notificationId": {
             "type": "string",
             "format": "uuid",
             "description": "The id of the notification record (UserNotification.id)"
+          },
+          "recipientId": {
+            "type": ["string", "null"],
+            "description": "Account that owns the receiving device, set during per-recipient delivery."
           },
           "senderProfilePictureUrl": {
             "type": ["string", "null"],
             "description": "The sender's profile picture URL, used by the Notification Service Extension\nto download and attach as a rich notification image."
           }
         }
+      },
+      "PushNotificationNavigation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Open a channel at a specific message.",
+            "required": ["channelId", "messageId", "threadId", "type"],
+            "properties": {
+              "channelId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Channel containing the message."
+              },
+              "messageId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Message to highlight."
+              },
+              "threadId": {
+                "type": ["string", "null"],
+                "format": "uuid",
+                "description": "Root of the message's thread; null identifies a top-level message."
+              },
+              "type": {
+                "type": "string",
+                "enum": ["channel"]
+              }
+            }
+          }
+        ],
+        "description": "A destination carried by a push notification. Access is checked when opened."
       },
       "RealtimeNotif_TaggedContent_Value": {
         "allOf": [
@@ -3213,6 +3280,22 @@
             "type": ["string", "null"],
             "format": "date-time",
             "description": "None for permanent mutes; notifications resume automatically at this deadline."
+          }
+        }
+      },
+      "WhatsappGroupMessageMetadata": {
+        "type": "object",
+        "description": "A live message in an independently shared WhatsApp group.",
+        "required": ["groupName", "messageId"],
+        "properties": {
+          "groupName": {
+            "type": "string",
+            "description": "Group name, independent of its remote subject."
+          },
+          "messageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable message id; retries use it as their notification id."
           }
         }
       }

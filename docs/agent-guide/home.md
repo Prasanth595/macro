@@ -57,7 +57,9 @@ completing the channel leaves the thread.
 The menu shares the legacy compact submenus: **Status** offers **Unread**, **Read**,
 and **All** as single-select radio items with a checkmark on the right of the selected
 option, and **Type** contains the entity checkboxes. Status closes the menu
-after selection; type selections leave it open. Press **f** to open the menu.
+after selection. Type uses the [shared multiselect dropdown pattern](ui-conventions.md#multiselect-dropdowns):
+checkboxes toggle without closing, rows add and close, and Shift/Only selects just
+one type without closing. Press **f** to open the menu.
 Entity type checkboxes start checked. Unchecking **Email** hides received
 and sent mail. **Channels** controls
 both channels and reply threads; **Chats** and **Agents** have separate toggles.
@@ -90,6 +92,11 @@ message. Channel names
 prefer the current channel cache, then a matching thread notification's name,
 then **Unknown channel** if neither source has a name. Selecting a
 thread opens that thread in the channel preview; Shift-click opens it in a split.
+A Home URL containing only the channel `threadId` opens that thread's root,
+not the latest message. Reloading or opening the same URL on touch retains the
+target; an explicit reply `messageId` still takes precedence.
+
+![Thread-only Home URL targeting its root message](images/conversation-thread-target.png)
 
 Items in the 256px desktop rail use single-line pills with 16px icons: profile photos for
 DMs and model logos for AI chats (Claude sunburst or ChatGPT knot). Other items
@@ -156,6 +163,14 @@ Desktop previews use the same header controls as their standalone views, with
 the **Home >** return breadcrumb added. Calendar shares its date, search,
 navigation, view, and New controls; email shares its action, navigation, AI/task,
 and Share groups. Touch previews retain their existing compact headers.
+
+Conversation breadcrumbs preserve identity: human DMs show the other participant's
+avatar, agent DMs show the persona avatar, and named channels show their picture
+or the channel glyph. Verify switching between these entries without reloading,
+including a reply-thread entry and a direct Home URL reload. Clicking an avatar
+inside a breadcrumb must select that breadcrumb, not open another DM.
+
+![Home DM breadcrumb with its participant avatar](images/home-conversation-identity.png)
 
 Document previews opened from Home expose **Share** and **Copy Share Link** before
 the details toggle, including tasks, snippets, skills, canvases, PDFs, images,

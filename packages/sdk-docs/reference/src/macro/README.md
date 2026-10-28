@@ -46,6 +46,12 @@ Re-exports [ApplyOpsOptions](../entities/databases/database/type-aliases/ApplyOp
 
 ***
 
+### CalendarNote
+
+Re-exports [CalendarNote](../entities/calendar/note/classes/CalendarNote.md)
+
+***
+
 ### CallMessage
 
 Re-exports [CallMessage](../entities/calls/message/classes/CallMessage.md)
@@ -607,6 +613,60 @@ Re-exports [ToolApproval](../entities/agent-sessions/tool-approval/classes/ToolA
 ### UserApiKey
 
 Re-exports [UserApiKey](../entities/api-keys/api-key/classes/UserApiKey.md)
+
+***
+
+### WhatsAppAccount
+
+Re-exports [WhatsAppAccount](../entities/whatsapp/account/classes/WhatsAppAccount.md)
+
+***
+
+### WhatsAppChat
+
+Re-exports [WhatsAppChat](../entities/whatsapp/chat/classes/WhatsAppChat.md)
+
+***
+
+### WhatsAppCommunity
+
+Re-exports [WhatsAppCommunity](../entities/whatsapp/chat/type-aliases/WhatsAppCommunity.md)
+
+***
+
+### WhatsAppGroup
+
+Re-exports [WhatsAppGroup](../entities/whatsapp/group/classes/WhatsAppGroup.md)
+
+***
+
+### WhatsAppMessage
+
+Re-exports [WhatsAppMessage](../entities/whatsapp/message/classes/WhatsAppMessage.md)
+
+***
+
+### WhatsAppParticipant
+
+Re-exports [WhatsAppParticipant](../entities/whatsapp/participant/classes/WhatsAppParticipant.md)
+
+***
+
+### WhatsAppReply
+
+Re-exports [WhatsAppReply](../entities/whatsapp/group/type-aliases/WhatsAppReply.md)
+
+***
+
+### WhatsAppSend
+
+Re-exports [WhatsAppSend](../entities/whatsapp/send/classes/WhatsAppSend.md)
+
+***
+
+### WhatsAppUpload
+
+Re-exports [WhatsAppUpload](../entities/whatsapp/upload/classes/WhatsAppUpload.md)
 
 ***
 
