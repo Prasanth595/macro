@@ -39,6 +39,12 @@ Composer typeahead menus choosing the side with room for their full list
 phone screen and below one near the top, have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/LexicalMarkdown/directive/browser-test/playwright.config.ts`.
 
+Undo in a large collaborative Markdown document (Loro undo, mirror, reconcile,
+caret mapping) has a backend-free timing regression:
+`bunx playwright test --config src/lib/core/component/LexicalMarkdown/collaboration/browser-test/playwright.config.ts`.
+Keep reconcile and caret lookups linear in the document: no `getChildren()` or
+container scan per node.
+
 Event details placement has a backend-free browser regression: the desktop
 popover stays beside its event when join requests arrive after it opens, and
 slides into a short window; the phone drawer shows late requests:

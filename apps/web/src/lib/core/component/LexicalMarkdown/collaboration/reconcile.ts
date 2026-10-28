@@ -14,7 +14,6 @@ import {
   $getEditor,
   $isElementNode,
   $parseSerializedNode,
-  type ElementNode,
   type LexicalEditor,
   type LexicalNode,
   type SerializedEditorState,
@@ -150,39 +149,6 @@ function $applyNodeState(
   }
 }
 
-function moveNodeIfNeeded(
-  parent: ElementNode,
-  node: LexicalNode,
-  targetIndex: number
-): void {
-  const currentIndex = parent.getChildren().indexOf(node);
-  if (currentIndex !== -1 && currentIndex !== targetIndex) {
-    parent.splice(currentIndex, 1, []);
-    parent.splice(targetIndex, 0, [node]);
-  }
-}
-
-function moveNodeBetweenParents(
-  editor: LexicalEditor,
-  mapping: NodeIdMappings,
-  parent: ElementNode,
-  node: LexicalNode,
-  oldParentId: string,
-  targetIndex: number
-) {
-  const oldParent = oldParentId
-    ? $getNodeById(editor, mapping.idToNodeKeyMap, oldParentId)
-    : null;
-  if (oldParent && $isElementNode(oldParent)) {
-    const oldIndex = oldParent.getChildren().indexOf(node);
-    if (oldIndex !== -1) {
-      oldParent.splice(oldIndex, 1, []);
-    }
-  }
-
-  parent.splice(targetIndex, 0, [node]);
-}
-
 /** Diff and apply changes between two sets of nodes
  *
  * @param editor - Lexical editor instance
@@ -225,43 +191,54 @@ function $applyChildren(
     if (id) newIdToIndex.set(id, i);
   }
 
-  // Remove nodes that arent present in the newChildren array first
-  for (let i = oldChildren.length - 1; i >= 0; i--) {
-    const id = getNodeId(oldChildren[i]);
-    if (!id || !newIdToIndex.has(id)) {
-      const oldSize = parent.getChildrenSize();
-      if (i < oldSize) parent.splice(i, 1, []);
-    }
+  // Remove nodes that arent present in the newChildren array first. The
+  // parent's children line up with oldChildren, so walk both together.
+  let child = parent.getFirstChild();
+  for (const oldChild of oldChildren) {
+    if (!child) break;
+    const next = child.getNextSibling();
+    const id = getNodeId(oldChild);
+    if (!id || !newIdToIndex.has(id)) child.remove(true);
+    child = next;
   }
 
-  for (let newIndex = 0; newIndex < newChildren.length; newIndex++) {
-    const newChild = newChildren[newIndex];
+  // Children before `index` are in place; `expected` is the one after them.
+  // New nodes collect in `inserts` and go in with one splice per run, since
+  // each splice walks to its index.
+  let index = 0;
+  let expected = parent.getFirstChild();
+  let inserts: LexicalNode[] = [];
+  const flushInserts = () => {
+    if (inserts.length === 0) return;
+    parent.splice(index, 0, inserts);
+    index += inserts.length;
+    inserts = [];
+  };
+
+  for (const newChild of newChildren) {
     const id = getNodeId(newChild);
 
     let node = id ? $getNodeById(editor, mapping.idToNodeKeyMap, id) : null;
 
     // Node already exists, check for move / update
     if (node && id) {
+      flushInserts();
       const oldParentId = oldParentMap.get(id);
       const newParentId = newParentMap.get(id);
 
       // Handle cross-parent move
       if (oldParentId && newParentId && oldParentId !== newParentId) {
-        moveNodeBetweenParents(
-          editor,
-          mapping,
-          parent,
-          node,
-          oldParentId,
-          newIndex
-        );
+        parent.splice(index, 0, [node]);
+        index++;
         continue;
       }
 
-      let nodeIndex = parent.getChildren().indexOf(node);
-
-      if (nodeIndex !== -1 && nodeIndex !== newIndex) {
-        moveNodeIfNeeded(parent, node, newIndex);
+      if (node.is(expected)) {
+        index++;
+        expected = node.getNextSibling();
+      } else if (node.getParent()?.is(parent)) {
+        parent.splice(index, 0, [node]);
+        index++;
       }
 
       // Node exists in old and new children
@@ -291,9 +268,8 @@ function $applyChildren(
         }
       }
     } else {
-      // Insert new node
-      const newNodeInstance = $parseSerializedNode(newChild);
-      parent.splice(newIndex, 0, [newNodeInstance]);
+      inserts.push($parseSerializedNode(newChild));
     }
   }
+  flushInserts();
 }
