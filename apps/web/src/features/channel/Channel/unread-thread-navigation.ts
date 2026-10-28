@@ -121,7 +121,7 @@ export function unreadNotificationChip(
 
 /** A hidden reply is reached through its collapsed thread's disclosure control. */
 export function unreadDestinationPositions(
-  threads: readonly UnreadThreadGroup[],
+  threads: readonly Pick<UnreadThreadGroup, 'threadId' | 'messageIds'>[],
   elements: UnreadDestinationElements,
   viewport: Element,
   insets: { start: number; end: number }
