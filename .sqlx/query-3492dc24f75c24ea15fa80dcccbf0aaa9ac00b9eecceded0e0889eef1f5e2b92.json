@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT channel.id\n               FROM agent_session session\n               JOIN comms_messages message\n                 ON message.id = session.originating_message_id\n                AND message.parent_entity_type = 'channel'\n               JOIN comms_channels channel ON channel.id = message.parent_entity_id::uuid\n               WHERE session.id = $1\n                 AND channel.channel_type <> 'direct_message'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3492dc24f75c24ea15fa80dcccbf0aaa9ac00b9eecceded0e0889eef1f5e2b92"
+}

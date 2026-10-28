@@ -7,4 +7,5 @@ pub mod egress_mcp;
 pub mod local_attachments;
 pub mod log_frames;
 pub mod manager;
+pub mod origin_channel_share;
 pub mod tool_catalog;

@@ -43,6 +43,7 @@ use crate::domain::engine::{AgentIdentity, TurnEngine, TurnRequest};
 use crate::domain::tool_gate::{NativeToolGate, NativeToolVerdict, UngatedNativeTools};
 use crate::domain::tool_mode::{StandardTools, ToolMode, ToolModeSelector};
 use crate::inbound::ask_user::{AskUser, AskUserContext};
+use crate::outbound::origin_channel_share::OriginChannelShare;
 
 #[path = "outbound/rig_engine/opener.rs"]
 mod opener;
@@ -83,6 +84,8 @@ pub struct RigTurnEngine {
     auto_model: Arc<dyn AutoModelSelector>,
     tool_context: ToolServiceContext,
     gate: Arc<dyn NativeToolGate>,
+    /// Reads where a session was opened from, to share what its tools create.
+    db: PgPool,
 }
 
 impl RigTurnEngine {
@@ -93,7 +96,7 @@ impl RigTurnEngine {
     pub fn new(db: PgPool, tool_context: ToolServiceContext) -> Self {
         Self {
             memory: Arc::new(MemoryServiceImpl::new(
-                PgMemoryRepo::new(db),
+                PgMemoryRepo::new(db.clone()),
                 tool_context.clone(),
                 tools_for(AiHost::Chat),
             )),
@@ -109,6 +112,7 @@ impl RigTurnEngine {
             },
             tool_context,
             gate: Arc::new(UngatedNativeTools),
+            db,
         }
     }
 
@@ -334,6 +338,7 @@ impl TurnEngine for RigTurnEngine {
         let auto_model = Arc::clone(&self.auto_model);
         let tool_context = self.tool_context.clone();
         let gate = Arc::clone(&self.gate);
+        let db = self.db.clone();
         let metering = agent::MeteringContext::current();
         tokio::spawn(
             agent::MeteringContext::carry(metering, async move {
@@ -358,6 +363,7 @@ impl TurnEngine for RigTurnEngine {
                     &native_tools,
                     tool_context,
                     gate,
+                    db,
                     request,
                     &parts,
                 ));
@@ -445,6 +451,7 @@ async fn drive_turn(
     native_tools: &NativeTools,
     base_context: ToolServiceContext,
     gate: Arc<dyn NativeToolGate>,
+    db: PgPool,
     request: TurnRequest,
     parts: &mpsc::Sender<Result<StreamPart, AgentError>>,
 ) -> Result<(), AgentError> {
@@ -612,7 +619,13 @@ async fn drive_turn(
         .with_reasoning_effort(reasoning_effort)
         .with_speed(speed)?
         .with_genai_telemetry(false)
-        .with_tool_result_limit(tool_results.clone());
+        .with_tool_result_limit(tool_results.clone())
+        // A session opened from a channel shares what its tools create there.
+        .with_created_items(Arc::new(OriginChannelShare::new(
+            session_id,
+            db,
+            Arc::clone(&base_context.channel_tool_context.service),
+        )));
     // Only the loop's own model calls run on the agent's key, so only they are
     // recorded against it; tools keep `usage_ctx`, since they call models on
     // Macro's keys.
