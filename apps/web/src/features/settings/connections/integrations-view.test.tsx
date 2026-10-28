@@ -33,7 +33,6 @@ vi.mock('@queries/team/teams', () => ({
 vi.mock('@core/component/Toast/Toast', () => ({
   toast: { failure: mocks.failure },
 }));
-vi.mock('@core/component/TabsInset', () => ({ TabsInset: () => <div /> }));
 // The real import module loads websocket infrastructure during initialization.
 vi.mock('@service-connection/websocket', () => ({
   createConnectionWebsocketEffect: vi.fn(),
@@ -87,12 +86,16 @@ vi.mock('@queries/import', async (importOriginal) => ({
     isPending: false,
   }),
 }));
-vi.mock('@ui', () => ({
+vi.mock('@ui', async () => ({
+  ...(await vi.importActual('@ui')),
   Button: (props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props} />
   ),
 }));
 vi.mock('../primitives', () => ({
+  SettingsSurface: (props: { children: JSX.Element }) => (
+    <div>{props.children}</div>
+  ),
   SettingsPage: (props: {
     title: string;
     description: string;
@@ -139,6 +142,7 @@ function provideChannels() {
       id: name,
       foreign_id: `C${name}`,
       source: 'slack',
+      kind: 'channel',
       status: 'staged',
       initiator: 'manual',
       user_id: 'me',

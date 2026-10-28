@@ -98,6 +98,7 @@ export const IMPORT_CATEGORIES: Record<ImportCategory, ImportCategoryConfig> = {
         name: 'Jira',
         detail: 'Issues',
         icon: IconJira as ImportIcon,
+        ledger: 'jira',
       },
       {
         appSlug: 'asana',
@@ -165,7 +166,7 @@ export const IMPORT_CATEGORIES: Record<ImportCategory, ImportCategoryConfig> = {
   },
   channels: {
     category: 'channels',
-    headline: 'Bring Slack to Macro',
+    headline: 'Create or import channels',
     pitch:
       'Import Slack channels and members, with or without message history.',
     action: 'Import from Slack',

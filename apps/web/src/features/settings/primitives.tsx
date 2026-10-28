@@ -1,5 +1,5 @@
-import CaretLeftIcon from '@phosphor/caret-left.svg';
-import { Button, type ButtonProps, cn } from '@ui';
+import CaretLeftIcon from '@icon/system/regular/caret-left.svg';
+import { Button, type ButtonProps, ComposerSurface, cn } from '@ui';
 import { children, createContext, type JSX, Show, useContext } from 'solid-js';
 import { settingsTarget } from './core/settings-target';
 
@@ -9,7 +9,7 @@ export const SettingsSheetContext = createContext(false);
 /*
  * Shared building blocks for the settings panels. Every settings tab composes
  * these so the whole menu shares one rhythm: a centered content column,
- * clear section headings, and flat neutral surfaces with subtle row dividers.
+ * clear section headings, and raised composer surfaces with subtle row dividers.
  *
  *   <SettingsPage title="Account" description="…">
  *     <SettingsSection title="Profile">
@@ -120,7 +120,14 @@ export function SettingsPage(props: {
  */
 export function SettingsSection(props: {
   title?: JSX.Element;
+  /**
+   * The settings search target, when the title is translated or not a plain
+   * string. Defaults to the title.
+   */
+  target?: string;
   description?: string;
+  /** Collapsible sections keep their heading visible when the body is closed. */
+  expanded?: boolean;
   /** Right-aligned controls beside the section heading. */
   actions?: JSX.Element;
   class?: string;
@@ -130,9 +137,11 @@ export function SettingsSection(props: {
   return (
     <section
       data-settings-target={
-        typeof props.title === 'string'
-          ? settingsTarget(props.title)
-          : undefined
+        props.target
+          ? settingsTarget(props.target)
+          : typeof props.title === 'string'
+            ? settingsTarget(props.title)
+            : undefined
       }
       tabIndex={-1}
       class={cn('scroll-mt-4 outline-none', props.class)}
@@ -154,9 +163,11 @@ export function SettingsSection(props: {
           </Show>
         </div>
       </Show>
-      <SettingsSurface class="flex flex-col gap-2 p-4">
-        {props.children}
-      </SettingsSurface>
+      <Show when={props.expanded ?? true}>
+        <SettingsSurface class="flex flex-col gap-2 p-4">
+          {props.children}
+        </SettingsSurface>
+      </Show>
     </section>
   );
 }
@@ -174,21 +185,22 @@ export function SettingsSurface(props: {
       when={!nested}
       fallback={<div class={props.class}>{props.children}</div>}
     >
-      <div
+      <ComposerSurface
+        as="div"
         class={cn(
-          'relative min-w-0 rounded-2xl border border-edge-muted bg-ink/4 text-ink',
+          'relative min-w-0 touch:rounded-3xl touch:border touch:border-edge-muted touch:bg-composer touch:text-composer-ink',
           props.class
         )}
       >
         <SettingsSurfaceContext.Provider value={true}>
           {props.children}
         </SettingsSurfaceContext.Provider>
-      </div>
+      </ComposerSurface>
     </Show>
   );
 }
 
-/** Rows share a flat neutral surface; nested cards do not add another box. */
+/** Rows share a raised surface; nested cards do not add another box. */
 export function SettingsCard(props: { class?: string; children: JSX.Element }) {
   const nested = useContext(SettingsSurfaceContext);
   return (
@@ -382,7 +394,9 @@ export function IntegrationRow(props: {
         </Show>
       </div>
       <Show when={props.children}>
-        <div class="shrink-0 flex items-center gap-2">{props.children}</div>
+        <div class="shrink-0 max-w-full flex flex-wrap items-center gap-2">
+          {props.children}
+        </div>
       </Show>
     </div>
   );

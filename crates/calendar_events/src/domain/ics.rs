@@ -7,19 +7,41 @@ mod test;
 use chrono::{DateTime, NaiveDate, Utc};
 use chrono_tz::Tz;
 
-use super::models::EventTime;
+use super::{
+    meeting_links::{first_macro_call_url, strip_macro_call},
+    models::{EventTime, EventType},
+};
 
 /// Longest content line, in octets, before RFC 5545 folding.
 const MAX_LINE_OCTETS: usize = 75;
 
+/// How a requester sees an event they export or copy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CalendarEventExportAccess {
+    /// A projection of the meeting is on one of the requester's own or
+    /// linked calendars.
+    OwnCopy,
+    /// The requester sees the event only because it was shared with a
+    /// channel they currently belong to.
+    ChannelShared,
+}
+
 /// Series-level content of an event a requester can see, as exported to
-/// iCalendar.
+/// iCalendar or copied onto one of their own calendars.
 ///
 /// Attendees and the conference link are deliberately absent: a channel
 /// share exposes the meeting, not its guest list or join link, and the export
-/// has one shape however the requester sees the event.
+/// has one shape however the requester sees the event. A Macro call travels
+/// in the description and location instead, so the renderer strips it there.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CalendarEventExport {
+    /// How the requester sees the event.
+    pub access: CalendarEventExportAccess,
+    /// Owner of the resolved projection: the requester for their own copy,
+    /// the person who shared it for a channel share.
+    pub owner_id: String,
+    /// Provider event type; only regular events can be copied.
+    pub event_type: EventType,
     /// RFC 5545 UID shared by every projection of the meeting.
     pub ical_uid: String,
     /// Provider/iCalendar sequence number.
@@ -40,6 +62,78 @@ pub struct CalendarEventExport {
     pub organizer_name: Option<String>,
     /// Entity update time.
     pub updated_at: DateTime<Utc>,
+}
+
+impl CalendarEventExport {
+    /// The meeting content a snapshot of this event carries.
+    pub fn snapshot(self) -> EventSnapshot {
+        EventSnapshot {
+            ical_uid: self.ical_uid,
+            sequence: self.sequence,
+            title: self.title,
+            description: self.description,
+            location: self.location,
+            time: self.time,
+            recurrence_lines: self.recurrence_lines,
+            organizer_email: self.organizer_email,
+            organizer_name: self.organizer_name,
+        }
+    }
+}
+
+/// What a snapshot imported onto a requester's calendar carries: the
+/// meeting's identity, revision and series content, from a channel share or
+/// from an event file someone sent them. Guests and the conference link are
+/// left out, so importing it invites no one and opens no way into the call.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EventSnapshot {
+    /// RFC 5545 UID shared by every projection of the meeting.
+    pub ical_uid: String,
+    /// Provider/iCalendar sequence number.
+    pub sequence: u32,
+    /// Display title.
+    pub title: String,
+    /// Description, plain text or HTML.
+    pub description: Option<String>,
+    /// Location label.
+    pub location: Option<String>,
+    /// Series time: the first instance of a recurring event.
+    pub time: EventTime,
+    /// Raw RFC 5545 recurrence properties (`RRULE`, `RDATE`, `EXDATE`).
+    pub recurrence_lines: Vec<String>,
+    /// Organizer email.
+    pub organizer_email: Option<String>,
+    /// Organizer display name.
+    pub organizer_name: Option<String>,
+}
+
+impl EventSnapshot {
+    /// The snapshot without the Macro call join link
+    /// [`attach_macro_call`](super::meeting_links::attach_macro_call) wrote
+    /// into its description and location: it shares the meeting, not a way
+    /// into its call. A description holding the link is reduced to plain
+    /// text to take its join line out; one without it is left as written.
+    pub fn without_macro_call(self) -> Self {
+        let Some(url) = first_macro_call_url(self.location.as_deref(), self.description.as_deref())
+        else {
+            return self;
+        };
+        let description = self
+            .description
+            .as_deref()
+            .and_then(plain_text)
+            .unwrap_or_default();
+        let (description, location) = strip_macro_call(
+            &description,
+            self.location.as_deref().unwrap_or_default(),
+            &url,
+        );
+        Self {
+            description: (!description.is_empty()).then_some(description),
+            location: (!location.is_empty()).then_some(location),
+            ..self
+        }
+    }
 }
 
 /// One event rendered as an iCalendar document.
@@ -80,16 +174,22 @@ pub fn render_event_ics(event: &CalendarEventExport) -> String {
     lines.extend(time_lines(&event.time, !recurrence_lines.is_empty()));
     lines.extend(recurrence_lines.into_iter().map(str::to_string));
     lines.push(format!("SUMMARY:{}", escape_text(&event.title)));
-    if let Some(description) = event
+    let description = event
         .description
         .as_deref()
         .and_then(plain_text)
-        .filter(|text| !text.is_empty())
-    {
+        .unwrap_or_default();
+    let location = event.location.clone().unwrap_or_default();
+    let (description, location) =
+        match first_macro_call_url(event.location.as_deref(), event.description.as_deref()) {
+            Some(url) => strip_macro_call(&description, &location, &url),
+            None => (description, location),
+        };
+    if !description.is_empty() {
         lines.push(format!("DESCRIPTION:{}", escape_text(&description)));
     }
-    if let Some(location) = event.location.as_deref().filter(|value| !value.is_empty()) {
-        lines.push(format!("LOCATION:{}", escape_text(location)));
+    if !location.is_empty() {
+        lines.push(format!("LOCATION:{}", escape_text(&location)));
     }
     if let Some(email) = event.organizer_email.as_deref() {
         let name = event

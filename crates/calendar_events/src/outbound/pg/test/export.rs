@@ -1,4 +1,5 @@
 use super::*;
+use crate::domain::ics::CalendarEventExportAccess;
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn event_export_resolves_own_copies_before_channel_shares(pool: PgPool) {
@@ -54,11 +55,11 @@ async fn event_export_resolves_own_copies_before_channel_shares(pool: PgPool) {
         &[author_id, attendee_id, member_id, former_id],
     )
     .await;
-    sqlx::query(
+    sqlx::query!(
         "UPDATE comms_channel_participants SET left_at = now() WHERE channel_id = $1 AND user_id = $2",
+        channel_id,
+        former_id,
     )
-    .bind(channel_id)
-    .bind(former_id)
     .execute(&pool)
     .await
     .unwrap();
@@ -70,6 +71,9 @@ async fn event_export_resolves_own_copies_before_channel_shares(pool: PgPool) {
         .await
         .unwrap()
         .expect("a channel member sees the shared event");
+    assert_eq!(shared.access, CalendarEventExportAccess::ChannelShared);
+    assert_eq!(shared.owner_id, author_id);
+    assert_eq!(shared.event_type, EventType::Default);
     assert_eq!(shared.ical_uid, "export@example.com");
     assert_eq!(shared.title, "Offsite");
     assert_eq!(shared.description.as_deref(), Some(description.as_str()));
@@ -85,12 +89,15 @@ async fn event_export_resolves_own_copies_before_channel_shares(pool: PgPool) {
         .await
         .unwrap()
         .expect("an attendee sees their own copy");
+    assert_eq!(own.access, CalendarEventExportAccess::OwnCopy);
+    assert_eq!(own.owner_id, attendee_id);
     assert_eq!(own.title, "Offsite, my copy");
     let authored = repo
         .event_export(author_id, shared_event_id)
         .await
         .unwrap()
         .expect("the author sees their own copy");
+    assert_eq!(authored.access, CalendarEventExportAccess::OwnCopy);
     assert_eq!(authored.title, "Offsite");
 
     // Private events stay hidden despite the grant; people who left the
@@ -107,11 +114,13 @@ async fn event_export_resolves_own_copies_before_channel_shares(pool: PgPool) {
         );
     }
 
-    sqlx::query("UPDATE calendar_events SET status = 'cancelled' WHERE id = $1")
-        .bind(shared_event_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query!(
+        "UPDATE calendar_events SET status = 'cancelled' WHERE id = $1",
+        shared_event_id,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
     assert_eq!(
         repo.event_export(member_id, shared_event_id).await.unwrap(),
         None
