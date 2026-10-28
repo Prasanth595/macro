@@ -998,6 +998,7 @@ async fn schema_sql_uses_atomic_ops_and_preserves_actor() {
             ..
         }
     ));
+    assert_eq!(result.created_database, None);
     let world = world.lock().unwrap();
     let batch = world.applied.last().unwrap();
     assert_eq!(batch.database, OFFSITE);
@@ -1150,7 +1151,13 @@ async fn sql_database_creation_acknowledges_id_and_actor_without_a_followup_read
         )
         .await
         .unwrap();
-    assert!(matches!(result.statement, SqlStatement::Schema { .. }));
+    let SqlStatement::Schema { database_id, .. } = result.statement else {
+        panic!(
+            "CREATE DATABASE is a schema statement: {:?}",
+            result.statement
+        );
+    };
+    assert_eq!(result.created_database, Some(database_id));
     let world = world.lock().unwrap();
     assert_eq!(world.created[0].name, "Planning");
     assert_eq!(world.created[0].acting_bot, agent_for(OWNER).acting_bot);

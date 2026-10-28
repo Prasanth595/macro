@@ -73,6 +73,11 @@ DecideReview are eager internal tools in both standard and code modes.
   25k tokens) for the model and offers `ReadToolResult` to page through them.
   The stream, log and history keep the whole result; replay cuts it again, so
   build turn messages with `to_rig_messages_limited`, not `to_rig_messages`.
+- A session opened by a mention in a non-DM channel shares each document or
+  database its native tools create with that channel
+  (`src/outbound/origin_channel_share.rs`, through the channel service's
+  reference-share writer). Tools report creations with
+  `RequestContext::report_created`; a new creating tool must report too.
 - Replay tool calls using `_meta.macro.toolName`; ACP titles may be human-readable
   MCP labels, so only use the title for older frames without tool-name metadata.
 

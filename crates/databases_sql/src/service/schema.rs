@@ -121,6 +121,7 @@ fn outcome(
             database_id,
             summary,
         },
+        created_database: None,
     }
 }
 
@@ -152,14 +153,17 @@ impl<
                 })
                 .await
                 .map_err(schema_error)?;
-            return Ok(outcome(
-                created.id,
-                format!(
-                    "Created database \"{}\". Call DescribeDatabase for its starter table and column IDs.",
-                    created.name
-                ),
-                HashMap::new(),
-            ));
+            return Ok(SqlOutcome {
+                created_database: Some(created.id),
+                ..outcome(
+                    created.id,
+                    format!(
+                        "Created database \"{}\". Call DescribeDatabase for its starter table and column IDs.",
+                        created.name
+                    ),
+                    HashMap::new(),
+                )
+            });
         }
         let catalog = self.catalog(&viewer, request.scope).await?;
         let mut ops = Vec::new();

@@ -421,7 +421,11 @@ own time zone (their primary calendar's), so it resolves relative times ("tomorr
 bot asks before scheduling a specific clock time. Within the rollout, `@Macro` — plus
 `@cursor` / `@codex` when available — opens
 an agent session; follow-up
-`@` mentions of that bot in the same thread route to it.
+`@` mentions of that bot in the same thread route to it. A document, task, or database
+that an `@Macro` agent session creates while answering a mention in a channel is shared
+with that channel right away, with the view grant an `@` mention of the item writes, so
+every member can open it. Sessions opened in a DM or outside a channel share nothing, and
+items that existed before the request are shared only when someone asks.
 Macro Coding Agent (`@coder`) is unavailable in mention suggestions, including
 when it appears among existing participants or bots. Check with the agents
 rollout both enabled and disabled.

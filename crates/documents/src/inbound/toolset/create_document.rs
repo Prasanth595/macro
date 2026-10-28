@@ -8,7 +8,10 @@ use crate::domain::models::DocumentError;
 use crate::domain::ports::DocumentService;
 use crate::domain::ports::create::DocumentCreationService;
 use crate::domain::ports::editing::EditingWorkerService;
-use ai_toolset::{AsyncTool, RequestContext, ServiceContext, ToolCallError, ToolResult};
+use ai_toolset::{
+    AsyncTool, CreatedItem, CreatedItemType, RequestContext, ServiceContext, ToolCallError,
+    ToolResult,
+};
 use anyhow::Context;
 use async_trait::async_trait;
 use entity_access::domain::models::{EditAccessLevel, EntityType};
@@ -187,7 +190,12 @@ where
                 description: format!("invalid document id was output {}", document_id_str),
             })?;
 
-        tracing::info!("got to end");
+        request_context
+            .report_created(CreatedItem {
+                id: document_id_str,
+                item_type: CreatedItemType::Document,
+            })
+            .await;
         Ok(CreateDocumentResponse { document_id })
     }
 }
