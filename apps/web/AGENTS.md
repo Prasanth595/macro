@@ -70,6 +70,10 @@ Gate event notes and document Share meeting-link controls with
 on in dev and uses PostHog in production.
 See `docs/agent-guide/calendar.md` at the repo root.
 
+Channel composer draft persistence has a backend-free browser regression:
+`bunx playwright test --config src/features/channel/Input/browser-test/playwright.config.ts`.
+It types a draft, remounts the composer over it, and checks the blank lines survive.
+
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
 ```sh
@@ -123,12 +127,13 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 Document sync uses the `sync-via-gateway` PostHog flag in both deployed dev and
 production. Off or unknown flag values use direct sync sockets.
-Local stacks with `sync_router` can opt in with `VITE_SYNC_VIA_GATEWAY=true`;
+Local stacks with the updated DSS can opt in with `VITE_SYNC_VIA_GATEWAY=true`;
 `false` forces direct sync. The choice is made when a sync source is created
 and stays fixed for its lifetime. PostHog can serve a cached value on reload;
 recreate document sessions after the client receives the updated flag to change
-transport. This is not an immediate kill switch for open sessions. Provision
-the hosted router before enabling.
+transport. This is not an immediate kill switch for open sessions. Finish deploying the updated
+DSS before enabling; the dedicated `/sync/ws` socket hosts routing independently
+of the connection-gateway notification socket. The PostHog key keeps its historical name.
 
 Saved canvases use the shared Loro runtime; the stored JSON is only the original
 migration seed. Keep whole-file simple-save out of scene editing. Canvas
