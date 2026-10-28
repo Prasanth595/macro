@@ -119,9 +119,7 @@ function PillButton<T extends string>(props: {
       class={cn(
         PILL_CLASS,
         props.item.iconOnly && ICON_PILL_CLASS,
-        props.active
-          ? 'bg-accent text-surface'
-          : 'bg-chrome text-ink-extra-muted'
+        props.active ? 'bg-ink text-surface' : 'bg-chrome text-ink-extra-muted'
       )}
       onPointerDown={(e) => {
         e.preventDefault();
@@ -480,11 +478,6 @@ function MenuOverflowPillTabs<T extends string>(props: PillTabsProps<T>) {
                           // Let text tabs name themselves instead of Close's default label.
                           aria-label={item.ariaLabel ?? ''}
                           aria-pressed={props.value === item.value}
-                          class={
-                            props.value === item.value
-                              ? 'text-accent'
-                              : undefined
-                          }
                           onClick={() => {
                             props.onChange(item.value);
                           }}

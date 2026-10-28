@@ -66,6 +66,11 @@ function MoreViewsDrawer(props: {
         as={MobileDockButton}
         ariaLabel="More views"
         icon={CaretUpIcon}
+        // More stands in for the destinations it hides, so it carries the
+        // selected state while the foreground view is one of them.
+        active={props.views
+          .slice(props.visibleCount)
+          .some((view) => props.isActive(view.id))}
         unread={props.views
           .slice(props.visibleCount)
           .some((view) => props.hasUnread(view.id))}
@@ -85,7 +90,7 @@ function MoreViewsDrawer(props: {
                   <MobileDrawer.Close
                     as={MobileDrawer.Item}
                     aria-label="Settings"
-                    class={settingsOpen() ? 'text-accent' : undefined}
+                    aria-current={settingsOpen() ? 'page' : undefined}
                     onClick={() => {
                       toggleSettings();
                     }}
@@ -113,9 +118,6 @@ function MoreViewsDrawer(props: {
                           props.hasUnread(view.id) ? 'Unread items' : undefined
                         }
                         data-unread={props.hasUnread(view.id) ? '' : undefined}
-                        class={
-                          props.isActive(view.id) ? 'text-accent' : undefined
-                        }
                         aria-current={
                           props.isActive(view.id) ? 'page' : undefined
                         }
@@ -169,7 +171,8 @@ function MoreViewsDrawer(props: {
  * The navigation dock groups as many fixed-size view buttons as fit with More,
  * with Search on its own island.
  * Pressing Search flips the row to the search
- * layout (see MobileDockRow); the current view's button shows in accent.
+ * layout (see MobileDockRow); the current view's button stays at full ink
+ * while the rest dim.
  */
 function MobileNavigationDockRow() {
   const navigate = useMobileNavNavigate();
