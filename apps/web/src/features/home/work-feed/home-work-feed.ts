@@ -142,8 +142,11 @@ export function useWorkFeedHomeDataSource(
 
   return {
     items,
+    // A filter change keeps the previous pages until the new ones arrive;
+    // while none of their rows pass the new filter, the list is loading,
+    // not empty.
     isLoading: () =>
-      enabled() && feed.query.isLoading && entities().items.length === 0,
+      enabled() && feed.query.isFetching && entities().items.length === 0,
     isFetching: () => enabled() && feed.query.isFetching,
     isLoadingMore: () => enabled() && feed.query.isFetchingNextPage,
     hasMore,
