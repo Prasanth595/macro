@@ -31,7 +31,7 @@ Every payload is JSON `{"id": "<uuid>", "traceparent": "…"}` (`whatsapp_change
 | `whatsapp_account_changed` | account | DSS → session | consent or adopted groups changed; re-read |
 | `whatsapp_account_released` | account | session ↔ session | lease handed over |
 | `whatsapp_group_effects` | message | session → DSS | a group notification revision is ready |
-| `whatsapp_media_ready` | document | session → DSS | attachment bytes are ready to import |
+| `whatsapp_media_ready` | blob | session → DSS | attachment bytes are ready to import |
 | `whatsapp_changed` | scope | session/DSS → DSS | something a page shows changed; DSS pushes it |
 
 ## Ownership and fencing
@@ -208,11 +208,13 @@ sender's identity; the later echo converges on it. A replica that dies after
 echo settles it. Unattempted intents expire after ten minutes. Edits and
 deletes are limited to the sender's own messages for ten minutes.
 
-## Rollout switches
+## Rollout and incidents
 
-DSS config `WHATSAPP_LINKED_PAIRING_ENABLED`, `WHATSAPP_LINKED_ADOPTION_ENABLED`
-and `WHATSAPP_LINKED_SENDING_ENABLED` default to false. Disable sending first
-during an incident. Turning switches off keeps history and access.
+The web flag `enable-whatsapp-linked` is the only rollout gate; DSS always
+serves `/meta/linked`. To stop all WhatsApp traffic (receiving and sending),
+scale the session service to zero tasks: accounts stay `connected`, history and
+access are kept, and sends recorded meanwhile expire unsent after ten minutes.
+Replicas pick every account up again when scaled back.
 
 ## Media
 
@@ -220,15 +222,24 @@ Inbound attachments are reserved per ordinal at ingest, with the download
 locator sealed by the session service under the observing account's key. That
 account's replica claims the download (`claim_media_imports`), checks the
 SHA-256 and hands over the bytes (`complete_media_import`), which wait in
-`whatsapp_media_blob`. DSS (signal `whatsapp_media_ready`) creates a private
-document owned by the group owner. Attachment documents inherit current group
-view access; sharing and revocation apply to previously imported files too. Ready
-bytes are never rewritten. Failures retry with backoff and then expose an
-`unavailable` attachment state; message bodies remain plain WhatsApp text.
+`whatsapp_media_blob`. DSS (signal `whatsapp_media_ready`) stores them as a
+static file owned by the group owner, the same storage as Chat's images, and
+records its id in `whatsapp_group_attachment.file_id`. Like Chat's media, a
+static file is readable by anyone who has its unguessable id: sharing the chat
+lets people see its files, and unsharing doesn't take back a file id someone
+already has. Ready bytes are never rewritten. Failures retry with backoff and
+then expose an `unavailable` attachment state; message bodies remain plain
+WhatsApp text.
+
+A file no attachment references any more (its message deleted in WhatsApp, or
+its chat removed with its owner) is queued in `whatsapp_file_deletion` by a
+trigger on `whatsapp_group_attachment`; DSS's drain deletes it from the static
+file service, retrying every 5 minutes until it does.
 
 Outbound: the attachments route stages one file per send in the blob table;
 `ReplyContent::Media` names it, the replica fetches it with `outbound_media`,
-and on acceptance it becomes the message's document, owned by the sender.
+and on acceptance it is imported as the message's static file, owned by the
+sender.
 Staging reads the file's pixel size and length from its headers
 (`domain::shape`: image headers, MP4 `tkhd`/`mvhd`, Ogg/Opus granule); the
 sent WhatsApp message and the stored attachment carry them like received ones.

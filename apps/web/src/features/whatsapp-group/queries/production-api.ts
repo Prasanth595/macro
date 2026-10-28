@@ -165,10 +165,6 @@ function writeFailure(
         kind: 'refused',
         reason: 'That message or upload is no longer available.',
       }))
-      .with('configuration_required', () => ({
-        kind: 'refused',
-        reason: 'Sending to WhatsApp is turned off.',
-      }))
       .with('send_expired', () => ({
         kind: 'refused',
         reason: "WhatsApp wasn't reachable in time, so this wasn't sent.",
@@ -294,7 +290,7 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
           state: attachment.state,
           fileName: attachment.fileName,
           mime: attachment.mime,
-          documentId: attachment.documentId ?? undefined,
+          fileId: attachment.fileId ?? undefined,
           width: attachment.width ?? undefined,
           height: attachment.height ?? undefined,
           durationSeconds: attachment.durationSeconds ?? undefined,
