@@ -43,7 +43,15 @@ test('a selection across diff lines quotes its file and lines', async ({
   page,
 }) => {
   await dragAcross(page, commentStart(page), commentEnd(page));
-  await page.getByRole('button', { name: 'Reply to this' }).click();
+  const chip = page.getByRole('button', { name: 'Reply to this' });
+  await expect(chip).toBeVisible();
+  // The chip sits just above the selected lines, not at the diff's top.
+  const chipBox = await chip.boundingBox();
+  const lineBox = await commentStart(page).boundingBox();
+  if (!chipBox || !lineBox) throw new Error('Chip or line is not on screen');
+  expect(lineBox.y - (chipBox.y + chipBox.height)).toBeGreaterThanOrEqual(0);
+  expect(lineBox.y - (chipBox.y + chipBox.height)).toBeLessThan(24);
+  await chip.click();
   await expect(page.getByLabel('Quote')).toHaveText(
     [
       '`apps/web/src/components/app/sidebar-next/queries/use-sidebar-unread.ts`, lines 23–24 (new)',

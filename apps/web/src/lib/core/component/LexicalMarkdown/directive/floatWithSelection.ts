@@ -34,6 +34,13 @@ function style(el: HTMLElement, styles: Partial<JSX.CSSProperties>) {
 
 type FloatWithSelectionOptions = {
   selection: Selection | undefined | null;
+  /**
+   * Reads the range to float beside instead of the selection's own, for a
+   * selection the document cannot locate, such as one inside a shadow root.
+   * Read again on every placement: a range held into a shadow root goes
+   * stale.
+   */
+  anchor?: () => Range | undefined;
   reactiveOnContainer?: HTMLElement | null;
   useBlockBoundary?: boolean;
   spacing?: number;
@@ -105,9 +112,9 @@ export function floatWithSelection(
     selection: Selection | null | undefined
   ) {
     if (!selection) return;
-    let anchor: Range | Element | null = null;
+    let anchor: Range | Element | null = accessor()?.anchor?.() ?? null;
 
-    if (selection.rangeCount >= 1) {
+    if (!anchor && selection.rangeCount >= 1) {
       // Snapshot the caret. getRangeAt() is live, so focusing a picker
       // search field would rewrite this anchor and hide() the menu.
       const range = selection.getRangeAt(0).cloneRange();
@@ -159,7 +166,7 @@ export function floatWithSelection(
   }
 
   async function updatePosition() {
-    let current = currentAnchor();
+    let current = accessor()?.anchor?.() ?? currentAnchor();
     if (!current || !decidedPlacement) return;
 
     const spacing = accessor()?.spacing ?? DEFAULT_SPACING;
@@ -203,7 +210,7 @@ export function floatWithSelection(
   const selectionChangeHandler = () => {
     let selection = document.getSelection();
     if (!selection || selection.rangeCount === 0) return;
-    setCurrentAnchor(selection.getRangeAt(0));
+    setCurrentAnchor(accessor()?.anchor?.() ?? selection.getRangeAt(0));
     placeInBackground(selection);
   };
 

@@ -8,12 +8,12 @@ import {
 describe('normalizeReplySelection', () => {
   it('trims whitespace and nbsp', () => {
     expect(normalizeReplySelection('  hello world  ')).toBe('hello world');
-    expect(normalizeReplySelection(' quoted ')).toBe('quoted');
+    expect(normalizeReplySelection('\u00a0quoted\u00a0')).toBe('quoted');
   });
 
   it('rejects whitespace-only selections', () => {
     expect(normalizeReplySelection('   \n\t  ')).toBeUndefined();
-    expect(normalizeReplySelection(' ')).toBeUndefined();
+    expect(normalizeReplySelection('\u00a0')).toBeUndefined();
     expect(normalizeReplySelection('')).toBeUndefined();
   });
 });
