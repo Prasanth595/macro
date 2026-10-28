@@ -195,6 +195,7 @@ impl<R: MessageRepository, E: MessageEventPublisher> GuestChatApi for GuestChatS
                 nonce: None,
                 change: MessageChange::Posted {
                     notification_policy: PostMessageNotificationPolicy::default(),
+                    attribution: MessageAttribution::default(),
                     message: message.clone(),
                     mentions: vec![],
                 },

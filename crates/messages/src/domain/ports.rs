@@ -250,6 +250,9 @@ pub enum MessageChange {
     Posted {
         /// Trusted notification policy carried with the committed change.
         notification_policy: PostMessageNotificationPolicy,
+        /// Trusted authorship carried with the committed change.
+        #[serde(default)]
+        attribution: MessageAttribution,
         /// Persisted message.
         message: Message,
         /// Mentions included in this post.

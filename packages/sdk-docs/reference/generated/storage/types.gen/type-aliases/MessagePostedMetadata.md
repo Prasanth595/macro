@@ -1,6 +1,6 @@
 # Type Alias: MessagePostedMetadata
 
-> **MessagePostedMetadata** = \{ `attachments`: [`MessageEventAttachment`](MessageEventAttachment.md)[]; `content`: `string`; `created_at`: `string`; `mentions`: [`SimpleMention`](SimpleMention.md)[]; `message_id`: `string`; `parent`: [`MessageParent`](MessageParent.md); `root_id`: `string`; `sender`: [`ChannelSender`](ChannelSender.md); `thread_id?`: `string` \| `null`; `triggered_by?`: `string` \| `null`; \}
+> **MessagePostedMetadata** = \{ `attachments`: [`MessageEventAttachment`](MessageEventAttachment.md)[]; `content`: `string`; `created_at`: `string`; `mentions`: [`SimpleMention`](SimpleMention.md)[]; `message_id`: `string`; `parent`: [`MessageParent`](MessageParent.md); `root_id`: `string`; `sender`: [`ChannelSender`](ChannelSender.md); `system_authored?`: `boolean`; `thread_id?`: `string` \| `null`; `triggered_by?`: `string` \| `null`; \}
 
 A committed post, independent of the surface presenting the conversation.
 
@@ -16,5 +16,6 @@ A committed post, independent of the surface presenting the conversation.
 | <a id="property-parent"></a> `parent` | [`MessageParent`](MessageParent.md) | Entity that owns the message and determines access to it. |
 | <a id="property-root_id"></a> `root_id` | `string` | Stable identity of the conversation, shared by roots and replies. |
 | <a id="property-sender"></a> `sender` | [`ChannelSender`](ChannelSender.md) | Author, including bot principals. |
+| <a id="property-system_authored"></a> `system_authored?` | `boolean` | The platform scripted this post under `sender`'s name, such as a signup welcome; `sender` did not write it. |
 | <a id="property-thread_id"></a> `thread_id?` | `string` \| `null` | Root identifier for a reply; absent for a new root. |
 | <a id="property-triggered_by"></a> `triggered_by?` | `string` \| `null` | User whose invocation produced a bot response. |

@@ -626,6 +626,7 @@ fn posted(
         root_id: message_id,
         sender: ChannelSender::new_from_user(user()),
         triggered_by: None,
+        system_authored: false,
         content: "shared".to_string(),
         mentions,
         attachments: Vec::new(),

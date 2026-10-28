@@ -752,6 +752,7 @@ fn message_event_cases() -> Vec<(MessageTopicEvent, MessageEventDescription)> {
         root_id: MESSAGE_ID,
         sender: sender.clone(),
         triggered_by: None,
+        system_authored: false,
         content: "hello".to_string(),
         mentions: vec![],
         attachments: vec![],

@@ -48,6 +48,7 @@ fn the_message_source_carries_the_persisted_parent_through() {
         root_id: Uuid::from_u128(2),
         sender: sender(),
         triggered_by: None,
+        system_authored: false,
         content: "@claude explain".to_owned(),
         mentions: vec![],
         attachments: vec![],

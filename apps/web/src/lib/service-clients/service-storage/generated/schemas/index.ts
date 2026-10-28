@@ -1312,6 +1312,7 @@ export * from './message';
 export * from './messageAttachment';
 export * from './messageAttachmentHeight';
 export * from './messageAttachmentWidth';
+export * from './messageAttribution';
 export * from './messageBotProfile';
 export * from './messageChange';
 export * from './messageChangeOneOf';

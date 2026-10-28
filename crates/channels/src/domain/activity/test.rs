@@ -30,6 +30,7 @@ fn posted(parent: MessageParent, created_at: chrono::DateTime<Utc>) -> MessagePo
         root_id: Uuid::from_u128(8),
         sender: Actor::new_from_user(user("macro|bot-like@example.com")),
         triggered_by: Some("macro|teo@example.com".to_string()),
+        system_authored: false,
         content: "hi".to_string(),
         mentions: vec![],
         attachments: vec![],
@@ -100,6 +101,24 @@ fn message_posted_maps_to_messaged_with_triggered_by_as_subject() {
     assert_eq!(activities[0].occurred_at, created_at);
     assert_eq!(activities[0].entity_id, CHANNEL_ID.to_string());
     assert_eq!(activities[0].entity_type, EntityType::Channel);
+}
+
+#[test]
+fn system_authored_posts_are_attributed_to_macro_system() {
+    let event = MessageTopicEvent::Posted(MessagePostedMetadata {
+        system_authored: true,
+        ..posted(MessageParent::Channel(CHANNEL_ID), Utc::now())
+    });
+
+    let Ingest::Insert(activities) = ingest_message_event(Uuid::now_v7(), &event) else {
+        panic!("expected activities");
+    };
+    let system = Actor::new_from_bot(bot_id::MACRO_SYSTEM_BOT_ID);
+    assert_eq!(activities.len(), 1);
+    assert_eq!(activities[0].action, Action::Messaged);
+    assert_eq!(activities[0].actor, system);
+    // No user's feed carries it: not the named sender's, not a teammate's.
+    assert_eq!(activities[0].subject_id, system.as_ref());
 }
 
 #[test]

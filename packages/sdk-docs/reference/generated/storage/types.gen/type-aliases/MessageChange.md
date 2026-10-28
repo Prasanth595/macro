@@ -1,6 +1,6 @@
 # Type Alias: MessageChange
 
-> **MessageChange** = \{ `mentions`: [`SimpleMention`](SimpleMention.md)[]; `message`: [`Message`](Message.md); `notification_policy`: [`PostMessageNotificationPolicy`](PostMessageNotificationPolicy.md); `type`: `"posted"`; \} \| \{ `mentions`: [`SimpleMention`](SimpleMention.md)[]; `message`: [`Message`](Message.md); `notification_policy`: [`PatchMessageNotificationPolicy`](PatchMessageNotificationPolicy.md); `previous_attachments`: [`MessageAttachment`](MessageAttachment.md)[]; `type`: `"edited"`; \} \| \{ `message`: [`Message`](Message.md); `type`: `"message_deleted"`; \} \| \{ `added`: `boolean`; `emoji`: `string`; `message`: [`Message`](Message.md); `type`: `"reaction_changed"`; \} \| \{ `state`: [`ThreadState`](ThreadState.md); `type`: `"thread_updated"`; \} \| \{ `active`: `boolean`; `agent?`: `null` \| [`AgentTyping`](AgentTyping.md); `thread_id?`: `string` \| `null`; `type`: `"typing"`; \}
+> **MessageChange** = \{ `attribution?`: [`MessageAttribution`](MessageAttribution.md); `mentions`: [`SimpleMention`](SimpleMention.md)[]; `message`: [`Message`](Message.md); `notification_policy`: [`PostMessageNotificationPolicy`](PostMessageNotificationPolicy.md); `type`: `"posted"`; \} \| \{ `mentions`: [`SimpleMention`](SimpleMention.md)[]; `message`: [`Message`](Message.md); `notification_policy`: [`PatchMessageNotificationPolicy`](PatchMessageNotificationPolicy.md); `previous_attachments`: [`MessageAttachment`](MessageAttachment.md)[]; `type`: `"edited"`; \} \| \{ `message`: [`Message`](Message.md); `type`: `"message_deleted"`; \} \| \{ `added`: `boolean`; `emoji`: `string`; `message`: [`Message`](Message.md); `type`: `"reaction_changed"`; \} \| \{ `state`: [`ThreadState`](ThreadState.md); `type`: `"thread_updated"`; \} \| \{ `active`: `boolean`; `agent?`: `null` \| [`AgentTyping`](AgentTyping.md); `thread_id?`: `string` \| `null`; `type`: `"typing"`; \}
 
 Kind of message change; notification policy only runs for posted messages.
 
@@ -8,10 +8,11 @@ Kind of message change; notification policy only runs for posted messages.
 
 ### Type Literal
 
-\{ `mentions`: [`SimpleMention`](SimpleMention.md)[]; `message`: [`Message`](Message.md); `notification_policy`: [`PostMessageNotificationPolicy`](PostMessageNotificationPolicy.md); `type`: `"posted"`; \}
+\{ `attribution?`: [`MessageAttribution`](MessageAttribution.md); `mentions`: [`SimpleMention`](SimpleMention.md)[]; `message`: [`Message`](Message.md); `notification_policy`: [`PostMessageNotificationPolicy`](PostMessageNotificationPolicy.md); `type`: `"posted"`; \}
 
 | Name | Type | Description |
 | ------ | ------ | ------ |
+| `attribution?` | [`MessageAttribution`](MessageAttribution.md) | Trusted authorship carried with the committed change. |
 | `mentions` | [`SimpleMention`](SimpleMention.md)[] | Mentions included in this post. |
 | `message` | [`Message`](Message.md) | Persisted message. |
 | `notification_policy` | [`PostMessageNotificationPolicy`](PostMessageNotificationPolicy.md) | Trusted notification policy carried with the committed change. |

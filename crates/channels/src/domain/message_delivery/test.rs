@@ -161,6 +161,7 @@ async fn a_post_emits_the_channel_notification_event_and_the_common_payload() {
         delivery
             .publish(event(MessageChange::Posted {
                 notification_policy: Default::default(),
+                attribution: Default::default(),
                 message: message(),
                 mentions: mentions(),
             }))

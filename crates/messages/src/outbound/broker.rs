@@ -145,15 +145,23 @@ impl<Broker: macro_event_broker::MacroEventBroker> crate::domain::ports::Message
 /// The topic facts a committed change produces, in publication order.
 #[cfg(feature = "ports")]
 pub fn topic_events(event: &crate::domain::ports::MessageEvent) -> Vec<MessageMacroEvent> {
-    use crate::domain::{events::MessageEventAttachment, ports::MessageChange};
+    use crate::domain::{
+        events::MessageEventAttachment, models::MessageAttribution, ports::MessageChange,
+    };
     let Ok(actor) = channel_sender::ChannelSender::try_from(event.actor.clone()) else {
         return Vec::new();
     };
     match &event.change {
         MessageChange::Posted {
-            message, mentions, ..
+            attribution,
+            message,
+            mentions,
+            ..
         } => {
-            let posted = MessagePostedMetadata::from_message(message, mentions.clone());
+            let posted = MessagePostedMetadata {
+                system_authored: *attribution == MessageAttribution::System,
+                ..MessagePostedMetadata::from_message(message, mentions.clone())
+            };
             let mut facts = vec![MessageMacroEvent::posted(posted.clone())];
             if !posted.attachments.is_empty() {
                 facts.push(MessageMacroEvent::attachment_created(
