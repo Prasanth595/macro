@@ -555,7 +555,8 @@ The backend-free desktop/mobile check is
 `bunx playwright test --config src/features/block-agent/browser-test/playwright.config.ts`.
 The same suite covers stopping and reloading an agent reply inside a mention:
 keep incomplete trailing Macro XML hidden in settled agent prose, preserve
-completed chips, and leave user prompts unchanged.
+completed chips and literal tag examples in Markdown code, and leave user prompts
+unchanged.
 Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
 
 Reuse the responsive import review for Notion, Linear and Jira; scope report

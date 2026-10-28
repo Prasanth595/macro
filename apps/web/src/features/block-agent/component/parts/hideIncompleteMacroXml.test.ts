@@ -38,6 +38,34 @@ describe('hideIncompleteMacroXml', () => {
     expect(hideIncompleteMacroXml('See <m-document-ment')).toBe('See ');
   });
 
+  it.each([
+    'Use `<m-document-mention>` as the tag name.',
+    'Use ``<m-document-mention>`` as the tag name.',
+    'Example:\n```xml\n<m-document-mention>{"documentId":"example"}\n```\nAfter.',
+    'Example:\n```xml\n<m-document-mention>{"documentId":"unfinished',
+    'Example:\n````xml\n```\n<m-document-mention>\n````\nAfter.',
+  ])('preserves literal Macro XML in code: %s', (text) => {
+    expect(hideIncompleteMacroXml(text)).toBe(text);
+  });
+
+  it('still hides an unfinished chip after a closed code example', () => {
+    const before = 'Use `<m-document-mention>` as the tag name. See ';
+    expect(
+      hideIncompleteMacroXml(`${before}<m-document-mention>{"documentId":`)
+    ).toBe(before);
+    const fenced = '```xml\n<m-document-mention>\n```\nSee ';
+    expect(hideIncompleteMacroXml(`${fenced}<m-user-mention>{"userId":`)).toBe(
+      fenced
+    );
+  });
+
+  it('does not treat an escaped backtick or an unclosed inline span as code', () => {
+    expect(hideIncompleteMacroXml('Use \\`<m-document-mention>')).toBe(
+      'Use \\`'
+    );
+    expect(hideIncompleteMacroXml('Use `<m-document-mention>')).toBe('Use `');
+  });
+
   it('leaves text with no mention markup alone', () => {
     expect(hideIncompleteMacroXml('plain reply')).toBe('plain reply');
   });

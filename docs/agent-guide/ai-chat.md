@@ -682,7 +682,8 @@ chat and agent sessions. A newly encountered mention may load once.
 
 If an agent reply stops inside a Macro mention chip, its unfinished trailing
 markup stays hidden after stopping and after reload, on desktop and mobile.
-Completed chips and the prose before the unfinished chip remain visible. Verify
+Completed chips, literal tag examples in Markdown code, and the prose before
+the unfinished chip remain visible. Verify
 with a reply containing a completed mention followed by a partial mention: stop
 it, then reload. User-authored markup remains unchanged.
 

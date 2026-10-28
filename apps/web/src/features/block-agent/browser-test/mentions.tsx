@@ -26,6 +26,7 @@ function Fixture() {
   const [stopped, setStopped] = createSignal(
     new URLSearchParams(location.search).has('stopped')
   );
+  const literal = new URLSearchParams(location.search).has('literal');
   const reply = (): FoldedMessage => ({
     agentSessionId: 'fixture',
     turn: 1,
@@ -33,7 +34,9 @@ function Fixture() {
     parts: [
       {
         kind: 'text',
-        text: `Here is ${MENTION}. The next reference is <m-document-mention>{"documentId":"unfinished`,
+        text: literal
+          ? 'Use `<m-document-mention>` as the tag name.'
+          : `Here is ${MENTION}. The next reference is <m-document-mention>{"documentId":"unfinished`,
       },
     ],
     stop: stopped() ? { kind: 'cancelled' } : null,
@@ -93,7 +96,9 @@ function Fixture() {
                     type="button"
                     disabled={stopped()}
                     onClick={() => {
-                      history.replaceState(null, '', '?stopped');
+                      const params = new URLSearchParams(location.search);
+                      params.set('stopped', '');
+                      history.replaceState(null, '', `?${params}`);
                       setStopped(true);
                     }}
                   >
