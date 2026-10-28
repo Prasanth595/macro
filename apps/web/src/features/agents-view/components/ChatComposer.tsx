@@ -114,7 +114,6 @@ export function ChatComposer(props: {
   const disabled = () => !!props.blockedReason || props.session?.disabled;
   const canSendNext = () =>
     !hasContent() &&
-    !props.session?.sendNextHeld &&
     props.session?.hasQueuedMessages &&
     props.session.onStop &&
     !disabled();
