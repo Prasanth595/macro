@@ -39,7 +39,7 @@ import type {
   HomeDataSourceItem,
 } from '../queries/use-home-query';
 import type { HomeViewState } from '../types';
-import type { WorkFeedScope } from './core/work-feed';
+import { type WorkFeedScope, workFeedEntityKey } from './core/work-feed';
 import { homeWorkFeedPageState, homeWorkFeedScope } from './home-scope';
 import { createWorkFeed } from './primitives/work-feed';
 
@@ -96,6 +96,18 @@ export function useWorkFeedHomeDataSource(
   });
 
   const facetContext = (): HomeFacetContext => ({ notificationSource });
+  // The server filtered pages by this state; admitting by the same state
+  // keeps the read facet from dropping rows the server and the
+  // notifications disagree on, such as an unseen channel invite.
+  const unseen = createMemo(
+    () =>
+      new Set(
+        feed
+          .entries()
+          .filter((entry) => entry.state === 'unseen')
+          .map((entry) => workFeedEntityKey(entry.entity))
+      )
+  );
   const entities = createMemo<HomeAdmission>(
     (previous) =>
       admitHomeEntities(previous, {
@@ -111,6 +123,7 @@ export function useWorkFeedHomeDataSource(
         tab: state.tab,
         facets: state.facets,
         facetContext: facetContext(),
+        isUnread: (entity) => unseen().has(workFeedEntityKey(entity)),
       }),
     emptyHomeAdmission()
   );
