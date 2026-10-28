@@ -1,10 +1,10 @@
+import { describeLineRange } from '@app/components/diff-view/model/lines';
 import CaretRightIcon from '@icon/system/regular/caret-right.svg';
 import NoteIcon from '@icon/system/regular/note.svg';
 import XIcon from '@icon/system/regular/x.svg';
 import { Button, cn } from '@ui';
 import { Index, Show } from 'solid-js';
 import {
-  describeNoteLines,
   orderNotes,
   type ReviewNote,
   sendableNotes,
@@ -80,7 +80,7 @@ export function ReviewNotesChip(props: {
                     when={props.onOpenNote}
                     fallback={
                       <span class="min-w-0 flex-1 truncate font-mono text-[11px] text-ink-placeholder">
-                        {note().path} · {describeNoteLines(note())}
+                        {note().path} · {describeLineRange(note())}
                       </span>
                     }
                   >
@@ -90,7 +90,7 @@ export function ReviewNotesChip(props: {
                       title={`Show ${note().path} in the changes pane`}
                       onClick={() => props.onOpenNote?.(note())}
                     >
-                      {note().path} · {describeNoteLines(note())}
+                      {note().path} · {describeLineRange(note())}
                     </button>
                   </Show>
                   <Button
@@ -104,7 +104,7 @@ export function ReviewNotesChip(props: {
                 </div>
                 <textarea
                   class="min-h-13 w-full resize-y rounded-md border border-edge bg-input px-2 py-1.5 font-sans text-xs text-ink outline-none placeholder:text-ink-placeholder focus:border-input-focus"
-                  aria-label={`Review note on ${note().path}, ${describeNoteLines(note())}`}
+                  aria-label={`Review note on ${note().path}, ${describeLineRange(note())}`}
                   value={note().text}
                   onInput={(event) =>
                     props.onUpdate(note().id, event.currentTarget.value)

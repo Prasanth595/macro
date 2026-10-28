@@ -30,3 +30,18 @@ export type LineAnnotation = {
   side: DiffSide;
   lineNumber: number;
 };
+
+const version = (side: DiffSide) => (side === 'additions' ? 'new' : 'old');
+
+/** Names a range's lines for a reader, such as `lines 3–6 (old)`. */
+export function describeLineRange(
+  range: Pick<LineRange, 'side' | 'startSide' | 'lineNumber' | 'endLineNumber'>
+): string {
+  if (range.startSide && range.startSide !== range.side) {
+    return `line ${range.lineNumber} (${version(range.startSide)}) to line ${range.endLineNumber} (${version(range.side)})`;
+  }
+  if (range.endLineNumber > range.lineNumber) {
+    return `lines ${range.lineNumber}–${range.endLineNumber} (${version(range.side)})`;
+  }
+  return `line ${range.lineNumber} (${version(range.side)})`;
+}
