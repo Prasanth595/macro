@@ -96,8 +96,11 @@ function useProductionContext(
             serverName: app.name,
             container,
           }),
-    startAgentImport: (handoff) =>
-      openChatWithInput(handoff.input, { instructions: handoff.instructions }),
+    startAgentImport: async (handoff) => {
+      await openChatWithInput(handoff.input, {
+        instructions: handoff.instructions,
+      });
+    },
   };
 }
 

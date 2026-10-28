@@ -4,6 +4,7 @@ import { createSignal } from 'solid-js';
 export const [initialInput, setInitialInput] = createSignal<string>();
 export async function openChatWithInput(input: string) {
   setInitialInput(input);
+  return true;
 }
 
 export { default as ChatWithAgentIcon } from '@icon/system/regular/sparkle.svg';

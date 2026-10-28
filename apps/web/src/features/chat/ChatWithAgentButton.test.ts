@@ -152,11 +152,18 @@ describe('openChatWithAgent', () => {
   });
 
   it('preserves a channel-message draft without sending it', async () => {
-    await openChatWithInput('A message reference\n\n');
+    expect(await openChatWithInput('A message reference\n\n')).toBe(true);
     expect(mocks.startPendingSession).toHaveBeenCalledWith({
       prompt: undefined,
       initialInput: 'A message reference\n\n',
     });
+  });
+
+  it('reports an unavailable split manager to draft callers without starting a session', async () => {
+    mocks.manager = false;
+    expect(await openChatWithInput('A message reference')).toBe(false);
+    expect(mocks.startPendingSession).not.toHaveBeenCalled();
+    expect(mocks.openWithSplit).not.toHaveBeenCalled();
   });
 
   it.each([undefined, 'thread-id'])(

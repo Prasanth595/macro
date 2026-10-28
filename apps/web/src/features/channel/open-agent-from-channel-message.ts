@@ -16,6 +16,10 @@ export async function openAgentFromChannelMessage(
       parent: { type: 'channel', id: channelId },
       message,
     });
-    await openChatWithInput(`${quote}\n\nFigure out and implement this`);
+    const opened = await openChatWithInput(
+      `${quote}\n\nFigure out and implement this`
+    );
+    span.setAttr('agent.session.opened', opened);
+    if (!opened) span.error('Unable to open agent session');
   });
 }
