@@ -18,7 +18,9 @@ import type { JSX, ParentProps } from 'solid-js';
  *
  * The container re-enables pointer events for its children (the float-region
  * host is pointer-transparent); layout beyond the pill itself — height,
- * growth, distribution — is the caller's, via `class`.
+ * growth, distribution — is the caller's, via `class`. Position it from a
+ * wrapper instead: the native iOS press material in index.css sets the
+ * island's own `position`.
  */
 export function MobileDockIsland(
   props: ParentProps<{
