@@ -3,7 +3,7 @@
 //! When WhatsApp protects pairing with a passkey, the session service stores
 //! WhatsApp's WebAuthn request options on the pairing; the web app reads them
 //! from DSS (as the signed-in owner) and hands them to this command, then
-//! POSTs the returned assertion to `/whatsapp/pairing/{id}/passkey`. This is
+//! POSTs the returned assertion to `/meta/linked/pairing/{id}/passkey`. This is
 //! an authentication handoff only: the hosted session stays the sole WhatsApp
 //! endpoint.
 //!
