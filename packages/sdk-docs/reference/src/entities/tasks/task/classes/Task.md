@@ -1,8 +1,8 @@
 # Class: Task
 
-A Macro task: a document with sub-type `task`. Inherits the full document
-surface ([Document.rename](../../../documents/document/classes/Document.md#rename), move, delete, restore, content, events)
-and adds task-specific state.
+A Macro task: a document with sub-type `task`. Inherits shared document
+operations ([Document.rename](../../../documents/document/classes/Document.md#rename), move, delete, restore, content, events)
+and adds task-specific state. Tasks cannot be attached as CRM files.
 
 ## Extends
 
@@ -40,30 +40,6 @@ PDF annotations in this document.
 #### Inherited from
 
 [`Document`](../../../documents/document/classes/Document.md).[`anchors`](../../../documents/document/classes/Document.md#anchors)
-
-***
-
-### attachTo()
-
-> **attachTo**(`record`): `Promise`\<`void`\>
-
-Attach this file to a CRM record, preserving its other record links and
-classification. Requires edit access to this non-task document; does not
-grant access to the file. Repeating the same attachment is idempotent.
-
-#### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `record` | [`Company`](../../../crm/company/classes/Company.md) \| [`Contact`](../../../crm/contact/classes/Contact.md) |
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Inherited from
-
-[`Document`](../../../documents/document/classes/Document.md).[`attachTo`](../../../documents/document/classes/Document.md#attachto)
 
 ***
 

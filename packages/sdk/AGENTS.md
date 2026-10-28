@@ -14,6 +14,7 @@ enforced by the ordinary backend APIs.
 - `src/entities/entity.ts`: lazy detail reads, mutation invalidation and safe JSON.
 - `Document.attachTo(companyOrContact)` atomically adds a CRM link without
   replacing other links, classification, or permissions; source edit access is required.
+  Task handles reject this file-only operation locally; their generated reference omits it.
 - `src/entities/workspace/namespace.ts`: filtered activity pages and iteration.
 - `src/entities/routines/`, `agents/`, `harnesses/`: automation and agent hosts.
 - `users.search(nameOrEmail)` searches existing Macro contacts with batched auth

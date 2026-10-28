@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
+import { Document } from '../src/entities/documents/document';
 import { Macro } from '../src/macro';
 
 const originalFetch = globalThis.fetch;
@@ -59,4 +60,29 @@ test('source-file permission failures are surfaced without retrying', async () =
     macro.documents.byId('source').attachTo(macro.crm.companyById('company')),
   ).rejects.toThrow();
   expect(calls).toBe(1);
+});
+
+test('tasks reject file attachments without sending a request, including through document handles', async () => {
+  let calls = 0;
+  globalThis.fetch = Object.assign(
+    async () => {
+      calls++;
+      return new Response(null, { status: 204 });
+    },
+    { preconnect: originalFetch.preconnect },
+  );
+  const macro = new Macro({
+    token: 'test-token',
+    hosts: { properties: 'https://properties.example.test' },
+  });
+  const task = macro.tasks.byId('task');
+  expect(task).toBeInstanceOf(Document);
+  await expect(task.attachTo(macro.crm.companyById('company'))).rejects.toThrow(
+    'Tasks cannot be attached as CRM files',
+  );
+  const document: Document = task;
+  await expect(
+    document.attachTo(macro.crm.contactById('contact')),
+  ).rejects.toThrow('Tasks cannot be attached as CRM files');
+  expect(calls).toBe(0);
 });
