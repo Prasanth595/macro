@@ -24,6 +24,10 @@ pub use schema::{
 pub struct Catalog {
     /// The visible tables.
     pub tables: Vec<Table>,
+    /// The database the statement is about: its tables win a name more
+    /// than one database uses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<DatabaseId>,
 }
 
 /// One table and its columns, in display order.

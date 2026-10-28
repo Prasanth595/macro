@@ -204,6 +204,7 @@ pub fn catalog() -> Catalog {
             },
             people_table(),
         ],
+        scope: None,
     }
 }
 
@@ -356,6 +357,7 @@ pub fn issues_catalog() -> Catalog {
             ],
             source: TableSource::Database,
         }],
+        scope: None,
     }
 }
 

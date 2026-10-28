@@ -131,6 +131,7 @@ fn crm() -> Catalog {
                 source: TableSource::Database,
             },
         ],
+        scope: None,
     }
 }
 

@@ -60,6 +60,11 @@ export type CardPosition = {
 export type Catalog = {
   /**  The visible tables. */
   tables: Table[];
+  /**
+   *  The database the statement is about: its tables win a name more
+   *  than one database uses.
+   */
+  scope?: DatabaseId | null;
 };
 
 /**

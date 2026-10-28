@@ -53,6 +53,7 @@ pub(super) fn rows(
 ) -> Result<Vec<RowId>, DatabaseError> {
     let catalog = Catalog {
         tables: vec![engine_table(entry, "")],
+        scope: None,
     };
     let query = if request.row_ids.is_some() {
         Default::default()

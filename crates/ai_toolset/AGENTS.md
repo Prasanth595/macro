@@ -52,6 +52,9 @@ deliberately stable and widely depended on.
 
 - Every tool must declare MCP annotations; a tool without them fails to
   compile/register (see `src/annotations.rs`).
+- A panic inside a tool call becomes that call's `ToolCallError`
+  (`<Tool> failed internally: <message>`), caught in `ToolContextAdapter`, so
+  the agent loop goes on; tools and callers need no panic handling of their own.
 
 ## Related
 

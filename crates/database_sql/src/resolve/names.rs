@@ -47,7 +47,8 @@ fn same(left: &str, right: &str) -> bool {
     left.eq_ignore_ascii_case(right)
 }
 
-/// The catalog table a statement names.
+/// The catalog table a statement names. A name several databases' tables
+/// match resolves to the one in the catalog's scope, if any.
 pub fn table<'catalog>(
     catalog: &'catalog Catalog,
     name: &TableName,
@@ -77,6 +78,13 @@ pub fn table<'catalog>(
         })
         .collect();
     let matches = if exact.len() == 1 { exact } else { matches };
+    // Still ambiguous: the database the statement is about wins.
+    let scoped: Vec<&Table> = matches
+        .iter()
+        .copied()
+        .filter(|table| Some(table.database_id) == catalog.scope)
+        .collect();
+    let matches = if scoped.len() == 1 { scoped } else { matches };
     match matches.as_slice() {
         [table] => Ok(table),
         [] => Err(ResolveError::UnknownTable {

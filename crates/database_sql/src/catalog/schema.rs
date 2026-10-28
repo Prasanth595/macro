@@ -145,7 +145,9 @@ impl ColumnSchema {
 /// The catalog a statement run from `scope` names tables in. A table of
 /// another database whose database and table names both match one of the
 /// scoped database's, case-insensitively as the engine matches, is left out:
-/// the scoped table wins instead of the statement being ambiguous.
+/// the scoped table wins instead of the statement being ambiguous. A table
+/// name alone that several databases use resolves to the scoped database's
+/// table too; see [`crate::resolve::named_table`].
 pub fn build(schema: &Schema, scope: Option<DatabaseId>) -> Catalog {
     let qualified = |database: &str, table: &str| (database.to_lowercase(), table.to_lowercase());
     let scoped: Vec<(String, String)> = schema
@@ -194,5 +196,5 @@ pub fn build(schema: &Schema, scope: Option<DatabaseId>) -> Catalog {
             })
             .filter(|table| !scoped.contains(&qualified(&table.database, &table.name))),
     );
-    Catalog { tables }
+    Catalog { tables, scope }
 }

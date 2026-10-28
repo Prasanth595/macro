@@ -184,7 +184,7 @@ fn fold_joined(catalog: &Catalog, plan: &Plan, rows: Vec<Row>) -> (Table, Vec<Ro
     match &plan.shape {
         Shape::Rows(columns) => {
             let mut rows = rows;
-            sort::rows(catalog, plan, &mut rows);
+            sort::rows(catalog, plan, columns, &mut rows);
             let projected = rows.into_iter().map(|row| {
                 let cells: Vec<Option<Cell>> = columns
                     .iter()
