@@ -156,14 +156,7 @@ where
     }
 
     tracing::info!(found = true, account_id = %newest.id, "recovering unreported Pipedream account");
-    complete_pipedream_connection(
-        store,
-        overlays,
-        pipedream,
-        user_id,
-        &newest.id,
-        server_name,
-    )
+    complete_pipedream_connection(store, overlays, pipedream, user_id, &newest.id, server_name)
         .await
         .map(Some)
 }
