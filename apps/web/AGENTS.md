@@ -543,6 +543,9 @@ On a physical iPhone, WKWebView still synthesises the compatibility `mousedown`/
 
 ### Agent system events
 
+Agent activity labels share `block-agent/ui/TextShimmer.tsx` and the global
+`magic-chip-shimmer` style; keep Working and Thinking on the same sweep and phase.
+
 Accept `notification` in both fetched and subscribed GraphQL session log rows.
 System notifications live in fold metadata, separate from messages. Review
 subjects refresh their existing card; other subjects render quiet timeline rows

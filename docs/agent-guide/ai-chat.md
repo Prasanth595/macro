@@ -1486,6 +1486,10 @@ agent as working, every Thinking label, **Calling N tools** row, shimmering
 tool title, and working row settles — earlier turns never shimmer, even ones
 the runtime cut off mid-call. Shimmer identifies current activity: an active
 tool and its containing group can shimmer together; completed rows stay still.
+Working and Thinking use the same text shimmer and keep its phase when the
+status changes. Check both labels in light and dark themes at desktop and phone
+widths: one highlight should sweep evenly across the whole label, with no
+highlight returning at the opposite edge. With reduced motion, labels stay still.
 
 ### Sharing a session
 
