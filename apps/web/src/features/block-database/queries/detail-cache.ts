@@ -19,20 +19,21 @@ import type { DatabaseOpFailure } from '../../database/core/write-failure';
  */
 export async function patchDetail(
   databaseId: string,
-  change: (detail: DatabaseDetail) => DatabaseDetail
+  change: (detail: DatabaseDetail) => DatabaseDetail,
+  client: QueryClient = queryClient
 ): Promise<() => void> {
   const queryKey = databasesKeys.detail(databaseId).queryKey;
-  await queryClient.cancelQueries({ queryKey, exact: true });
-  const previous = queryClient.getQueryData<DatabaseDetail>(queryKey);
-  const optimistic = queryClient.setQueryData<DatabaseDetail>(
+  await client.cancelQueries({ queryKey, exact: true });
+  const previous = client.getQueryData<DatabaseDetail>(queryKey);
+  const optimistic = client.setQueryData<DatabaseDetail>(
     queryKey,
     (current) => current && change(current)
   );
   return () => {
     // Never restore a snapshot over a newer edit or server read.
-    if (previous && queryClient.getQueryData(queryKey) === optimistic)
-      queryClient.setQueryData(queryKey, previous);
-    queryClient.invalidateQueries({ queryKey });
+    if (previous && client.getQueryData(queryKey) === optimistic)
+      client.setQueryData(queryKey, previous);
+    client.invalidateQueries({ queryKey });
   };
 }
 
