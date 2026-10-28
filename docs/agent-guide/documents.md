@@ -1483,11 +1483,11 @@ installed); `collaboration.browser.e2e.ts` opens several people on one deck. The
 
 ## Designs (Figma)
 
-Uploaded `.fig` files open in the `fig` block (`/app/fig/<documentId>`), and
-**Design** in the create menu (key **I**, also in project create menus) makes
-a new, empty one. Both are behind the `enable-fig-viewer` PostHog flag (on by
-default in development builds; `ENABLE_FIG_VIEWER` overrides it); with the
-flag off the block offers the file for download. The file is decoded,
+Uploaded `.fig` files open in the `fig` block (`/app/fig/<documentId>`).
+Design is omitted from the global create menus; project create menus still
+offer it. Opening existing files remains behind the `enable-fig-viewer`
+PostHog flag (on by default in development builds; `ENABLE_FIG_VIEWER`
+overrides it); with the flag off the block offers the file for download. The file is decoded,
 rendered, and edited by the Rust `fig_engine` compiled to WebAssembly, in a
 primary worker plus up to three tile-raster helpers. The canvas composites
 512 px tiles; while zooming it shows the nearest cached scale, then sharpens.
@@ -2028,11 +2028,11 @@ its substitute fonts do not verify the appearance of newly edited text.
 ## Photoshop editor
 
 Uploaded `.psd` and `.psb` files open in the `psd` block
-(`/app/psd/<documentId>`), and **Photoshop file** in the create menu (key
-**H**, also in project create menus) makes a new 1920 × 1080 document with a
-white Background. Both are behind the `enable-psd-editor` PostHog flag (on
-by default in development builds; `ENABLE_PSD_EDITOR` overrides it); with
-the flag off the block offers the file for download. The file is read,
+(`/app/psd/<documentId>`). Photoshop file is omitted from the global
+create menus; project create menus still offer it. Opening existing files
+remains behind the `enable-psd-editor` PostHog flag (on by default in
+development builds; `ENABLE_PSD_EDITOR` overrides it);
+with the flag off the block offers the file for download. The file is read,
 composited, and edited by the Rust `psd_engine` compiled to WebAssembly, in
 one worker. The canvas draws 512 px tiles from a pyramid of scales (the
 nearest one shows while zooming, then it sharpens) and redraws only what an

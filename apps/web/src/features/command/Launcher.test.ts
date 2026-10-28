@@ -58,6 +58,17 @@ vi.mock('@ui', () => ({}));
 vi.mock('@ui/components/Hotkey', () => ({}));
 vi.mock('./mobile/MobileCreateSheet', () => ({}));
 
+describe('create-menu catalog', () => {
+  it.each(['psd', 'fig', 'pptx'])(
+    'does not register %s creation commands even with editor flags enabled',
+    (blockName) => {
+      expect(
+        CREATABLE_BLOCKS.some((item) => item.blockName === blockName)
+      ).toBe(false);
+    }
+  );
+});
+
 describe('create-menu keyboard shortcuts', () => {
   it.each([false, true])(
     'keeps database and spreadsheet reachable with agent rollout %s',
