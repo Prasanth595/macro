@@ -123,6 +123,11 @@ new MutationObserver(() => {
 
 Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '1,2,3'` (the same ids coming back) is a `<Suspense>` detach and re-attach. Fresh ids are a true remount. Nothing at all means the subtree never moved and the cause is elsewhere. Re-running the same interaction a second time is the cheapest way to prove a cold-cache cause: a once-per-session query settles after the first attempt, so the second attempt stays clean.
 
+Column renames have a backend-free desktop/phone regression using the real
+schema query and mutation adapter with delayed service responses:
+`bunx playwright test --config src/features/block-database/browser-test/playwright.config.ts rename.browser.e2e.ts`.
+It checks the optimistic name, header identity, and persistence across reload.
+
 ## Canvas collaboration
 
 Document sync uses the `sync-via-gateway` PostHog flag in both deployed dev and

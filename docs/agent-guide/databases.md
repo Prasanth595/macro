@@ -155,7 +155,10 @@ puts the typing cursor in that column's first cell, without waiting for creation
 or renaming to finish. Escape keeps the default name.
 There is no creation dialog. Double-click a header, press F2 while it is focused,
 or choose **Rename column** from its arrow or right-click menu to rename it later.
-Its type icon stays in place while editing. SQL refers to tables and columns by
+Its type icon stays in place while editing. A rename updates the cached column
+label before the save finishes and keeps the same header mounted; the old name
+must not flash back while the schema refreshes. Reload to confirm it persisted.
+SQL refers to tables and columns by
 their display names (double-quoted), so a rename changes the name a saved query
 must use.
 
