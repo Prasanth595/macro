@@ -12,7 +12,8 @@
  * are no save/cancel affordances. Non-prompt entries (compact) are
  * read-only text but keep their remove affordance, which is always visible.
  * While a turn is in flight, each row offers Steer: that message jumps the
- * queue and the current turn is cancelled so it runs next.
+ * queue and the current turn is cancelled so it runs next. A row whose
+ * steer the server refused stays queued and says it was not sent.
  */
 
 import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
@@ -42,6 +43,8 @@ export type QueuedPromptItem = {
   attachments?: { name: string; mimeType?: string | null }[];
   /** Who queued it, when it was somebody other than the current user. */
   queuedBy?: string;
+  /** A force-send of it was refused; it is still queued and can be retried. */
+  sendFailed?: boolean;
 };
 
 export interface QueuedPromptsProps {
@@ -218,12 +221,25 @@ function QueuedRow(props: QueuedRowProps) {
             />
             <span class="truncate">{preview()}</span>
           </button>
-          <span class="shrink-0 text-xs text-ink-extra-muted">
-            Queued
-            <Show when={props.item.queuedBy}>
-              {(name) => <> by {name()}</>}
-            </Show>
-          </span>
+          <Show
+            when={props.item.sendFailed}
+            fallback={
+              <span class="shrink-0 text-xs text-ink-extra-muted">
+                Queued
+                <Show when={props.item.queuedBy}>
+                  {(name) => <> by {name()}</>}
+                </Show>
+              </span>
+            }
+          >
+            <span
+              class="shrink-0 text-xs text-failure-ink"
+              role="status"
+              title="This message could not be sent. It is still queued."
+            >
+              Not sent
+            </span>
+          </Show>
           <Show when={props.onSteer}>
             <Button
               variant="ghost"
