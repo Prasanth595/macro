@@ -88,13 +88,10 @@ describe('list to table conversion in a collaborative document', () => {
 
     // Wired as CollabProvider wires them: local updates sync to Loro, and
     // Loro changes (here, the undo) are reconciled onto the editor by node id.
-    let synced = Promise.resolve();
+    const syncs: Promise<unknown>[] = [];
     editor.registerUpdateListener(({ editorState, tags, mutatedNodes }) => {
       if (tags.has(FROM_LORO_TAG) || !mutatedNodes?.size) return;
-      const state = loroSyncState(editorState);
-      synced = synced.then(async () => {
-        await manager.syncToLoro(state as never);
-      });
+      syncs.push(manager.syncToLoro(loroSyncState(editorState) as never));
     });
     manager.onStateChange((update) => {
       if (update.metadata.direction === SyncDirection.TO_LORO) return;
@@ -134,7 +131,7 @@ describe('list to table conversion in a collaborative document', () => {
       },
       { discrete: true }
     );
-    await synced;
+    await Promise.all(syncs);
     editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
     const before = editor.getEditorState().toJSON();
 
@@ -151,13 +148,13 @@ describe('list to table conversion in a collaborative document', () => {
       { discrete: true }
     );
     expect(converted).toBe(true);
-    await synced;
+    await Promise.all(syncs);
     expect(editor.read(() => $isTableNode($getRoot().getChildAtIndex(1)))).toBe(
       true
     );
 
     editor.dispatchCommand(UNDO_COMMAND, undefined);
-    await synced;
+    await Promise.all(syncs);
 
     expect(editor.getEditorState().toJSON()).toEqual(before);
   });

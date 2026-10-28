@@ -15,6 +15,7 @@ import {
   $getEditor,
   $isElementNode,
   $parseSerializedNode,
+  type ElementNode,
   type LexicalEditor,
   type LexicalNode,
   type SerializedEditorState,
@@ -212,6 +213,39 @@ function $createNode(
   return node;
 }
 
+/**
+ * Removes the children of `parent` that the new state no longer lists there.
+ * Nodes with ids are found by id: one may already have moved to a new parent.
+ */
+function $removeDroppedChildren(
+  reconcile: Reconcile,
+  parent: ElementNode,
+  oldChildren: SerializedLexicalNode[],
+  newChildren: SerializedLexicalNode[]
+): void {
+  const newIds = new Set<string>();
+  for (const child of newChildren) {
+    const id = getNodeId(child);
+    if (id) newIds.add(id);
+  }
+  for (let i = oldChildren.length - 1; i >= 0; i--) {
+    const id = getNodeId(oldChildren[i]);
+    if (id && newIds.has(id)) continue;
+    if (!id) {
+      if (i < parent.getChildrenSize()) parent.splice(i, 1, []);
+      continue;
+    }
+    const node = $getNodeById(
+      reconcile.editor,
+      reconcile.mapping.idToNodeKeyMap,
+      id
+    );
+    if (node?.getParent()?.is(parent)) {
+      parent.splice(node.getIndexWithinParent(), 1, []);
+    }
+  }
+}
+
 /** Diff and apply changes between two sets of nodes
  *
  * @param reconcile - The pass's editor, mappings and indexes
@@ -238,26 +272,7 @@ function $applyChildren(
     return;
   }
 
-  const newIds = new Set<string>();
-  for (const child of newChildren) {
-    const id = getNodeId(child);
-    if (id) newIds.add(id);
-  }
-
-  // Remove nodes that arent present in the newChildren array first. Nodes
-  // with ids are found by id: one may already have moved to a new parent.
-  for (let i = oldChildren.length - 1; i >= 0; i--) {
-    const id = getNodeId(oldChildren[i]);
-    if (id && newIds.has(id)) continue;
-    if (!id) {
-      if (i < parent.getChildrenSize()) parent.splice(i, 1, []);
-      continue;
-    }
-    const node = $getNodeById(editor, mapping.idToNodeKeyMap, id);
-    if (node?.getParent()?.is(parent)) {
-      parent.splice(node.getIndexWithinParent(), 1, []);
-    }
-  }
+  $removeDroppedChildren(reconcile, parent, oldChildren, newChildren);
 
   for (let newIndex = 0; newIndex < newChildren.length; newIndex++) {
     const newChild = newChildren[newIndex];
