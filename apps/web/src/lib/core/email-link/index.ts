@@ -362,17 +362,21 @@ export function useAddInboxFlow() {
 
   // Reconnects, account hints, and calendar consent may target an existing
   // inbox on purpose, so only a plain add compares against connected ones.
-  const plainAddition = (
+  const plainAddition = async (
     provider: 'GMAIL' | 'OUTLOOK',
     scopes: ConsentScopes,
     options: AddInboxOptions | undefined
-  ): InboxAddition | undefined => {
+  ): Promise<InboxAddition | undefined> => {
     if (scopes !== 'gmail' || options?.reconnectLinkId || options?.emailAddress)
       return undefined;
-    if (!queryReadyGate(query)) return undefined;
+    // Without the current list, an existing inbox would read as a new one.
+    const links = queryReadyGate(query)
+      ? query.data.links
+      : (await query.refetch()).data?.links;
+    if (!links) return undefined;
     return {
       provider,
-      connectedInboxes: query.data.links.map((link) => ({
+      connectedInboxes: links.map((link) => ({
         id: link.id,
         emailAddress: link.email_address,
       })),
@@ -383,7 +387,7 @@ export function useAddInboxFlow() {
     const scopes = options?.scopes ?? 'gmail';
     const provider = options?.provider ?? (await selectEmailProvider(owner));
     if (!provider) return;
-    const addition = plainAddition(provider, scopes, options);
+    const addition = await plainAddition(provider, scopes, options);
     if (isNativeMobilePlatform()) {
       await startNativeFlow(
         scopes,

@@ -11,9 +11,8 @@ const mocks = vi.hoisted(() => ({
   success: vi.fn(),
   failure: vi.fn(),
   alert: vi.fn(),
-  links: undefined as
-    | { id: string; email_address: string; provider: string }[]
-    | undefined,
+  links: [] as { id: string; email_address: string; provider: string }[],
+  linksLoaded: true,
   desktop: false,
   mobile: true,
   openDesktop: vi.fn(),
@@ -56,8 +55,8 @@ vi.mock('@queries/email/link', () => ({
   invalidateEmailLinks: vi.fn(),
   useEmailLinksQuery: () => ({
     refetch: mocks.refetch,
-    isPending: mocks.links === undefined,
-    data: mocks.links && { links: mocks.links },
+    isPending: !mocks.linksLoaded,
+    data: mocks.linksLoaded ? { links: mocks.links } : undefined,
   }),
 }));
 vi.mock('@service-email/client', () => ({
@@ -97,8 +96,11 @@ beforeEach(() => {
   );
   mocks.authenticate.mockResolvedValue({ success: true });
   mocks.provision.mockResolvedValue(ok({ link_id: 'new-inbox' }));
-  mocks.refetch.mockResolvedValue(undefined);
-  mocks.links = undefined;
+  mocks.refetch.mockImplementation(async () => ({
+    data: { links: mocks.links },
+  }));
+  mocks.links = [];
+  mocks.linksLoaded = true;
 });
 
 afterEach(() => {
@@ -309,6 +311,24 @@ describe('native account linking', () => {
     await useAddInboxFlow()({ provider: 'GMAIL' });
     expect(mocks.alert).toHaveBeenCalledExactlyOnceWith(
       expect.stringContaining('person@example.org'),
+      expect.anything()
+    );
+    expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it('loads the inbox list before a plain add when it has not loaded yet', async () => {
+    mocks.linksLoaded = false;
+    mocks.links = [
+      {
+        id: 'gmail-inbox',
+        email_address: 'person@example.com',
+        provider: 'GMAIL',
+      },
+    ];
+    mocks.provision.mockResolvedValue(ok({ link_id: 'gmail-inbox' }));
+    await useAddInboxFlow()({ provider: 'GMAIL' });
+    expect(mocks.alert).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining('person@example.com'),
       expect.anything()
     );
     expect(mocks.success).not.toHaveBeenCalled();

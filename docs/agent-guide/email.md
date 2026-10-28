@@ -1022,7 +1022,9 @@ disappears from the catalog, the primary address must not look selected; use
 matches its saved sender. `All inboxes` clears both the inbox and alias selection,
 and the selection survives reloads. Aliases never count toward multiple inboxes:
 with one inbox and aliases there is no `All inboxes` row, the inbox is the
-selected row, and choosing it clears an alias selection. To check without sending real mail, open
+selected row, and choosing it clears an alias selection. Selecting an alias is a
+filter, so it adds the `from <alias>` header picker, the mobile Inbox section,
+and `All inboxes` until the user clears it. To check without sending real mail, open
 both pickers, select an alias, switch to the primary address, reopen a saved alias
 draft, and confirm the address remains unchanged. Alias discovery uses
 `MailAccounts`, draft saves use `saveEmailDraft`, and delivery uses
