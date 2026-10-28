@@ -1,3 +1,7 @@
+import { DateGroupHeading } from '@app/features/next-soup/soup-view/date-group-heading';
+import { dateBucket } from '@app/features/soup/collection/date-buckets';
+import { formatLocale } from '@app/lib/i18n';
+import { createKeyedProjection } from '@app/lib/queries/soup/create-keyed-projection';
 import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type EntityData,
@@ -6,6 +10,7 @@ import {
   ListLayoutProvider,
   type NarrowLayoutVariant,
 } from '@entity';
+import { Key } from '@solid-primitives/keyed';
 import { Button } from '@ui';
 import {
   createMemo,
@@ -38,13 +43,34 @@ export function RecordItemList(props: {
     items: EntityData[]
   ) => { id: string; name: string; files: EntityData[] }[];
   rowActions?: (entity: EntityData) => JSX.Element;
+  /** Property IDs to display as inline reference pills when needed. */
+  referencePropertyIds?: readonly string[];
+  /** Group the existing newest-first list by its last-updated date. */
+  groupByDate?: boolean;
+  /** Date field matching the list's server-side ordering. */
+  dateField?: 'updated_at' | 'created_at' | 'viewed_at';
+  /** Localized messages for a translated surface; existing tabs keep their copy. */
+  messages?: {
+    loading: string;
+    loadFailed: string;
+    searchingMore: string;
+    noMatches: string;
+    loadMoreFailed: string;
+    loadingMore: string;
+    retry: string;
+  };
 }) {
   const { openEntity } = useCrmContext().createNavigation();
   // Reading `data` before the first page resolves would suspend the tab.
   const items = () =>
     props.source.isPending ? [] : (props.source.data?.entities ?? []);
+  const rows = createKeyedProjection(
+    items,
+    (item) => `${item.type}:${item.id}`,
+    (item) => item
+  );
   const filteredItems = createMemo(() =>
-    items().filter((item) => recordItemMatchesSearch(item, props.search ?? ''))
+    rows().filter((item) => recordItemMatchesSearch(item, props.search ?? ''))
   );
   const groups = createMemo(
     () =>
@@ -71,20 +97,23 @@ export function RecordItemList(props: {
   return (
     <Switch>
       <Match when={loading()}>
-        <div class="p-6 text-center text-sm text-ink-muted">Loading…</div>
+        <div class="p-6 text-center text-sm text-ink-muted">
+          {props.messages?.loading ?? 'Loading…'}
+        </div>
       </Match>
       <Match when={props.source.isError}>
         <RetryNotice
-          message="Couldn't load this list."
+          message={props.messages?.loadFailed ?? "Couldn't load this list."}
+          retryLabel={props.messages?.retry}
           onRetry={() => props.source.refetch()}
         />
       </Match>
-      <Match when={items().length === 0}>
+      <Match when={items().length === 0 && !props.source.hasNextPage}>
         <div class="rounded-lg border border-dashed border-edge-muted p-6 text-center text-sm text-ink-muted">
           {props.empty}
         </div>
       </Match>
-      <Match when={items().length > 0}>
+      <Match when={items().length > 0 || props.source.hasNextPage}>
         <ListEntityMetadataQueryProvider>
           <ListLayoutProvider ref={listRef} narrowLayout={props.narrowLayout}>
             <div ref={setListRef} class="flex flex-col">
@@ -92,43 +121,78 @@ export function RecordItemList(props: {
                 <div class="p-6 text-center text-sm text-ink-muted">
                   {props.source.hasNextPage &&
                   !props.source.isFetchNextPageError
-                    ? 'Searching more…'
-                    : 'No matching items.'}
+                    ? (props.messages?.searchingMore ?? 'Searching more…')
+                    : (props.messages?.noMatches ?? 'No matching items.')}
                 </div>
               </Show>
-              <For each={groups()}>
-                {(group) => (
-                  <section aria-label={group.name || undefined}>
-                    <Show when={group.name}>
-                      <h3 class="flex items-center gap-2 px-3 pb-2 pt-4 text-sm font-medium">
-                        {group.name}
-                        <span class="text-xs text-ink-muted">
-                          {group.files.length}
-                        </span>
-                      </h3>
-                    </Show>
-                    <For each={group.files}>
-                      {(entity) => (
-                        <div class="flex min-w-0 items-center gap-2 touch:flex-wrap">
-                          <div class="min-w-0 flex-1">
-                            <ListEntity
-                              entity={entity}
-                              hideCheckbox
-                              timestamp={entity.updatedAt}
-                              onClick={() => openEntity(entity)}
-                            />
-                          </div>
-                          <Show when={props.rowActions}>
-                            <div class="w-36 shrink-0 pr-2">
-                              {props.rowActions?.(entity)}
+              <Key each={groups()} by="id">
+                {(group) => {
+                  const dateHeadings = createMemo(() => {
+                    if (!props.groupByDate) return [];
+                    const now = new Date();
+                    let previous: string | undefined;
+                    return group().files.map((entity) => {
+                      const date =
+                        props.dateField === 'created_at'
+                          ? entity.createdAt
+                          : props.dateField === 'viewed_at'
+                            ? entity.viewedAt
+                            : entity.updatedAt;
+                      const bucket = dateBucket(date ?? entity.createdAt, now);
+                      const label =
+                        bucket.key !== previous ? bucket.label : undefined;
+                      previous = bucket.key;
+                      return label;
+                    });
+                  });
+                  return (
+                    <section aria-label={group().name || undefined}>
+                      <Show when={group().name}>
+                        <h3 class="flex items-center gap-2 px-3 pb-2 pt-4 text-sm font-medium">
+                          {group().name}
+                          <span class="text-xs text-ink-muted">
+                            {group().files.length.toLocaleString(
+                              formatLocale()
+                            )}
+                          </span>
+                        </h3>
+                      </Show>
+                      <For each={group().files}>
+                        {(entity, index) => (
+                          <>
+                            <Show when={dateHeadings()[index()]}>
+                              {(label) => (
+                                <DateGroupHeading
+                                  label={label()}
+                                  isFirst={index() === 0}
+                                />
+                              )}
+                            </Show>
+                            <div class="flex min-w-0 items-center gap-2 touch:flex-wrap">
+                              <div class="min-w-0 flex-1">
+                                <ListEntity
+                                  entity={entity}
+                                  hideCheckbox
+                                  timestamp={entity.updatedAt}
+                                  onClick={() => openEntity(entity)}
+                                  referencePropertyIds={
+                                    props.referencePropertyIds
+                                  }
+                                />
+                              </div>
+                              <Show when={props.rowActions}>
+                                <div class="w-36 shrink-0 pr-2">
+                                  {props.rowActions?.(entity)}
+                                </div>
+                              </Show>
                             </div>
-                          </Show>
-                        </div>
-                      )}
-                    </For>
-                  </section>
-                )}
-              </For>
+                          </>
+                        )}
+                      </For>
+                    </section>
+                  );
+                }}
+              </Key>
             </div>
           </ListLayoutProvider>
         </ListEntityMetadataQueryProvider>
@@ -136,7 +200,8 @@ export function RecordItemList(props: {
           when={!props.source.isFetchNextPageError}
           fallback={
             <RetryNotice
-              message="Couldn't load more."
+              message={props.messages?.loadMoreFailed ?? "Couldn't load more."}
+              retryLabel={props.messages?.retry}
               onRetry={() => props.source.fetchNextPage()}
             />
           }
@@ -146,7 +211,7 @@ export function RecordItemList(props: {
           </Show>
           <Show when={props.source.isFetchingNextPage}>
             <div class="p-3 text-center text-xs text-ink-muted">
-              Loading more…
+              {props.messages?.loadingMore ?? 'Loading more…'}
             </div>
           </Show>
         </Show>
@@ -158,6 +223,7 @@ export function RecordItemList(props: {
 /** A failed request, kept distinct from an empty list, with a retry. */
 function RetryNotice(props: {
   message: string;
+  retryLabel?: string;
   onRetry: () => Promise<unknown>;
 }) {
   return (
@@ -168,7 +234,7 @@ function RetryNotice(props: {
         size="sm"
         onClick={() => fireAndForget(props.onRetry(), 'crm')}
       >
-        Retry
+        {props.retryLabel ?? 'Retry'}
       </Button>
     </div>
   );

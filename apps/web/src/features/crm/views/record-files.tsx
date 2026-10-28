@@ -32,16 +32,13 @@ export function RecordFiles(props: {
   const [search, setSearch] = createSignal('');
   const [dialog, setDialog] = createSignal<'attach' | 'manage'>();
   const [setupPending, setSetupPending] = createSignal(false);
-  const [error, setError] = createSignal('');
+  const [error, setError] = createSignal(false);
   async function setup() {
     if (setupPending()) return;
     setSetupPending(true);
-    setError('');
+    setError(false);
     const result = await catchToResult(() => types.initialize());
-    if (result.isErr())
-      setError(
-        'Could not set up file types. The team’s File type property must be single-select.'
-      );
+    setError(result.isErr());
     setSetupPending(false);
   }
   const actions = () => (
@@ -54,19 +51,19 @@ export function RecordFiles(props: {
             disabled={types.pending() || setupPending()}
             onClick={() => fireAndForget(setup(), 'crm-files')}
           >
-            Set up file types
+            {t('crmFiles.setupTypes')}
           </Button>
         }
       >
         <Button variant="ghost" onClick={() => setDialog('manage')}>
-          Manage types
+          {t('crmFiles.manageTypes')}
         </Button>
         <Button
           variant="outline"
           disabled={!props.scope}
           onClick={() => setDialog('attach')}
         >
-          Add file
+          {t('crmFiles.addFile')}
         </Button>
       </Show>
     </Show>
@@ -75,12 +72,12 @@ export function RecordFiles(props: {
     <>
       <Show when={error()}>
         <p role="alert" class="p-3 text-sm text-failure">
-          {error()}
+          {t('crmFiles.setupFailed')}
         </p>
       </Show>
       <Show when={types.error() || classifications.error()}>
         <div class="flex items-center gap-2 p-3 text-sm text-ink-muted">
-          <span>Couldn’t refresh file types.</span>
+          <span>{t('crmFiles.refreshTypesFailed')}</span>
           <Button
             variant="ghost"
             size="sm"
@@ -91,7 +88,7 @@ export function RecordFiles(props: {
               )
             }
           >
-            Retry
+            {t('crmFiles.retry')}
           </Button>
         </div>
       </Show>
@@ -102,19 +99,39 @@ export function RecordFiles(props: {
           (types.pending() || classifications.pending())
         }
       >
-        <p class="px-3 py-2 text-xs text-ink-muted">Loading file types…</p>
+        <p class="px-3 py-2 text-xs text-ink-muted">
+          {t('crmFiles.loadingTypes')}
+        </p>
       </Show>
       <RecordItemList
         source={files}
         pending={!props.scope}
         search={search()}
-        empty={`No files with this ${props.scope?.type ?? 'record'} yet.`}
+        empty={
+          props.scope?.type === 'company'
+            ? t('crmFiles.noCompanyFiles')
+            : props.scope?.type === 'contact'
+              ? t('crmFiles.noContactFiles')
+              : t('crmFiles.noRecordFiles')
+        }
+        messages={{
+          loading: t('crmFiles.loadingFiles'),
+          loadFailed: t('crmFiles.loadFailed'),
+          searchingMore: t('crmFiles.searchingMore'),
+          noMatches: t('crmFiles.noMatchingFiles'),
+          loadMoreFailed: t('crmFiles.loadMoreFailed'),
+          loadingMore: t('crmFiles.loadingMore'),
+          retry: t('crmFiles.retry'),
+        }}
         groupItems={(items) => {
           const catalog = types.data();
           const values = classifications.data();
           if (catalog === undefined || values === undefined)
             return [{ id: 'all', name: '', files: items }];
-          return groupFilesByType(items, catalog?.options ?? [], values);
+          return groupFilesByType(items, catalog?.options ?? [], values, {
+            unclassified: t('crmFiles.unclassified'),
+            unavailable: t('crmFiles.unavailable'),
+          });
         }}
         rowActions={(entity) => (
           <Show when={classifications.data() !== undefined}>
@@ -134,7 +151,9 @@ export function RecordFiles(props: {
         when={props.overview}
         fallback={
           <RecordSection
-            title="Files"
+            title={t('crmFiles.files')}
+            searchLabel={t('crmFiles.searchFiles')}
+            searchPlaceholder={t('crmFiles.searchFilesPlaceholder')}
             search={search()}
             onSearchChange={setSearch}
             actions={actions()}
@@ -143,9 +162,9 @@ export function RecordFiles(props: {
           </RecordSection>
         }
       >
-        <section aria-label="Files" class="min-w-0">
+        <section aria-label={t('crmFiles.files')} class="min-w-0">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h2 class="text-sm font-medium">Files</h2>
+            <h2 class="text-sm font-medium">{t('crmFiles.files')}</h2>
             <div class="flex flex-wrap items-center gap-2">{actions()}</div>
           </div>
           {list()}
@@ -205,7 +224,7 @@ function FileTypeEditor(props: {
       />
       <Show when={error()}>
         <p role="alert" class="text-xs text-failure">
-          Type wasn’t saved. Retry.
+          {t('crmFiles.saveTypeFailed')}
         </p>
       </Show>
     </Show>

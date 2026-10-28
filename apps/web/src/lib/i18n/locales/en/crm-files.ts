@@ -1,4 +1,20 @@
 export default {
+  files: 'Files',
+  searchFiles: 'Search files',
+  searchFilesPlaceholder: 'Search files…',
+  setupTypes: 'Set up file types',
+  manageTypes: 'Manage types',
+  setupFailed:
+    'Could not set up file types. The team’s File type property must be single-select.',
+  refreshTypesFailed: 'Couldn’t refresh file types.',
+  loadingTypes: 'Loading file types…',
+  noCompanyFiles: 'No files with this company yet.',
+  noContactFiles: 'No files with this contact yet.',
+  noRecordFiles: 'No files with this record yet.',
+  saveTypeFailed: 'Type wasn’t saved. Retry.',
+  searchingMore: 'Searching more…',
+  loadMoreFailed: 'Couldn’t load more files.',
+  loadingMore: 'Loading more…',
   addFile: 'Add file',
   attachDescription:
     'Link a file you can edit. Its access stays the same, and its type is shared across records.',

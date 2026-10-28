@@ -15,13 +15,18 @@ export type FileClassification = string | null | undefined;
 export function groupFilesByType<T extends { id: string }>(
   files: readonly T[],
   options: readonly FileTypeOption[],
-  classifications: ReadonlyMap<string, FileClassification>
+  classifications: ReadonlyMap<string, FileClassification>,
+  labels: { unclassified: string; unavailable: string }
 ): { id: string; name: string; files: T[] }[] {
   const groups = options.map((option) => ({ ...option, files: [] as T[] }));
-  const untyped = { id: 'untyped', name: 'Unclassified', files: [] as T[] };
+  const untyped = {
+    id: 'untyped',
+    name: labels.unclassified,
+    files: [] as T[],
+  };
   const unavailable = {
     id: 'unavailable',
-    name: 'Type unavailable',
+    name: labels.unavailable,
     files: [] as T[],
   };
   const byId = new Map(groups.map((group) => [group.id, group]));
