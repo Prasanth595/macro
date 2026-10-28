@@ -36,6 +36,10 @@ pub struct SqlOutcome {
     pub truncated_tables: Vec<String>,
     /// What kind of statement ran, and what it wrote.
     pub statement: SqlStatement,
+    /// The database a `CREATE DATABASE` made, for the caller to act on. Not
+    /// sent: `statement` already names it to clients.
+    #[serde(skip)]
+    pub created_database: Option<models_databases::DatabaseId>,
 }
 
 /// The statement that ran: a read, or the table (and for a type change, the
@@ -203,6 +207,7 @@ pub(crate) fn shape(
         read_versions,
         truncated_tables,
         statement: statement(catalog, query, outcome)?,
+        created_database: None,
     })
 }
 

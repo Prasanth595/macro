@@ -5,7 +5,8 @@ use models_databases::{DatabaseId, RowId, TableId};
 use std::collections::HashMap;
 
 use ai_toolset::{
-    AsyncTool, RequestContext, ServiceContext, ToolAnnotated, ToolAnnotations, ToolResult,
+    AsyncTool, CreatedItem, CreatedItemType, RequestContext, ServiceContext, ToolAnnotated,
+    ToolAnnotations, ToolResult,
 };
 use async_trait::async_trait;
 use contacts::domain::ports::ContactsService;
@@ -165,6 +166,14 @@ where
             )
             .await
             .map_err(sql_error)?;
+        if let Some(database_id) = outcome.created_database {
+            request_context
+                .report_created(CreatedItem {
+                    id: database_id.to_string(),
+                    item_type: CreatedItemType::Database,
+                })
+                .await;
+        }
 
         Ok(outcome.into())
     }
