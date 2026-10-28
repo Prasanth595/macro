@@ -61,6 +61,7 @@ import {
 } from '../util/taskComposerProperties';
 import {
   clearTaskComposerDraft,
+  createTaskComposerLinkInSource,
   createTaskComposerSharing,
   loadTaskComposerDraft,
   saveTaskComposerDraft,
@@ -239,17 +240,8 @@ export function ComposeTask(props: ComposeTaskProps) {
   const [shareWithTeam, setShareWithTeam] = createTaskComposerSharing(
     recovered?.shareWithTeam
   );
-  const [linkInSourceEnabled, setLinkInSourceEnabled] = makePersistedState(
-    createSignal(false),
-    {
-      storages: {
-        restore: () =>
-          localStorage.getItem('task-composer-link-in-source') === 'true',
-        write: (value) =>
-          localStorage.setItem('task-composer-link-in-source', String(value)),
-      },
-    }
-  );
+  const [linkInSourceEnabled, setLinkInSourceEnabled] =
+    createTaskComposerLinkInSource();
   const linkCreatedTask = (result: ComposeTaskSuccess) => {
     if (linkInSourceEnabled()) props.linkInSource?.insert(result);
   };
