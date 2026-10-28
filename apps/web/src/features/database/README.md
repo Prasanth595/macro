@@ -53,10 +53,16 @@ to the host's API/service; UI capabilities only determine which controls appear.
 
 ## Host capabilities
 
+`onComposeRecord` lets a host collect required fields for board and timeline
+creation. It receives the selected lane/group and date-range values before any
+row is written; hosts without a composer retain direct row creation.
+
 `editRows` and `editColumns` enable their respective controls. Optional record-view
 props supply persisted board positions, conversion previews, relationships,
 presence, and stored-view changes. Omit an unsupported action. A board can render
 without a position writer; it cannot offer card moves that pretend to persist.
+Pending card moves use the board overlay; update saved positions only after a
+successful response so refusals preserve the prior order and other pending moves.
 `onComposeRecord` replaces a board lane's inline card with the host's own form,
 seeded with the lane's values; the form creates its row with the actions'
 `createRow`. A `GridCell` rendered inside a modal dialog takes `popupMount` so

@@ -555,6 +555,7 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
               onOpen={records.open}
               onCreate={records.createRow}
               onWrite={writeRowCell}
+              onCompose={props.onComposeRecord}
               onDuplicate={records.duplicateRow}
               onRequestDelete={records.requestDelete}
               renderMentionValue={props.renderMentionValue}

@@ -502,6 +502,12 @@ Re-exports [PipelineRow](../entities/crm/pipeline/classes/PipelineRow.md)
 
 ***
 
+### PipelineStageRequirement
+
+Re-exports [PipelineStageRequirement](../entities/crm/pipeline/type-aliases/PipelineStageRequirement.md)
+
+***
+
 ### PipelineTable
 
 Re-exports [PipelineTable](../entities/crm/pipeline/classes/PipelineTable.md)

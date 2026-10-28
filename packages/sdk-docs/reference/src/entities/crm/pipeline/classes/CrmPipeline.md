@@ -109,6 +109,26 @@ Change its sharing scope.
 
 ***
 
+### setStageRequirements()
+
+> **setStageRequirements**(`stageColumn`, `stage`, `requiredFields`): `Promise`\<`void`\>
+
+Require fields when entering a stage; an empty list removes that stage's rule.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `stageColumn` | [`PipelineColumn`](PipelineColumn.md) |
+| `stage` | [`PropertyOption`](../../../properties/property-option/classes/PropertyOption.md) |
+| `requiredFields` | [`PipelineColumn`](PipelineColumn.md)[] |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### setTrashed()
 
 > **setTrashed**(`trashed`): `Promise`\<`void`\>
@@ -136,6 +156,18 @@ Read sharing grants.
 #### Returns
 
 `Promise`\<[`SharePermissionV2`](../../../../../generated/storage/types.gen/type-aliases/SharePermissionV2.md)\>
+
+***
+
+### stageRequirements()
+
+> **stageRequirements**(): `Promise`\<[`PipelineStageRequirement`](../type-aliases/PipelineStageRequirement.md)[]\>
+
+Read stage rules with column and option handles that survive renames.
+
+#### Returns
+
+`Promise`\<[`PipelineStageRequirement`](../type-aliases/PipelineStageRequirement.md)[]\>
 
 ***
 

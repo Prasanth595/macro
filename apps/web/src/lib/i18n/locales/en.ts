@@ -3,6 +3,7 @@ import commandMenu from './en/command-menu';
 import commands from './en/commands';
 import common from './en/common';
 import create from './en/create';
+import crm from './en/crm';
 import entityActions from './en/entity-actions';
 import mobile from './en/mobile';
 import nav from './en/nav';
@@ -21,6 +22,7 @@ export default {
   commands,
   common,
   create,
+  crm,
   entityActions,
   mobile,
   nav,

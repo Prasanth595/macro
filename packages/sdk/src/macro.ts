@@ -262,6 +262,7 @@ export {
   CrmPipeline,
   PipelineColumn,
   PipelineRow,
+  type PipelineStageRequirement,
   PipelineTable,
 } from './entities/crm/pipeline';
 export type {

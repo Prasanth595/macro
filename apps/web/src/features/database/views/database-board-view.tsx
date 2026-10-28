@@ -31,8 +31,6 @@ import {
   type CardMove,
   cardMove,
   cardsOf,
-  laneCards,
-  placeCard,
   withMovedCards,
   withPositions,
 } from '../core/board-moves';
@@ -232,21 +230,8 @@ function GroupedBoard(
   function write(move: CardMove) {
     const persist = props.positions.move;
     if (!persist) return;
-    const ready = state();
-    const shown = board();
-    // A move the shown lane has no place for writes no early places; the server's answer settles them.
-    const placed =
-      ready.kind === 'ready' && shown
-        ? placeCard(
-            laneCards(shown, ready.positions, move.lane, move.row),
-            move,
-            ready.engine.keyBetween
-          )
-        : undefined;
-    if (placed?.isOk())
-      props.positions.setPositions?.((current) =>
-        withPositions(current, placed.value)
-      );
+    // Pending moves supply visual optimism; saved positions change only on success.
+    // A refusal then reveals the original order without overwriting a later move.
     setMoves((current) => [...current, { move }]);
     void persist(move)
       .map(({ positions, tableVersion }) => {
