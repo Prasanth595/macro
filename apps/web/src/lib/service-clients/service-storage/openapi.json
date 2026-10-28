@@ -9465,7 +9465,8 @@
                     "documentId",
                     "documentMetadata",
                     "token",
-                    "initialSnapshot"
+                    "initialSnapshot",
+                    "similarOpenTasks"
                   ],
                   "properties": {
                     "documentId": {
@@ -9479,6 +9480,13 @@
                     "initialSnapshot": {
                       "type": "string",
                       "description": "Base64-encoded canonical Loro snapshot used to initialize the task."
+                    },
+                    "similarOpenTasks": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TaskNameMatch"
+                      },
+                      "description": "Open tasks of the user or their team whose names closely match this\none. A hint for the creator; nothing is merged or changed."
                     },
                     "teamId": {
                       "type": ["string", "null"],
@@ -26121,7 +26129,8 @@
           "documentId",
           "documentMetadata",
           "token",
-          "initialSnapshot"
+          "initialSnapshot",
+          "similarOpenTasks"
         ],
         "properties": {
           "documentId": {
@@ -26135,6 +26144,13 @@
           "initialSnapshot": {
             "type": "string",
             "description": "Base64-encoded canonical Loro snapshot used to initialize the task."
+          },
+          "similarOpenTasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskNameMatch"
+            },
+            "description": "Open tasks of the user or their team whose names closely match this\none. A hint for the creator; nothing is merged or changed."
           },
           "teamId": {
             "type": ["string", "null"],
@@ -43056,6 +43072,26 @@
           "include_cbm_atm_nc": {
             "type": ["boolean", "null"],
             "description": "Include tasks that are created by me, assigned to me, and not completed,\neven when they do not match other document filters."
+          }
+        }
+      },
+      "TaskNameMatch": {
+        "type": "object",
+        "description": "An open task whose name closely matches the name of a task being created.\nA hint for the creator to review, never acted on automatically.",
+        "required": ["taskId", "taskName", "nameSimilarity"],
+        "properties": {
+          "nameSimilarity": {
+            "type": "number",
+            "format": "float",
+            "description": "Trigram similarity of the two names, from 0 to 1."
+          },
+          "taskId": {
+            "type": "string",
+            "description": "The matching existing task."
+          },
+          "taskName": {
+            "type": "string",
+            "description": "The matching task's display name."
           }
         }
       },

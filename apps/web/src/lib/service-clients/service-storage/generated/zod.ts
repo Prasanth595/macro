@@ -17463,6 +17463,25 @@ export const createTaskHandlerResponse = zod
       .describe(
         'Base64-encoded canonical Loro snapshot used to initialize the task.'
       ),
+    similarOpenTasks: zod
+      .array(
+        zod
+          .object({
+            nameSimilarity: zod
+              .number()
+              .describe('Trigram similarity of the two names, from 0 to 1.'),
+            taskId: zod.string().describe('The matching existing task.'),
+            taskName: zod
+              .string()
+              .describe("The matching task's display name."),
+          })
+          .describe(
+            'An open task whose name closely matches the name of a task being created.\nA hint for the creator to review, never acted on automatically.'
+          )
+      )
+      .describe(
+        'Open tasks of the user or their team whose names closely match this\none. A hint for the creator; nothing is merged or changed.'
+      ),
     teamId: zod
       .uuid()
       .nullish()

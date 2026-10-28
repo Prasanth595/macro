@@ -2112,6 +2112,7 @@ export * from './tallyValueOneOfThree';
 export * from './tallyValueOneOfThreeKind';
 export * from './taskFilters';
 export * from './taskFiltersIncludeCbmAtmNc';
+export * from './taskNameMatch';
 export * from './teamCalendarContent';
 export * from './teamCalendarContentOneOf';
 export * from './teamCalendarContentOneOfKind';

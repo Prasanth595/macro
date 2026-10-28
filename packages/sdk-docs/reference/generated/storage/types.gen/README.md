@@ -2109,6 +2109,7 @@
 - [TallyBucket](type-aliases/TallyBucket.md)
 - [TallyValue](type-aliases/TallyValue.md)
 - [TaskFilters](type-aliases/TaskFilters.md)
+- [TaskNameMatch](type-aliases/TaskNameMatch.md)
 - [TeamCalendarContent](type-aliases/TeamCalendarContent.md)
 - [TeamCalendarCoverage](type-aliases/TeamCalendarCoverage.md)
 - [TeamCalendarDetails](type-aliases/TeamCalendarDetails.md)

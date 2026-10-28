@@ -8,6 +8,7 @@
 import type { CreateTaskHandler200TeamId } from './createTaskHandler200TeamId';
 import type { CreateTaskHandler200TeamTaskId } from './createTaskHandler200TeamTaskId';
 import type { DocumentResponseMetadata } from './documentResponseMetadata';
+import type { TaskNameMatch } from './taskNameMatch';
 
 /**
  * Response for creating a task.
@@ -19,6 +20,9 @@ export type CreateTaskHandler200 = {
   documentMetadata: DocumentResponseMetadata;
   /** Base64-encoded canonical Loro snapshot used to initialize the task. */
   initialSnapshot: string;
+  /** Open tasks of the user or their team whose names closely match this
+one. A hint for the creator; nothing is merged or changed. */
+  similarOpenTasks: TaskNameMatch[];
   /** The team this task number is scoped to. */
   teamId?: CreateTaskHandler200TeamId;
   /** The task number assigned within the team. */

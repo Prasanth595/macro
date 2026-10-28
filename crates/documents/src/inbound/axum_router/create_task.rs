@@ -42,7 +42,6 @@ pub struct CreateTaskResponse {
     pub team_task_id: Option<i32>,
     /// Open tasks of the user or their team whose names closely match this
     /// one. A hint for the creator; nothing is merged or changed.
-    #[serde(default)]
     pub similar_open_tasks: Vec<TaskNameMatch>,
 }
 

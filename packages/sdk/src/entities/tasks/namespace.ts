@@ -2,7 +2,7 @@ import type { MacroClient } from '../../utils/client';
 import type { Project } from '../projects/project';
 import type { SearchOpts } from '../search';
 import type { Team } from '../teams/team';
-import { Task } from './task';
+import { type CreatedTask, Task } from './task';
 
 export class TaskNamespace {
   constructor(private readonly client: MacroClient) {}
@@ -12,14 +12,17 @@ export class TaskNamespace {
     return Task.byId(this.client, id);
   }
 
-  /** Create a task. */
+  /**
+   * Create a task. The result's `similarOpenTasks` lists existing open tasks
+   * with nearly the same name; check them so the task is not a duplicate.
+   */
   create(opts: {
     name: string;
     markdown?: string;
     project?: Project;
     team?: Team;
     shareWithTeam?: boolean;
-  }): Promise<Task> {
+  }): Promise<CreatedTask> {
     return Task.create(this.client, opts);
   }
 
