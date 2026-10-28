@@ -61,6 +61,11 @@ halo. Touch surfaces retain their existing shadows.
 
 Desktop view tabs share one rounded track, with a small inset and a fully rounded selected pill. The selected pill uses the pressed fill and a subtle edge; tabs have no internal dividers. Wrapping preset choices can remain separate pills. Keep the existing touch-specific tab treatment and the agent composer's sliding track.
 
+Mobile chrome marks selection in ink, never the accent: the selected pill tab
+fills with ink, the current dock icon and drawer row stay at full ink while
+their siblings dim, and a checked filter option gets an ink check. The accent
+stays for attention — unread dots and filter counts.
+
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Every menu,
 popover, floating toolbar, and editor panel (including the Figma, PowerPoint,
