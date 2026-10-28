@@ -892,16 +892,16 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
                       }
 
                       if (e.key === 'Escape') {
-                        e.preventDefault();
                         const inputEl = inputRef();
                         const currentSearch = inputValue().trim();
                         if (currentSearch.length > 0) {
+                          e.preventDefault();
                           setInputValue('');
                           if (inputEl) inputEl.value = '';
                           return;
                         }
 
-                        inputEl?.blur();
+                        // Let the enclosing dialog dismiss and restore focus.
                         return;
                       }
 
