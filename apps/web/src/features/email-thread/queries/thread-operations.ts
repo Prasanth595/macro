@@ -1,9 +1,14 @@
-import { throwOnErr } from '@core/util/result';
+import { thrownResultErrorHasCode, throwOnErr } from '@core/util/result';
 import { refreshEmailThreadCache } from '@queries/email/cache-cleanup';
 import { emailKeys } from '@queries/email/keys';
 import { emailClient } from '@service-email/client';
 import { useQuery } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
+
+// Keep an open thread current after actions from another window or client.
+// A deleted thread never comes back, so stop asking for it.
+const operationsPollInterval = (query: { state: { error: unknown } }) =>
+  thrownResultErrorHasCode(query.state.error, 'NOT_FOUND') ? false : 5000;
 
 export function useThreadOperations(
   threadId: Accessor<string>,
@@ -27,8 +32,7 @@ export function useThreadOperations(
       previous = { thread, pending };
       return operations;
     },
-    // Keep an open thread current after actions from another window or client.
-    refetchInterval: 5000,
+    refetchInterval: operationsPollInterval,
   }));
   return query;
 }
