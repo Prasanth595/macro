@@ -150,6 +150,9 @@ The shared plain-text Lexical codec is `packages/lexical-core/canvas-text.ts`.
 
 ## Development Patterns
 
+Project grouping in Soup and its live cache projection uses the system Project
+property (initiative membership), with an empty key labeled No Project.
+
 Keep persistent list hotkeys free of mounted-view closures, and clear
 virtualizer accessors when their view unmounts.
 Keep editor newline handling local; result-opening handlers must yield
