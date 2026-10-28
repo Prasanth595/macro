@@ -40,6 +40,43 @@ fn base_prompt_includes_channel_message_mention_format() {
 }
 
 #[test]
+fn in_app_prompts_include_external_link_rules_once() {
+    for prompt in [
+        &BASE_PROMPT,
+        &TOOL_USE_PROMPT,
+        &prompt::DIRECT_TOOL_USE_PROMPT,
+        &prompt::SESSION_TOOL_USE_PROMPT,
+        &prompt::CODE_MODE_SESSION_TOOL_USE_PROMPT,
+        &prompt::DATABASE_TOOL_USE_PROMPT,
+        &prompt::DATABASE_READ_ONLY_TOOL_USE_PROMPT,
+    ] {
+        let rendered = prompt.to_string();
+        assert_eq!(
+            rendered
+                .matches("### External links and code references")
+                .count(),
+            1
+        );
+        assert!(rendered.contains("`[label](https://…)`"));
+        assert!(rendered.contains("including DMs"));
+        assert!(rendered.contains("email bodies"));
+        assert!(rendered.contains("<sha-or-branch>/<path>#L<start>-L<end>"));
+
+        // The session host prepends its preamble to the shared tool prompt.
+        let session = format!("{}\n{rendered}", prompt::agent_session::PROMPT);
+        assert_eq!(session.matches("Write every external URL").count(), 1);
+        for chip in [
+            "m-document-mention",
+            "m-user-mention",
+            "m-pr-mention",
+            "m-booking-link-mention",
+        ] {
+            assert!(session.contains(chip), "missing mention chip: {chip}");
+        }
+    }
+}
+
+#[test]
 fn tool_use_prompt_appends_tool_section_to_base() {
     let rendered = TOOL_USE_PROMPT.to_string();
     assert!(rendered.starts_with(&BASE_PROMPT.to_string()));
