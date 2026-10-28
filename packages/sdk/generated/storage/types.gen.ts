@@ -9051,13 +9051,13 @@ export type LinkedAdoptGroup = {
  */
 export type LinkedAttachment = {
     /**
-     * The private document, once ready.
-     */
-    documentId?: string | null;
-    /**
      * Length of audio or video in whole seconds, when declared.
      */
     durationSeconds?: number | null;
+    /**
+     * The static file holding it, once ready.
+     */
+    fileId?: string | null;
     /**
      * Display filename.
      */
@@ -9260,24 +9260,6 @@ export type LinkedDisconnectRequest = {
 };
 
 /**
- * Independently controlled backend rollout switches. None grants access.
- */
-export type LinkedFeatures = {
-    /**
-     * Allow explicit existing-group adoption and access grants.
-     */
-    adoption: boolean;
-    /**
-     * Allow new owner-bound pairing transactions.
-     */
-    pairing: boolean;
-    /**
-     * Allow new deliberate sends.
-     */
-    sending: boolean;
-};
-
-/**
  * A group entity bound to a remote group.
  */
 export type LinkedGroupReference = {
@@ -9384,7 +9366,7 @@ export type LinkedPairingState = 'waiting' | 'qr' | 'passkey' | 'success' | 'exp
 /**
  * Why the viewer cannot send now.
  */
-export type LinkedReplyBlock = 'sending_disabled' | 'no_account' | 'disconnected' | 'not_observing' | 'not_allowed_in_group' | 'group_unavailable';
+export type LinkedReplyBlock = 'no_account' | 'disconnected' | 'not_observing' | 'not_allowed_in_group' | 'group_unavailable';
 
 /**
  * Content of a deliberate send.
@@ -9408,7 +9390,7 @@ export type LinkedReplyContent = {
     caption?: string | null;
     type: 'media';
     /**
-     * The staged upload, which becomes the message's private document.
+     * The staged upload, imported as the message's static file.
      */
     uploadId: string;
 } | {
@@ -9524,7 +9506,7 @@ export type LinkedUploadedAttachment = {
      */
     kind: LinkedMediaKind;
     /**
-     * Use as `upload_id` in a media send; also the future document id.
+     * Use as `upload_id` in a media send.
      */
     uploadId: string;
 };
@@ -23296,19 +23278,6 @@ export type LinkedChatsResponses = {
 };
 
 export type LinkedChatsResponse = LinkedChatsResponses[keyof LinkedChatsResponses];
-
-export type LinkedConfigurationData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/meta/linked/configuration';
-};
-
-export type LinkedConfigurationResponses = {
-    200: LinkedFeatures;
-};
-
-export type LinkedConfigurationResponse = LinkedConfigurationResponses[keyof LinkedConfigurationResponses];
 
 export type LinkedConnectData = {
     body: LinkedConnect;
