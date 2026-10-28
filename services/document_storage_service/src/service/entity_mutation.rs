@@ -447,7 +447,7 @@ where
             | EntityType::ScheduledAction
             | EntityType::DatabaseRow
             | EntityType::Initiative
-            | EntityType::WhatsAppGroup => {
+            | EntityType::ExternalChat => {
                 return unsupported(requested, "rename");
             }
         };
@@ -500,7 +500,7 @@ where
             // A database is not filed into a project, so there is nowhere to
             // move it to (`EntityType::is_valid_entity_access_entity`).
             | EntityType::Database
-            | EntityType::WhatsAppGroup
+            | EntityType::ExternalChat
             | EntityType::Form
             | EntityType::DatabaseRow => {
                 return unsupported(requested, "move");
@@ -557,7 +557,7 @@ where
             // Databases are shared by granting access directly; they carry no
             // public/channel share policy.
             | EntityType::Database
-            | EntityType::WhatsAppGroup
+            | EntityType::ExternalChat
             | EntityType::Form
             | EntityType::DatabaseRow => {
                 return unsupported(requested, "share policy updates");
@@ -617,7 +617,7 @@ where
             | EntityType::ScheduledAction
             | EntityType::DatabaseRow
             | EntityType::Initiative
-            | EntityType::WhatsAppGroup => {
+            | EntityType::ExternalChat => {
                 return unsupported(requested, "trash");
             }
         };
@@ -654,7 +654,7 @@ where
             | EntityType::ScheduledAction
             | EntityType::DatabaseRow
             | EntityType::Initiative
-            | EntityType::WhatsAppGroup => {
+            | EntityType::ExternalChat => {
                 return unsupported(requested, "restore");
             }
         };
@@ -711,7 +711,7 @@ where
             | EntityType::ScheduledAction
             | EntityType::DatabaseRow
             | EntityType::Initiative
-            | EntityType::WhatsAppGroup => {
+            | EntityType::ExternalChat => {
                 return unsupported(requested, "permanent deletion");
             }
         };
@@ -814,7 +814,7 @@ where
             | EntityType::Initiative
             // Duplicating a database is unsupported.
             | EntityType::Database
-            | EntityType::WhatsAppGroup
+            | EntityType::ExternalChat
             | EntityType::Form
             | EntityType::DatabaseRow => {
                 return unsupported(requested, "duplication");
