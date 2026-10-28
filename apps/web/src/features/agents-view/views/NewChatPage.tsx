@@ -510,7 +510,12 @@ export function NewChatPage(props: {
       drawerOpen
       placeholder={coding() ? 'Describe what you want to build' : undefined}
       onSend={send}
-      modelName={modelLabel(composerModelOverride())}
+      modelName={modelLabel(
+        composerModelOverride(),
+        selectedCatalog
+          .models()
+          .find((model) => model.id === composerModelOverride())?.name
+      )}
       supportsImages={
         selectedCatalog
           .models()
