@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
   failure: vi.fn(),
   success: vi.fn(),
+  alert: vi.fn(),
   linkId: 'oauth-link',
   searchParams: {} as Record<string, string | string[]>,
   tutorialComplete: true as boolean,
@@ -46,7 +47,7 @@ vi.mock('@app/lib/analytics/analytics-context', () => ({
   useAnalytics: () => ({ pageView: vi.fn(), track: mocks.track }),
 }));
 vi.mock('@core/component/Toast/Toast', () => ({
-  toast: { success: mocks.success, failure: mocks.failure },
+  toast: { success: mocks.success, failure: mocks.failure, alert: mocks.alert },
 }));
 vi.mock('@core/constant/SettingsState', () => ({
   restoreSettingsReturnTo: vi.fn(),
@@ -118,7 +119,7 @@ beforeEach(() => {
   });
   mocks.refetch.mockResolvedValue({});
   mocks.restore.mockReturnValue({ url: '/calendar/week' });
-  mocks.init.mockReturnValue(okAsync(undefined));
+  mocks.init.mockReturnValue(okAsync('new-inbox'));
 });
 afterEach(cleanup);
 
@@ -139,6 +140,53 @@ describe('inbox consent callback', () => {
       'email_link_callback_result',
       { outcome: 'connected' }
     );
+  });
+
+  it('names the address when the account chooser returned an inbox that was already connected', async () => {
+    mocks.restore.mockReturnValue({
+      url: '/email',
+      addition: {
+        provider: 'GMAIL',
+        connectedInboxes: [
+          { id: 'gmail-inbox', emailAddress: 'person@example.com' },
+          { id: 'workspace-inbox', emailAddress: 'person@example.org' },
+        ],
+      },
+    });
+    mocks.init.mockReturnValue(okAsync('workspace-inbox'));
+    render(() => <EmailLinkCallback />);
+    await waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith('/email', { replace: true })
+    );
+    expect(mocks.alert).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining('person@example.org'),
+      expect.anything()
+    );
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
+      'email_link_callback_result',
+      { outcome: 'already_connected' }
+    );
+  });
+
+  it('reports a new inbox from a plain add as connected', async () => {
+    mocks.restore.mockReturnValue({
+      url: '/email',
+      addition: {
+        provider: 'GMAIL',
+        connectedInboxes: [
+          { id: 'gmail-inbox', emailAddress: 'person@example.com' },
+        ],
+      },
+    });
+    render(() => <EmailLinkCallback />);
+    await waitFor(() =>
+      expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
+        'email_link_callback_result',
+        { outcome: 'connected' }
+      )
+    );
+    expect(mocks.alert).not.toHaveBeenCalled();
   });
 
   it('explains pending work and lets the user return without a later redirect', async () => {
@@ -263,7 +311,7 @@ describe('consent that ended without a grant', () => {
     expect(screen.getByRole('status').textContent).toBe('loading');
   });
 
-  it('returns quietly when the user cancelled on the consent screen', async () => {
+  it('says nothing was connected when the user cancelled on the consent screen', async () => {
     mocks.searchParams = {
       link_id: 'oauth-link',
       email_link_error: 'cancelled',
@@ -275,6 +323,7 @@ describe('consent that ended without a grant', () => {
         replace: true,
       })
     );
+    expect(mocks.alert).toHaveBeenCalledOnce();
     expect(mocks.failure).not.toHaveBeenCalled();
     expect(mocks.init).not.toHaveBeenCalled();
   });

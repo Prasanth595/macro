@@ -1,6 +1,8 @@
+import type { InboxAddition } from './link-outcome';
+
 const RETURN_LAYOUT_KEY = 'macro:inbox-link:return-layout';
 
-/** Where the app should land once the inbox consent round trip comes back. */
+/** What the callback needs once the inbox consent round trip comes back. */
 export type InboxLinkReturn = {
   /**
    * The base-relative layout URL the flow started from — path plus query and
@@ -8,12 +10,15 @@ export type InboxLinkReturn = {
    * survives with it.
    */
   url: string;
+  /** Set only for a plain add; see {@link InboxAddition}. */
+  addition?: InboxAddition;
 };
 
 type StoredInboxLinkReturn = InboxLinkReturn & { linkId: string };
 
 /**
- * Remember where to return once inbox consent completes.
+ * Remember where to return once inbox consent completes, and for a plain add
+ * which inboxes were already connected.
  *
  * Web consent is a full page navigation; desktop opens the system browser and
  * its return deep link replaces the app route with the callback URL.
@@ -40,9 +45,9 @@ export function rememberInboxLinkReturn(
 }
 
 /**
- * Read and clear the layout stashed by {@link rememberInboxLinkReturn} for
- * this link. Returns undefined when nothing was stashed or the stash belongs
- * to a different flow.
+ * Read and clear what {@link rememberInboxLinkReturn} stashed for this link.
+ * Returns undefined when nothing was stashed or the stash belongs to a
+ * different flow.
  */
 export function consumeInboxLinkReturn(
   linkId: string
@@ -72,5 +77,5 @@ export function consumeInboxLinkReturn(
   if (!stored || stored.linkId !== linkId || typeof stored.url !== 'string') {
     return undefined;
   }
-  return { url: stored.url };
+  return { url: stored.url, addition: stored.addition };
 }
