@@ -24,6 +24,9 @@ deliberately stable and widely depended on.
 - `src/actor.rs`: session-only `acting_as` schema injection, required selection, and trusted owner/requester resolution; public tool inputs remain unchanged.
 - `src/context.rs`: `RequestContext`/`ServiceContext` and the `FromRef`
   extraction pattern.
+- `src/created_items.rs`: `CreatedItemObserver`; a tool that creates an item
+  calls `RequestContext::report_created` so the caller (an agent session opened
+  from a channel) can act on it.
 
 ## Scope
 

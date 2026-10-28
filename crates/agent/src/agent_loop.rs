@@ -10,7 +10,9 @@ use crate::stream::ChatCompletionStream;
 use crate::telemetry::GenAiContext;
 use crate::tool_adapter::DynToolSetAdapter;
 use crate::tool_result_limit::ToolResultLimit;
-use ai_toolset::{RequestContext, SearchableTool, ToolLoader, ToolSet as AiToolSet};
+use ai_toolset::{
+    CreatedItemObserver, RequestContext, SearchableTool, ToolLoader, ToolSet as AiToolSet,
+};
 use ai_usage::{UsageContext, UsageRecorder};
 use genai_telemetry::ContentPolicy;
 use rig_agent::tool::server::{ToolServer, ToolServerHandle};
@@ -122,6 +124,9 @@ pub struct AgentLoop {
     /// The router this loop's model calls use instead of the shared one, when
     /// a caller-supplied key pays for them (see [`Self::with_provider_api_key`]).
     router: Option<ModelRouter<MeteredHttpClient>>,
+    /// Told about each item the sessions' tool calls create (see
+    /// [`Self::with_created_items`]).
+    created_items: Option<Arc<dyn CreatedItemObserver>>,
 }
 
 impl AgentLoop {
@@ -146,6 +151,7 @@ impl AgentLoop {
             conversation_id: None,
             agent_name: None,
             genai_telemetry: true,
+            created_items: None,
             router: None,
         }
     }
@@ -262,6 +268,13 @@ impl AgentLoop {
         self
     }
 
+    /// Tell `observer` about each item the tool calls of this loop's sessions
+    /// create.
+    pub fn with_created_items(mut self, observer: Arc<dyn CreatedItemObserver>) -> Self {
+        self.created_items = Some(observer);
+        self
+    }
+
     /// Start a new streaming session.
     ///
     /// `toolset` is the combined tool set (static + MCP) for this request.
@@ -354,9 +367,12 @@ impl AgentLoop {
             catalog: catalog.clone(),
             loads: ToolLoads::default(),
         };
-        let request_context = RequestContext::new(usage_ctx.user.clone())
+        let mut request_context = RequestContext::new(usage_ctx.user.clone())
             .with_tool_search(catalog, loader)
             .with_genai_telemetry(self.genai_telemetry);
+        if let Some(observer) = &self.created_items {
+            request_context = request_context.with_created_items(Arc::clone(observer));
+        }
         // TODO this is cringe, make request context a RW lock newtype
         let request_context_rw = Arc::new(RwLock::new(request_context.clone()));
 

@@ -1,3 +1,4 @@
+use crate::created_items::{CreatedItem, CreatedItemObserver};
 use crate::tool_search::{SearchableTool, ToolLoader};
 use macro_user_id::user_id::MacroUserIdStr;
 use std::ops::{Deref, DerefMut};
@@ -46,6 +47,9 @@ pub struct RequestContext {
     /// agent session actor does, for the in-process runtime - so each call is
     /// counted once.
     pub genai_telemetry: bool,
+    /// Told about each item this request's tool calls create. `None` when the
+    /// caller does nothing with them.
+    pub created_items: Option<Arc<dyn CreatedItemObserver>>,
 }
 
 impl RequestContext {
@@ -58,6 +62,20 @@ impl RequestContext {
             tool_loader: None,
             cancel: CancellationToken::new(),
             genai_telemetry: true,
+            created_items: None,
+        }
+    }
+
+    /// Tell `observer` about each item this request's tool calls create.
+    pub fn with_created_items(mut self, observer: Arc<dyn CreatedItemObserver>) -> Self {
+        self.created_items = Some(observer);
+        self
+    }
+
+    /// Report an item a tool call just created to the request's observer.
+    pub async fn report_created(&self, item: CreatedItem) {
+        if let Some(observer) = &self.created_items {
+            observer.created(&self.user_id, item).await;
         }
     }
 
