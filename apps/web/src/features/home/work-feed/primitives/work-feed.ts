@@ -121,8 +121,7 @@ export function createWorkFeed(options: WorkFeedOptions) {
         pages.map((cursor) =>
           workFeedPageVariables(options.scope(), options.state(), cursor)
         ),
-        batch,
-        query.hasNextPage
+        batch
       );
       if (!placed) fireAndForget(refetch(), 'home');
     } catch (error) {

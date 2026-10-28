@@ -229,6 +229,7 @@ async fn work_feed_pages_hydrated_stacked_entries_for_the_viewer() {
                         limit: 10
                     }) {
                         nextCursor
+                        nextPosition { sortAt entityId }
                         entries {
                             sortAt touchedAt revision primaryReason primaryStackIndex
                             item {
@@ -277,6 +278,11 @@ async fn work_feed_pages_hydrated_stacked_entries_for_the_viewer() {
 
     let position = WorkFeedPosition::decode(page["nextCursor"].as_str().unwrap()).unwrap();
     assert_eq!(position.entity_id, DOC_ID.to_string());
+    assert_eq!(page["nextPosition"]["entityId"], DOC_ID.to_string());
+    assert_eq!(
+        page["nextPosition"]["sortAt"],
+        position.sort_at.to_rfc3339()
+    );
 
     let pages = service.pages.lock().unwrap();
     let (viewer, query) = &pages[0];
