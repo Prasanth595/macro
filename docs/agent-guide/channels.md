@@ -672,6 +672,16 @@ notifications, and switching channels while notifications load. Loading this
 channel's notification edge must not delay its messages or activate the global
 GraphQL notification feed.
 
+A reply that joins a thread above the viewport, the user's own included, shows a
+**↑ 1 new message** chip at the top of the list. It counts every such reply since
+the channel opened, and clicking it expands the thread and goes to the earliest one.
+A reply stops counting once it has been on screen, whether through the chip or by
+scrolling. A collapsed thread's visible show-replies control counts as seen. While
+this chip shows, it takes the top slot from the Unread notification chip and the
+desktop `Scroll to bottom` control. Check it by scrolling to the latest message,
+replying to a message far above through the composer's reply flag (or posting a
+reply there from a second account), and following the chip, on desktop and touch.
+
 On native iOS, tapping a thread reply push in Notification Center or on the lock
 screen should open its channel, expand the parent thread, and reveal the actual
 reply. Verify with the app backgrounded and after terminating it. Use an older

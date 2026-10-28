@@ -87,6 +87,24 @@ export function resolveMessageTarget(args: {
     : { kind: 'top_level', messageId: args.messageId };
 }
 
+export type InsertedThreadReply = { threadId: string; messageId: string };
+type ThreadReplyInsertListener = (
+  parent: MessageParent,
+  reply: InsertedThreadReply
+) => void;
+const threadReplyInsertListeners = new Set<ThreadReplyInsertListener>();
+
+/**
+ * Sent and received replies join their thread wherever it sits in history, so
+ * an open timeline can point at ones that land outside the viewport.
+ */
+export function onThreadReplyInserted(listener: ThreadReplyInsertListener) {
+  threadReplyInsertListeners.add(listener);
+  return () => {
+    threadReplyInsertListeners.delete(listener);
+  };
+}
+
 /** Inserts a message into the rendered caches for its target. */
 export function insertMessageIntoTargetCaches(
   parent: MessageParent,
@@ -134,6 +152,11 @@ export function insertMessageIntoTargetCaches(
               );
           });
     }
+    for (const listener of threadReplyInsertListeners)
+      listener(parent, {
+        threadId: target.threadId,
+        messageId: target.messageId,
+      });
     return;
   }
 

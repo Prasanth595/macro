@@ -115,6 +115,8 @@ export function createChannelUnreadNavigation(options: {
     chip: unreadChip,
     unreadByThread,
     unreadByMessage,
+    /** Every mounted message and collapsed-replies control, by id. */
+    destinationElements: destinationRegistry.elements,
     onMessageMount: destinationRegistry.registerMessage,
     onDisclosureMount: destinationRegistry.registerDisclosure,
   };

@@ -121,6 +121,7 @@ import { createChannelUnreadNavigation } from './create-channel-unread-navigatio
 import { createDeleteMessageConfirmation } from './create-delete-message-confirmation';
 import { createMessageEditor } from './create-message-editor';
 import { createMessageSelection } from './create-message-selection';
+import { createNewMessagesAbove } from './create-new-messages-above';
 import {
   clearStaleRestoredChannelData,
   createTargetMessageController,
@@ -128,6 +129,7 @@ import {
 } from './create-target-message-controller';
 import { DirectMessageEmptyState } from './DirectMessageEmptyState';
 import { buildChannelMessageListMeta } from './message-list-meta';
+import { NewMessagesAboveOverlay } from './NewMessagesAboveOverlay';
 import { ScrollToBottomOverlay } from './ScrollToBottomOverlay';
 import {
   ThreadList,
@@ -280,6 +282,15 @@ export function Channel(props: ChannelProps) {
     container: threadListContainerEl,
     insets: threadListScrollInsets,
     onDestinationsChanged: () => threadListNavigation()?.requestLayoutUpdate(),
+  });
+  const newMessagesAbove = createNewMessagesAbove({
+    channelId: props.channelId,
+    messages,
+    keys: () => messageIndex.entryKeys,
+    scrollState: threadListScrollState,
+    container: threadListContainerEl,
+    insets: threadListScrollInsets,
+    elements: unread.destinationElements,
   });
   const participants = useChannelParticipants(() => props.channelId);
   const channelBotMentionUsers = useMessageBotMentionUsers(() => ({
@@ -632,6 +643,7 @@ export function Channel(props: ChannelProps) {
   ) => {
     setThreadListScrollState(state);
     if (snapshot) setThreadListScrollSnapshot(snapshot);
+    newMessagesAbove.dismissSeen();
     finishLatestNavigation();
   };
 
@@ -985,17 +997,41 @@ export function Channel(props: ChannelProps) {
                           </SwipableRowProvider>
 
                           <Show when={!findBar.isOpen()}>
-                            <Show when={unread.chip()}>
+                            {/* Both chips sit at the top; the new-messages
+                                chip names what just happened, so it wins. */}
+                            <Show
+                              when={newMessagesAbove.chip()}
+                              fallback={
+                                <Show when={unread.chip()}>
+                                  {(chip) => (
+                                    <UnreadNotificationsOverlay
+                                      direction={chip().direction}
+                                      count={chip().count}
+                                      onClick={() => goToUnread(chip().thread)}
+                                      bottomInset={threadListScrollInsets().end}
+                                    />
+                                  )}
+                                </Show>
+                              }
+                            >
                               {(chip) => (
-                                <UnreadNotificationsOverlay
-                                  direction={chip().direction}
+                                <NewMessagesAboveOverlay
                                   count={chip().count}
-                                  onClick={() => goToUnread(chip().thread)}
-                                  bottomInset={threadListScrollInsets().end}
+                                  onClick={() =>
+                                    goToMessage(
+                                      chip().target.threadId,
+                                      chip().target.messageId
+                                    )
+                                  }
                                 />
                               )}
                             </Show>
-                            <Show when={unread.chip()?.direction !== 'above'}>
+                            <Show
+                              when={
+                                !newMessagesAbove.chip() &&
+                                unread.chip()?.direction !== 'above'
+                              }
+                            >
                               <ScrollToBottomOverlay
                                 scrollState={threadListScrollState}
                                 onScrollToBottom={goToLatest}
