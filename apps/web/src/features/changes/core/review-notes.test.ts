@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  describeNoteLines,
   formatNotesForAgent,
   queuedNotes,
   type ReviewNote,
@@ -38,25 +37,6 @@ describe('sendableNotes', () => {
         note({ id: 'a', lineNumber: 3, endLineNumber: 3 }),
       ]).map((n) => n.id)
     ).toEqual(['a', 'b']);
-  });
-});
-
-describe('describeNoteLines', () => {
-  it('names a single line and a range on each side', () => {
-    expect(describeNoteLines(note())).toBe('line 10 (new)');
-    expect(
-      describeNoteLines(
-        note({ side: 'deletions', lineNumber: 3, endLineNumber: 6 })
-      )
-    ).toBe('lines 3–6 (old)');
-  });
-
-  it('names both sides of a range dragged from deleted lines into added ones', () => {
-    expect(
-      describeNoteLines(
-        note({ startSide: 'deletions', lineNumber: 87, endLineNumber: 91 })
-      )
-    ).toBe('line 87 (old) to line 91 (new)');
   });
 });
 

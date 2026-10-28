@@ -7,6 +7,8 @@
  * posts.
  */
 
+import { describeLineRange } from '@app/components/diff-view/model/lines';
+
 /** Which side of the diff a line belongs to, in Pierre's vocabulary. */
 export type DiffSide = 'additions' | 'deletions';
 
@@ -60,20 +62,6 @@ export function orderNotes(notes: readonly ReviewNote[]): ReviewNote[] {
   );
 }
 
-const version = (side: DiffSide) => (side === 'additions' ? 'new' : 'old');
-
-export function describeNoteLines(
-  note: Pick<ReviewNote, 'side' | 'startSide' | 'lineNumber' | 'endLineNumber'>
-): string {
-  if (note.startSide && note.startSide !== note.side) {
-    return `line ${note.lineNumber} (${version(note.startSide)}) to line ${note.endLineNumber} (${version(note.side)})`;
-  }
-  if (note.endLineNumber > note.lineNumber) {
-    return `lines ${note.lineNumber}–${note.endLineNumber} (${version(note.side)})`;
-  }
-  return `line ${note.lineNumber} (${version(note.side)})`;
-}
-
 /**
  * The prompt that carries queued notes to the agent: one numbered item per
  * note, each naming the file and line, in file order so the agent walks the
@@ -84,11 +72,11 @@ export function formatNotesForAgent(notes: readonly ReviewNote[]): string {
   if (ordered.length === 0) return '';
   if (ordered.length === 1) {
     const note = ordered[0]!;
-    return `Review note on \`${note.path}\`, ${describeNoteLines(note)}:\n\n${note.text.trim()}`;
+    return `Review note on \`${note.path}\`, ${describeLineRange(note)}:\n\n${note.text.trim()}`;
   }
   const items = ordered.map(
     (note, index) =>
-      `${index + 1}. \`${note.path}\`, ${describeNoteLines(note)}: ${note.text.trim()}`
+      `${index + 1}. \`${note.path}\`, ${describeLineRange(note)}: ${note.text.trim()}`
   );
   return `Please address these ${ordered.length} review notes on the current changes:\n\n${items.join('\n')}`;
 }

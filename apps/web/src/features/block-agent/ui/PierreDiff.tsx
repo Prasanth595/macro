@@ -17,6 +17,9 @@
  *   (see features/theme/utils/themeUtils.ts), so we watch that
  *   attribute and drive `setThemeType('light' | 'dark')` explicitly
  *   instead of pierre's OS-preference "system" mode.
+ * - Selection: the host opts back into text selection, which pierre's lines
+ *   would otherwise inherit `none` for from the app default, and the wrapper
+ *   names the file (`data-diff-path`) so a quote can cite it.
  */
 
 import {
@@ -143,7 +146,8 @@ function PierreFileView(props: {
     >
       <div
         ref={container}
-        class="overflow-hidden rounded border border-edge-muted"
+        data-diff-path={props.diff.path}
+        class="overflow-hidden rounded border border-edge-muted [&>*]:select-text"
         style={PIERRE_STYLE_VARIABLES}
       />
     </Show>

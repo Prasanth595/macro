@@ -1548,6 +1548,13 @@ drag-selected and copied, from the composer and from sent messages.
 Selecting text in the composer or outside the transcript must not show the reply
 button; clearing the transcript selection dismisses it.
 
+Diff text works the same way, in a transcript's edit diffs and in the **Changes**
+pane of a coding session with a linked pull request. A selection within one
+file's diff quotes as `` `path`, lines 12–14 (new) `` followed by the text;
+`(old)` marks deleted-line numbers, and a drag from deleted into added lines
+names both ends. Replying from a spotlit Changes pane returns to the split, and
+from a narrow window it closes the pane, so the composer is on screen.
+
 ### Expanded session mentions
 
 Hover an accessible inline `@` session mention in an editable document or

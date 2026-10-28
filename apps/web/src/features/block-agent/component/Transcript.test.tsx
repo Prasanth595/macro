@@ -45,7 +45,7 @@ vi.mock('./AgentMessage', () => ({
     </span>
   ),
 }));
-vi.mock('./ReplyToSelection', () => ({
+vi.mock('@app/components/reply-to-selection/ReplyToSelection', () => ({
   ReplyToSelection: (props: {
     container?: HTMLElement;
     onReply: (text: string) => void;

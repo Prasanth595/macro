@@ -52,6 +52,7 @@ export function AgentChangesProvider(props: ParentProps) {
         session.sessionId() !== undefined &&
         !session.loadFailed() &&
         (session.session()?.canEdit ?? true),
+      quote: session.quoteSelection,
     },
     canHaveChanges,
     pullRequestUrl,

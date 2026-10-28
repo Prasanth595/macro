@@ -102,6 +102,16 @@ markup and can break on an upgrade. Pierre re-creates an annotation's element
 when rows before it change and on every Unified/Split switch, so the draft lives
 in the layer or with the host (`draft` option), never in the rendered editor.
 
+## Selecting text
+
+The app makes text unselectable by default, and Pierre's lines inherit that from
+their host, so both Pierre wrappers (`PierreFileDiff` and the transcript's
+`PierreDiff`) opt the host back in. The wrapper names its file in
+`data-diff-path`; `pierre/selected-lines.ts` reads a selection's file and
+`LineRange` from Pierre's line markup through the shadow root, and
+`describeLineRange` words it. The quote-reply chip
+(`src/components/reply-to-selection`) uses both.
+
 `pierre/theme.ts` holds the theme signal and CSS variables every Pierre diff in
 the app shares, including the transcript's tool-call diffs. Examples, including
 review threads and a generated changeset of up to 500 files, live at

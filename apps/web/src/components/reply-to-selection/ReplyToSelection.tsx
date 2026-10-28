@@ -1,7 +1,8 @@
 /**
- * ChatGPT / Claude-style quote-reply: selecting transcript text shows a
- * "Reply to this" chip; choosing it hands the selected text to `onReply`
- * (the composer inserts it as a referenced paste chip).
+ * ChatGPT / Claude-style quote-reply: selecting transcript or diff text
+ * shows a "Reply to this" chip; choosing it hands the quote to `onReply`
+ * (the composer inserts it as a referenced paste chip). A quote from a diff
+ * leads with its file and lines.
  *
  * Positioning is the same `floatWithSelection` directive the format / mention
  * menus use. This component only decides when the chip is allowed to mount.
@@ -13,13 +14,14 @@ import { isMobile } from '@core/mobile/isMobile';
 import { debouncedDependent } from '@core/util/debounce';
 import Quote from '@icon/system/regular/quotes.svg';
 import { createSignal, onCleanup, Show } from 'solid-js';
-import { readReplyableSelection } from '../state/reply-selection';
+import { formatReplyQuote, readReplyableSelection } from './reply-selection';
 
 false && floatWithSelection;
 
 export function ReplyToSelection(props: {
   /** Selections outside this element (e.g. in the composer) are ignored. */
   container: HTMLElement | undefined;
+  /** Receives the quote: the selected text, after its file and lines. */
   onReply: (text: string) => void;
 }) {
   // On mobile the native selection toolbar takes this chip's place.
@@ -43,10 +45,10 @@ export function ReplyToSelection(props: {
   });
 
   const reply = () => {
-    const text = readReplyableSelection(props.container);
+    const selection = readReplyableSelection(props.container);
     document.getSelection()?.removeAllRanges();
     setDomSelection(undefined);
-    if (text) props.onReply(text);
+    if (selection) props.onReply(formatReplyQuote(selection));
   };
 
   return (
@@ -58,6 +60,7 @@ export function ReplyToSelection(props: {
             class="fixed top-0 left-0 z-highlight-menu flex items-center gap-1.5 rounded-full border border-edge bg-surface px-2.5 py-1 text-xs font-medium text-ink shadow-lg hover:overlay-hover"
             use:floatWithSelection={{
               selection: selection(),
+              anchor: () => readReplyableSelection(props.container)?.range,
               reactiveOnContainer: props.container,
               useBlockBoundary: true,
               moveWithSelection: true,
