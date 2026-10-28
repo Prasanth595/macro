@@ -11,12 +11,15 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Fixture root missing');
 
 function Fixture() {
+  const align = new URLSearchParams(location.search).has('align-start')
+    ? 'start'
+    : undefined;
   const [opened, setOpened] = createSignal('');
   return (
     <main class="min-h-screen bg-panel p-4 text-ink">
       <div id="results" class="w-full" style={{ 'max-width': '1100px' }}>
         <View title="Project tasks">
-          <Row>
+          <Row align={align}>
             <For each={['Project Alpha', 'Project Beta']}>
               {(project) => (
                 <Col>

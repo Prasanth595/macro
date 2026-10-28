@@ -81,7 +81,7 @@ export function Row(props: {
   return (
     <div
       class={cn(
-        '@container/results flex min-w-0 flex-col @2xl/results:flex-row',
+        '@container/results flex w-full min-w-0 flex-col @2xl/results:flex-row',
         // Container width, rather than viewport width, controls split-pane reflow.
         local.wrap
           ? '[&>*]:min-w-0 @2xl/results:[&>*]:min-w-40 @2xl/results:[&>*]:flex-1 @2xl/results:[&>*]:basis-40'
@@ -116,7 +116,7 @@ export function Col(props: {
   return (
     <div
       class={cn(
-        '@container/results flex min-w-0 flex-col',
+        '@container/results flex w-full min-w-0 flex-col',
         gapClass(local.gap),
         alignClass(local.align),
         justifyClass(local.justify),

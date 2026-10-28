@@ -60,3 +60,26 @@ for (const width of [1100, 480, 320]) {
     );
   });
 }
+
+test('aligned project groups keep their width when stacked', async ({
+  page,
+}) => {
+  await page.goto('/?align-start');
+  await page.locator('#results').evaluate((element) => {
+    element.style.maxWidth = '320px';
+  });
+  const groups = page.getByRole('region');
+  await expect(groups.first()).toBeVisible();
+  for (const group of await groups.all()) {
+    expect(
+      await group.evaluate((element) => element.clientWidth)
+    ).toBeGreaterThan(250);
+    const title = group.getByRole('button').first();
+    await expect(title).toBeVisible();
+    expect(
+      await title.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth
+      )
+    ).toBe(true);
+  }
+});

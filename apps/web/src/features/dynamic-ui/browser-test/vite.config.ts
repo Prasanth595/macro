@@ -15,6 +15,10 @@ export default defineConfig({
     solidSvg({ defaultAsComponent: true }),
     tsconfigPaths({ projects: [`${webDirectory}/tsconfig.json`] }),
   ],
+  optimizeDeps: {
+    esbuildOptions: { target: 'esnext' },
+    exclude: ['loro-crdt'],
+  },
   resolve: {
     dedupe: ['solid-js'],
   },
