@@ -3,7 +3,7 @@ import type { PropertyDefinitionWithOptions } from '@service-properties/generate
 import { waitFor } from '@solidjs/testing-library';
 import { QueryClient } from '@tanstack/solid-query';
 import { ok } from 'neverthrow';
-import { createRoot } from 'solid-js';
+import { createMemo, createRoot, createSignal, mapArray } from 'solid-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFileTypesSource, decodeFileTypes } from './file-types';
 
@@ -94,6 +94,42 @@ function mount(ids: string[] = []) {
 }
 
 describe('team file types', () => {
+  it('preserves a rename draft when the catalog refreshes', async () => {
+    const { properties, source } = mount();
+    const rows = createRoot((dispose) => {
+      disposals.push(dispose);
+      return createMemo(
+        mapArray(
+          () => source.data()?.options ?? [],
+          (option) => {
+            const [draft, setDraft] = createSignal(option.name);
+            return { option, draft, setDraft };
+          }
+        )
+      );
+    });
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    const row = rows()[0];
+    row.setDraft('Agreement');
+    properties.listProperties.mockResolvedValue(
+      ok([
+        {
+          ...definition,
+          property_options: definition.property_options.map((option) => ({
+            ...option,
+            value: { type: 'string', value: 'Updated contract' },
+          })),
+        },
+      ])
+    );
+
+    await source.refresh();
+
+    await waitFor(() => expect(rows()[0].option.name).toBe('Updated contract'));
+    expect(rows()[0]).toBe(row);
+    expect(rows()[0].draft()).toBe('Agreement');
+  });
+
   it('uses only the matching team property and rejects an incompatible definition', () => {
     expect(decodeFileTypes([definition], 'another-team')).toBeNull();
     expect(decodeFileTypes([definition], 'team')).toEqual({

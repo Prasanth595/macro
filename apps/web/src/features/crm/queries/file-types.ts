@@ -95,6 +95,7 @@ function catalogOptions(
       ),
     staleTime: 0,
     refetchInterval: 30_000,
+    reconcile: 'id',
   };
 }
 
