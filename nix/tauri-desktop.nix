@@ -895,6 +895,36 @@
             "sha256-OdEp5mw0l5Euj0ry7gzNVxdB0jlGUq0N7XINXUhtE+c=";
         };
       };
+      # Both Tauri workspaces build offline from their own vendor dirs. A
+      # src-tauri dependency added to one lockfile but not the other only failed
+      # the macOS release build, so resolve both lockfiles on Linux PRs too.
+      tauriCargoLockfilesCheck =
+        let
+          lockfileSrc = lib.fileset.toSource {
+            root = ../.;
+            fileset = lib.fileset.unions [
+              (cefCraneLib.fileset.commonCargoSources ../.)
+              ../apps/web/tauri/Cargo.lock
+              ../apps/web/tauri/desktop-cef/Cargo.lock
+            ];
+          };
+        in
+        pkgs.runCommand "tauri-cargo-lockfiles" { nativeBuildInputs = [ cefRustToolchain ]; } ''
+          cp -r ${lockfileSrc} source
+          chmod -R u+w source
+          resolve_offline() {
+            export CARGO_HOME="$TMPDIR/cargo-home-$2"
+            install -Dm0644 "$3/config.toml" "$CARGO_HOME/config.toml"
+            if ! cargo metadata --locked --offline --format-version 1 \
+              --manifest-path "source/$1" > /dev/null; then
+              echo "$1: Cargo.lock does not match its manifests. Run cargo metadata in that workspace and commit the lockfile." >&2
+              exit 1
+            fi
+          }
+          resolve_offline apps/web/tauri/Cargo.toml wry ${tauriCargoVendorDir}
+          resolve_offline apps/web/tauri/desktop-cef/Cargo.toml cef ${cefCargoVendorDir}
+          touch "$out"
+        '';
       cefCargoSources = cefCraneLib.fileset.commonCargoSources ../.;
       cefAppSrc = lib.fileset.toSource {
         root = ../.;
@@ -1301,6 +1331,7 @@
     {
       checks = lib.optionalAttrs isX86_64Linux {
         tauri-appimage-packaging = tauriAppImagePackagingTests;
+        tauri-cargo-lockfiles = tauriCargoLockfilesCheck;
       };
 
       apps = lib.optionalAttrs isLinux {
