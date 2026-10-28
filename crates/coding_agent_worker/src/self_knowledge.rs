@@ -37,7 +37,7 @@ pub(crate) struct SelfKnowledge {
 impl SelfKnowledge {
     /// Observe a message on its way to the agent, prefixing the runtime
     /// section to a new session's first prompt.
-    pub(crate) fn to_agent(&mut self, message: &mut Value) {
+    pub(crate) fn outbound(&mut self, message: &mut Value) {
         match message.get("method").and_then(Value::as_str) {
             Some("session/new") => {
                 let id = message
@@ -72,7 +72,7 @@ impl SelfKnowledge {
 
     /// Observe a message from the agent, learning which session a
     /// `session/new` answer created.
-    pub(crate) fn from_agent(&mut self, message: &Value) {
+    pub(crate) fn inbound(&mut self, message: &Value) {
         if message.get("method").is_some() {
             return;
         }

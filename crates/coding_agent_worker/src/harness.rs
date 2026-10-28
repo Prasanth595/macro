@@ -107,7 +107,7 @@ async fn relay(mut service: AcpChannel, mut agent: AcpChannel) {
                 if let TransportFrame::Single(message) = &frame
                     && let Ok(message) = serde_json::to_value(message)
                 {
-                    self_knowledge.from_agent(&message);
+                    self_knowledge.inbound(&message);
                 }
                 if service.tx.unbounded_send(frame).is_err() {
                     break;
@@ -124,7 +124,7 @@ fn teach(
     let Ok(mut value) = serde_json::to_value(&message) else {
         return message;
     };
-    self_knowledge.to_agent(&mut value);
+    self_knowledge.outbound(&mut value);
     serde_json::from_value(value).unwrap_or(message)
 }
 

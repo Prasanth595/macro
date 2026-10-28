@@ -52,20 +52,20 @@ fn only_a_new_sessions_first_prompt_carries_the_runtime_section() {
             "_meta": {"macro.com/permissionPolicy": "autoAccept"}
         }
     });
-    self_knowledge.to_agent(&mut open);
+    self_knowledge.outbound(&mut open);
     self_knowledge
-        .from_agent(&json!({"jsonrpc": "2.0", "id": 1, "result": {"sessionId": "acp-1"}}));
+        .inbound(&json!({"jsonrpc": "2.0", "id": 1, "result": {"sessionId": "acp-1"}}));
 
     let mut first = json!({
         "jsonrpc": "2.0", "id": 2, "method": "session/prompt",
         "params": {"sessionId": "acp-1", "prompt": [{"type": "text", "text": "hello"}]}
     });
-    self_knowledge.to_agent(&mut first);
+    self_knowledge.outbound(&mut first);
     let mut second = json!({
         "jsonrpc": "2.0", "id": 3, "method": "session/prompt",
         "params": {"sessionId": "acp-1", "prompt": [{"type": "text", "text": "again"}]}
     });
-    self_knowledge.to_agent(&mut second);
+    self_knowledge.outbound(&mut second);
 
     let expected = render(&SessionFacts {
         workspace: "/home/operator/code".to_owned(),
@@ -89,14 +89,14 @@ fn a_loaded_session_is_not_taught_again() {
         "jsonrpc": "2.0", "id": 1, "method": "session/load",
         "params": {"sessionId": "acp-1", "cwd": "/home/operator/code", "mcpServers": []}
     });
-    self_knowledge.to_agent(&mut load);
-    self_knowledge.from_agent(&json!({"jsonrpc": "2.0", "id": 1, "result": {}}));
+    self_knowledge.outbound(&mut load);
+    self_knowledge.inbound(&json!({"jsonrpc": "2.0", "id": 1, "result": {}}));
 
     let mut prompt = json!({
         "jsonrpc": "2.0", "id": 2, "method": "session/prompt",
         "params": {"sessionId": "acp-1", "prompt": [{"type": "text", "text": "hello"}]}
     });
-    self_knowledge.to_agent(&mut prompt);
+    self_knowledge.outbound(&mut prompt);
 
     assert_eq!(
         prompt["params"]["prompt"],
