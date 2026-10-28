@@ -146,3 +146,56 @@ test('record and board editors preserve outcome and currency', async ({
     page.getByRole('button', { name: /^Outcome: Won/ })
   ).toBeVisible();
 });
+
+test('clears editable cells in a range while retaining required outcome and currency', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: /^Notes: Follow up/ }).click();
+  await page.keyboard.press('Escape');
+  await page
+    .getByRole('button', { name: /^Revenue currency: USD/ })
+    .click({ modifiers: ['Shift'] });
+  await page.keyboard.press('Delete');
+  await expect(page.getByLabel('Pipeline writes')).toHaveText('1');
+  await expect(
+    page.getByRole('button', { name: /^Notes: Follow up/ })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: /^Revenue: USD 1,250.5/ })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: /^Outcome: Open/ })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /^Revenue currency: USD/ })
+  ).toBeVisible();
+});
+
+test.describe('localized monetary editing', () => {
+  test.use({ locale: 'de-DE' });
+  test('accepts locale decimals and preserves canonical raw editing', async ({
+    page,
+  }) => {
+    await page
+      .getByRole('button', { name: /^Revenue: USD 1.250,5/ })
+      .dblclick();
+    const amount = page.getByRole('textbox', { name: 'Edit Revenue' });
+    await expect(amount).toHaveValue('1250.5');
+    await amount.fill('2.345,6789');
+    await amount.press('Enter');
+    await expect(
+      page.getByRole('button', { name: /^Revenue: USD 2.345,6789/ })
+    ).toBeVisible();
+    await expect(page.getByLabel('Pipeline writes')).toHaveText('1');
+    await page
+      .getByRole('button', { name: /^Revenue: USD 2.345,6789/ })
+      .dblclick();
+    await expect(amount).toHaveValue('2345.6789');
+    await amount.fill('12.5');
+    await amount.press('Enter');
+    await expect(
+      page.getByRole('button', { name: /^Revenue: USD 12,5/ })
+    ).toBeVisible();
+    await expect(page.getByLabel('Pipeline writes')).toHaveText('2');
+  });
+});

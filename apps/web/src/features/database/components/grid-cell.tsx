@@ -31,6 +31,7 @@ import {
   type DatabaseEntityType,
   type DatabaseMention,
   inferDatabaseNumber,
+  parseMonetaryInput,
 } from '../core/column-inference';
 import {
   type DatabaseCellValue,
@@ -711,6 +712,10 @@ function InlineEditor(props: {
   const [focused, setFocused] = createSignal(false);
   const errorId = createUniqueId();
   let finishing = false;
+  const parseNumber = (value: string) =>
+    props.column.currencyColumnId
+      ? parseMonetaryInput(value)
+      : inferDatabaseNumber(value);
   const showingReference = () =>
     props.column.dataType === 'ENTITY' &&
     props.originalValue !== null &&
@@ -746,7 +751,7 @@ function InlineEditor(props: {
       props.draft.trim() === ''
         ? null
         : props.column.dataType === 'NUMBER'
-          ? inferDatabaseNumber(props.draft)
+          ? parseNumber(props.draft)
           : props.draft;
     if (value === undefined) {
       setError('Enter a valid number');
@@ -825,7 +830,7 @@ function InlineEditor(props: {
                 props.onDraft(event.currentTarget.value);
                 if (
                   event.currentTarget.value.trim() === '' ||
-                  inferDatabaseNumber(event.currentTarget.value) !== undefined
+                  parseNumber(event.currentTarget.value) !== undefined
                 )
                   setError('');
               }}

@@ -194,9 +194,9 @@ impl CommercialFields {
                             self.validate(&row.cells)?;
                         }
                     }
-                    _ => {}
+                    RowsChange::Delete { .. } => {}
                 },
-                _ => {}
+                DatabaseOp::Table { .. } | DatabaseOp::ReorderTables { .. } => {}
             }
         }
         Ok(())

@@ -34,7 +34,11 @@ Each row chooses its own currency for each amount. Currency options are fixed
 supported three-letter codes; USD is the documented default for existing values
 and new rows. This is a denomination assumption, never an exchange conversion.
 
-Display uses the currency code with locale number formatting. CSV stores the
+Display uses the currency code with locale number formatting. Money editors accept
+locale decimals and grouping as well as canonical dot-decimal input, which takes
+precedence where a separator is ambiguous. Editing still starts from the exact
+stored value. Bulk clearing skips required Outcome and currency cells.
+CSV stores the
 numeric amount and its currency in separate columns, and agents read/write the
 same fields. `ListPipelines` names each amount's `currencyField`, including after
 the amount is renamed. Imports without currency use USD; invalid currencies must fail

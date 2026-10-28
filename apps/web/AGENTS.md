@@ -149,6 +149,8 @@ CRM pipeline schema adapters supply `currencyColumnId`, `fixedOptions` and
 `defaultValue` to the shared database editor. Pass the complete row to cell
 formatting and group monetary calculations by currency; CSV keeps amounts and
 currency codes in separate columns. See the [outcome/currency design](../../docs/design/crm-outcome-currency.md).
+Keep locale-aware money input separate from strict first-entry inference, and
+exclude non-nullable fields from bulk clearing.
 
 Keep persistent list hotkeys free of mounted-view closures, and clear
 virtualizer accessors when their view unmounts.

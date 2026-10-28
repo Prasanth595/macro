@@ -12,8 +12,13 @@ it('formats money with its row denomination without guessing absent row context'
     options: [],
     currencyColumnId: 'currency',
   };
-  expect(formatCellValue(column, 12.5, { currency: 'EUR' })).toBe('EUR 12.5');
-  expect(formatCellValue(column, 12.5, {})).toBe('USD 12.5');
+  const amount = new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 6,
+  }).format(12.5);
+  expect(formatCellValue(column, 12.5, { currency: 'EUR' })).toBe(
+    `EUR ${amount}`
+  );
+  expect(formatCellValue(column, 12.5, {})).toBe(`USD ${amount}`);
   expect(formatCellValue(column, 12.5)).toBe('12.5');
 });
 

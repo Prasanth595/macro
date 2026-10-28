@@ -178,6 +178,38 @@ function Fixture() {
           if (
             op.kind === 'rows' &&
             op.change.kind === 'update' &&
+            op.change.changes.kind === 'uniform'
+          ) {
+            const changes = op.change.changes;
+            if (
+              changes.cells.some(
+                (cell) =>
+                  [id(4), id(9), id(11)].includes(cell.column) ||
+                  cell.value.type !== 'clear'
+              )
+            )
+              return errAsync([
+                {
+                  code: 'INVALID_OP' as const,
+                  message: 'Cannot clear a required field',
+                  refusal: null,
+                },
+              ]);
+            rows = rows.map((row) => {
+              if (!changes.rows.includes(row.rowId)) return row;
+              const cells = { ...row.cells };
+              for (const cell of changes.cells) delete cells[cell.column];
+              return { ...row, cells };
+            });
+            results.push({
+              kind: 'rows',
+              table: pipeline.tableId,
+              tableVersion: version,
+              change: { kind: 'updated', affected: changes.rows.length },
+            });
+          } else if (
+            op.kind === 'rows' &&
+            op.change.kind === 'update' &&
             op.change.changes.kind === 'per_row'
           ) {
             for (const change of op.change.changes.rows)
@@ -191,50 +223,60 @@ function Fixture() {
                         ...Object.fromEntries(
                           change.cells.flatMap(
                             (cell): [string, PropertyValue][] =>
-                              cell.value.type === 'text'
+                              cell.value.type === 'number'
                                 ? [
                                     [
                                       cell.column,
                                       {
-                                        type: 'String',
+                                        type: 'Number',
                                         value: cell.value.value,
                                       },
                                     ],
                                   ]
-                                : cell.value.type === 'options'
+                                : cell.value.type === 'text'
                                   ? [
                                       [
                                         cell.column,
                                         {
-                                          type: 'SelectOption',
-                                          value: cell.value.value.flatMap(
-                                            (option) => {
-                                              if ('id' in option)
-                                                return option.id
-                                                  ? [option.id]
-                                                  : [];
-                                              const matched = table.columns
-                                                .find(
-                                                  (column) =>
-                                                    column.column.id ===
-                                                    cell.column
-                                                )
-                                                ?.definition.property_options.find(
-                                                  (candidate) =>
-                                                    candidate.value.type ===
-                                                      'string' &&
-                                                    candidate.value.value ===
-                                                      option.label
-                                                );
-                                              return matched
-                                                ? [matched.id]
-                                                : [];
-                                            }
-                                          ),
+                                          type: 'String',
+                                          value: cell.value.value,
                                         },
                                       ],
                                     ]
-                                  : []
+                                  : cell.value.type === 'options'
+                                    ? [
+                                        [
+                                          cell.column,
+                                          {
+                                            type: 'SelectOption',
+                                            value: cell.value.value.flatMap(
+                                              (option) => {
+                                                if ('id' in option)
+                                                  return option.id
+                                                    ? [option.id]
+                                                    : [];
+                                                const matched = table.columns
+                                                  .find(
+                                                    (column) =>
+                                                      column.column.id ===
+                                                      cell.column
+                                                  )
+                                                  ?.definition.property_options.find(
+                                                    (candidate) =>
+                                                      candidate.value.type ===
+                                                        'string' &&
+                                                      candidate.value.value ===
+                                                        option.label
+                                                  );
+                                                return matched
+                                                  ? [matched.id]
+                                                  : [];
+                                              }
+                                            ),
+                                          },
+                                        ],
+                                      ]
+                                    : []
                           )
                         ),
                       },
