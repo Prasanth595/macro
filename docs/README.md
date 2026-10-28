@@ -10,3 +10,8 @@
 | [`agent-guide/`](agent-guide/) | How browser agents operate the app, not how to develop it. |
 
 Docs that belong to one app, service, or crate live next to its code.
+
+WhatsApp linked devices: [architecture](architecture/whatsapp-linked-devices.md)
+and [External view walkthrough](agent-guide/external.md).
+
+Document sync: [DSS sync router](architecture/sync-router.md).
