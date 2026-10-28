@@ -581,7 +581,8 @@ export function Appearance() {
               >
                 <ToggleSwitch
                   size="md"
-                  aria-label="Show git blame"
+                  label="Show git blame"
+                  labelClass="sr-only"
                   checked={editorPreferences.showGitBlame}
                   onChange={(value) =>
                     setEditorPreferences('showGitBlame', value)
@@ -594,7 +595,8 @@ export function Appearance() {
               >
                 <ToggleSwitch
                   size="md"
-                  aria-label="Show blame only while holding Alt"
+                  label="Show blame only while holding Alt"
+                  labelClass="sr-only"
                   checked={editorPreferences.blameOnlyWhileHoldingAlt}
                   disabled={!editorPreferences.showGitBlame}
                   onChange={(value) =>
