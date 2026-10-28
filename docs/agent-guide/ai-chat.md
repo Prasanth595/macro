@@ -680,6 +680,12 @@ icons instead of flashing back to loading placeholders. Check an answer with
 multiple mentions while more text arrives and when generation finishes, in both
 chat and agent sessions. A newly encountered mention may load once.
 
+If an agent reply stops inside a Macro mention chip, its unfinished trailing
+markup stays hidden after stopping and after reload, on desktop and mobile.
+Completed chips and the prose before the unfinished chip remain visible. Verify
+with a reply containing a completed mention followed by a partial mention: stop
+it, then reload. User-authored markup remains unchanged.
+
 On mobile, only the AI/Agents view has a floating AI composer above the bottom
 dock. Its input fills the row with no separate create button. Other views keep
 their right-aligned creation action: **+ Email**, **+ Task**, **+ Document**,

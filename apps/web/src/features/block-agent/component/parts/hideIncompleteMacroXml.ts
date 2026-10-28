@@ -1,5 +1,5 @@
 /**
- * Hide a trailing unclosed Macro mention tag so streaming text does not
+ * Hide a trailing unclosed Macro mention tag so agent text does not
  * flash raw `<m-document-mention>` XML. Complete tags stay intact.
  */
 export function hideIncompleteMacroXml(text: string): string {
