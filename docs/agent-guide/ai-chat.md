@@ -5,6 +5,12 @@ User-sent messages in chat and agent transcripts use an ink-colored bubble with
 lighter bubble with the normal text palette. Preview Markdown and controls at
 `/app/debug/ui?ui=invert-util` under **User-sent AI message**.
 
+Prompt bubbles show only user text: the private `<m-agent-context>` prefix
+stays in the agent payload but is stripped before Markdown rendering, for both
+the optimistic echo and stored prompts after reload. Queued previews and editors
+also hide it; editing a queued prompt preserves its private prefix on save.
+Verify with a context-bearing prompt before confirmation and after reload.
+
 A prompt shows a quiet line under its bubble (`data-testid="prompt-footer"`):
 when it was posted, and, for a prompt delivered from elsewhere (a mention, a
 follow-up in a discussion, an assigned task, a handoff, a routine run), where
