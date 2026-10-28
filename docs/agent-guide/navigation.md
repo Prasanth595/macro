@@ -653,6 +653,11 @@ in its own island at the right edge and opens the persistent Search… input and
 entity category pills (see [Search](search.md)). Once every view fits, the
 navigation island stops growing.
 
+The current view's button is full ink while the rest of the island dims; views
+with a filled glyph also swap to it. More carries that selected state while the
+open view is one of the destinations it hides, so the island always shows where
+you are. Search, on its own island, stays an action at full ink.
+
 Notifications, Email, and Channels use the same reactive unread-presence checks
 as the desktop sidebar, via `useNavigationUnread`. Their accent dots clear when
 the represented items are read or completed, not merely when opening a view.
