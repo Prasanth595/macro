@@ -29,6 +29,7 @@ import { ShareTrigger } from '@core/component/TopBar/ShareButton';
 import { useShareModal } from '@core/component/TopBar/shareModal';
 import { enableForms } from '@core/constant/featureFlags';
 import { isMobile } from '@core/mobile/isMobile';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { openExternalUrl } from '@core/util/url';
 import { useCopyLink } from '@core/util/useCopyLink';
@@ -198,7 +199,8 @@ function FormBlockContent(props: {
         when={props.respondOnly}
         fallback={
           <FormPageView
-            header={FormHeader}
+            // The touch header has no room for tabs beside the actions.
+            header={isTouchDevice() ? undefined : FormHeader}
             source={source}
             tab={tab()}
             respondLink={link()}

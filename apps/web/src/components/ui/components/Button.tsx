@@ -243,7 +243,9 @@ export const Button = (props: ButtonProps) => {
     >
       {(label) => (
         <Tooltip
-          class={local.fullWidth ? 'w-full' : undefined}
+          // The wrapper must not outgrow its container, or `max-w-full` on
+          // the button resolves against the wrapper and never truncates.
+          class={local.fullWidth ? 'w-full' : 'max-w-full'}
           hotkey={local.hotkey}
           shortcut={local.shortcut}
           placement={placement()}
