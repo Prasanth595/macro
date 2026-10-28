@@ -149,6 +149,7 @@ export class Sdk extends HeyApiClient {
             }
         });
     }
+    
     /**
      * Probe one provider's model catalog without creating an agent session.
      */
@@ -587,6 +588,7 @@ export class Sdk extends HeyApiClient {
             }
         });
     }
+    
     /**
      * Classify a draft for the authenticated user.
      */
@@ -600,6 +602,7 @@ export class Sdk extends HeyApiClient {
             }
         });
     }
+    
     /**
      * Extract editable fields for the authenticated user.
      */
